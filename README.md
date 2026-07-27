@@ -1,2 +1,3 @@
-# opendiving-ios
-OpenDiving iOS app
+# OpenDiving iOS App
+
+Native SwiftUI client for the OpenDiving API.
