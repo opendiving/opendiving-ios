@@ -1,17 +1,18 @@
 import Foundation
 
 struct User: Codable, Identifiable {
-    let id: Int
+    let uuid: UUID
     let name: String
     let username: String
     let email: String
     let profileImageUrl: String
-    let tierId: Int?
+
+    /// `Identifiable` conformance - the API's opaque public id for this user.
+    var id: UUID { uuid }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, username, email
+        case uuid, name, username, email
         case profileImageUrl = "profile_image_url"
-        case tierId = "tier_id"
     }
 }
 
