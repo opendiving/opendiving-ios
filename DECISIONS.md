@@ -6,12 +6,14 @@ updated as new gotchas are discovered.
 
 ## The refresh-token cookie requires real HTTPS, even for local dev
 
-`opendiving-api`'s `/login` sets the `refresh_token` cookie with `secure=True`.
-Browsers and `URLSession` alike will silently refuse to store/send a `Secure`
-cookie over plain HTTP. Point `APIClient.baseURL` at an HTTPS-reachable instance
-(a deployed environment, or a local server behind a real TLS cert/tunnel) - the
-refresh flow will fail silently (not with a clear error) if this is missed, since
-`URLSession`'s shared cookie storage just won't have anything to send.
+`opendiving-api`'s sign-in endpoints (`/auth/email/verify`, `/auth/google`,
+`/auth/complete` - see the backend's `DECISIONS.md`) set the `refresh_token` cookie
+with `secure=True`. Browsers and `URLSession` alike will silently refuse to
+store/send a `Secure` cookie over plain HTTP. Point `APIClient.baseURL` at an
+HTTPS-reachable instance (a deployed environment, or a local server behind a real
+TLS cert/tunnel) - the `POST /auth/refresh` flow will fail silently (not with a
+clear error) if this is missed, since `URLSession`'s shared cookie storage just
+won't have anything to send.
 
 ## Access token lives in the Keychain, not `UserDefaults`
 
