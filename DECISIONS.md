@@ -54,6 +54,15 @@ rather than assuming `detail` is always a string.
 using `ObservableObject`/`@Published`/`@StateObject` instead - decide the minimum
 supported iOS version early, since this affects every view model, not just this one.
 
+## `AuthAPI.currentUser()` calls a bare `user/`, not `user/me/`
+
+The backend consolidated its current-user-only routes onto a bare `/user` (no
+`/me`, no `{uuid}` - see the API's `DECISIONS.md`), as a first step toward
+separating "my account" from a future public-profile endpoint for *other* users.
+`AuthAPI.currentUser()` was updated to request `user/` instead of `user/me/`.
+There is currently no way to fetch another user's data through this API at all -
+that's deliberate until the public-profile endpoint exists.
+
 ## Repo layout is a placeholder
 
 This folder currently holds flat Swift files organized into `Models/`,

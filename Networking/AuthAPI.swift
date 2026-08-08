@@ -26,6 +26,6 @@ enum AuthAPI {
     }
 
     static func currentUser() async throws -> User {
-        try await APIClient.shared.request(path: "user/me/")
+        try await APIClient.shared.request(path: "user/")
     }
 }
