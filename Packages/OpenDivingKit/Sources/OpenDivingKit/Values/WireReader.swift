@@ -1,5 +1,6 @@
 /// A cursor over the ASCII of an ISO 8601 value, strict about the shapes the API writes:
-/// `YYYY-MM-DD`, then optionally `THH:MM[:SS[.fraction]]`, then optionally `Z` or `±HH:MM`.
+/// `YYYY-MM-DD`, then optionally `THH:MM[:SS[.fraction]]`, then optionally `Z`, `±HH:MM` or
+/// `±HHMM`.
 /// Hand-written rather than a date formatter, because no formatter keeps a naive value
 /// naive or a bare day dateless, and Foundation's ISO 8601 parsing differs on Linux.
 struct WireReader {
