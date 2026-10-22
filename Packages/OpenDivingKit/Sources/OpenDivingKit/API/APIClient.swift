@@ -102,7 +102,8 @@ public actor APIClient {
 
   /// `POST /auth/logout`, which revokes the session on the server. It wants a live access
   /// token as well as the cookie, so one that aged out is refreshed first, as on any other
-  /// route. Only a success clears the tokens here; a failure leaves the session as it was.
+  /// route. A failure that never reached the server, or any error but a refused session,
+  /// leaves the session as it was; a server that refuses the session ends it, as anywhere.
   public func signOut() async throws {
     let (data, response) = try await authorized(
       Call(method: "POST", path: "auth/logout", sendsRefreshCookie: true))

@@ -186,9 +186,9 @@ public final class Session {
     try? store.remember(user, for: client.origin)
   }
 
-  /// Revokes the session on the server, then forgets the token and the account here. A
-  /// failure changes nothing: an offline phone cannot sign out. The per-server directory
-  /// stays.
+  /// Revokes the session on the server, then forgets the token and the account here. An
+  /// offline phone cannot sign out: a failure that never reached the server, or any error but
+  /// a refused session, changes nothing. The per-server directory stays.
   public func signOut() async throws {
     let client = try requireClient()
     try await client.signOut()
