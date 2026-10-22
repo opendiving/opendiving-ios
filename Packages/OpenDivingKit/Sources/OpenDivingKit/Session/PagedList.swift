@@ -30,6 +30,9 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private let fetch: Fetch
   @ObservationIgnored private var nextPage = 1
   @ObservationIgnored private var generation = 0
+  /// A refresh of a list already on screen leaves its items and its phase alone while page 1
+  /// is on its way; a later page asked for in that window would be appended to the new page 1.
+  @ObservationIgnored private var isLoadingFirstPage = false
 
   public init(session: Session, itemsPerPage: Int = APIClient.listPageSize, fetch: @escaping Fetch)
   {
@@ -48,7 +51,7 @@ public final class PagedList<Item: Codable & Sendable> {
 
   /// The next page, when there is one and none is on its way.
   public func loadMore() async {
-    guard phase == .loaded, hasMore, !isLoadingMore else { return }
+    guard phase == .loaded, hasMore, !isLoadingMore, !isLoadingFirstPage else { return }
     isLoadingMore = true
     defer { isLoadingMore = false }
     let generation = generation
@@ -87,6 +90,8 @@ public final class PagedList<Item: Codable & Sendable> {
   private func loadFirstPage() async {
     generation += 1
     let generation = generation
+    isLoadingFirstPage = true
+    defer { if generation == self.generation { isLoadingFirstPage = false } }
     if items.isEmpty { phase = .loading }
     do {
       let client = try session.requireClient()

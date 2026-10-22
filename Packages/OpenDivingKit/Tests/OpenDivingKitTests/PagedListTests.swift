@@ -1,5 +1,6 @@
 import Foundation
 import OpenDivingKit
+import Synchronization
 import Testing
 
 #if canImport(FoundationNetworking)
@@ -65,6 +66,28 @@ struct PagedListTests {
     #expect(transport.requests.map(\.route).suffix(3) == ["GET user", "GET people", "GET trips"])
   }
 
+  @Test func noLaterPageIsAskedForWhileARefreshWaitsForPageOne() async throws {
+    let gate = Gate()
+    let transport = GatedTransport(inner: try transport(), gate: gate)
+    let list = trips(Session.stub(transport: transport))
+    await list.load()
+    await list.loadMore()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2"])
+
+    transport.arm()
+    let refreshing = Task { await list.refresh() }
+    await gate.untilArrived()
+    let sentBefore = transport.inner.requests.count
+    await list.loadMore()
+    #expect(transport.inner.requests.count == sentBefore)
+
+    await gate.open()
+    await refreshing.value
+    #expect(list.items.map(\.name) == ["Trip 1"])
+    await list.loadMore()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2"])
+  }
+
   @Test func aFailedFirstPageIsTheError() async throws {
     let list = trips(Session.stub(transport: try transport(failPage: 1)))
     await list.load()
@@ -81,5 +104,58 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1"])
     #expect(list.phase == .loaded)
     #expect(list.pageError != nil)
+  }
+}
+
+/// Holds one request until the test opens it, and says when that request has arrived.
+private actor Gate {
+  private var held: CheckedContinuation<Void, Never>?
+  private var arrival: CheckedContinuation<Void, Never>?
+  private var arrived = false
+
+  func pass() async {
+    arrived = true
+    arrival?.resume()
+    arrival = nil
+    await withCheckedContinuation { held = $0 }
+  }
+
+  func untilArrived() async {
+    guard !arrived else { return }
+    await withCheckedContinuation { arrival = $0 }
+  }
+
+  func open() {
+    held?.resume()
+    held = nil
+  }
+}
+
+/// Holds the first page-1 request sent after ``arm()`` at the ``Gate``.
+private final class GatedTransport: HTTPTransport {
+  let inner: StubTransport
+  private let gate: Gate
+  private let armed = Mutex(false)
+
+  init(inner: StubTransport, gate: Gate) {
+    self.inner = inner
+    self.gate = gate
+  }
+
+  func arm() {
+    armed.withLock { $0 = true }
+  }
+
+  func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    let isPageOne =
+      request.route == "GET trips" && request.url?.query?.contains("page=1&") == true
+    let hold =
+      isPageOne
+      && armed.withLock { armed in
+        defer { armed = false }
+        return armed
+      }
+    if hold { await gate.pass() }
+    return try await inner.send(request)
   }
 }
