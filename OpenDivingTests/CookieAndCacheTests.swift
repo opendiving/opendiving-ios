@@ -5,8 +5,11 @@ import Testing
 @testable import OpenDiving
 
 /// Over a real `URLSession` built from the app's configuration, with the answers stubbed
-/// beneath it: the refresh token reaches the secret store and nothing else, and no response
-/// lands in the shared cache, which `forget` cannot reach.
+/// beneath it. What this proves end to end is that the refresh token reaches the secret store
+/// off `Set-Cookie`, and that no response lands in the shared cache, which `forget` cannot
+/// reach. Its cookie-jar assertion is weaker: `URLSession` leaves a stubbed protocol's
+/// `Set-Cookie` out of the jar even with cookies on, so the jar being off is asserted on the
+/// transport's configuration itself, in the Kit's `URLSessionTransportTests`.
 @MainActor
 struct CookieAndCacheTests {
   @Test func signingInAndFetchingBytesLeaveNoCookieAndNoCachedResponse() async throws {

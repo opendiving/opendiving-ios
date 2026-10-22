@@ -22,6 +22,11 @@ public final class URLSessionTransport: HTTPTransport {
     session = URLSession(configuration: configuration)
   }
 
+  /// The configuration the session runs with, after the overrides above; for the tests.
+  var effectiveConfiguration: URLSessionConfiguration {
+    session.configuration
+  }
+
   public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
     let (data, response) = try await session.data(for: request)
     guard let http = response as? HTTPURLResponse else {
