@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in the iPhone app is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Something exploitable belongs in [private vulnerability reporting](https://github.com/opendiving/opendiving-ios/security/advisories/new), not here — the fix and the disclosure should arrive together.
+
+        Wrong data, a failed sign-in code or an import problem may be the server's: [opendiving-api](https://github.com/opendiving/opendiving-api/issues/new/choose). If you can't tell which side it is on, file it here and it will be moved.
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: The commit you built from — `git rev-parse --short HEAD` in your checkout.
+      placeholder: a1b2c3d
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: iPhone and iOS version
+      placeholder: iPhone 16, iOS 26.1
+    validations:
+      required: true
+
+  - type: input
+    id: server
+    attributes:
+      label: Server
+      description: opendiving.app, or your own instance and its version — `curl -s https://your-instance/api/v1/health` prints it.
+      placeholder: opendiving.app
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, and what the app did. A screenshot is worth a lot for anything visual.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output
+      description: Xcode's console, if you ran the app from it. Read it before pasting — a sign-in code or a token is a live credential.
+      render: shell
+    validations:
+      required: false
