@@ -1,0 +1,10 @@
+{
+  "status": "onboarding_required",
+  "access_token": null,
+  "token_type": null,
+  "onboarding_token": "onb",
+  "name": "Sam",
+  "restore_token": null,
+  "purge_after": null,
+  "email": "sam@example.com"
+}

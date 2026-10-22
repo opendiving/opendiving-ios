@@ -1,0 +1,20 @@
+{
+  "uuid": "01a0a5da-6c85-770b-a009-8c7b4044c060",
+  "name": "Solo Diver",
+  "agency": "sdi",
+  "agency_other": null,
+  "status": "completed",
+  "start_date": "2025-09-24",
+  "end_date": "2025-09-25",
+  "instructor_number": "00000",
+  "notes": "",
+  "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+  "contact_uuid": "01a0d9e9-bdd0-793a-829f-5dc90613f84f",
+  "people": [
+    {
+      "person_uuid": "01a0e2ed-1be6-72f8-8057-0b0caa945758",
+      "role": "instructor"
+    }
+  ],
+  "created_at": "2026-09-15T16:15:50.405687Z"
+}

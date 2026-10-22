@@ -1,0 +1,278 @@
+{
+  "uuid": "01a20000-0000-7000-8000-000000000001",
+  "entry_latitude": 28.420546,
+  "entry_longitude": 34.457623,
+  "exit_latitude": 28.420563,
+  "exit_longitude": 34.457658,
+  "dive_number": 212,
+  "start_time": "2021-04-04T10:04:00.5+02:00",
+  "submerged_time": 3243,
+  "max_depth": 23.41,
+  "avg_depth": 13.62,
+  "bottom_temperature": 27.2,
+  "visibility": 30,
+  "weight": 6.0,
+  "water_type": "lake",
+  "altitude": 372,
+  "type": "semi_closed",
+  "rating": 4,
+  "air_temperature": 24.0,
+  "current": "light",
+  "waves": "calm",
+  "weather": "clear",
+  "entry_type": "boat",
+  "boat_name": "Legend",
+  "notes": "Two computers, two tanks.",
+  "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+  "trip_uuid": null,
+  "course_uuid": null,
+  "contact_uuid": null,
+  "created_at": "2026-10-03T14:07:21.216050Z",
+  "dive_sites": [
+    {
+      "uuid": "01a20000-0000-7000-8000-0000000000a1",
+      "name": "Blue Hole",
+      "latitude": 28.5722,
+      "longitude": 34.5372,
+      "location": {
+        "name": "Dahab, South Sinai, Egypt",
+        "latitude": 28.4963633,
+        "longitude": 34.5145652,
+        "bbox_south": null,
+        "bbox_north": null,
+        "bbox_west": null,
+        "bbox_east": null
+      }
+    }
+  ],
+  "gear_items": [
+    {
+      "uuid": "01a20000-0000-7000-8000-0000000000b1",
+      "name": "Twinset",
+      "brand": "Faber",
+      "type": "cylinder",
+      "rented": false,
+      "is_archived": false,
+      "volume": 12.0,
+      "working_pressure": 232.0,
+      "material": "steel"
+    }
+  ],
+  "mixtures": [
+    {
+      "volume": 12.0,
+      "start_pressure": 200.0,
+      "end_pressure": 60.0,
+      "oxygen": 32.0,
+      "helium": null,
+      "po2_limit": 1.4,
+      "gas_number": 1,
+      "role": "bottom",
+      "usage": null,
+      "id": 101,
+      "gear_item": {
+        "uuid": "01a20000-0000-7000-8000-0000000000b1",
+        "name": "Twinset",
+        "brand": "Faber",
+        "type": "cylinder",
+        "rented": false,
+        "is_archived": false,
+        "volume": 12.0,
+        "working_pressure": 232.0,
+        "material": "steel"
+      }
+    },
+    {
+      "volume": 7.0,
+      "start_pressure": 200.0,
+      "end_pressure": 150.0,
+      "oxygen": 50.0,
+      "helium": null,
+      "po2_limit": null,
+      "gas_number": 2,
+      "role": "deco",
+      "usage": "staged",
+      "id": 102,
+      "gear_item": null
+    }
+  ],
+  "sightings": [
+    {
+      "uuid": "01a20000-0000-7000-8000-0000000000c1",
+      "scientific_name": "Amphiprion bicinctus",
+      "common_name": "Twoband anemonefish",
+      "rank": "Species",
+      "photo_sha256": "ab12",
+      "count": 3,
+      "abundance": null,
+      "notes": ""
+    },
+    {
+      "uuid": "01a20000-0000-7000-8000-0000000000c2",
+      "scientific_name": "Muraenidae",
+      "common_name": null,
+      "rank": "Family",
+      "photo_sha256": null,
+      "count": null,
+      "abundance": "teeming",
+      "notes": "By the arch"
+    }
+  ],
+  "people": [
+    {
+      "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d",
+      "role": "buddy"
+    },
+    {
+      "person_uuid": "01a0e2ed-1be2-7069-b3e3-7ffb32797bd0",
+      "role": null
+    }
+  ],
+  "tags": [
+    "deep",
+    "wall"
+  ],
+  "recordings": [
+    {
+      "cns_start": null,
+      "cns_end": 14.0,
+      "otu_start": null,
+      "otu_end": 37.0,
+      "surface_pressure_bar": null,
+      "uuid": "01a10217-4283-7ce1-ab0b-90d3adfed77d",
+      "ordinal": 0,
+      "device": {
+        "brand": "Suunto",
+        "model": "Suunto Ocean",
+        "serial": "000000000000",
+        "firmware": "2.51.28",
+        "name": "My Computer",
+        "dive_number": 2
+      },
+      "mode": null,
+      "deco_model": {
+        "algorithm": null,
+        "name": null,
+        "gf_low": 50,
+        "gf_high": 85,
+        "conservatism": null
+      },
+      "salinity": null,
+      "started_at": "2021-04-04T10:04:00.5+02:00",
+      "files": [
+        {
+          "uuid": "01a10217-4287-7034-a4ca-c1053ac50c5b",
+          "original_filename": "6abfb404aa1098559eda5053.json",
+          "content_type": "application/json",
+          "byte_size": 1299979,
+          "parser_key": "suunto_json",
+          "updated_at": null
+        },
+        {
+          "uuid": "01a10219-28d8-75f7-b181-cbae4898e6e0",
+          "original_filename": "6abfb404aa1098559eda5053.fit",
+          "content_type": "application/vnd.ant.fit",
+          "byte_size": 26335,
+          "parser_key": "fit",
+          "updated_at": null
+        }
+      ],
+      "profile": {
+        "uuid": "01a1295d-3b76-7a05-a6c7-7cac0a28b57f",
+        "duration": 3544010,
+        "depth_sample_count": 359,
+        "provenance": "file",
+        "channels": [
+          "depth",
+          "temperature",
+          "pressure",
+          "ndl",
+          "tts",
+          "gradient_factor",
+          "surface_gradient_factor"
+        ],
+        "event_count": 1,
+        "max_depth": 23.41,
+        "max_ceiling": null,
+        "min_temperature": 27.19,
+        "max_temperature": 28.62,
+        "min_pressure": 78.5,
+        "max_pressure": 130.0,
+        "updated_at": null
+      },
+      "updated_at": null
+    },
+    {
+      "cns_start": 8.0,
+      "cns_end": 9.0,
+      "otu_start": 22.0,
+      "otu_end": 23.0,
+      "surface_pressure_bar": 1.013,
+      "uuid": "01a20000-0000-7000-8000-0000000000d2",
+      "ordinal": 1,
+      "device": {
+        "brand": "Shearwater",
+        "model": "Perdix 2",
+        "serial": null,
+        "firmware": null,
+        "name": null,
+        "dive_number": null
+      },
+      "mode": "closed_circuit",
+      "deco_model": {
+        "algorithm": "buhlmann",
+        "name": "ZHL-16C",
+        "gf_low": 30,
+        "gf_high": 70,
+        "conservatism": -1
+      },
+      "salinity": "en13319",
+      "started_at": "2021-04-04T10:05:10",
+      "files": [],
+      "profile": {
+        "uuid": "01a20000-0000-7000-8000-0000000000e2",
+        "duration": 3544010,
+        "depth_sample_count": 359,
+        "provenance": "divejson_import",
+        "channels": [
+          "depth",
+          "ceiling",
+          "temperature",
+          "pressure",
+          "ndl",
+          "tts",
+          "ppo2",
+          "cns",
+          "gradient_factor",
+          "surface_gradient_factor"
+        ],
+        "event_count": null,
+        "max_depth": 23.41,
+        "max_ceiling": null,
+        "min_temperature": 27.19,
+        "max_temperature": 28.62,
+        "min_pressure": 78.5,
+        "max_pressure": 130.0,
+        "updated_at": null
+      },
+      "updated_at": null
+    }
+  ],
+  "gas_use": {
+    "gas_used": 1800.0,
+    "rmv": 14.29,
+    "sac_bar_per_min": null,
+    "tanks": [
+      {
+        "gas_number": 1,
+        "gas_used": 1680.0,
+        "rmv": 14.0,
+        "sac_bar_per_min": 1.19,
+        "seconds_on_gas": 2355,
+        "mean_depth": 24.8
+      }
+    ],
+    "attributed_seconds": 2355,
+    "duration": 2900
+  }
+}

@@ -16,3 +16,8 @@ struct RatingStars: View {
     .accessibilityLabel("\(rating) of \(Self.maximum) stars")
   }
 }
+
+#Preview {
+  RatingStars(rating: 3)
+    .padding()
+}
