@@ -7,8 +7,8 @@ self-hosting bundle — a local instance is a `docker compose up` away.
 
 ## What you need
 
-- A Mac with **Xcode 26.6 or later** and an iOS simulator runtime (Xcode → Settings → Components).
-  CI builds with 26.6 and the maintainers with 27, so the project has to build under both.
+- A Mac with **Xcode 26.3 or later** and an iOS simulator runtime (Xcode → Settings → Components).
+  CI builds with 26.3 and the maintainers with 27, so the project has to build under both.
 - **[XcodeGen](https://github.com/yonaskolb/XcodeGen)**, which writes the Xcode project:
   `brew install xcodegen`.
 

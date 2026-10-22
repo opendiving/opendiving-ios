@@ -39,12 +39,15 @@ jobs:
       - name: Test the Kit
         run: swift test --package-path Packages/OpenDivingKit
 
-  # The app and both test bundles, on a simulator, with the image's default Xcode. The
-  # project has to build under the maintainers' newer Xcode as well; that half is checked
-  # locally, since no generally available runner image carries it yet.
+  # The app and both test bundles, on a simulator. The image and the Xcode on it are named
+  # rather than left to defaults; see DECISIONS.md, "CI builds the app on macos-15 with
+  # Xcode 26.3". The project has to build under the maintainers' newer Xcode as well, which
+  # is checked locally.
   app-macos:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 
     steps:
       - uses: actions/checkout@v7

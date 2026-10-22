@@ -56,6 +56,13 @@ CI tests the Kit on Linux, so it imports neither UIKit, SwiftUI nor Security —
 protocol with its one conformance in the app target, and the Kit's tests use a fake. Rejected: a
 second package for the Apple half, a manifest and a target for each such type.
 
+## CI builds the app on macos-15 with Xcode 26.3
+
+`app-macos` runs on `macos-15` with `DEVELOPER_DIR` naming Xcode 26.3, which carries the iOS 26.2
+SDK. `macos-26` is not offered to this organization, the image's default Xcode (16.4) predates
+the Kit's tools version, and `macos-latest` names an image that moves without a change here. So
+nothing in the project or the sources may need a newer SDK, unless behind an availability check. Move the job to a newer label, and its Xcode with it, once one is offered.
+
 ## CI pins the Linux toolchain to a patch release
 
 The Linux job runs in `swift:6.4.0-noble`, not the floating `swift:6.4-noble`, because it is also
