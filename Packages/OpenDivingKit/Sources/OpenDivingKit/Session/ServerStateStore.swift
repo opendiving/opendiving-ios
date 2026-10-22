@@ -62,8 +62,7 @@ public struct ServerStateStore: Sendable {
   /// Whether the phone holds anything for this server: a token, a remembered account or a
   /// directory.
   public func hasState(_ origin: ServerOrigin) -> Bool {
-    let hasSecret = ((try? secrets.secret(for: origin.description)) ?? nil) != nil
-    return hasSecret || exists(userFile(for: origin)) || exists(directory(for: origin))
+    hasRefreshToken(origin) || exists(userFile(for: origin)) || exists(directory(for: origin))
   }
 
   func hasRefreshToken(_ origin: ServerOrigin) -> Bool {
