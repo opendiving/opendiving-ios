@@ -1,0 +1,84 @@
+# The source of truth for OpenDiving.xcodeproj, which is generated and never tracked:
+# run `xcodegen generate` after a checkout and after editing this file. Sources are
+# synchronized folders, so adding a Swift file needs neither an edit here nor a regenerate.
+name: OpenDiving
+
+options:
+  projectFormat: xcode16_0
+  deploymentTarget:
+    iOS: "18.0"
+
+packages:
+  OpenDivingKit:
+    path: Packages/OpenDivingKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  OpenDiving:
+    type: application
+    platform: iOS
+    sources:
+      - path: OpenDiving/Sources
+        type: syncedFolder
+    dependencies:
+      - package: OpenDivingKit
+    # Carries the bundle identifier and the optional, gitignored signing file. See
+    # CONTRIBUTING.md, "Running on your iPhone".
+    configFiles:
+      Debug: Config/OpenDiving.xcconfig
+      Release: Config/OpenDiving.xcconfig
+    settings:
+      base:
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+    info:
+      path: OpenDiving/Info.plist
+      properties:
+        CFBundleDisplayName: OpenDiving
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: >-
+          OpenDiving connects to the server you choose, which can be one on your local network.
+
+  OpenDivingTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OpenDivingTests
+        type: syncedFolder
+    dependencies:
+      - target: OpenDiving
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.opendiving.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1"
+
+schemes:
+  OpenDiving:
+    build:
+      targets:
+        OpenDiving: all
+    test:
+      gatherCoverageData: false
+      targets:
+        - OpenDivingTests
+        - package: OpenDivingKit/OpenDivingKitTests

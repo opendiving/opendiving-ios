@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# A new push to a PR cancels the run still going for the previous one: the macOS job is
+# the expensive one, and only the newest head's result can count. Runs on `main` are
+# never cancelled, so every commit there keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Both jobs only read the repository. `persist-credentials: false` keeps the token out of
+# `.git/config` in a workspace that then builds and runs this repository's code.
+permissions:
+  contents: read
+
+jobs:
+  # The Kit on Linux, which is what keeps it free of UIKit, SwiftUI and Security, and the
+  # format lint. The container pins the toolchain to the patch release the maintainers'
+  # Xcode ships, so the formatter here is the one `swift format` runs locally; see
+  # DECISIONS.md, "CI pins the Linux toolchain to a patch release".
+  kit-linux:
+    runs-on: ubuntu-latest
+    container: swift:6.4.0-noble
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Lint formatting
+        run: swift format lint --strict --recursive .
+
+      - name: Test the Kit
+        run: swift test --package-path Packages/OpenDivingKit
+
+  # The app and both test bundles, on a simulator, with the image's default Xcode. The
+  # project has to build under the maintainers' newer Xcode as well; that half is checked
+  # locally, since no generally available runner image carries it yet.
+  app-macos:
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      - name: Show the toolchain
+        run: xcodebuild -version
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project OpenDiving.xcodeproj \
+            -scheme OpenDiving \
+            -destination "id=$(scripts/simulator.sh)" \
+            -derivedDataPath .build

@@ -1,0 +1,8 @@
+// The app target's identity. Signing.local.xcconfig, at the repository root and
+// gitignored, is read last so that what it sets wins: DEVELOPMENT_TEAM always, and
+// PRODUCT_BUNDLE_IDENTIFIER for anyone whose team cannot register this one. Without
+// the file a simulator build needs neither.
+PRODUCT_BUNDLE_IDENTIFIER = app.opendiving.ios
+DEVELOPMENT_TEAM =
+
+#include? "../Signing.local.xcconfig"

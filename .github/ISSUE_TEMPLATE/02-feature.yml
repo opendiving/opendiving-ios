@@ -1,0 +1,19 @@
+name: Feature request
+description: Something the iPhone app should do and does not
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem, as a diver rather than as a patch — what you wanted to see or do on the phone, and where it stopped.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would solve it?
+      description: Only if you have something in mind. A well-described problem is worth more than a half-designed solution, and this box is fine left empty.
+    validations:
+      required: false
