@@ -8,7 +8,7 @@ Choices the code cannot explain by itself. Each says what was chosen, what was r
 Anything credential-shaped the app keeps across launches is a Keychain item, keyed by server
 origin. `UserDefaults` is a plist on disk, unencrypted at rest and included in backups. The refresh
 token does not live in `HTTPCookieStorage` either, although the API sends it as a cookie: the app
-reads it off `Set-Cookie`, stores it itself and sends it back on the two routes that want it, so
+reads it off `Set-Cookie`, stores it itself and sends it back on the routes that read it and no other, so
 that it can be keyed, wiped and protected per server. The Kit declares the store as a protocol and
 the app target conforms it over the Keychain, which keeps `Security` out of the Kit.
 

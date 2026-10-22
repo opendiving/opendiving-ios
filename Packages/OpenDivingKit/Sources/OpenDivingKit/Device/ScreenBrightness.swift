@@ -1,6 +1,6 @@
-/// The screen's backlight, as the full-screen card view raises it and puts it back. The app
-/// target conforms it over its window scene's screen; the Kit's tests conform it with a
-/// fake, which is why it is a protocol rather than a call into UIKit.
+/// The screen's backlight, as the full-screen card view raises it and puts it back. A
+/// protocol because the Kit builds where UIKit does not exist: the app target conforms it
+/// over its window scene's screen, and a view model's tests over a fake.
 @MainActor
 public protocol ScreenBrightness: AnyObject {
   /// The current level, from 0 to 1.
