@@ -28,6 +28,17 @@ and any `Date` loses the difference between them. `DiveTimestamp` keeps three st
 `CalendarDate` is every date-only field — trip parts, `certified_on`, `expires_on` — so that no day
 passes through a UTC-midnight `Date`, which a zone west of UTC prints as the day before.
 
+## Every figure prints as the web prints it, not as the phone's locale would
+
+The Kit's formatters are ports of the web's and agree with it to the character: `UnitFormat`,
+`DateText` and the profile readouts write `30.52 m`, `Apr 4, 2021, 10:04` and `21.6°C` in
+every region, because the web pins `en-US` and the two are compared side by side. So nothing
+under `Formatting/` reads a `Locale`, and a test fails if anything does. Numbers go
+through `NumberText`, which reproduces JavaScript's `String(n)`, `toFixed` and `Math.round`:
+Swift's `"\(28.0)"`, a tie-to-even `%.0f` and `rounded()` each print a plausible figure that
+disagrees with the web. Rejected: `FormatStyle` and `MeasurementFormatter`, which localise
+correctly and would contradict the web on the same account. Change one side, change both.
+
 ## A mixture's `id` is never sent back
 
 A dive mixture's `id` is the API's internal integer. A write replaces a dive's mixtures wholesale
