@@ -51,13 +51,17 @@ struct SettingsModelTests {
   }
 
   @Test func unitsReadAsTheAccountHasThem() async throws {
+    let user = try KitFixture.text("user")
+    let imperial = user.replacingOccurrences(
+      of: #""units": "metric""#, with: #""units": "imperial""#)
+    #expect(imperial != user)
     let (model, _, session, _) = try signedIn([
-      "GET user": .json(try KitFixture.text("user")),
+      "GET user": .json(imperial),
       "GET people": .json(try KitFixture.text("people-page")),
     ])
     #expect(model.unitsLabel == "Metric")
     try await session.loadAccount()
-    #expect(model.unitsLabel == (session.user?.units == .imperial ? "Imperial" : "Metric"))
+    #expect(model.unitsLabel == "Imperial")
   }
 
   @Test func aFailedSignOutKeepsTheSessionAndSaysWhy() async throws {

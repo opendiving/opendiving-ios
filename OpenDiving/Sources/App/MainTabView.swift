@@ -1,3 +1,4 @@
+import OpenDivingKit
 import SwiftUI
 
 enum AppTab: Hashable {
@@ -31,5 +32,8 @@ struct MainTabView: View {
 }
 
 #Preview {
+  let session = Session.stub(transport: StubTransport(routes: [:]))
   MainTabView()
+    .environment(session)
+    .environment(SignInFlow(session: session))
 }
