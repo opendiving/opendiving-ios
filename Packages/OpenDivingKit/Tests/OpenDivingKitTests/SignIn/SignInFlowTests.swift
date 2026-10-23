@@ -104,8 +104,10 @@ struct SignInFlowTests {
     notAnInstance.setServerText("https://dive.example.org")
     await notAnInstance.continueToServer()
 
+    // Linux's Foundation has no ATS code and makes this initializer failable; Darwin's is not.
+    let atsCode: URLError.Code? = URLError.Code(rawValue: -1022)
     let ats = SignInFlow(
-      session: session(pointer: nil, transport: Self.failing(URLError.Code(rawValue: -1022))))
+      session: session(pointer: nil, transport: Self.failing(try #require(atsCode))))
     ats.setServerText("http://dive.example.org")
     await ats.continueToServer()
 
