@@ -29,7 +29,7 @@ struct CheckinSheetStoreTests {
     for path in paths {
       let url = root.appendingPathComponent(path)
       var isDirectory: ObjCBool = false
-      FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+      _ = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
       if !isDirectory.boolValue { files[path] = try Data(contentsOf: url) }
     }
     return files
