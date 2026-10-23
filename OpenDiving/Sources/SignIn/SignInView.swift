@@ -32,13 +32,13 @@ struct SignInView: View {
     case .onboardingRequired(let email, _):
       OutcomeScreen(
         title: "Finish signing up on the web", systemImage: "person.crop.circle.badge.questionmark",
-        message: OutcomeScreen.onboardingMessage(email: email, origin: flow.origin),
+        message: SignInFlow.onboardingMessage(email: email, origin: flow.origin),
         origin: flow.origin
       ) { flow.useDifferentEmail() }
     case .deletionPending(let email, let purgeAfter):
       OutcomeScreen(
         title: "This account is scheduled for deletion", systemImage: "trash",
-        message: OutcomeScreen.deletionMessage(
+        message: SignInFlow.deletionMessage(
           email: email, purgeAfter: purgeAfter, origin: flow.origin),
         origin: flow.origin
       ) { flow.useDifferentEmail() }

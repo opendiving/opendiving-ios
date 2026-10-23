@@ -101,6 +101,18 @@ struct SettingsModelTests {
     #expect(flow.step == .email)
   }
 
+  @Test func aForgetThatFailsIsShownInSettings() async throws {
+    let session = Session(
+      transport: StubTransport(routes: [:]), secrets: RefusingSecretStore(),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: FileManager.default.temporaryDirectory
+        .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
+      userAgent: ClientHarness.userAgent)
+    let model = SettingsModel(session: session, signIn: SignInFlow(session: session))
+    await model.forget()
+    #expect(model.error?.contains("could not remove everything") == true)
+  }
+
   @Test func forgettingAnOfflineServerRemovesItAnyway() async throws {
     let (model, flow, session, transport) = try signedIn([
       "POST auth/refresh": .json(#"{"detail":"Bad gateway"}"#, status: 502)
@@ -111,4 +123,13 @@ struct SettingsModelTests {
     #expect(!session.hasState(origin))
     #expect(flow.notice?.contains("Signing out on the server failed") == true)
   }
+}
+
+/// A Keychain holding a token it will not give up.
+private final class RefusingSecretStore: SecretStore {
+  struct Refused: Error {}
+
+  func secret(for account: String) throws -> String? { "refresh-0" }
+  func setSecret(_ value: String, for account: String) throws {}
+  func removeSecret(for account: String) throws { throw Refused() }
 }

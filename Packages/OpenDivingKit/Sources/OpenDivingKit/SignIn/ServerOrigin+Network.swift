@@ -6,6 +6,7 @@ extension ServerOrigin {
   /// dot, or a private, link-local or unique-local address. Loopback is the phone itself and is
   /// not gated.
   public var isLocalNetwork: Bool {
+    if host == "localhost" || host.hasSuffix(".localhost") { return false }
     if host.hasSuffix(".local") { return true }
     if let octets = Self.ipv4(host) {
       switch (octets[0], octets[1]) {

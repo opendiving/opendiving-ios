@@ -10,21 +10,6 @@ struct OutcomeScreen: View {
   let origin: ServerOrigin?
   let back: () -> Void
 
-  static func onboardingMessage(email: String?, origin: ServerOrigin?) -> String {
-    let account = email.map { "The account for \($0)" } ?? "This account"
-    return account + " isn't finished yet. Sign-up is completed on the web, at "
-      + (origin?.description ?? "this server") + "; then sign in here."
-  }
-
-  static func deletionMessage(email: String?, purgeAfter: String?, origin: ServerOrigin?)
-    -> String
-  {
-    let account = email.map { "The account for \($0)" } ?? "This account"
-    let when = purgeAfter.map { " after \($0)" } ?? ""
-    return account + " is scheduled to be deleted" + when + ". Until then it can be restored"
-      + " on the web, at " + (origin?.description ?? "this server") + "."
-  }
-
   var body: some View {
     ContentUnavailableView {
       Label(title, systemImage: systemImage)
@@ -47,7 +32,7 @@ struct OutcomeScreen: View {
   NavigationStack {
     OutcomeScreen(
       title: "Finish signing up on the web", systemImage: "person.crop.circle.badge.questionmark",
-      message: OutcomeScreen.onboardingMessage(email: "sam@example.com", origin: origin),
+      message: SignInFlow.onboardingMessage(email: "sam@example.com", origin: origin),
       origin: origin
     ) {}
   }
@@ -58,7 +43,7 @@ struct OutcomeScreen: View {
   NavigationStack {
     OutcomeScreen(
       title: "This account is scheduled for deletion", systemImage: "trash",
-      message: OutcomeScreen.deletionMessage(
+      message: SignInFlow.deletionMessage(
         email: "sam@example.com", purgeAfter: "Nov 21, 2026", origin: origin),
       origin: origin
     ) {}

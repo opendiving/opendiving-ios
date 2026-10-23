@@ -11,7 +11,7 @@ struct ServerScreen: View {
     Form {
       if let notice = flow.notice {
         Section {
-          Label(notice, systemImage: "checkmark.circle")
+          Label(notice, systemImage: "info.circle")
         }
       }
       Section {

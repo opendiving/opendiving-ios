@@ -35,7 +35,8 @@ public final class SignInFlow {
   /// The typed origin, when the phone holds something for it that forgetting would remove —
   /// offered whether or not the server answers, since forgetting needs no server.
   public private(set) var forgettableOrigin: ServerOrigin?
-  /// What the last *Forget* did, shown on the server screen it lands on.
+  /// What the last *Forget* did, shown on the signed-out screen it lands on — the server
+  /// screen when it worked, the screen it started from when it did not.
   public private(set) var notice: String?
 
   public private(set) var email = ""
@@ -114,6 +115,7 @@ public final class SignInFlow {
 
   public func cancelServerChange() {
     guard canCancelServerChange else { return }
+    notice = nil
     serverProblem = nil
     restart(at: .email)
   }
@@ -121,8 +123,10 @@ public final class SignInFlow {
   /// Signs out of `origin` when signed in to it, then removes everything kept for it whether
   /// or not that worked — a server that is gone can never answer the sign-out, and its sheet
   /// would otherwise stay on the phone for good. A failed sign-out is reported, not a reason
-  /// to stop.
-  public func forget(_ origin: ServerOrigin) async {
+  /// to stop. False when something kept for the server could not be removed, which
+  /// ``notice`` then says.
+  @discardableResult
+  public func forget(_ origin: ServerOrigin) async -> Bool {
     var signOutFailure: String?
     if session.state == .signedIn(origin) {
       do {
@@ -139,7 +143,7 @@ public final class SignInFlow {
       notice =
         "This phone could not remove everything kept for \(origin): \(error.localizedDescription)"
       refreshForgettable()
-      return
+      return false
     }
     var message =
       "Removed everything this phone kept for \(origin): its sign-in, account"
@@ -156,6 +160,7 @@ public final class SignInFlow {
       restart(at: .email)
     }
     refreshForgettable()
+    return true
   }
 
   // MARK: - The email screen
@@ -173,6 +178,7 @@ public final class SignInFlow {
   public func sendCode() async {
     guard canSendCode else { return }
     let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
+    notice = nil
     isRequestingCode = true
     defer { isRequestingCode = false }
     do {

@@ -219,6 +219,18 @@ struct SignInFlowTests {
     #expect(flow.notice?.contains("Signing out on the server failed") == true)
   }
 
+  @Test func aForgetThatCannotRemoveTheTokenSaysSoWhereItStarted() async {
+    let session = Session(
+      transport: Self.failing(.notConnectedToInternet), secrets: UnremovableSecretStore(),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session)
+    #expect(await flow.forget(origin) == false)
+    #expect(session.state == .signingIn(origin))
+    #expect(flow.step == .email)
+    #expect(flow.notice?.contains("could not remove everything") == true)
+  }
+
   // MARK: - The email and the code
 
   @Test func anEmailLeadsToTheCode() async throws {
@@ -321,6 +333,27 @@ struct SignInFlowTests {
     #expect(session.state == .signingIn(origin))
   }
 
+  @Test func theOutcomeSentences() {
+    let origin = ServerOrigin("https://opendiving.app")
+    #expect(
+      SignInFlow.onboardingMessage(email: "sam@example.com", origin: origin)
+        == "The account for sam@example.com isn't finished yet. Sign-up is completed on the web,"
+        + " at https://opendiving.app; then sign in here.")
+    #expect(
+      SignInFlow.onboardingMessage(email: nil, origin: nil)
+        == "This account isn't finished yet. Sign-up is completed on the web, at this server;"
+        + " then sign in here.")
+    #expect(
+      SignInFlow.deletionMessage(
+        email: "sam@example.com", purgeAfter: "Nov 21, 2026", origin: origin)
+        == "The account for sam@example.com is scheduled to be deleted after Nov 21, 2026. Until"
+        + " then it can be restored on the web, at https://opendiving.app.")
+    #expect(
+      SignInFlow.deletionMessage(email: nil, purgeAfter: nil, origin: nil)
+        == "This account is scheduled to be deleted. Until then it can be restored on the web,"
+        + " at this server.")
+  }
+
   @Test func resendWaitsThirtySeconds() async throws {
     let clock = TestClock(Date(timeIntervalSince1970: 1_000_000))
     let transport = StubTransport(
@@ -353,4 +386,13 @@ private final class TestClock {
   init(_ date: Date) {
     self.date = date
   }
+}
+
+/// A Keychain whose items cannot be removed.
+private final class UnremovableSecretStore: SecretStore {
+  struct Refused: Error {}
+
+  func secret(for account: String) throws -> String? { nil }
+  func setSecret(_ value: String, for account: String) throws {}
+  func removeSecret(for account: String) throws { throw Refused() }
 }

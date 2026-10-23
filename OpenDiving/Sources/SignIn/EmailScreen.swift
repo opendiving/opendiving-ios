@@ -11,6 +11,12 @@ struct EmailScreen: View {
 
   var body: some View {
     Form {
+      if let notice = flow.notice {
+        Section {
+          Label(notice, systemImage: "exclamationmark.triangle")
+            .foregroundStyle(.red)
+        }
+      }
       Section {
         LabeledContent("Server", value: origin.description)
         if !origin.isEncrypted {
