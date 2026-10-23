@@ -1,0 +1,179 @@
+{
+  "duration": 30000,
+  "depth": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      0,
+      1520,
+      3010,
+      450
+    ]
+  },
+  "ceiling": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      0,
+      0,
+      300,
+      0
+    ]
+  },
+  "temperature": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      2719,
+      2701,
+      2650,
+      2690
+    ]
+  },
+  "pressures": [
+    {
+      "times": [
+        0,
+        10000,
+        20000,
+        30000
+      ],
+      "values": [
+        2000,
+        1900,
+        1800,
+        1700
+      ],
+      "gas_number": 1
+    },
+    {
+      "times": [
+        20000,
+        30000
+      ],
+      "values": [
+        2000,
+        1950
+      ],
+      "gas_number": 2
+    }
+  ],
+  "ndl": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      5940,
+      3000,
+      0,
+      6000
+    ]
+  },
+  "tts": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      0,
+      60,
+      420,
+      0
+    ]
+  },
+  "ppo2": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      21,
+      52,
+      101,
+      30
+    ]
+  },
+  "cns": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      80,
+      85,
+      90,
+      92
+    ]
+  },
+  "gradient_factor": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      0,
+      10,
+      45,
+      0
+    ]
+  },
+  "surface_gradient_factor": {
+    "times": [
+      0,
+      10000,
+      20000,
+      30000
+    ],
+    "values": [
+      0,
+      20,
+      80,
+      5
+    ]
+  },
+  "events": [
+    {
+      "time": 30,
+      "type": "gas_switch",
+      "gas_number": 1,
+      "label": null
+    },
+    {
+      "time": 20000,
+      "type": null,
+      "gas_number": null,
+      "label": "Ceiling Broken"
+    },
+    {
+      "time": 25000,
+      "type": "vendor_new_alarm",
+      "gas_number": null,
+      "label": "Something new"
+    }
+  ],
+  "provenance": "merge",
+  "dive_end_time": 28000
+}

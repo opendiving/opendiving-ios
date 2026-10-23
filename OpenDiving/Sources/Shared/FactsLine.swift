@@ -43,3 +43,13 @@ private struct FactView: View {
     }
   }
 }
+
+#Preview {
+  FactsLine(facts: [
+    Fact(text: "Apr 4, 2021, 10:04"),
+    Fact(text: "Dahab, Egypt"),
+    Fact(text: "Legend", systemImage: "ferry", accessibilityLabel: "Boat"),
+    Fact(systemImage: "paperclip", accessibilityLabel: "Recording attached"),
+  ])
+  .padding()
+}

@@ -1,0 +1,41 @@
+{
+  "data": [
+    {
+      "uuid": "01a0e2ed-1be1-7142-996d-0639721e344d",
+      "name": "Ana Diaz",
+      "email": "ana@example.com",
+      "phone": "+1 555 0100",
+      "notes": "",
+      "username": "ana",
+      "dive_count": 12,
+      "created_at": "2026-09-27T12:53:05.111807Z",
+      "updated_at": "2026-09-30T08:00:00Z"
+    },
+    {
+      "uuid": "01a0e2ed-1be2-7069-b3e3-7ffb32797bd0",
+      "name": "Ben Okafor",
+      "email": null,
+      "phone": null,
+      "notes": "",
+      "username": null,
+      "dive_count": 0,
+      "created_at": "2026-09-27T12:53:05.111807Z",
+      "updated_at": null
+    },
+    {
+      "uuid": "01a0e2ed-1be3-712d-878e-8e56a3da9202",
+      "name": "Chloe Martin",
+      "email": null,
+      "phone": null,
+      "notes": "",
+      "username": null,
+      "dive_count": 0,
+      "created_at": "2026-09-27T12:53:05.111807Z",
+      "updated_at": null
+    }
+  ],
+  "total_count": 3,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 50
+}

@@ -1,0 +1,15 @@
+{
+  "detail": [
+    {
+      "type": "greater_than_equal",
+      "loc": [
+        "body",
+        "mixtures",
+        0,
+        "o2"
+      ],
+      "msg": "Input should be greater than or equal to 0",
+      "input": -1
+    }
+  ]
+}
