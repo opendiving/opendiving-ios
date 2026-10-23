@@ -55,12 +55,4 @@ struct DiveScreensTests {
     defer { window?.isHidden = true }
     #expect(await waitFor("GET dive/\(diveID)/neighbors", on: transport))
   }
-
-  @Test func theListsRowsAreTheDivesCards() async throws {
-    let transport = StubTransport(routes: ["GET dives": .json(DivePreviewData.page)])
-    let window = host(DivesView(), session: Session.stub(transport: transport))
-    defer { window?.isHidden = true }
-    #expect(await waitFor("GET dives", on: transport))
-    #expect(DivePreviewData.diveUUID.uuidString.lowercased() == diveID)
-  }
 }

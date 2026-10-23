@@ -52,9 +52,11 @@ private struct DiveDetailScreen: View {
       EmptyOrErrorView(status: .failed(message: error.message)) {
         Task { await model.load() }
       }
-    case .loaded:
+    case .loaded(let dive):
+      // The loaded dive's uuid, not the model's, which names the dive a step is heading to
+      // while this one is still on screen.
       if let content = model.content {
-        DiveDetailPage(content: content, diveUUID: model.diveUUID) { uuid, version in
+        DiveDetailPage(content: content, diveUUID: dive.uuid) { uuid, version in
           await model.speciesPhoto(uuid, version: version)
         }
         .opacity(model.isStepping ? 0.5 : 1)

@@ -13,7 +13,8 @@ public final class DiveDetailModel {
     case failed(APIError)
   }
 
-  /// The dive on screen, or the one the pager is stepping to.
+  /// The dive asked for: the one on screen, or the one the pager is stepping to. What is on
+  /// screen is the loaded dive's own uuid.
   public private(set) var diveUUID: UUID
   public private(set) var phase: Phase = .loading
   public private(set) var trip: TripRead?
