@@ -15,11 +15,10 @@ the app target conforms it over the Keychain, which keeps `Security` out of the 
 ## The first launch of an install clears the Keychain
 
 iOS keeps an app's Keychain items when the app is deleted, while its container — the defaults and
-Application Support — goes with it. Without a clear, a reinstall finds the old refresh token, the
-server screen offers *Forget this server* for a server the phone no longer seems to know, and
-choosing it signs straight back in without a code. So the first launch removes every refresh-token
-item before the session is built, then sets a flag in `UserDefaults`; the flag is what tells a
-fresh install from an install over the existing app, which keeps its container and its session.
+Application Support — goes with it, so a reinstall would inherit the previous install's session.
+The first launch removes every refresh-token item before the session is built, then sets a flag
+in `UserDefaults`; the flag is what tells a fresh install from an install over the existing app,
+which keeps its container and its session.
 Rejected: the flag in the Keychain, which survives the delete it is meant to detect.
 
 ## An error's `detail` is a string, except on a validation 422
