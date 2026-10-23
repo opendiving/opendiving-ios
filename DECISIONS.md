@@ -12,6 +12,15 @@ reads it off `Set-Cookie`, stores it itself and sends it back on the routes that
 that it can be keyed, wiped and protected per server. The Kit declares the store as a protocol and
 the app target conforms it over the Keychain, which keeps `Security` out of the Kit.
 
+## The first launch of an install clears the Keychain
+
+iOS keeps an app's Keychain items when the app is deleted, while its container — the defaults and
+Application Support — goes with it, so a reinstall would inherit the previous install's session.
+The first launch removes every refresh-token item before the session is built, then sets a flag
+in `UserDefaults`; the flag is what tells a fresh install from an install over the existing app,
+which keeps its container and its session.
+Rejected: the flag in the Keychain, which survives the delete it is meant to detect.
+
 ## An error's `detail` is a string, except on a validation 422
 
 FastAPI answers `{"detail": "…"}` for every error but request validation, where `detail` is an

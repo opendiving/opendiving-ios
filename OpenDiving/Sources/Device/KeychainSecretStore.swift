@@ -49,6 +49,18 @@ nonisolated struct KeychainSecretStore: SecretStore {
     }
   }
 
+  /// Removes the item of every server at once. Removing none is not an error.
+  func removeAllSecrets() throws {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+    ]
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw Failure(status: status)
+    }
+  }
+
   func itemQuery(_ account: String) -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,
