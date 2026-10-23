@@ -14,7 +14,8 @@ struct DiveProfileChartViewTests {
     let dive = UUID()
     let first = UUID()
     let second = UUID()
-    let transport = StubTransport { _ in .json(ProfileChartPlot.previewJSON) }
+    let profile = ProfileChartPlot.previewJSON
+    let transport = StubTransport { _ in .json(profile) }
     let selection = Selection(recording: first)
     let host = UIHostingController(
       rootView: SwitchingChart(dive: dive, selection: selection)
