@@ -11,10 +11,13 @@ final class WindowSceneBrightness: ScreenBrightness {
     screen?.brightness = CGFloat(min(max(level, 0), 1))
   }
 
+  /// The active scene's, or — as the app resigns active and the brightness is put back — the
+  /// scene that was active a moment ago and is now inactive.
   private var screen: UIScreen? {
-    UIApplication.shared.connectedScenes
-      .compactMap { $0 as? UIWindowScene }
-      .first { $0.activationState == .foregroundActive }?
-      .screen
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let scene =
+      scenes.first { $0.activationState == .foregroundActive }
+      ?? scenes.first { $0.activationState == .foregroundInactive }
+    return scene?.screen
   }
 }
