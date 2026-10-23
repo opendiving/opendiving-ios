@@ -60,3 +60,9 @@ extension Binding where Value == Bool {
     }
   }
 }
+
+#Preview {
+  @Previewable @State var hidden: Set<ProfileChannel> = [.ceiling]
+  @Previewable @State var markersHidden = false
+  ProfileChannelMenu(chart: .preview, hidden: $hidden, markersHidden: $markersHidden)
+}

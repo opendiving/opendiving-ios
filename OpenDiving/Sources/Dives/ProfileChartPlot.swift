@@ -313,14 +313,18 @@ extension ProfileChartPlot {
   }()
 }
 
+extension ProfileChart {
+  /// ``ProfileChartPlot/previewJSON`` as a chart, for previews.
+  static var preview: ProfileChart {
+    let profile = try! APICoding.decoder().decode(
+      RecordingProfileRead.self, from: Data(ProfileChartPlot.previewJSON.utf8))
+    return ProfileChart(profile: profile, units: .metric, cylinders: [1])
+  }
+}
+
 #Preview {
   @Previewable @State var hidden: Set<ProfileChannel> = []
   @Previewable @State var markersHidden = false
-  let profile = try! APICoding.decoder().decode(
-    RecordingProfileRead.self, from: Data(ProfileChartPlot.previewJSON.utf8))
-  ProfileChartPlot(
-    chart: ProfileChart(profile: profile, units: .metric, cylinders: [1]),
-    hidden: $hidden, markersHidden: $markersHidden
-  )
-  .padding()
+  ProfileChartPlot(chart: .preview, hidden: $hidden, markersHidden: $markersHidden)
+    .padding()
 }

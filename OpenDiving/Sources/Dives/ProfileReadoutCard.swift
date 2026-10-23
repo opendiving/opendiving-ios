@@ -65,3 +65,13 @@ struct ProfileReadoutCard: View {
     return groups
   }
 }
+
+#Preview {
+  let chart = ProfileChart.preview
+  ProfileReadoutCard(
+    elapsed: DiveProfileMath.formatElapsed(milliseconds: 600_000),
+    readouts: chart.layout(hiding: []).readouts(at: 600_000),
+    event: chart.events.first
+  )
+  .padding()
+}
