@@ -8,7 +8,8 @@ public final class SettingsModel {
   public let session: Session
   private let signIn: SignInFlow
   public private(set) var isWorking = false
-  /// Why the last sign-out failed. The session is as it was.
+  /// What the last action could not do: a sign-out the server did not take, which leaves the
+  /// session as it was, or a *Forget* that could not remove everything kept for the server.
   public private(set) var error: String?
 
   public init(session: Session, signIn: SignInFlow) {
