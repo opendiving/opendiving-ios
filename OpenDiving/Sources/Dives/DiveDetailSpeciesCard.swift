@@ -26,12 +26,14 @@ private struct SightingView: View {
   var body: some View {
     var card = sighting.card
     card.photo = bytes
-    return SpeciesCardView(content: card)
-      .task(id: sighting.photoVersion) {
-        // A null version is the whole photo contract: no photo, and no request.
-        guard let version = sighting.photoVersion else { return }
-        bytes = await photo(sighting.id, version)
-      }
+    return CreditedSpeciesCard(
+      speciesUUID: sighting.id, photoVersion: sighting.photoVersion, content: card
+    )
+    .task(id: sighting.photoVersion) {
+      // A null version is the whole photo contract: no photo, and no request.
+      guard let version = sighting.photoVersion else { return }
+      bytes = await photo(sighting.id, version)
+    }
   }
 }
 

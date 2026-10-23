@@ -43,6 +43,12 @@ struct ModelFixtureTests {
     #expect(page.data.first?.username == "ana")
   }
 
+  @Test func species() throws {
+    let species = try KitFixture.roundTrip(SpeciesRead.self, "species")
+    #expect(species.photoAuthor == "Jane Doe")
+    #expect(species.photoLicenseUrl == "https://creativecommons.org/licenses/by-sa/4.0")
+  }
+
   @Test func capturedDiveList() throws {
     let page = try KitFixture.roundTrip(PaginatedListResponse<DiveListItem>.self, "dives-page")
     let row = try #require(page.data.first)
