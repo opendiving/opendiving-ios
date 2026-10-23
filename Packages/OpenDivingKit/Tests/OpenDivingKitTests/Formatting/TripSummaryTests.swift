@@ -92,8 +92,10 @@ struct TripSummaryTests {
   @Test func theInformationCardNamesTheContactsItCanRead() throws {
     let trip = try Self.trip(["parts": parts, "contact_uuids": [centre, missing, hotel]])
     let contacts = Dictionary(
-      uniqueKeysWithValues: try [Self.contact(hotel, "Hotel Nemo"), Self.contact(centre, "Big Blue")]
-        .map { ($0.uuid, $0) })
+      uniqueKeysWithValues: try [
+        Self.contact(hotel, "Hotel Nemo"), Self.contact(centre, "Big Blue"),
+      ]
+      .map { ($0.uuid, $0) })
     #expect(
       TripSummary.partRows(trip, contacts: contacts) == [
         .init(place: "Dahab, Egypt", accommodation: "Hotel Nemo", dates: "Jun 1 - Jun 4, 2024"),

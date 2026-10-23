@@ -23,7 +23,8 @@ struct DetailModelTests {
   @Test func aTripReadsItsOwnDivesAHundredAtATimeAndItsContacts() async throws {
     let trip = try JSONSerialization.data(
       withJSONObject: {
-        var object = try JSONSerialization.jsonObject(with: KitFixture.data("trip"))
+        var object =
+          try JSONSerialization.jsonObject(with: KitFixture.data("trip"))
           as! [String: Any]
         object["contact_uuids"] = [centre, "01a0e2ed-0000-7000-8000-0000000000ff"]
         return object
