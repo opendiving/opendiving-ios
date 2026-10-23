@@ -196,7 +196,8 @@ private struct SiteSpecies: View {
         // one of the site's species at once.
         LazyVStack(spacing: 12) {
           ForEach(entries) { entry in
-            SpeciesCardView(
+            CreditedSpeciesCard(
+              speciesUUID: entry.uuid, photoVersion: entry.photoSha256,
               content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
             )
             .onAppear { Task { await model.loadPhoto(entry) } }

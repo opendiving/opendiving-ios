@@ -243,6 +243,12 @@ public actor APIClient {
       PaginatedListResponse<SpeciesLifeListEntry>.self, Call(path: "user/species", query: query))
   }
 
+  /// `GET /species/{uuid}`: one species from the catalog, with its photo's credit. The
+  /// catalog is global, so any signed-in account reads any species.
+  public func species(_ uuid: UUID) async throws -> SpeciesRead {
+    try await authorizedDecoded(SpeciesRead.self, Call(path: "species/\(Self.wire(uuid))"))
+  }
+
   /// `GET /species/{uuid}/photo?v=`, `version` being the species' `photoSha256`. The one
   /// bytes route that takes no token.
   public func speciesPhoto(_ uuid: UUID, version: String) async throws -> FetchedBytes {
