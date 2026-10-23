@@ -1,11 +1,11 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A run of a paged list's dives as cards, each opening the dive's page, and the last of
-/// them asking the list for its next page.
+/// A run of dives as cards, each opening the dive's page. The cards are laid out together,
+/// so a paged list asks for its next page through a ``PageEndTrigger`` after them rather
+/// than from a card's `onAppear`, which a non-lazy stack runs for every card at once.
 struct DiveCardLinks: View {
   let items: [DiveListItem]
-  let list: PagedList<DiveListItem>
   let units: UnitSystem
 
   var body: some View {
@@ -17,7 +17,6 @@ struct DiveCardLinks: View {
           DiveCardView(content: DiveCardContent.dive(item, units: units))
         }
         .buttonStyle(.plain)
-        .onAppear { Task { await list.loadMore(after: item) } }
       }
     }
   }
@@ -25,12 +24,6 @@ struct DiveCardLinks: View {
 
 #Preview {
   NavigationStack {
-    DiveCardLinks(
-      items: [],
-      list: PagedList(session: Session.stub(transport: StubTransport(routes: [:]))) {
-        client, page, itemsPerPage in
-        try await client.dives(page: page, itemsPerPage: itemsPerPage)
-      },
-      units: .metric)
+    DiveCardLinks(items: [], units: .metric)
   }
 }

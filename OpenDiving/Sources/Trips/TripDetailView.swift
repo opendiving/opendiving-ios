@@ -33,15 +33,17 @@ private struct TripDetailContent: View {
         }
       case .loaded(let trip):
         ScrollView {
-          VStack(spacing: 16) {
+          LazyVStack(spacing: 16) {
             HeroView(content: TripSummary.hero(trip, units: session.units))
-            VStack(spacing: 16) {
+            Group {
               TripDives(trip: trip, list: model.dives, units: session.units)
+              PageEndTrigger(list: model.dives)
               LoadMoreFooter(list: model.dives)
               TripInformationCard(trip: trip, contacts: model.contacts, people: session.people)
             }
-            .padding([.horizontal, .bottom])
+            .padding(.horizontal)
           }
+          .padding(.bottom)
         }
         .refreshable { await model.refresh() }
       }
@@ -92,7 +94,7 @@ private struct TripDives: View {
         Text("Every dive logged on this trip")
           .font(.subheadline)
           .foregroundStyle(.secondary)
-        DiveCardLinks(items: list.items, list: list, units: units)
+        DiveCardLinks(items: list.items, units: units)
       }
     case .loaded:
       let sections = TripDiveSection.sections(
@@ -101,7 +103,7 @@ private struct TripDives: View {
       ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
         switch section {
         case .loose(let items):
-          DiveCardLinks(items: items, list: list, units: units)
+          DiveCardLinks(items: items, units: units)
         case .part(let index, let items):
           let heading = TripSummary.partHeading(trip.parts[index])
           SectionCard(title: heading.title, systemImage: "mappin") {
@@ -117,7 +119,7 @@ private struct TripDives: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             } else {
-              DiveCardLinks(items: items, list: list, units: units)
+              DiveCardLinks(items: items, units: units)
             }
           }
         }

@@ -33,10 +33,11 @@ private struct SiteDetailContent: View {
         }
       case .loaded(let site):
         ScrollView {
-          VStack(spacing: 16) {
+          LazyVStack(spacing: 16) {
             HeroView(content: DiveSiteSummary.hero(site, units: session.units))
-            VStack(spacing: 16) {
+            Group {
               SiteDives(list: model.dives, units: session.units)
+              PageEndTrigger(list: model.dives)
               SiteInformationCard(info: DiveSiteSummary.info(site))
               if !site.notes.isEmpty {
                 SectionCard(title: "Notes", systemImage: "doc.text") {
@@ -46,8 +47,9 @@ private struct SiteDetailContent: View {
               }
               SiteSpecies(model: model)
             }
-            .padding([.horizontal, .bottom])
+            .padding(.horizontal)
           }
+          .padding(.bottom)
         }
         .refreshable { await model.refresh() }
       }
@@ -95,7 +97,7 @@ private struct SiteDives: View {
         Text("All dives logged at this dive site")
           .font(.subheadline)
           .foregroundStyle(.secondary)
-        DiveCardLinks(items: list.items, list: list, units: units)
+        DiveCardLinks(items: list.items, units: units)
         LoadMoreFooter(list: list)
       }
     }
