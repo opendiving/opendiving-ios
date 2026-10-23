@@ -108,9 +108,12 @@ struct SettingsModelTests {
       applicationSupport: FileManager.default.temporaryDirectory
         .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
       userAgent: ClientHarness.userAgent)
-    let model = SettingsModel(session: session, signIn: SignInFlow(session: session))
+    let flow = SignInFlow(session: session)
+    let model = SettingsModel(session: session, signIn: flow)
     await model.forget()
     #expect(model.error?.contains("could not remove everything") == true)
+    #expect(session.state == .signedIn(origin))
+    #expect(flow.notice == nil)
   }
 
   @Test func forgettingAnOfflineServerRemovesItAnyway() async throws {

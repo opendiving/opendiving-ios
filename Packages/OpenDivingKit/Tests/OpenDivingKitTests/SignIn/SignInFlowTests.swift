@@ -225,7 +225,7 @@ struct SignInFlowTests {
       activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
       applicationSupport: root, userAgent: ClientHarness.userAgent)
     let flow = SignInFlow(session: session)
-    #expect(await flow.forget(origin) == false)
+    #expect(await flow.forget(origin)?.contains("could not remove everything") == true)
     #expect(session.state == .signingIn(origin))
     #expect(flow.step == .email)
     #expect(flow.notice?.contains("could not remove everything") == true)

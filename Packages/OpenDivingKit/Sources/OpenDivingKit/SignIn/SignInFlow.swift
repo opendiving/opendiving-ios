@@ -36,7 +36,8 @@ public final class SignInFlow {
   /// offered whether or not the server answers, since forgetting needs no server.
   public private(set) var forgettableOrigin: ServerOrigin?
   /// What the last *Forget* did, shown on the signed-out screen it lands on — the server
-  /// screen when it worked, the screen it started from when it did not.
+  /// screen when it worked, the signed-out screen it started from when it did not. A failure
+  /// that leaves the session signed in is Settings' to show, through ``forget(_:)``'s answer.
   public private(set) var notice: String?
 
   public private(set) var email = ""
@@ -123,10 +124,10 @@ public final class SignInFlow {
   /// Signs out of `origin` when signed in to it, then removes everything kept for it whether
   /// or not that worked — a server that is gone can never answer the sign-out, and its sheet
   /// would otherwise stay on the phone for good. A failed sign-out is reported, not a reason
-  /// to stop. False when something kept for the server could not be removed, which
-  /// ``notice`` then says.
+  /// to stop. Answers why something kept for the server could not be removed, or nil when
+  /// everything was.
   @discardableResult
-  public func forget(_ origin: ServerOrigin) async -> Bool {
+  public func forget(_ origin: ServerOrigin) async -> String? {
     var signOutFailure: String?
     if session.state == .signedIn(origin) {
       do {
@@ -140,10 +141,16 @@ public final class SignInFlow {
     do {
       try session.forget(origin)
     } catch {
-      notice =
+      let failure =
         "This phone could not remove everything kept for \(origin): \(error.localizedDescription)"
+      // Still signed in, the user is in Settings, which shows the answer itself.
+      if case .signedIn = session.state {
+        notice = nil
+      } else {
+        notice = failure
+      }
       refreshForgettable()
-      return false
+      return failure
     }
     var message =
       "Removed everything this phone kept for \(origin): its sign-in, account"
@@ -160,7 +167,7 @@ public final class SignInFlow {
       restart(at: .email)
     }
     refreshForgettable()
-    return true
+    return nil
   }
 
   // MARK: - The email screen

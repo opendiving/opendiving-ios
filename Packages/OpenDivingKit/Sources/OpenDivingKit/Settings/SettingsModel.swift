@@ -55,9 +55,7 @@ public final class SettingsModel {
     isWorking = true
     defer { isWorking = false }
     error = nil
-    if !(await signIn.forget(origin)) {
-      error = signIn.notice
-    }
+    error = await signIn.forget(origin)
   }
 
   private func performSignOut() async -> Bool {
