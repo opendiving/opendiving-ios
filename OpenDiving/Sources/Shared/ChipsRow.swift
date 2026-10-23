@@ -37,3 +37,12 @@ private struct ChipView: View {
       .accessibilityLabel(chip.accessibilityLabel)
   }
 }
+
+#Preview {
+  ChipsRow(chips: [
+    Chip(text: "FW", accessibilityLabel: "Fresh water", kind: .vocabulary),
+    Chip(text: "CCR", accessibilityLabel: "Closed circuit", kind: .vocabulary),
+    .tag("wreck"), .tag("night"),
+  ])
+  .padding()
+}

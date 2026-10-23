@@ -23,3 +23,11 @@ struct TitleLine: View {
     }
   }
 }
+
+#Preview {
+  VStack(alignment: .leading) {
+    TitleLine(title: "#212 Blue Hole", isCourse: true, rating: 4)
+    TitleLine(title: "#211 The Canyon")
+  }
+  .padding()
+}

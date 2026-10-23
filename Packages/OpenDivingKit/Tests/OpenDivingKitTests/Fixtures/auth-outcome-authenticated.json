@@ -1,0 +1,10 @@
+{
+  "status": "authenticated",
+  "access_token": "access-1",
+  "token_type": "bearer",
+  "onboarding_token": null,
+  "name": null,
+  "restore_token": null,
+  "purge_after": null,
+  "email": null
+}

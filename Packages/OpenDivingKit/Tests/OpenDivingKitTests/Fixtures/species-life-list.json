@@ -1,0 +1,30 @@
+{
+  "data": [
+    {
+      "uuid": "01a20000-0000-7000-8000-0000000000c1",
+      "scientific_name": "Amphiprion bicinctus",
+      "common_name": "Twoband anemonefish",
+      "rank": "Species",
+      "photo_sha256": "ab12",
+      "dive_count": 7,
+      "dive_site_count": 3,
+      "first_seen": "2014-12-20T09:00:00",
+      "last_seen": "2026-10-02T14:19:52.81+03:00"
+    },
+    {
+      "uuid": "01a20000-0000-7000-8000-0000000000c2",
+      "scientific_name": "Muraenidae",
+      "common_name": null,
+      "rank": "Family",
+      "photo_sha256": null,
+      "dive_count": 1,
+      "dive_site_count": 1,
+      "first_seen": "2002-06-18",
+      "last_seen": "2002-06-18"
+    }
+  ],
+  "total_count": 2,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 50
+}

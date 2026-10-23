@@ -1,0 +1,27 @@
+{
+  "uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+  "name": "Test Diver",
+  "username": "testdiver",
+  "email": "diver@example.com",
+  "avatar_sha256": "a10cf720af3b5c59bb01c5fcf34de7d5d913d095bdc03c07106d3f5489710c5c",
+  "avatar_original_sha256": null,
+  "avatar_crop": null,
+  "portrait_sha256": null,
+  "portrait_original_sha256": null,
+  "portrait_crop": null,
+  "gear_service_emails": true,
+  "renewal_reminder_emails": true,
+  "year_in_review_emails": true,
+  "units": "nautical",
+  "dive_form_hidden_fields": [
+    "course_uuid",
+    "water_type",
+    "altitude",
+    "sightings",
+    "mixture.helium",
+    "mixture.role",
+    "mixture.usage"
+  ],
+  "dive_form_preset_uuid": "01a0a51f-afe8-7dab-8e94-89732b2df1c8",
+  "is_superuser": false
+}

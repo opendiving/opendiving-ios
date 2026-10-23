@@ -24,3 +24,12 @@ struct FiguresRow: View {
     }
   }
 }
+
+#Preview {
+  FiguresRow(figures: [
+    Figure(label: "Dive time", value: "48 min"),
+    Figure(label: "Max depth", value: "31 m"),
+    Figure(label: "Water temp", value: nil),
+  ])
+  .padding()
+}
