@@ -192,11 +192,15 @@ private struct SiteSpecies: View {
       card { message("The species could not be loaded.") }
     case .loaded(let entries):
       card {
-        ForEach(entries) { entry in
-          SpeciesCardView(
-            content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
-          )
-          .onAppear { Task { await model.loadPhoto(entry) } }
+        // Lazy, so each card asks for its photo as it scrolls into reach rather than every
+        // one of the site's species at once.
+        LazyVStack(spacing: 12) {
+          ForEach(entries) { entry in
+            SpeciesCardView(
+              content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
+            )
+            .onAppear { Task { await model.loadPhoto(entry) } }
+          }
         }
       }
     }

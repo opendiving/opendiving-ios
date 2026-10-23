@@ -120,11 +120,12 @@ struct TripDiveSectionTests {
     let loaded = [dive("sharm", "2026-04-11")]
     #expect(
       shape(loaded, parts, complete: false) == [.part(4, []), .part(3, []), .part(2, ["sharm"])])
-    // A part sharing the oldest loaded day waits too.
-    #expect(
-      shape([dive("dahab", "2026-04-03")], [dahab, sharm], complete: false) == [
-        .part(1, []), .part(0, ["dahab"]),
-      ])
+    // An empty part starting on the oldest loaded day waits too: that day's other dives
+    // may be on the next page.
+    let sameDay = [part("2026-04-03", "2026-04-04"), part("2026-04-03", nil)]
+    let first = [dive("first", "2026-04-03")]
+    #expect(shape(first, sameDay, complete: false) == [.part(0, ["first"])])
+    #expect(shape(first, sameDay) == [.part(0, ["first"]), .part(1, [])])
     #expect(
       shape(loaded, parts) == [
         .part(4, []), .part(3, []), .part(2, ["sharm"]), .part(1, []), .part(0, []),
