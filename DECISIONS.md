@@ -92,8 +92,8 @@ retries what the server answered.
 The outbox holds what the server has not acknowledged and nothing else: once a write lands the
 server holds it, and a second copy on the phone would be a record nobody reconciles. A create is
 done only once its `local → server` resolution is on disk, so an item that names the record is
-rewritten even if the phone dies between the two writes; the resolution goes once nothing on the
-phone names the local ref. Rejected: a sync log of sent writes.
+rewritten even if the phone dies between the two writes; the resolution goes a day after landing,
+once no queued item or edit draft names the local ref. Rejected: a sync log of sent writes.
 
 ## A refused write holds what depends on it; a discard releases it
 
