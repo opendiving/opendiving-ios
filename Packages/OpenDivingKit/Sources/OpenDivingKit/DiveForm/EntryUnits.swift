@@ -29,7 +29,9 @@ public struct EntryUnits: Codable, Hashable, Sendable {
   public init(from decoder: any Decoder) throws {
     let stored = try decoder.singleValueContainer().decode([String: String].self)
     let known = Set(Measure.entryDimensions.compactMap(Self.key))
-    overrides = stored.compactMapValues(UnitSystem.init(rawValue:)).filter { known.contains($0.key) }
+    overrides = stored.compactMapValues(UnitSystem.init(rawValue:)).filter {
+      known.contains($0.key)
+    }
   }
 
   public func encode(to encoder: any Encoder) throws {

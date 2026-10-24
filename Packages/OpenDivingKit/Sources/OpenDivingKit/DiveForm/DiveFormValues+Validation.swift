@@ -117,7 +117,8 @@ extension DiveFormValues {
   /// The pressure ceiling in both systems: `must be at most 350 bar (5,076 psi) — check the
   /// units on that reading.`
   static let pressureCeilingClause: String = {
-    let psi = Int(NumberText.round(Measure.pressure.toDisplay(DiveFormBounds.maxPressureBar, .imperial)))
+    let psi = Int(
+      NumberText.round(Measure.pressure.toDisplay(DiveFormBounds.maxPressureBar, .imperial)))
     return "must be at most \(NumberText.plain(DiveFormBounds.maxPressureBar)) bar "
       + "(\(NumberText.grouped(psi)) psi) — check the units on that reading."
   }()

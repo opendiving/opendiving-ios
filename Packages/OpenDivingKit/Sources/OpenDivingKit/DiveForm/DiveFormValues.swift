@@ -102,7 +102,8 @@ public struct DiveFormValues: Codable, Hashable, Sendable {
       contact: dive.contactUuid.map(RecordRef.server), diveSites: dive.diveSites.map(\.ref),
       gearItems: dive.gearItems.map(\.ref), people: dive.people,
       sightings: dive.sightings.map {
-        SightingWrite(speciesUuid: $0.uuid, count: $0.count, abundance: $0.abundance, notes: $0.notes)
+        SightingWrite(
+          speciesUuid: $0.uuid, count: $0.count, abundance: $0.abundance, notes: $0.notes)
       },
       tags: dive.tags, tanks: dive.mixtures.map(TankValues.init))
   }

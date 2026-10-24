@@ -46,7 +46,8 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
     var list = FormIssueList()
     list.add("name", FormText.requiredName(name, "Dive site name", max: 255))
     if let location {
-      list.add("location", member: "name", FormText.length(location.name, "Location name", max: 255))
+      list.add(
+        "location", member: "name", FormText.length(location.name, "Location name", max: 255))
       if location.name.isEmpty {
         list.add("location", member: "name", "Location name is required")
       }

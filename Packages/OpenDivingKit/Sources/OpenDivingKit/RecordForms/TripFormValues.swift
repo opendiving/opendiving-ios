@@ -35,7 +35,8 @@ public struct TripFormValues: Codable, Hashable, Sendable {
         }
       }
       if let start = part.startDate, let end = part.endDate, end < start {
-        list.add("parts", index: index, member: "end_date", "End date must be on or after start date")
+        list.add(
+          "parts", index: index, member: "end_date", "End date must be on or after start date")
       }
     }
     list.add("notes", FormText.length(notes, "Notes", max: DiveFormBounds.notesMax))

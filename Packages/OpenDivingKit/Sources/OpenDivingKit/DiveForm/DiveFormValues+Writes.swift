@@ -67,7 +67,9 @@ extension DiveFormValues {
 
   /// A scalar's member of the update: absent while unchanged, and absent too for a fetched
   /// value cleared, which the API would ignore.
-  private static func patch<Value: Hashable & Sendable>(_ now: Value?, _ before: Value?, fetched: Bool = false)
+  private static func patch<Value: Hashable & Sendable>(
+    _ now: Value?, _ before: Value?, fetched: Bool = false
+  )
     -> Patch<Value>
   {
     guard now != before else { return .absent }
