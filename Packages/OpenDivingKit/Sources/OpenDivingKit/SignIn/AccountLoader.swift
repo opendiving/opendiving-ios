@@ -11,6 +11,7 @@ public final class AccountLoader {
   /// The sentence to show when the last load failed for any reason but a refused session.
   public private(set) var failure: String?
   @ObservationIgnored private var launched = false
+  @ObservationIgnored private var quietLoad: Task<Void, Never>?
 
   public init(session: Session) {
     self.session = session
@@ -39,6 +40,27 @@ public final class AccountLoader {
     failure = nil
     guard case .signedIn = session.state else { return }
     await run { try await self.session.loadAccount() }
+  }
+
+  /// The load a reconnect runs while no load has returned in this process — a connectivity
+  /// moment, *Sync now* — loading as ``retry()`` does but raising nothing: a failure leaves
+  /// ``failure`` as it was, and a load that returns clears it. One runs at a time; a call
+  /// while one runs waits for it.
+  public func loadQuietly() async {
+    if let quietLoad {
+      await quietLoad.value
+      return
+    }
+    guard case .signedIn = session.state else { return }
+    let task = Task {
+      do {
+        try await session.loadAccount()
+        if session.accountLoaded { failure = nil }
+      } catch {}
+    }
+    quietLoad = task
+    await task.value
+    quietLoad = nil
   }
 
   public func dismissFailure() {
