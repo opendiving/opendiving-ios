@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The dive's tags in the diver's order, each removable, and a box that adds what is typed on
-/// Return.
+/// A dive's or a site's tags in the diver's order, each removable, and a box that adds what is
+/// typed on Return.
 struct TagsField: View {
   let tags: [String]
   var error: String?
