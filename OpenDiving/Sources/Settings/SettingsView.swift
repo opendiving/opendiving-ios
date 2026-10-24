@@ -64,9 +64,7 @@ private struct SettingsList: View {
             .foregroundStyle(.red)
         }
       } footer: {
-        Text(
-          "Signing out needs the server. Your check-in sheet stays on this phone after you sign"
-            + " out or change server, until you forget the server.")
+        Text(KeptText.settingsFooter)
       }
       .disabled(model.isWorking)
       Section("App") {

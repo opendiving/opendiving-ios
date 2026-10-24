@@ -3,9 +3,12 @@ import SwiftUI
 
 /// The dive page's profile card: a switcher across the recordings that carry a profile when
 /// there is more than one, the chart of the one chosen, and what its computer recorded.
+/// Profiles are not kept on the phone, so on a dive shown from its copy the card says the
+/// chart needs the server.
 struct DiveDetailProfileCard: View {
   let diveUUID: UUID
   let profile: DiveDetailContent.Profile
+  var fromCopy = false
 
   /// By uuid rather than index, and falling back to the first, so a dive stepped to with
   /// other recordings never charts a stale choice.
@@ -25,6 +28,11 @@ struct DiveDetailProfileCard: View {
       }
       DiveProfileChartView(
         diveUUID: diveUUID, recordingUUID: shown.id, cylinderLabels: profile.cylinderLabels)
+      if fromCopy {
+        Label(OfflineText.profileNeedsServer, systemImage: "wifi.slash")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
       Text(shown.description)
         .font(.caption)
         .foregroundStyle(.secondary)

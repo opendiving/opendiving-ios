@@ -2,11 +2,14 @@ import OpenDivingKit
 import SwiftUI
 
 /// Choosing a server and signing in with an email code: everything the app shows signed out.
-/// Reads the session and the sign-in flow the root injects.
+/// Reads the session, the sign-in flow, the outbox and the inbox the root injects.
 struct SignInView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var flow
+  @Environment(OutboxModel.self) private var outbox
+  @Environment(InboxModel.self) private var inbox
   @State private var showsSheet = false
+  @State private var showsPending = false
 
   var body: some View {
     NavigationStack {
@@ -17,6 +20,20 @@ struct SignInView: View {
       CardsView()
         .environment(session)
     }
+    // A sheet, never a push, as the check-in sheet is: the pending screen pushes the form.
+    .sheet(isPresented: $showsPending) {
+      NavigationStack {
+        PendingScreen()
+          .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+              Button("Done") { showsPending = false }
+            }
+          }
+      }
+      .environment(session)
+      .environment(outbox)
+      .environment(inbox)
+    }
   }
 
   @ViewBuilder private var screen: some View {
@@ -25,7 +42,9 @@ struct SignInView: View {
       ServerScreen(flow: flow)
     case .email:
       if let origin = flow.origin {
-        EmailScreen(flow: flow, origin: origin) { showsSheet = true }
+        EmailScreen(
+          flow: flow, origin: origin, showSheet: { showsSheet = true },
+          showPending: { showsPending = true })
       }
     case .code(let email, _):
       CodeScreen(flow: flow, email: email)
@@ -51,6 +70,8 @@ struct SignInView: View {
   SignInView()
     .environment(session)
     .environment(SignInFlow(session: session))
+    .environment(OutboxModel(session: session))
+    .environment(InboxModel(session: session))
 }
 
 #Preview("Signing in") {
@@ -58,4 +79,6 @@ struct SignInView: View {
   SignInView()
     .environment(session)
     .environment(SignInFlow(session: session))
+    .environment(OutboxModel(session: session))
+    .environment(InboxModel(session: session))
 }
