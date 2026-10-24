@@ -58,7 +58,7 @@ private struct CourseSheetForm: View {
       Section {
         CalendarDateField(label: "Start date", date: $model.values.startDate)
         CalendarDateField(label: "End date", date: $model.values.endDate)
-        FieldMessage(text: model.message("end_date"))
+        FieldMessage(model.message("end_date"))
       }
       Section {
         RecordPicker(
@@ -78,7 +78,7 @@ private struct CourseSheetForm: View {
           label: "Instructor number", text: $model.values.instructorNumber,
           message: model.message("instructor_number"))
       }
-      PeopleField(
+      RecordPeopleField(
         people: $model.values.people, rows: lookups.people, defaultRole: "student",
         excluded: model.values.instructor)
       Section {

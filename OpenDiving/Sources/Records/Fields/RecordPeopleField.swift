@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The people on a trip or a course, each with a role, as the web's people multi-select holds
 /// them: picked from the diver's people or added as a new person, who joins with `defaultRole`.
-struct PeopleField: View {
+struct RecordPeopleField: View {
   @Binding var people: [PersonReference]
   let rows: [PersonLookupItem]
   /// The role a person joins with; nil for none, as on a trip.
@@ -19,7 +19,7 @@ struct PeopleField: View {
         HStack {
           VStack(alignment: .leading) {
             Text(name(reference.person))
-            PendingMark(ref: reference.person)
+            if reference.person.isLocal { PendingMark() }
           }
           Spacer()
           Picker("Role of \(name(reference.person))", selection: $reference.role) {
@@ -65,7 +65,7 @@ struct PeopleField: View {
   @Previewable @State var people: [PersonReference] = []
   NavigationStack {
     Form {
-      PeopleField(people: $people, rows: [], defaultRole: "student")
+      RecordPeopleField(people: $people, rows: [], defaultRole: "student")
     }
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))

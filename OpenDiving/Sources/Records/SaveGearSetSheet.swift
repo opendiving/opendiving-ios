@@ -75,7 +75,7 @@ private struct GearSetSheetForm: View {
         ForEach(model.values.form.items, id: \.self) { ref in
           HStack {
             Text(name(ref))
-            PendingMark(ref: ref)
+            if ref.isLocal { PendingMark() }
           }
         }
         .onDelete { model.values.form.items.remove(atOffsets: $0) }
@@ -87,7 +87,7 @@ private struct GearSetSheetForm: View {
         }
       }
       Section {
-        MeasuredField(
+        RecordMeasuredField(
           label: "Weight", key: "weight", measure: .weight, units: units.units(.weight),
           example: 6, value: $model.values.form.weight, invalid: $invalid,
           message: model.message("weight"), onToggle: { units.toggle(.weight) })

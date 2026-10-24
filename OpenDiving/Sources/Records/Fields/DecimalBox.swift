@@ -20,7 +20,7 @@ struct DecimalBox: View {
       TextField(label, text: $text, prompt: placeholder.map(Text.init))
         .keyboardType(.decimalPad)
         .labelsHidden()
-      FieldMessage(text: entryMessage ?? message)
+      FieldMessage(entryMessage ?? message)
     }
     .onAppear { text = value.map(NumberText.plain) ?? "" }
     .onChange(of: value) { _, new in

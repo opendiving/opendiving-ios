@@ -73,7 +73,7 @@ private struct TripSheetForm: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         }
-        FieldMessage(text: model.message("parts"))
+        FieldMessage(model.message("parts"))
       } footer: {
         if !places.attributions.isEmpty {
           AttributionLine(credits: places.attributions)
@@ -86,7 +86,7 @@ private struct TripSheetForm: View {
           .clipShape(RoundedRectangle(cornerRadius: 8))
           .accessibilityLabel("Map of the trip's locations")
       }
-      PeopleField(people: $model.values.people, rows: lookups.people, defaultRole: nil)
+      RecordPeopleField(people: $model.values.people, rows: lookups.people, defaultRole: nil)
       Section {
         TextBox(
           label: "Notes", placeholder: "Any notes about this trip...",
@@ -152,7 +152,7 @@ private struct TripPartSection: View {
         if let location = part.location, location.latitude == nil || location.longitude == nil {
           Text("Not on the map").font(.caption).foregroundStyle(.secondary)
         }
-        FieldMessage(text: locationMessage)
+        FieldMessage(locationMessage)
       }
       RecordPicker(
         label: "Accommodation", placeholder: "Select accommodation...",
@@ -162,7 +162,7 @@ private struct TripPartSection: View {
       }
       CalendarDateField(label: "Start date", date: $part.startDate)
       CalendarDateField(label: "End date", date: $part.endDate)
-      FieldMessage(text: datesMessage)
+      FieldMessage(datesMessage)
       HStack {
         if total > 1 {
           Button("Move up", systemImage: "arrow.up") { move(-1) }

@@ -30,7 +30,7 @@ struct CoordinateFields: View {
         .labelsHidden()
         .accessibilityHint(hint)
         .onChange(of: text.wrappedValue) { old, new in split(old, new, into: text) }
-      FieldMessage(text: message)
+      FieldMessage(message)
     }
   }
 

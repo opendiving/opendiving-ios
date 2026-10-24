@@ -73,7 +73,7 @@ struct RecordSheetsTests {
     expectFields(
       [
         "New Dive Site", "e.g. Blue Hole", "e.g. Dahab, South Sinai, Egypt", "e.g. 27.8506",
-        "e.g. 34.3136", "e.g. 5", "e.g. 30", "e.g. 372", "Not recorded", "Add a tag",
+        "e.g. 34.3136", "e.g. 5", "e.g. 30", "e.g. 372", "Not recorded", "Add a tag...",
         "Any notes about this dive site...",
       ], in: found)
   }

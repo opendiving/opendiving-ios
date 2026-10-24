@@ -26,7 +26,7 @@ struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
         HStack {
           Text(selectedTitle ?? placeholder)
             .foregroundStyle(selectedTitle == nil ? .secondary : .primary)
-          PendingMark(ref: selection)
+          if selection?.isLocal == true { PendingMark() }
         }
       }
     }
@@ -78,7 +78,7 @@ struct RecordPickerList<Row: LookupRow>: View {
                 if let subtitle = row.subtitle {
                   Text(subtitle).font(.footnote).foregroundStyle(.secondary)
                 }
-                PendingMark(ref: row.ref)
+                if row.ref.isLocal { PendingMark() }
               }
               Spacer()
               if row.ref == selection {

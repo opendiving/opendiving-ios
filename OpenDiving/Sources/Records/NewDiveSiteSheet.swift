@@ -68,7 +68,7 @@ private struct DiveSiteSheetForm: View {
               .labelStyle(.iconOnly)
               .buttonStyle(.borderless)
           }
-          FieldMessage(text: model.message("location", member: "name"))
+          FieldMessage(model.message("location", member: "name"))
         }
         CoordinateFields(
           latitude: $model.values.latitude, longitude: $model.values.longitude,
@@ -79,7 +79,7 @@ private struct DiveSiteSheetForm: View {
           Task { await useMyLocation() }
         }
         .disabled(locating)
-        FieldMessage(text: locationFailure)
+        FieldMessage(locationFailure)
         PinMap(
           name: "the dive site", latitude: model.values.latitude,
           longitude: model.values.longitude,
@@ -96,11 +96,11 @@ private struct DiveSiteSheetForm: View {
         }
       }
       Section {
-        MeasuredField(
+        RecordMeasuredField(
           label: "Depth from", key: "depth_from", measure: .depth, units: units.units(.depth),
           example: 5, value: $model.values.depthFrom, invalid: $invalid,
           message: model.message("depth_from"), onToggle: { units.toggle(.depth) })
-        MeasuredField(
+        RecordMeasuredField(
           label: "Depth to", key: "depth_to", measure: .depth, units: units.units(.depth),
           example: 30, value: $model.values.depthTo, invalid: $invalid,
           message: model.message("depth_to"), onToggle: { units.toggle(.depth) })
@@ -110,7 +110,7 @@ private struct DiveSiteSheetForm: View {
             Text(VocabularyLabels.waterType(type)).tag(Optional(type))
           }
         }
-        MeasuredField(
+        RecordMeasuredField(
           label: "Altitude", key: "altitude", measure: .altitude,
           units: units.units(.altitude), example: 372, value: altitude, invalid: $invalid,
           message: model.message("altitude"), onToggle: { units.toggle(.altitude) })
@@ -120,7 +120,11 @@ private struct DiveSiteSheetForm: View {
           Toggle(VocabularyLabels.entryType(entry), isOn: entryType(entry))
         }
       }
-      TagsField(tags: $model.values.tags, message: model.message("tags"))
+      Section {
+        TagsField(
+          tags: model.values.tags, error: model.message("tags"), onAdd: addTag,
+          onRemove: { tag in model.values.tags.removeAll { $0 == tag } })
+      }
       Section {
         TextBox(
           label: "Notes", placeholder: "Any notes about this dive site...",
@@ -148,6 +152,15 @@ private struct DiveSiteSheetForm: View {
         model.values.location =
           typed.trimmingCharacters(in: .whitespaces).isEmpty ? nil : LocationWrite(name: typed)
       })
+  }
+
+  /// The same tag twice, in any case, is one tag.
+  private func addTag(_ text: String) {
+    let tag = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !tag.isEmpty,
+      !model.values.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame })
+    else { return }
+    model.values.tags.append(tag)
   }
 
   /// Whole metres, as the column holds them.

@@ -30,7 +30,7 @@ struct TextBox: View {
       .textInputAutocapitalization(verbatim ? .never : nil)
       .autocorrectionDisabled(verbatim)
       .labelsHidden()
-      FieldMessage(text: message)
+      FieldMessage(message)
     }
   }
 }

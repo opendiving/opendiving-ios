@@ -5,7 +5,7 @@ import SwiftUI
 /// label carrying the unit and — where the web offers one — the toggle that flips it. Text that
 /// is not a number keeps its sentence under the box and its key in `invalid`, which holds the
 /// save back.
-struct MeasuredField: View {
+struct RecordMeasuredField: View {
   let label: String
   let key: String
   let measure: Measure
@@ -22,20 +22,16 @@ struct MeasuredField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      HStack {
-        Text("\(label) (\(measure.label(units)))").font(.subheadline.weight(.medium))
-        Spacer()
+      FieldLabel("\(label) (\(measure.label(units)))") {
         if let onToggle {
-          Button("Use \(measure.label(units == .metric ? .imperial : .metric))", action: onToggle)
-            .font(.footnote)
-            .buttonStyle(.borderless)
+          EntryUnitToggle(measure: measure, current: units, onToggle: onToggle)
         }
       }
       TextField(label, text: $text, prompt: prompt)
         .keyboardType(.decimalPad)
         .labelsHidden()
         .accessibilityLabel("\(label), \(measure.word(units))")
-      FieldMessage(text: entryMessage ?? message)
+      FieldMessage(entryMessage ?? message)
     }
     .onAppear { text = RecordEntryUnits.text(value, measure, units) }
     .onChange(of: units) { text = RecordEntryUnits.text(value, measure, units) }
@@ -64,7 +60,7 @@ struct MeasuredField: View {
   @Previewable @State var depth: Double? = 12
   @Previewable @State var invalid: Set<String> = []
   Form {
-    MeasuredField(
+    RecordMeasuredField(
       label: "Depth from", key: "depth_from", measure: .depth, units: .imperial, example: 5,
       value: $depth, invalid: $invalid, onToggle: {})
   }

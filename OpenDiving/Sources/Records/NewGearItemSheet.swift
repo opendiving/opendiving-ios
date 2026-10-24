@@ -67,7 +67,7 @@ private struct GearItemSheetForm: View {
               value: $model.values.volume, invalid: $invalid, message: model.message("volume"))
             volumePresets
           }
-          MeasuredField(
+          RecordMeasuredField(
             label: "Working pressure", key: "working_pressure", measure: .pressure,
             units: units, example: 232, value: $model.values.workingPressure,
             invalid: $invalid, message: model.message("working_pressure"))
