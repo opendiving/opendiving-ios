@@ -52,7 +52,7 @@ private struct GearItemSheetForm: View {
         TextBox(
           label: "Brand", placeholder: "e.g. Scubapro", text: $model.values.brand,
           message: model.message("brand"))
-        Picker("Type", selection: $model.values.type) {
+        Picker("Type", selection: type) {
           Text("No type").tag(String?.none)
           ForEach(FormVocabulary.gearTypes, id: \.self) { type in
             Text(VocabularyLabels.gearType(type) ?? type).tag(Optional(type))
@@ -86,18 +86,16 @@ private struct GearItemSheetForm: View {
           text: $model.values.notes, message: model.message("notes"), multiline: true)
       }
     }
-    .onChange(of: model.values.isCylinder) { _, isCylinder in typeChanged(isCylinder: isCylinder) }
   }
 
-  /// A cylinder's facts go with the cylinder: changed to another type, its boxes leave the
-  /// form, so nothing they held — a figure out of range included — may stop the save from
-  /// under a box no longer shown.
-  private func typeChanged(isCylinder: Bool) {
-    guard !isCylinder else { return }
-    model.values.volume = nil
-    model.values.workingPressure = nil
-    model.values.material = nil
-    invalid.subtract(["volume", "working_pressure"])
+  /// A type other than cylinder takes the cylinder's boxes away, and what they held with them.
+  private var type: Binding<String?> {
+    Binding(
+      get: { model.values.type },
+      set: { type in
+        model.values.setType(type)
+        if !model.values.isCylinder { invalid.subtract(["volume", "working_pressure"]) }
+      })
   }
 
   private var volumePresets: some View {

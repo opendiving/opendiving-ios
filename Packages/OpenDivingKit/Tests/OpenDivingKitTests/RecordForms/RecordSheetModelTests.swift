@@ -157,3 +157,61 @@ struct RecordSheetModelTests {
     return try reopened.operation() == operation
   }
 }
+
+/// What the sheets' controls do to the values.
+struct RecordSheetEditsTests {
+  @Test func aSiteTakesATagOnceInAnyCase() {
+    var site = DiveSiteFormValues(name: "Canyon")
+    site.addTag("  Wreck ")
+    site.addTag("wreck")
+    site.addTag(" ")
+    #expect(site.tags == ["Wreck"])
+    site.removeTag("Wreck")
+    #expect(site.tags.isEmpty)
+  }
+
+  @Test func entryTypesAndRolesKeepTheOrderTicked() {
+    var site = DiveSiteFormValues()
+    site.setEntryType("boat", true)
+    site.setEntryType("shore", true)
+    site.setEntryType("boat", true)
+    site.setEntryType("boat", false)
+    #expect(site.entryTypes == ["shore"])
+    var contact = ContactFormValues(roles: ["dive_center"])
+    contact.setRole("accommodation", true)
+    contact.setRole("dive_center", false)
+    #expect(contact.roles == ["accommodation"])
+  }
+
+  @Test func anAltitudeIsWholeMetresAndALongNumberDoesNotTrap() {
+    var site = DiveSiteFormValues(name: "Dead Sea")
+    site.altitudeMeters = -430.4
+    #expect(site.altitude == -430)
+    site.altitudeMeters = 1e20
+    #expect(site.altitude == 1_000_000_000)
+    #expect(site.issues.contains { $0.field == "altitude" })
+    site.altitudeMeters = nil
+    #expect(site.altitude == nil)
+  }
+
+  @Test func aGearItemChangedFromACylinderDropsItsFacts() {
+    var item = GearItemFormValues(
+      name: "Tank", type: "cylinder", volume: 0, workingPressure: 232, material: "steel")
+    item.setType("cylinder")
+    #expect(item.volume == 0)
+    item.setType("fins")
+    #expect(item.volume == nil && item.workingPressure == nil && item.material == nil)
+    #expect(item.issues.isEmpty)
+  }
+
+  @Test func savingToAnExistingSetTakesItsNameAndANewSetStartsUnnamed() {
+    let set = RecordRef.server(UUID())
+    var values = GearSetSaveValues(form: GearSetFormValues(name: "Mine"))
+    values.pickTarget(set, among: [GearSetRow(ref: set, name: "Warm water rec")])
+    #expect(values.target == set)
+    #expect(values.form.name == "Warm water rec")
+    values.pickTarget(nil, among: [])
+    #expect(values.target == nil)
+    #expect(values.form.name == "")
+  }
+}

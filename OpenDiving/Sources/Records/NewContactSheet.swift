@@ -118,14 +118,7 @@ private struct ContactSheetForm: View {
 
   private func ticked(_ role: String) -> Binding<Bool> {
     Binding(
-      get: { model.values.roles.contains(role) },
-      set: { on in
-        if on {
-          if !model.values.roles.contains(role) { model.values.roles.append(role) }
-        } else {
-          model.values.roles.removeAll { $0 == role }
-        }
-      })
+      get: { model.values.roles.contains(role) }, set: { model.values.setRole(role, $0) })
   }
 
   private func save() -> Bool {

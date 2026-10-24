@@ -112,19 +112,24 @@ private struct DiveSiteSheetForm: View {
         }
         RecordMeasuredField(
           label: "Altitude", key: "altitude", measure: .altitude,
-          units: units.units(.altitude), example: 372, value: altitude, invalid: $invalid,
+          units: units.units(.altitude), example: 372, value: $model.values.altitudeMeters,
+          invalid: $invalid,
           message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
           allowsNegative: true)
       }
       Section("Entry types") {
         ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
-          Toggle(VocabularyLabels.entryType(entry), isOn: entryType(entry))
+          Toggle(
+            VocabularyLabels.entryType(entry),
+            isOn: Binding(
+              get: { model.values.entryTypes.contains(entry) },
+              set: { model.values.setEntryType(entry, $0) }))
         }
       }
       Section {
         TagsField(
-          tags: model.values.tags, error: model.message("tags"), onAdd: addTag,
-          onRemove: { tag in model.values.tags.removeAll { $0 == tag } })
+          tags: model.values.tags, error: model.message("tags"), onAdd: { model.values.addTag($0) },
+          onRemove: { model.values.removeTag($0) })
       }
       Section {
         TextBox(
@@ -152,36 +157,6 @@ private struct DiveSiteSheetForm: View {
         let typed = String(text.prefix(PlaceSearch.maxLocationNameLength))
         model.values.location =
           typed.trimmingCharacters(in: .whitespaces).isEmpty ? nil : LocationWrite(name: typed)
-      })
-  }
-
-  /// The same tag twice, in any case, is one tag.
-  private func addTag(_ text: String) {
-    let tag = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !tag.isEmpty,
-      !model.values.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame })
-    else { return }
-    model.values.tags.append(tag)
-  }
-
-  /// Whole metres, as the column holds them.
-  private var altitude: Binding<Double?> {
-    Binding(
-      get: { model.values.altitude.map(Double.init) },
-      // Clamped before the conversion, which traps outside Int's range; anything past the
-      // band is still refused by the form's rule, with its sentence.
-      set: { model.values.altitude = $0.map { Int(min(max($0.rounded(), -1e9), 1e9)) } })
-  }
-
-  private func entryType(_ entry: String) -> Binding<Bool> {
-    Binding(
-      get: { model.values.entryTypes.contains(entry) },
-      set: { on in
-        if on {
-          if !model.values.entryTypes.contains(entry) { model.values.entryTypes.append(entry) }
-        } else {
-          model.values.entryTypes.removeAll { $0 == entry }
-        }
       })
   }
 

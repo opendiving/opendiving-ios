@@ -101,17 +101,10 @@ private struct GearSetSheetForm: View {
     }
   }
 
-  /// Picking an existing set takes its name, which the diver may still change.
   private var target: Binding<RecordRef?> {
     Binding(
       get: { model.values.target },
-      set: { ref in
-        model.values.target = ref
-        model.values.form.name =
-          ref.flatMap { ref in
-            lookups.gearSets.first { $0.ref == ref }?.name
-          } ?? ""
-      })
+      set: { model.values.pickTarget($0, among: lookups.gearSets) })
   }
 
   private var offered: [GearItemLookupItem] {
