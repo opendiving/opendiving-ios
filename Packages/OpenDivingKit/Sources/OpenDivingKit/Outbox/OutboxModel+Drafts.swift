@@ -9,9 +9,10 @@ extension OutboxModel {
   /// create queued. Returns its ref.
   public func beginDraft(_ write: DiveDraftWrite) throws -> RecordRef {
     let item = try append(.createDiveDraft(write), flush: false)
-    scheduleQuietFlush()
     // A new item always carries the ref of what it creates.
-    return item.creates!
+    let ref = item.creates!
+    scheduleQuietFlush(ref)
+    return ref
   }
 
   /// A change to a draft: written now, sent when the form is left or the changes pause.
@@ -39,13 +40,14 @@ extension OutboxModel {
       _ = try append(.updateDiveDraft(ref, write), flush: false)
     }
     changed(stores)
-    scheduleQuietFlush()
+    scheduleQuietFlush(ref)
   }
 
   /// The form was left: what it queued goes now.
   public func leaveDraft() {
     quietTask?.cancel()
     quietTask = nil
+    stopEditing()
     requestFlush(retryAll: false)
   }
 
@@ -58,6 +60,7 @@ extension OutboxModel {
     guard let stores = AccountStores.current(session) else { throw OutboxError.noAccount }
     let outbox = stores.outbox
     let ref = outbox.resolved(ref)
+    OutboxHub.hub(for: stores.directory).editing.remove(ref)
     let queued = outbox.items()
     let operation: OutboxOperation
     if let create = queued.first(where: { $0.creates == ref }), !create.attempted {
@@ -77,6 +80,7 @@ extension OutboxModel {
     guard let stores = AccountStores.current(session) else { throw OutboxError.noAccount }
     let outbox = stores.outbox
     let ref = outbox.resolved(ref)
+    OutboxHub.hub(for: stores.directory).editing.remove(ref)
     let queued = outbox.items()
     if let create = queued.first(where: { $0.creates == ref }), !create.attempted {
       for item in queued where item.record == ref { outbox.remove(item.id) }
@@ -128,14 +132,23 @@ extension OutboxModel {
     }
   }
 
-  private func scheduleQuietFlush() {
+  private func scheduleQuietFlush(_ ref: RecordRef) {
+    if let stores = AccountStores.current(session) {
+      OutboxHub.hub(for: stores.directory).editing.insert(ref)
+    }
     quietTask?.cancel()
     let interval = quietInterval
     quietTask = Task { [weak self] in
       try? await Task.sleep(for: interval)
       guard !Task.isCancelled, let self else { return }
       quietTask = nil
+      stopEditing()
       requestFlush(retryAll: false)
     }
+  }
+
+  private func stopEditing() {
+    guard let stores = AccountStores.current(session) else { return }
+    OutboxHub.hub(for: stores.directory).editing.removeAll()
   }
 }

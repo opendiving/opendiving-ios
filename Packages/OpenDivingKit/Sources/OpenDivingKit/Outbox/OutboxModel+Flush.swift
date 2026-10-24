@@ -88,6 +88,7 @@ private struct Flush {
         }
         guard item.isPending, !item.writtenBeforeAccountKnown, !hub.tried.contains(item.id),
           retryAll || hub.answers[item.id, default: 0] < 2,
+          retryAll || !isBeingEdited(item),
           OutboxModel.dependencies(of: item, among: items).isEmpty
         else { continue }
         hub.tried.insert(item.id)
@@ -102,6 +103,14 @@ private struct Flush {
       break
     }
     return outcome
+  }
+
+  private func isBeingEdited(_ item: OutboxItem) -> Bool {
+    switch item.operation {
+    case .createDiveDraft, .updateDiveDraft:
+      item.record.map(hub.editing.contains) ?? false
+    default: false
+    }
   }
 
   // MARK: - Sending

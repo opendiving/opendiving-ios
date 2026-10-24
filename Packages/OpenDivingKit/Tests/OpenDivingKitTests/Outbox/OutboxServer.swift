@@ -35,7 +35,8 @@ final class OutboxServer: HTTPTransport {
     var sent: [Sent] = []
     var created: [UUID] = []
     var override: Override?
-    var drafts = "[]"
+    /// The drafts the server holds, newest first, with the values each was last sent.
+    var drafts: [(uuid: String, values: Data?)] = []
   }
 
   private let state = Mutex(State())
@@ -54,8 +55,10 @@ final class OutboxServer: HTTPTransport {
 
   func signIn(as account: UUID) { state.withLock { $0.account = account } }
   func override(_ answer: @escaping Override) { state.withLock { $0.override = answer } }
-  /// What `GET dive-drafts` answers: the rows as a JSON array.
-  func answerDrafts(_ rows: String) { state.withLock { $0.drafts = rows } }
+  /// The drafts the server holds to begin with, with the fixture's values.
+  func holdDrafts(_ uuids: [UUID]) {
+    state.withLock { $0.drafts = uuids.map { ($0.uuidString.lowercased(), nil) } }
+  }
 
   var sent: [Sent] { state.withLock { $0.sent } }
   var routes: [String] { sent.map(\.route) }
@@ -89,6 +92,7 @@ final class OutboxServer: HTTPTransport {
       return (index, state.override)
     }
     let response = try await override?(request, index) ?? answer(route)
+    if (200..<300).contains(response.status) { keepDrafts(route, request.httpBody, response) }
     let http = HTTPURLResponse(
       url: request.url!, statusCode: response.status, httpVersion: "HTTP/1.1",
       headerFields: response.headers)!
@@ -112,11 +116,13 @@ final class OutboxServer: HTTPTransport {
     case ("GET", "dive") where segments.count == 2:
       return .json(Self.with(fixtures["dive-detail"]!, uuid: segments[1]))
     case ("GET", "dive-draft") where segments.count == 2:
-      return .json(Self.with(fixtures["dive-draft"]!, uuid: segments[1]))
+      let values = state.withLock { $0.drafts.first { $0.uuid == segments[1] }?.values }
+      return .json(draftRow(segments[1], values))
     case ("GET", "dive-drafts"):
-      let rows = state.withLock { $0.drafts }
+      let rows = state.withLock { $0.drafts }.map { draftRow($0.uuid, $0.values) }
       return .json(
-        #"{"data":\#(rows),"total_count":0,"has_more":false,"page":1,"items_per_page":100}"#)
+        #"{"data":[\#(rows.joined(separator: ","))],"total_count":\#(rows.count),"#
+          + #""has_more":false,"page":1,"items_per_page":100}"#)
     case ("GET", _):
       return .emptyPage
     case ("POST", "auth"):
@@ -153,9 +159,40 @@ final class OutboxServer: HTTPTransport {
     }
   }
 
-  static func with(_ fixture: String, uuid: String) -> String {
+  private func draftRow(_ uuid: String, _ values: Data?) -> String {
+    Self.with(
+      fixtures["dive-draft"]!, uuid: uuid,
+      values: values.flatMap { try? JSONSerialization.jsonObject(with: $0) })
+  }
+
+  /// What a draft write did to the drafts the server holds.
+  private func keepDrafts(_ route: String, _ body: Data?, _ response: StubTransport.Response) {
+    let values = body.flatMap {
+      ((try? JSONSerialization.jsonObject(with: $0)) as? [String: Any])?["values"]
+    }.flatMap { try? JSONSerialization.data(withJSONObject: $0) }
+    let segments = route.split(separator: " ")[1].split(separator: "/").map(String.init)
+    guard segments.first == "dive-draft" else { return }
+    state.withLock { state in
+      switch (route.split(separator: " ")[0], segments.count) {
+      case ("POST", 1):
+        let created = (try? JSONSerialization.jsonObject(with: response.body)) as? [String: Any]
+        if let uuid = created?["uuid"] as? String { state.drafts.insert((uuid, values), at: 0) }
+      case ("PATCH", 2):
+        if let index = state.drafts.firstIndex(where: { $0.uuid == segments[1] }) {
+          state.drafts[index].values = values
+        }
+      case ("DELETE", 2), ("POST", 3):
+        state.drafts.removeAll { $0.uuid == segments[1] }
+      default:
+        break
+      }
+    }
+  }
+
+  static func with(_ fixture: String, uuid: String, values: Any? = nil) -> String {
     var object = (try? JSONSerialization.jsonObject(with: Data(fixture.utf8))) as? [String: Any] ?? [:]
     object["uuid"] = uuid
+    if let values { object["values"] = values }
     return String(decoding: try! JSONSerialization.data(withJSONObject: object), as: UTF8.self)
   }
 

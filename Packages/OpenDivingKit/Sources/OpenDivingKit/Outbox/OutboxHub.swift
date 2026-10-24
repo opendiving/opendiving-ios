@@ -52,6 +52,9 @@ final class OutboxHub {
   var answers: [UUID: Int] = [:]
   /// The items already tried in the flush running, so one that failed is not sent twice in it.
   var tried: Set<UUID> = []
+  /// Drafts being changed in a form: their queued writes wait for it to be left or for the
+  /// changes to pause, so a flush running meanwhile does not send every keystroke.
+  var editing: Set<RecordRef> = []
   var lookupsRefresh: Task<Void, Never>?
   var draftsRefresh: Task<Void, Never>?
 
