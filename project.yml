@@ -57,6 +57,61 @@ targets:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: >-
           OpenDiving connects to the server you choose, which can be one on your local network.
+        # Every format the server reads can be shared to the app. Imported, never exported:
+        # the project owns none of these formats. Ranked Alternate, so a format's own app
+        # stays first. Copied into Documents/Inbox rather than opened in place. See
+        # DECISIONS.md, "Shared files are imported types, copied in".
+        LSSupportsOpeningDocumentsInPlace: false
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: app.opendiving.fit
+            UTTypeDescription: FIT activity file
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [fit]
+          - UTTypeIdentifier: app.opendiving.uddf
+            UTTypeDescription: UDDF dive log
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [uddf]
+          - UTTypeIdentifier: app.opendiving.ssrf
+            UTTypeDescription: Subsurface dive log
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [ssrf]
+          - UTTypeIdentifier: app.opendiving.divejson
+            UTTypeDescription: DiveJSON dive log
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [divejson]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: FIT activity file
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [app.opendiving.fit]
+          - CFBundleTypeName: UDDF dive log
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [app.opendiving.uddf]
+          - CFBundleTypeName: Subsurface dive log
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [app.opendiving.ssrf]
+          - CFBundleTypeName: DiveJSON dive log
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [app.opendiving.divejson]
+          - CFBundleTypeName: JSON
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.json]
+          - CFBundleTypeName: XML
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.xml]
+          - CFBundleTypeName: Zip archive
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.zip-archive]
 
   OpenDivingTests:
     type: bundle.unit-test

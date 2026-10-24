@@ -3,8 +3,8 @@ import OpenDivingKit
 import UIKit
 
 extension Session {
-  /// The app's session, over the Keychain, the app's defaults, the background-task API and
-  /// the network configuration.
+  /// The app's session, over the Keychain, the app's defaults, the background-task API, the
+  /// path monitor and the network configuration.
   static func device() -> Session {
     let secrets = KeychainSecretStore()
     // Before the session reads the Keychain, so that a reinstall starts signed out. A clear
@@ -15,6 +15,7 @@ extension Session {
       secrets: secrets,
       activeOrigin: DefaultsActiveOriginStore(),
       background: ApplicationBackgroundExecution(),
+      connectivity: PathMonitorConnectivity(),
       applicationSupport: URL.applicationSupportDirectory,
       userAgent: .device)
   }

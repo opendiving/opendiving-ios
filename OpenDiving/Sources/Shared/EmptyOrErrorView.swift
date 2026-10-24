@@ -41,7 +41,7 @@ struct EmptyOrErrorView: View {
   EmptyOrErrorView(
     status: .empty(
       systemImage: "water.waves", title: "No dives logged yet",
-      message: "Dives you log on the web appear here."))
+      message: "No dives yet. Log one, or import your dive computer's files, with +."))
 }
 
 #Preview("Failed") {
