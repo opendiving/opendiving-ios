@@ -2,18 +2,24 @@ import OpenDivingKit
 import SwiftUI
 
 /// What the window shows — the server and sign-in screens, or the signed-in shell — and where
-/// the one session, and the sign-in flow Settings reaches back into, are injected.
+/// the one session, the sign-in flow Settings reaches back into, the inbox and the outbox are
+/// injected.
 struct RootView: View {
   @State private var session: Session
   @State private var signIn: SignInFlow
   @State private var account: AccountLoader
   @State private var inbox: InboxModel
+  @State private var outbox: OutboxModel
 
   init(session: Session = .device()) {
+    let account = AccountLoader(session: session)
     _session = State(initialValue: session)
     _signIn = State(initialValue: SignInFlow(session: session))
-    _account = State(initialValue: AccountLoader(session: session))
+    _account = State(initialValue: account)
     _inbox = State(initialValue: InboxModel(session: session))
+    // The quiet load: a reconnect that loads the account raises no alert of its own.
+    _outbox = State(
+      initialValue: OutboxModel(session: session, loadAccount: { await account.loadQuietly() }))
   }
 
   var body: some View {
@@ -29,6 +35,7 @@ struct RootView: View {
     .environment(session)
     .environment(signIn)
     .inboxHost(inbox, session: session)
+    .outboxHost(outbox, session: session)
     .task { await account.launch() }
     .onChange(of: session.state) { old, new in
       Task { await account.sessionChanged(from: old, to: new) }

@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Dives* tab: the logbook, newest first as the server orders it, a page at a time, and
-/// the `+` that logs a dive or imports files.
+/// The *Dives* tab: the logbook, newest first as the server orders it, a page at a time — the
+/// pages the phone has shown first, from its copy — what is waiting to sync above it, and the
+/// `+` that logs a dive or imports files.
 struct DivesView: View {
   @Environment(Session.self) private var session
   @State private var list: PagedList<DiveListItem>?
@@ -35,11 +36,18 @@ struct DivesView: View {
     }
     .task {
       guard list == nil else { return }
-      let list = PagedList<DiveListItem>(session: session) { client, page, itemsPerPage in
-        try await client.dives(page: page, itemsPerPage: itemsPerPage)
-      }
+      let list = Self.list(session)
       self.list = list
       await list.load()
+    }
+  }
+}
+
+extension DivesView {
+  /// The logbook's list, over the account's copy of the pages it has shown.
+  static func list(_ session: Session) -> PagedList<DiveListItem> {
+    PagedList(session: session, cache: .dives) { client, page, itemsPerPage in
+      try await client.dives(page: page, itemsPerPage: itemsPerPage)
     }
   }
 }
@@ -55,15 +63,23 @@ private struct DivesList: View {
 
   var body: some View {
     switch list.phase {
+    // What is waiting to sync shows however the list stands: offline with nothing kept, the
+    // first page is a minute away.
     case .idle, .loading:
-      EmptyOrErrorView(status: .loading)
+      VStack(spacing: 0) {
+        pending
+        EmptyOrErrorView(status: .loading)
+      }
     case .failed(let error):
-      EmptyOrErrorView(status: .failed(message: error.message)) {
-        Task { await list.refresh() }
+      VStack(spacing: 0) {
+        pending
+        EmptyOrErrorView(status: .failed(message: error.message)) {
+          Task { await list.refresh() }
+        }
       }
     case .loaded where list.items.isEmpty:
       VStack(spacing: 0) {
-        PendingSection()
+        pending
         EmptyOrErrorView(
           status: .empty(
             systemImage: "water.waves", title: "No dives logged yet",
@@ -75,6 +91,9 @@ private struct DivesList: View {
       ScrollView {
         LazyVStack(spacing: 12) {
           PendingSection()
+          if let lastUpdated = list.lastUpdated {
+            LastUpdatedLine(date: lastUpdated)
+          }
           ForEach(list.items) { item in
             NavigationLink {
               DiveDetailView(diveUUID: item.id)
@@ -92,10 +111,16 @@ private struct DivesList: View {
       .refreshable { await list.refresh() }
     }
   }
+
+  private var pending: some View {
+    PendingSection()
+      .padding([.horizontal, .top])
+  }
 }
 
 #Preview {
   DivesView()
     .environment(DivePreviewData.session)
     .environment(InboxModel(session: DivePreviewData.session))
+    .environment(OutboxModel(session: DivePreviewData.session))
 }

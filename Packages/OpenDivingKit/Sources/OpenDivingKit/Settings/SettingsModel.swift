@@ -44,7 +44,9 @@ public final class SettingsModel {
     _ = await performSignOut()
   }
 
-  /// Signs out, then the server screen. The server's cached sheet stays on the phone.
+  /// Signs out, then the server screen. What the phone keeps for the server — the cached
+  /// sheet, the drafts, the writes waiting to sync, the files waiting to be read and the copies
+  /// of the logbook — stays on it.
   public func changeServer() async {
     guard await performSignOut() else { return }
     signIn.useDifferentServer()

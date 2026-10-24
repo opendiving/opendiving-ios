@@ -84,4 +84,5 @@ struct ServerScreen: View {
   NavigationStack {
     ServerScreen(flow: SignInFlow(session: session))
   }
+  .environment(session)
 }
