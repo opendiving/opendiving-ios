@@ -113,7 +113,8 @@ private struct DiveSiteSheetForm: View {
         RecordMeasuredField(
           label: "Altitude", key: "altitude", measure: .altitude,
           units: units.units(.altitude), example: 372, value: altitude, invalid: $invalid,
-          message: model.message("altitude"), onToggle: { units.toggle(.altitude) })
+          message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
+          allowsNegative: true)
       }
       Section("Entry types") {
         ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
@@ -167,7 +168,9 @@ private struct DiveSiteSheetForm: View {
   private var altitude: Binding<Double?> {
     Binding(
       get: { model.values.altitude.map(Double.init) },
-      set: { model.values.altitude = $0.map { Int($0.rounded()) } })
+      // Clamped before the conversion, which traps outside Int's range; anything past the
+      // band is still refused by the form's rule, with its sentence.
+      set: { model.values.altitude = $0.map { Int(min(max($0.rounded(), -1e9), 1e9)) } })
   }
 
   private func entryType(_ entry: String) -> Binding<Bool> {

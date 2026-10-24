@@ -16,6 +16,9 @@ struct RecordMeasuredField: View {
   @Binding var invalid: Set<String>
   var message: String?
   var onToggle: (() -> Void)?
+  /// The decimal keypad has no minus key, so a box that takes a negative — an altitude below
+  /// sea level — gets the punctuation keyboard.
+  var allowsNegative = false
 
   @State private var text = ""
   @State private var entryMessage: String?
@@ -28,7 +31,7 @@ struct RecordMeasuredField: View {
         }
       }
       TextField(label, text: $text, prompt: prompt)
-        .keyboardType(.decimalPad)
+        .keyboardType(allowsNegative ? .numbersAndPunctuation : .decimalPad)
         .labelsHidden()
         .accessibilityLabel("\(label), \(measure.word(units))")
       FieldMessage(entryMessage ?? message)
