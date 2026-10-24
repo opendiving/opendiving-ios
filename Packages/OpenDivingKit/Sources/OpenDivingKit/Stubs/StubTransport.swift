@@ -50,7 +50,8 @@ public final class StubTransport: HTTPTransport {
     }
   }
 
-  /// Every request sent so far, in order.
+  /// Every request sent so far, in order. An upload's is there with the file's contents as
+  /// its `httpBody`, read before the handler answers.
   public var requests: [URLRequest] {
     sent.withLock { $0 }
   }
@@ -61,6 +62,14 @@ public final class StubTransport: HTTPTransport {
     let prefix = "/api/v1/"
     let route = path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path
     return "\(request.httpMethod ?? "GET") \(route)"
+  }
+
+  public func upload(_ request: URLRequest, fromFile file: URL) async throws
+    -> (Data, HTTPURLResponse)
+  {
+    var request = request
+    request.httpBody = try Data(contentsOf: file)
+    return try await send(request)
   }
 
   public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {

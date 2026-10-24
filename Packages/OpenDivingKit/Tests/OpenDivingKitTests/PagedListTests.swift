@@ -107,30 +107,6 @@ struct PagedListTests {
   }
 }
 
-/// Holds one request until the test opens it, and says when that request has arrived.
-private actor Gate {
-  private var held: CheckedContinuation<Void, Never>?
-  private var arrival: CheckedContinuation<Void, Never>?
-  private var arrived = false
-
-  func pass() async {
-    arrived = true
-    arrival?.resume()
-    arrival = nil
-    await withCheckedContinuation { held = $0 }
-  }
-
-  func untilArrived() async {
-    guard !arrived else { return }
-    await withCheckedContinuation { arrival = $0 }
-  }
-
-  func open() {
-    held?.resume()
-    held = nil
-  }
-}
-
 /// Holds the first page-1 request sent after ``arm()`` at the ``Gate``.
 private final class GatedTransport: HTTPTransport {
   let inner: StubTransport
@@ -157,5 +133,9 @@ private final class GatedTransport: HTTPTransport {
       }
     if hold { await gate.pass() }
     return try await inner.send(request)
+  }
+
+  func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
+    try await inner.upload(request, fromFile: file)
   }
 }

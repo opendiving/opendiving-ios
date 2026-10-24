@@ -4,6 +4,12 @@ import Foundation
 /// ``SecretStore``, the remembered account, and a directory under Application Support that
 /// other features write into — the check-in sheet among them. ``forget(_:)`` is the only call
 /// that removes all three, so no feature needs a forget path of its own.
+///
+/// Inside the server's directory each account the phone has loaded there has one of its own,
+/// ``directory(for:account:)``, for what belongs to that account rather than to the server —
+/// a sign-in to the same server can be another account. Beside them a pointer names the
+/// account last loaded, ``lastAccount(for:)``, which outlives a sign-out so that a signed-out
+/// phone still knows whose stores to show.
 public struct ServerStateStore: Sendable {
   private let root: URL
   private let secrets: any SecretStore
@@ -22,6 +28,58 @@ public struct ServerStateStore: Sendable {
       .appendingPathComponent(origin.slug, isDirectory: true)
   }
 
+  /// An account's own directory inside the server's: `Servers/<slug>/Accounts/<user uuid>/`.
+  /// Not created here; a feature that writes creates it. ``forget(_:)`` removes it with the
+  /// server's; ending a session leaves it.
+  public func directory(for origin: ServerOrigin, account: UUID) -> URL {
+    directory(for: origin).appendingPathComponent("Accounts", isDirectory: true)
+      .appendingPathComponent(account.uuidString.lowercased(), isDirectory: true)
+  }
+
+  /// The account `loadAccount()` last read from this server, signed in or not since; nil
+  /// before one has loaded.
+  public func lastAccount(for origin: ServerOrigin) -> UUID? {
+    guard let data = try? Data(contentsOf: lastAccountFile(for: origin)) else { return nil }
+    return (try? APICoding.decoder().decode(LastAccount.self, from: data))?.userUuid
+  }
+
+  /// What the dive form needs of `account` when no `GET /user` can be read — signed out, or
+  /// offline before the account loads: its units and its hidden fields, as last read.
+  public func formSettings(for origin: ServerOrigin, account: UUID) -> AccountFormSettings? {
+    guard let data = try? Data(contentsOf: formSettingsFile(for: origin, account: account))
+    else { return nil }
+    return try? APICoding.decoder().decode(AccountFormSettings.self, from: data)
+  }
+
+  /// Points the server's last-account pointer at `user` and keeps its form settings in its
+  /// directory. Written when the account has been read, never at sign-in, whose answer names
+  /// no account.
+  func rememberLastAccount(_ user: UserRead, for origin: ServerOrigin) throws {
+    try write(
+      AccountFormSettings(units: user.units, diveFormHiddenFields: user.diveFormHiddenFields),
+      to: formSettingsFile(for: origin, account: user.uuid))
+    try write(LastAccount(userUuid: user.uuid), to: lastAccountFile(for: origin))
+  }
+
+  private func lastAccountFile(for origin: ServerOrigin) -> URL {
+    directory(for: origin).appendingPathComponent("last-account.json", isDirectory: false)
+  }
+
+  private func formSettingsFile(for origin: ServerOrigin, account: UUID) -> URL {
+    directory(for: origin, account: account)
+      .appendingPathComponent("form-settings.json", isDirectory: false)
+  }
+
+  private struct LastAccount: Codable {
+    let userUuid: UUID
+  }
+
+  private func write(_ value: some Encodable, to file: URL) throws {
+    try FileManager.default.createDirectory(
+      at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try APICoding.encoder().encode(value).write(to: file, options: .atomic)
+  }
+
   /// The account last read from the server, kept beside the directory rather than in it so
   /// that ending a session can drop it and leave the directory alone.
   func userFile(for origin: ServerOrigin) -> URL {
@@ -35,21 +93,19 @@ public struct ServerStateStore: Sendable {
   }
 
   func remember(_ user: UserRead, for origin: ServerOrigin) throws {
-    let file = userFile(for: origin)
-    try FileManager.default.createDirectory(
-      at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try APICoding.encoder().encode(user).write(to: file, options: .atomic)
+    try write(user, to: userFile(for: origin))
   }
 
-  /// A session ended, by sign-out or by the server refusing it: the token and the account go,
-  /// the directory and the active-origin pointer stay.
+  /// A session ended, by sign-out or by the server refusing it: the token and the account go;
+  /// the directory, the last-account pointer and the active-origin pointer stay.
   func endSession(for origin: ServerOrigin) throws {
     try secrets.removeSecret(for: origin.description)
     try removeIfPresent(userFile(for: origin))
   }
 
-  /// Removes the token, the remembered account and the directory, and clears the
-  /// active-origin pointer when it names this server. Needs no server, so a server that is
+  /// Removes the token, the remembered account and the directory — every account's directory
+  /// and the last-account pointer with it — and clears the active-origin pointer when it names
+  /// this server. Needs no server, so a server that is
   /// gone can still be forgotten.
   public func forget(_ origin: ServerOrigin) throws {
     try endSession(for: origin)

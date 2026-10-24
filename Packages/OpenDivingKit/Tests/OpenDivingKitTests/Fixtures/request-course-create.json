@@ -1,0 +1,12 @@
+{
+  "name": "Advanced Open Water",
+  "agency": "other",
+  "agency_other": "Regional Dive Federation",
+  "status": "in_progress",
+  "start_date": "2026-09-08",
+  "end_date": "2026-09-10",
+  "instructor_number": "RDF-0001",
+  "notes": "Deep and navigation dives done.",
+  "contact_uuid": "01a14b2e-0c3d-7a10-9f00-2a2b3c4d5e6f",
+  "people": [{ "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d", "role": "instructor" }]
+}

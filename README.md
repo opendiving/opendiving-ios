@@ -33,6 +33,10 @@ SwiftUI on iOS 18 and later, over `OpenDivingKit`, a Swift package holding every
 a view. It talks to the [opendiving-api](https://github.com/opendiving/opendiving-api) REST API
 with the same passwordless sign-in as the web app, by email code.
 
+It needs a server released after v0.6.0 that has dive drafts: the app asks at sign-in for a
+session that lasts while the phone is offline, which an older server refuses, and keeps a dive
+begun on the phone as a draft on the server, which one without drafts cannot hold.
+
 ## Related repositories
 
 | | |

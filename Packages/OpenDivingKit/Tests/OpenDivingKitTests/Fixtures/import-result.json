@@ -1,0 +1,106 @@
+{
+  "collections": [
+    {
+      "collection": "dives",
+      "created": 1,
+      "linked": 0,
+      "restored": 0,
+      "skipped": 1
+    }
+  ],
+  "files": {
+    "referenced": 0,
+    "restored": 0,
+    "not_contained": 0,
+    "skipped": 0
+  },
+  "notes": [
+    {
+      "code": "tags_created",
+      "kind": null,
+      "collection": "dives",
+      "message": "1 tag is new to your logbook: drift.",
+      "count": 1,
+      "wheres": []
+    }
+  ],
+  "notes_truncated": 0,
+  "members": [
+    {
+      "part": 0,
+      "container": null,
+      "name": "dive-0214.fit",
+      "byte_size": 48213,
+      "sha256": "3f7a1c9e5b2d4f6a8c0e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a",
+      "format": "fit",
+      "opened": null,
+      "kept": true,
+      "not_kept": null,
+      "refusal": null
+    },
+    {
+      "part": 1,
+      "container": null,
+      "name": "notes.txt",
+      "byte_size": 12,
+      "sha256": "9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f",
+      "format": null,
+      "opened": null,
+      "kept": false,
+      "not_kept": null,
+      "refusal": "This file is not one OpenDiving reads."
+    }
+  ],
+  "dives": [
+    {
+      "uuid": "01a14b2e-0c3d-7a10-9f00-ba2b3c4d5e6f",
+      "outcome": "created",
+      "files_added": 0,
+      "recordings_added": 0,
+      "reason": null,
+      "start_time": "2026-09-14T09:12:00+03:00",
+      "submerged_time": 2940,
+      "max_depth": 24.6,
+      "device": {
+        "brand": "Garmin",
+        "model": "Descent Mk3",
+        "serial": null,
+        "firmware": "12.20",
+        "name": null,
+        "dive_number": 87
+      },
+      "members": [
+        0
+      ],
+      "notes": [
+        {
+          "code": "value_derived",
+          "kind": "inferred",
+          "collection": "dives",
+          "message": "The average depth was worked out from the profile."
+        },
+        {
+          "code": "a_code_from_a_newer_reader",
+          "kind": "something_new",
+          "collection": null,
+          "message": "A sentence this version has not seen."
+        }
+      ],
+      "notes_truncated": 0
+    },
+    {
+      "uuid": null,
+      "outcome": "skipped",
+      "files_added": 0,
+      "recordings_added": 0,
+      "reason": "This dive is already in your logbook.",
+      "start_time": "2026-09-13",
+      "submerged_time": null,
+      "max_depth": null,
+      "device": null,
+      "members": [],
+      "notes": [],
+      "notes_truncated": 0
+    }
+  ]
+}

@@ -37,6 +37,12 @@ public final class Session {
   }
 
   public private(set) var state: State
+  /// Whether ``loadAccount()`` has read the account in this session since ``state`` last
+  /// changed, whichever caller ran it. Until it has, a signed-in session does not know which
+  /// account its token is — a sign-in's answer names none — so the last-account pointer and
+  /// the account's directory may still be the previous account's, and nothing that writes to
+  /// the server on an account's behalf should run.
+  public private(set) var accountLoaded = false
   /// The account, as last read from the server or remembered from the last time it was.
   public private(set) var user: UserRead? = nil
   /// Everyone a dive, a trip, a course or a card can name, by uuid.
@@ -52,9 +58,15 @@ public final class Session {
   @ObservationIgnored private let transport: any HTTPTransport
   @ObservationIgnored private let secrets: any SecretStore
   @ObservationIgnored private let activeOrigin: any ActiveOriginStore
-  @ObservationIgnored private let background: any BackgroundExecution
   @ObservationIgnored private let userAgent: UserAgent
   @ObservationIgnored public let store: ServerStateStore
+  /// Keeps the app running while work that must not be cut off finishes: a token rotating, a
+  /// queue flushing.
+  @ObservationIgnored public nonisolated let background: any BackgroundExecution
+  /// Whether a route is believed to exist, and the moments worth trying again.
+  @ObservationIgnored public nonisolated let connectivity: any Connectivity
+  /// Bumped on every change of ``state``, so a load that began before one cannot land after it.
+  @ObservationIgnored private var stateGeneration = 0
 
   /// The device's session. `configuration` is the app target's, carrying what Linux's
   /// Foundation cannot express; `applicationSupport` is where per-server state is kept.
@@ -63,13 +75,14 @@ public final class Session {
     secrets: any SecretStore,
     activeOrigin: any ActiveOriginStore,
     background: any BackgroundExecution,
+    connectivity: any Connectivity = AlwaysReachable(),
     applicationSupport: URL,
     userAgent: UserAgent
   ) {
     self.init(
       transport: URLSessionTransport(configuration: configuration), secrets: secrets,
-      activeOrigin: activeOrigin, background: background, applicationSupport: applicationSupport,
-      userAgent: userAgent)
+      activeOrigin: activeOrigin, background: background, connectivity: connectivity,
+      applicationSupport: applicationSupport, userAgent: userAgent)
   }
 
   public init(
@@ -77,6 +90,7 @@ public final class Session {
     secrets: any SecretStore,
     activeOrigin: any ActiveOriginStore,
     background: any BackgroundExecution,
+    connectivity: any Connectivity = AlwaysReachable(),
     applicationSupport: URL,
     userAgent: UserAgent,
     accessToken: String? = nil
@@ -85,6 +99,7 @@ public final class Session {
     self.secrets = secrets
     self.activeOrigin = activeOrigin
     self.background = background
+    self.connectivity = connectivity
     self.userAgent = userAgent
     store = ServerStateStore(root: applicationSupport, secrets: secrets, activeOrigin: activeOrigin)
     state = .noServer
@@ -137,7 +152,7 @@ public final class Session {
     server = nil
     user = nil
     people = [:]
-    state = .noServer
+    transition(to: .noServer)
   }
 
   // MARK: - Signing in and out
@@ -154,7 +169,7 @@ public final class Session {
     let outcome = try await client.verifyEmailCode(requestID: requestID, code: code)
     switch outcome.status {
     case "authenticated":
-      state = .signedIn(client.origin)
+      transition(to: .signedIn(client.origin))
       return .signedIn
     case "onboarding_required":
       return .onboardingRequired(email: outcome.email, name: outcome.name)
@@ -173,17 +188,22 @@ public final class Session {
     try await loadAccount()
   }
 
-  /// `GET /user` and every page of `GET /people`.
+  /// `GET /user` and every page of `GET /people`, then the server's last-account pointer and
+  /// the account's form settings, then ``accountLoaded``. Returns quietly, storing nothing,
+  /// when the session changed while it ran.
   public func loadAccount() async throws {
     let client = try requireClient()
+    let generation = stateGeneration
     let user = try await client.currentUser()
     let people = try await APIClient.allPages { page, perPage in
       try await client.people(page: page, itemsPerPage: perPage)
     }
-    guard state == .signedIn(client.origin) else { return }
+    guard generation == stateGeneration, state == .signedIn(client.origin) else { return }
     self.user = user
     self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
     try? store.remember(user, for: client.origin)
+    try? store.rememberLastAccount(user, for: client.origin)
+    accountLoaded = true
   }
 
   /// Revokes the session on the server, then forgets the token and the account here. An
@@ -212,9 +232,9 @@ public final class Session {
   private func enter(_ origin: ServerOrigin) {
     if store.hasRefreshToken(origin) {
       user = store.rememberedUser(for: origin)
-      state = .signedIn(origin)
+      transition(to: .signedIn(origin))
     } else {
-      state = .signingIn(origin)
+      transition(to: .signingIn(origin))
     }
   }
 
@@ -223,7 +243,15 @@ public final class Session {
     guard state.origin == origin else { return }
     user = nil
     people = [:]
-    state = .signingIn(origin)
+    transition(to: .signingIn(origin))
+  }
+
+  /// Every change of ``state`` goes through here — and so does selecting the server already
+  /// active, which drops the account the same way — so no load from before it counts.
+  private func transition(to new: State) {
+    state = new
+    stateGeneration += 1
+    accountLoaded = false
   }
 
   private func makeClient(_ origin: ServerOrigin, accessToken: String? = nil) -> APIClient {

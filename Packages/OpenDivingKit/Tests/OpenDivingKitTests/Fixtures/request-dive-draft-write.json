@@ -1,0 +1,33 @@
+{
+  "gear_set_uuid": "01a14b2e-0c3d-7a10-9f00-9a2b3c4d5e6f",
+  "values": {
+    "dive_number": 215,
+    "start_time": "2026-09-14T14:30:00+03:00",
+    "submerged_time": 3000,
+    "max_depth": 18.0,
+    "avg_depth": 10.4,
+    "bottom_temperature": 27.0,
+    "visibility": 25,
+    "weight": 4.0,
+    "water_type": "salt",
+    "altitude": 0,
+    "type": "open_circuit",
+    "rating": 5,
+    "air_temperature": 32.0,
+    "current": "none",
+    "waves": "slight",
+    "weather": "partly_cloudy",
+    "entry_type": "shore",
+    "boat_name": "Example Explorer",
+    "notes": "Half written on the boat.",
+    "trip_uuid": "01a0a57a-92c3-73d0-8f2c-e200878f9878",
+    "course_uuid": "01a14b2e-0c3d-7a10-9f00-1a2b3c4d5e6f",
+    "contact_uuid": "01a14b2e-0c3d-7a10-9f00-2a2b3c4d5e6f",
+    "mixtures": [{ "volume": 11.1, "start_pressure": 200.0, "oxygen": 21.0 }],
+    "dive_site_uuids": ["01a14b2e-0c3d-7a10-9f00-4a2b3c4d5e6f"],
+    "gear_item_uuids": ["01a14b2e-0c3d-7a10-9f00-5a2b3c4d5e6f"],
+    "sightings": [{ "species_uuid": "01a14b2e-0c3d-7a10-9f00-6a2b3c4d5e6f", "notes": "" }],
+    "people": [{ "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d" }],
+    "tags": ["shore"]
+  }
+}

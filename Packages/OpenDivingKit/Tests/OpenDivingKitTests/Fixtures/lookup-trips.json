@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "uuid": "01a0a57a-92c3-73d0-8f2c-e200878f9878",
+      "name": "Red Sea, September",
+      "people": [{ "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d", "role": "companion" }]
+    }
+  ],
+  "total_count": 1, "has_more": false, "page": 1, "items_per_page": 50
+}

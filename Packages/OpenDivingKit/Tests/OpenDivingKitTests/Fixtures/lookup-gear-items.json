@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "uuid": "01a14b2e-0c3d-7a10-9f00-3a2b3c4d5e6f",
+      "name": "12 L steel",
+      "brand": "Example Cylinders",
+      "type": "cylinder",
+      "rented": false,
+      "is_archived": false,
+      "volume": 12.0,
+      "working_pressure": 232.0,
+      "material": "steel"
+    }
+  ],
+  "total_count": 1, "has_more": false, "page": 1, "items_per_page": 50
+}

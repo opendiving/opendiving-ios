@@ -56,7 +56,11 @@ struct APIClientAuthTests {
     #expect(harness.transport.requests.last?.bearer == "access-1")
     let body = try #require(harness.transport.requests.first?.httpBody)
     let sent = try JSONDecoder().decode([String: String].self, from: body)
-    #expect(sent == ["request_id": requestID.uuidString.lowercased(), "code": "123456"])
+    #expect(
+      sent == [
+        "request_id": requestID.uuidString.lowercased(), "code": "123456",
+        "idle_timeout": "extended",
+      ])
   }
 
   @Test(arguments: ["auth-outcome-onboarding", "auth-outcome-deletion-pending"])
@@ -156,6 +160,76 @@ struct APIClientAuthTests {
     }
     #expect(harness.storedRefreshToken == "refresh-0")
     #expect(!harness.sessionEnded)
+  }
+
+  /// Answers each `POST /auth/refresh` with the next of `answers` — nil standing for a reply
+  /// lost on the way back — and every other request by the bearer.
+  private static func refreshing(_ answers: [StubTransport.Response?]) -> ClientHarness {
+    let remaining = Mutex(answers)
+    return ClientHarness(accessToken: "stale") { request in
+      guard request.route == "POST auth/refresh" else {
+        return request.bearer == "fresh" ? .json(Self.user) : .unauthorized
+      }
+      guard let answer = remaining.withLock({ $0.removeFirst() }) else {
+        throw URLError(.networkConnectionLost)
+      }
+      return answer
+    }
+  }
+
+  private static let rotated = StubTransport.Response.refreshed(
+    access: "fresh", refresh: "refresh-1")
+
+  @Test func aRefreshWhoseReplyWasLostIsPresentedAgainWithTheSameCookie() async throws {
+    let harness = Self.refreshing([nil, Self.rotated])
+    _ = try await harness.client.currentUser()
+    #expect(
+      harness.log.all == [
+        "send GET user", "begin", "send POST auth/refresh", "send POST auth/refresh",
+        "write refresh-1", "end", "send GET user",
+      ])
+    let refreshes = harness.transport.requests.filter { $0.route == "POST auth/refresh" }
+    #expect(refreshes.map(\.cookie) == ["refresh_token=refresh-0", "refresh_token=refresh-0"])
+    #expect(!harness.sessionEnded)
+  }
+
+  @Test func aRetryRefusedOnceIsTriedAgainAndKeepsTheSessionWhenAnswered() async throws {
+    let harness = Self.refreshing([nil, .unauthorized, Self.rotated])
+    _ = try await harness.client.currentUser()
+    let refreshes = harness.transport.requests.filter { $0.route == "POST auth/refresh" }
+    #expect(refreshes.count == 3)
+    #expect(Set(refreshes.map(\.cookie)) == ["refresh_token=refresh-0"])
+    #expect(harness.storedRefreshToken == "refresh-1")
+    #expect(!harness.sessionEnded)
+    #expect(harness.log.all.filter { $0 == "begin" || $0 == "end" } == ["begin", "end"])
+  }
+
+  @Test func aRetryRefusedTwiceEndsTheSession() async throws {
+    let harness = Self.refreshing([nil, .unauthorized, .unauthorized])
+    await #expect(throws: APIError.signedOut) { try await harness.client.currentUser() }
+    #expect(
+      harness.log.all == [
+        "send GET user", "begin", "send POST auth/refresh", "send POST auth/refresh",
+        "send POST auth/refresh", "end", "remove", "session ended",
+      ])
+    #expect(harness.storedRefreshToken == nil)
+  }
+
+  @Test func aRetryWhoseReplyIsLostTooKeepsTheTokenForTheNextRequest() async throws {
+    let harness = Self.refreshing([nil, nil, Self.rotated])
+    await #expect(throws: APIError.self) { try await harness.client.currentUser() }
+    #expect(harness.transport.requests.filter { $0.route == "POST auth/refresh" }.count == 2)
+    #expect(harness.storedRefreshToken == "refresh-0")
+    #expect(!harness.sessionEnded)
+    // The next request, a connectivity moment's say, presents the same cookie once more.
+    _ = try await harness.client.currentUser()
+    #expect(harness.storedRefreshToken == "refresh-1")
+  }
+
+  @Test func aRefreshWaitsTwentySecondsAtMost() async throws {
+    let harness = Self.refreshing([Self.rotated])
+    try await harness.client.refreshSession()
+    #expect(harness.transport.requests.first?.timeoutInterval == 20)
   }
 
   @Test func withNoRefreshTokenNothingIsSent() async throws {

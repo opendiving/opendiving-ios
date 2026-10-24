@@ -1,0 +1,7 @@
+{
+  "data": [
+    { "uuid": "01a0e2ed-1be1-7142-996d-0639721e344d", "name": "Ana Diaz", "username": "ana" },
+    { "uuid": "01a0e2ed-1be1-7142-996d-0639721e344e", "name": "Ben Okafor", "username": null }
+  ],
+  "total_count": 2, "has_more": false, "page": 1, "items_per_page": 50
+}
