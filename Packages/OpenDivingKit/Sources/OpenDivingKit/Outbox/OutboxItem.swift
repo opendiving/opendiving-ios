@@ -82,12 +82,16 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
     switch operation {
     case .updateDive, .updateGearSet, .updateDiveDraft: return true
     case .deleteDiveDraft: return false
-    default: return !attempted || failure?.kind == .refused
+    default: return holdsNothing
     }
   }
 }
 
 extension OutboxItem {
+  /// Whether the server can hold nothing under the item's key: never sent, or refused with a
+  /// 4xx, which the API holds nothing for. Such a create can be rewritten or withdrawn.
+  var holdsNothing: Bool { !attempted || failure?.kind == .refused }
+
   /// Whether the pending screen offers *Discard*: any item but the one being sent, whose answer
   /// is on its way.
   public var isDiscardable: Bool { state != .inFlight }

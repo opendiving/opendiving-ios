@@ -185,6 +185,41 @@ struct OfflineCacheTests {
     #expect(world.cacheA.dive(uuid)?.value.trip == nil)
   }
 
+  @Test func aDetailsLateWriteLeavesAnEditReadBackMeanwhile() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    let uuid = UUID()
+    let route = "GET dive/\(uuid.uuidString.lowercased())"
+    let tripID = "01a0a57a-92c3-73d0-8f2c-e200878f9878"
+    func dive(_ notes: String) throws -> String {
+      var object =
+        try JSONSerialization.jsonObject(with: KitFixture.data("dive-detail")) as? [String: Any]
+        ?? [:]
+      object["uuid"] = uuid.uuidString.lowercased()
+      object["trip_uuid"] = tripID
+      object["notes"] = notes
+      return String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+    }
+    let before = try dive("Before")
+    let after = try dive("After")
+    let gate = Gate()
+    world.server.override { request, index in
+      if request.route == route { return .json(index == 0 ? before : after) }
+      if request.route == "GET trip/\(tripID)" { await gate.pass() }
+      return nil
+    }
+    let detail = DiveDetailModel(session: world.session, diveUUID: uuid)
+    let loading = Task { await detail.load() }
+    await gate.untilArrived()
+    let model = world.outbox()
+    try model.queue(.updateDive(.server(uuid), Bodies.notes("After")))
+    await model.settled()
+    await gate.open()
+    await loading.value
+    #expect(world.cacheA.dive(uuid)?.value.dive.notes == "After")
+    #expect(detail.dive?.notes == "After")
+  }
+
   @Test func detailsAreBoundedToTheMostRecentlyOpened() async throws {
     let world = try OutboxWorld()
     try await world.load()

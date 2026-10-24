@@ -107,7 +107,8 @@ public final class DiveDetailModel: AccountStoresObserver {
     guard generation == self.generation else { return }
     if !fromCache { (trip, course, contact) = (nil, nil, nil) }
     lastUpdated = nil
-    show(dive, at: Date())
+    let answeredAt = Date()
+    show(dive, at: answeredAt)
     isStepping = false
 
     async let trip = dive.tripUuid.asyncMap { try? await client.trip($0) }
@@ -118,8 +119,13 @@ public final class DiveDetailModel: AccountStoresObserver {
     guard generation == self.generation else { return }
     (self.trip, self.course, self.contact) = (related.0 ?? nil, related.1 ?? nil, related.2 ?? nil)
     self.neighbors = related.3
-    cacheForAnswer(fetchedUnder: stores, session: session)?.writeDive(
-      AccountCache.Dive(dive: dive, trip: self.trip, course: self.course, contact: self.contact))
+    // A landed edit read back while the cards loaded is newer than this answer, and stays.
+    guard let cache = cacheForAnswer(fetchedUnder: stores, session: session),
+      (cache.dive(uuid)?.fetchedAt ?? .distantPast) <= answeredAt
+    else { return }
+    cache.writeDive(
+      AccountCache.Dive(dive: dive, trip: self.trip, course: self.course, contact: self.contact),
+      fetchedAt: answeredAt)
   }
 
   /// Shows the cached copy of `uuid`, if the phone holds one.

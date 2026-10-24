@@ -175,6 +175,45 @@ struct DiveDraftQueueTests {
     #expect(model.items.isEmpty)
   }
 
+  @Test func aChangeToARefusedDraftGoesIntoItsCreate() async throws {
+    let world = try OutboxWorld()
+    let model = world.outbox()
+    try await world.load(model)
+    world.server.override { request, index in
+      request.route == "POST dive-draft" && index == 0 ? .status(422, "No.") : nil
+    }
+    let draft = try model.beginDraft(Bodies.draft("a"))
+    model.leaveDraft()
+    await model.settled()
+    #expect(model.items.first?.failure?.kind == .refused)
+
+    try model.saveDraft(draft, Bodies.draft("b"))
+    #expect(model.items.count == 1)
+    model.leaveDraft()
+    await model.settled()
+    let posts = world.server.sent.filter { $0.route == "POST dive-draft" }
+    #expect(posts.count == 2)
+    #expect((posts[1].json["values"] as? [String: Any])?["notes"] as? String == "b")
+    #expect(model.items.isEmpty)
+  }
+
+  @Test func aLogOfARefusedDraftIsAPlainDive() async throws {
+    let world = try OutboxWorld()
+    let model = world.outbox()
+    try await world.load(model)
+    world.server.override { request, _ in
+      request.route == "POST dive-draft" ? .status(422, "No.") : nil
+    }
+    let draft = try model.beginDraft(Bodies.draft("a"))
+    model.leaveDraft()
+    await model.settled()
+    let mark = world.server.mark
+    try model.logDraft(draft, Bodies.dive())
+    await model.settled()
+    #expect(world.server.writes(since: mark).map(\.route) == ["POST dive"])
+    #expect(model.items.isEmpty)
+  }
+
   @Test func discardingADraftNeverSentSendsNothing() async throws {
     let world = try OutboxWorld()
     let model = world.outbox()

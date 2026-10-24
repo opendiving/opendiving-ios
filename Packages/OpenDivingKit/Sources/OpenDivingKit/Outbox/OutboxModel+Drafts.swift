@@ -22,13 +22,16 @@ extension OutboxModel {
     let ref = outbox.resolved(ref)
     let queued = outbox.items()
     let sending = OutboxHub.hub(for: stores.directory).sending
-    if var create = queued.first(where: { $0.creates == ref && !$0.attempted }),
+    if var create = queued.first(where: { $0.creates == ref && $0.holdsNothing }),
       case .createDiveDraft = create.operation, create.id != sending
     {
       create.operation = .createDiveDraft(write)
       create.changedAt = Date()
-      // A create failed before it was ever sent goes again with the corrected state.
+      // A failed create goes again with the corrected state; one refused holds nothing under
+      // its key, so its body is the diver's again.
       create.state = .pending(lastAnswer: create.lastAnswer)
+      create.attempted = false
+      create.sentBody = nil
       try outbox.save(create)
     } else if var update = queued.first(where: { item in
       guard case .updateDiveDraft(let target, _) = item.operation else { return false }
@@ -65,7 +68,7 @@ extension OutboxModel {
     OutboxHub.hub(for: stores.directory).editing.remove(ref)
     let queued = outbox.items()
     let operation: OutboxOperation
-    if let create = queued.first(where: { $0.creates == ref }), !create.attempted {
+    if let create = queued.first(where: { $0.creates == ref }), create.holdsNothing {
       for item in queued where item.record == ref { outbox.remove(item.id) }
       operation = .createDive(dive)
     } else {
@@ -84,7 +87,7 @@ extension OutboxModel {
     let ref = outbox.resolved(ref)
     OutboxHub.hub(for: stores.directory).editing.remove(ref)
     let queued = outbox.items()
-    if let create = queued.first(where: { $0.creates == ref }), !create.attempted {
+    if let create = queued.first(where: { $0.creates == ref }), create.holdsNothing {
       for item in queued where item.record == ref { outbox.remove(item.id) }
       changed(stores)
       return
