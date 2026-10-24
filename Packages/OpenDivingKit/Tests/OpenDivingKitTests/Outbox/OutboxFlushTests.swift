@@ -299,7 +299,7 @@ struct OutboxFlushTests {
     model.leaveDraft()
     await model.settled()
     try model.logDraft(draft, Bodies.dive())
-    let create = model.items.first { $0.creates == draft }!
+    let create = try #require(model.items.first { $0.creates == draft })
     model.discard(create.id)
     world.online()
     model.syncNow()
@@ -348,6 +348,32 @@ struct OutboxFlushTests {
     #expect(posts[1].json["name"] as? String == "Canyon")
     #expect(posts[1].key == posts[0].key)
     #expect(model.items.isEmpty)
+  }
+
+  @Test func theItemBeingSentCanBeNeitherEditedNorDiscarded() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    let gate = Gate()
+    world.server.override { request, _ in
+      if request.route.hasPrefix("PATCH dive/") { await gate.pass() }
+      return nil
+    }
+    let model = world.outbox()
+    let dive = RecordRef.server(UUID())
+    let item = try model.queue(.updateDive(dive, Bodies.notes("sent")))
+    await gate.untilArrived()
+    #expect(model.item(item.id)?.state == .inFlight)
+    #expect(model.item(item.id)?.isEditable == false)
+    #expect(model.item(item.id)?.isDiscardable == false)
+    #expect(throws: OutboxModel.OutboxError.notEditable) {
+      try model.edit(item.id, .updateDive(dive, Bodies.notes("changed")))
+    }
+    model.discard(item.id)
+    #expect(world.storesA.items().map(\.id) == [item.id])
+    await gate.open()
+    await model.settled()
+    #expect(model.items.isEmpty)
+    #expect(world.server.writes.map { $0.json["notes"] as? String } == ["sent"])
   }
 
   @Test func anAttemptedCreateCannotBeEdited() async throws {

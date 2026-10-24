@@ -49,8 +49,8 @@ struct OutboxAccountTests {
     #expect(world.session.accountLoaded)
     #expect(world.server.count("POST dive") == 1)
     let routes = world.server.routes
-    let lastUser = routes.lastIndex(of: "GET user")!
-    #expect(routes.firstIndex(of: "POST dive")! > lastUser)
+    let lastUser = try #require(routes.lastIndex(of: "GET user"))
+    #expect(try #require(routes.firstIndex(of: "POST dive")) > lastUser)
     #expect(model.items.isEmpty)
   }
 

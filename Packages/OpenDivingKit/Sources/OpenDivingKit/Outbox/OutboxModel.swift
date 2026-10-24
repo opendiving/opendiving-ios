@@ -152,6 +152,7 @@ public final class OutboxModel: AccountStoresObserver {
   /// server may hold under its key cannot be edited (``OutboxItem/isEditable``).
   public func edit(_ id: UUID, _ operation: OutboxOperation) throws {
     guard let stores = AccountStores.current(session),
+      OutboxHub.hub(for: stores.directory).sending != id,
       var item = stores.outbox.items().first(where: { $0.id == id }), item.isEditable,
       Self.sameShape(item.operation, operation)
     else { throw OutboxError.notEditable }
@@ -182,9 +183,10 @@ public final class OutboxModel: AccountStoresObserver {
   }
 
   /// The diver's *Discard*. What named the record it would have created drops the reference
-  /// and goes on, and what wrote to that record goes with it.
+  /// and goes on, and what wrote to that record goes with it. The item being sent stays.
   public func discard(_ id: UUID) {
     guard let stores = AccountStores.current(session),
+      OutboxHub.hub(for: stores.directory).sending != id,
       let item = stores.outbox.items().first(where: { $0.id == id })
     else { return }
     stores.outbox.remove(id)
