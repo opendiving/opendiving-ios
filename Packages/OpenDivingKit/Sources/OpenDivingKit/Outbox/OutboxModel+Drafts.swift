@@ -109,11 +109,11 @@ extension OutboxModel {
       if let drafts {
         cacheForAnswer(fetchedUnder: stores, session: session)?.writeDiveDrafts(drafts)
       }
+      hub.draftsRefresh = nil
       hub.changed()
     }
     hub.draftsRefresh = task
     await task.value
-    hub.draftsRefresh = nil
   }
 
   /// A log or a discard supersedes the draft's queued state; one being sent goes on.

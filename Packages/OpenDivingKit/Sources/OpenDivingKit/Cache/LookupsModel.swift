@@ -91,13 +91,14 @@ public final class LookupsModel: AccountStoresObserver {
       await running.value
       return
     }
+    // Cleared by the task itself, so whoever waits on the slot never finds a finished one.
     let task = Task { @MainActor in
       await fetchAll(client, session: session, fetchedUnder: stores)
+      hub.lookupsRefresh = nil
       hub.changed()
     }
     hub.lookupsRefresh = task
     await task.value
-    hub.lookupsRefresh = nil
   }
 
   private static func fetchAll(

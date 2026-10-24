@@ -23,16 +23,23 @@ final class OutboxHub {
     return hub
   }
 
+  /// Drops what the process holds for the account in `directory`, as a relaunch does.
+  static func forget(_ directory: URL) {
+    hubs[directory.standardizedFileURL.path] = nil
+  }
+
   /// Runs `load` unless one is already running for `key`, and waits for whichever runs.
   static func loadAccount(key: String, _ load: @escaping @MainActor () async -> Void) async {
     if let running = loading[key] {
       await running.value
       return
     }
-    let task = Task { @MainActor in await load() }
+    let task = Task { @MainActor in
+      await load()
+      loading[key] = nil
+    }
     loading[key] = task
     await task.value
-    loading[key] = nil
   }
 
   var flush: Task<Void, Never>?
