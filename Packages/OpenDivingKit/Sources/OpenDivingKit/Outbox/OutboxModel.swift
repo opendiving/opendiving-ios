@@ -317,11 +317,11 @@ public final class OutboxModel: AccountStoresObserver {
   }
 
   private func loadThenFlush(retryAll: Bool) {
-    guard case .signedIn(let origin) = session.state, loadTask == nil else { return }
+    guard case .signedIn = session.state, loadTask == nil else { return }
     let load = loadAccount
     let session = session
     loadTask = Task {
-      await OutboxHub.loadAccount(key: origin.description) {
+      await OutboxHub.loadAccount(key: ObjectIdentifier(session)) {
         if let load {
           await load()
         } else {

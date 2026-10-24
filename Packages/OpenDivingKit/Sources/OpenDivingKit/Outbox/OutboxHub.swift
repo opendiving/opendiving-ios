@@ -12,8 +12,8 @@ protocol AccountStoresObserver: AnyObject {
 @MainActor
 final class OutboxHub {
   private static var hubs: [String: OutboxHub] = [:]
-  /// Account loads a model started, by server, so a moment during one starts no second.
-  private static var loading: [String: Task<Void, Never>] = [:]
+  /// Account loads a model started, by session, so a moment during one starts no second.
+  private static var loading: [ObjectIdentifier: Task<Void, Never>] = [:]
 
   static func hub(for directory: URL) -> OutboxHub {
     let key = directory.standardizedFileURL.path
@@ -29,7 +29,7 @@ final class OutboxHub {
   }
 
   /// Runs `load` unless one is already running for `key`, and waits for whichever runs.
-  static func loadAccount(key: String, _ load: @escaping @MainActor () async -> Void) async {
+  static func loadAccount(key: ObjectIdentifier, _ load: @escaping @MainActor () async -> Void) async {
     if let running = loading[key] {
       await running.value
       return
