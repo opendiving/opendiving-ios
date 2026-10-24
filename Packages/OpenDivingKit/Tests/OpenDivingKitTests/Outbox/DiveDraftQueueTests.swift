@@ -197,6 +197,36 @@ struct DiveDraftQueueTests {
     #expect(model.items.isEmpty)
   }
 
+  @Test func aChangeAfterARefusalLeavesNoOlderUpdateBehind() async throws {
+    let world = try OutboxWorld()
+    let model = world.outbox(quietInterval: .seconds(30))
+    try await world.load(model)
+    let gate = Gate()
+    world.server.override { request, index in
+      if request.route == "POST dive-draft", index == 0 {
+        await gate.pass()
+        return .status(422, "No.")
+      }
+      return nil
+    }
+    let draft = try model.beginDraft(Bodies.draft("a"))
+    model.leaveDraft()
+    await gate.untilArrived()
+    try model.saveDraft(draft, Bodies.draft("b"))
+    model.leaveDraft()
+    await gate.open()
+    await model.settled()
+    #expect(model.items.count == 2)
+
+    try model.saveDraft(draft, Bodies.draft("c"))
+    #expect(model.items.count == 1)
+    #expect(model.drafts.first?.write.values.notes == "c")
+    model.leaveDraft()
+    await model.settled()
+    #expect(world.server.writes.filter { $0.route.hasPrefix("PATCH dive-draft") }.isEmpty)
+    #expect(model.items.isEmpty)
+  }
+
   @Test func aLogOfARefusedDraftIsAPlainDive() async throws {
     let world = try OutboxWorld()
     let model = world.outbox()

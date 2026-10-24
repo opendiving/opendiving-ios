@@ -152,8 +152,9 @@ public final class OutboxModel: AccountStoresObserver {
   /// server may hold under its key cannot be edited (``OutboxItem/isEditable``).
   public func edit(_ id: UUID, _ operation: OutboxOperation) throws {
     guard let stores = AccountStores.current(session),
-      OutboxHub.hub(for: stores.directory).sending != id,
-      var item = stores.outbox.items().first(where: { $0.id == id }), item.isEditable,
+      case let sending = OutboxHub.hub(for: stores.directory).sending, sending != id,
+      case let queued = stores.outbox.items(),
+      var item = queued.first(where: { $0.id == id }), item.isEditable,
       Self.sameShape(item.operation, operation)
     else { throw OutboxError.notEditable }
     item.operation = operation
@@ -164,6 +165,9 @@ public final class OutboxModel: AccountStoresObserver {
       item.attempted = false
     }
     try stores.outbox.save(item)
+    if case .createDiveDraft = operation, let ref = item.creates {
+      Self.dropUpdates(ofDraft: ref, in: queued, stores.outbox, sending: sending)
+    }
     OutboxHub.hub(for: stores.directory).answers[id] = nil
     changed(stores)
     requestFlush(retryAll: false)

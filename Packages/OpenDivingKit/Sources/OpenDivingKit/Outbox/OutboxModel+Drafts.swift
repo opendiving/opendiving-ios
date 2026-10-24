@@ -15,6 +15,18 @@ extension OutboxModel {
     return ref
   }
 
+  /// Removes the queued updates of a draft whose create now carries its newest state: sent
+  /// after the create lands, an older one would overwrite it.
+  static func dropUpdates(
+    ofDraft ref: RecordRef, in queued: [OutboxItem], _ outbox: OutboxStore, sending: UUID?
+  ) {
+    for item in queued where item.id != sending {
+      if case .updateDiveDraft(let target, _) = item.operation, target == ref {
+        outbox.remove(item.id)
+      }
+    }
+  }
+
   /// A change to a draft: written now, sent when the form is left or the changes pause.
   public func saveDraft(_ ref: RecordRef, _ write: DiveDraftWrite) throws {
     guard let stores = AccountStores.current(session) else { throw OutboxError.noAccount }
@@ -33,6 +45,7 @@ extension OutboxModel {
       create.attempted = false
       create.sentBody = nil
       try outbox.save(create)
+      Self.dropUpdates(ofDraft: ref, in: queued, outbox, sending: sending)
     } else if var update = queued.first(where: { item in
       guard case .updateDiveDraft(let target, _) = item.operation else { return false }
       return target == ref && item.id != sending
