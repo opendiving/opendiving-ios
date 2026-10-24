@@ -16,7 +16,9 @@ struct DiveScreensTests {
       let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
     else { return nil }
     let window = UIWindow(windowScene: scene)
-    window.rootViewController = UIHostingController(rootView: view.environment(session))
+    window.rootViewController = UIHostingController(
+      rootView: view.environment(session).environment(OutboxModel(session: session))
+        .environment(InboxModel(session: session)))
     window.makeKeyAndVisible()
     window.layoutIfNeeded()
     return window

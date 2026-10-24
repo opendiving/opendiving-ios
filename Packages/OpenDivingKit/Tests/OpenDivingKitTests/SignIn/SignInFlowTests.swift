@@ -64,6 +64,22 @@ struct SignInFlowTests {
     #expect(flow.signedOutEntries == [.checkInSheet, .differentServer, .forgetServer])
   }
 
+  @Test func signedOutOfAnAccountItAlsoOffersWhatIsWaitingToSync() async throws {
+    let signedIn = Session(
+      transport: StubTransport(routes: [
+        "GET user": .json(try KitFixture.text("user")),
+        "GET people": .json(try KitFixture.text("people-page")),
+      ]),
+      secrets: InMemorySecretStore([origin.description: "refresh"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent, accessToken: "access")
+    try await signedIn.loadAccount()
+    let flow = SignInFlow(
+      session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
+    #expect(
+      flow.signedOutEntries == [.checkInSheet, .waitingToSync, .differentServer, .forgetServer])
+  }
+
   @Test func signedInOffersNothingSignedOut() {
     let flow = SignInFlow(
       session: session(

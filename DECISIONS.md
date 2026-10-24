@@ -125,6 +125,16 @@ and dive details are bounded to the two hundred most recently opened. It exists 
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 
+## The app's tests assert what a screen is given, not the text it draws
+
+A SwiftUI view hosted in the test bundle exposes no accessibility tree — the labels are built
+only for an assistive client, and the in-process walk finds none — and no other in-process
+reader of its text exists. So a screen's words and rows come from a Kit value or a static
+function beside the view (`PendingSummary`, `PendingScreen.edit(_:)`, `DivesView.list(_:)`),
+the app test asserts on that over real stores, and hosting the view checks only that it draws.
+Rejected: a UI-test target, a second bundle and a second simulator install for what one value
+already settles.
+
 ## The phone asks for the extended session, and retries a refresh whose reply was lost
 
 The code sign-in sends `idle_timeout: extended` with no parameter: the Kit's one caller is a

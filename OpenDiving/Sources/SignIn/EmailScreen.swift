@@ -1,12 +1,14 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Signing in to the active server: the email field, and the three things reachable signed
-/// out — the cached check-in sheet, another server, and forgetting this one.
+/// Signing in to the active server: the email field, and what is reachable signed out — the
+/// cached check-in sheet, what is waiting to sync for the account last signed in here,
+/// another server, and forgetting this one.
 struct EmailScreen: View {
   let flow: SignInFlow
   let origin: ServerOrigin
   let showSheet: () -> Void
+  let showPending: () -> Void
   @State private var forgetting: ServerOrigin?
 
   var body: some View {
@@ -66,6 +68,10 @@ struct EmailScreen: View {
             Button(action: showSheet) {
               Label("Your check-in sheet", systemImage: "person.text.rectangle")
             }
+          case .waitingToSync:
+            Button(action: showPending) {
+              Label("Your dives waiting to sync", systemImage: "arrow.triangle.2.circlepath")
+            }
           case .differentServer:
             Button {
               flow.useDifferentServer()
@@ -81,9 +87,7 @@ struct EmailScreen: View {
           }
         }
       } footer: {
-        Text(
-          "Your check-in sheet stays on this phone after you sign out, until you forget the server."
-        )
+        Text(KeptText.signedOutFooter)
       }
     }
     .navigationTitle("Sign in")
@@ -101,6 +105,9 @@ struct EmailScreen: View {
   let session = Session.signedOutStub(
     origin: ServerOrigin("http://192.168.1.20:8000"), transport: StubTransport(routes: [:]))
   NavigationStack {
-    EmailScreen(flow: SignInFlow(session: session), origin: session.state.origin!) {}
+    EmailScreen(
+      flow: SignInFlow(session: session), origin: session.state.origin!, showSheet: {},
+      showPending: {})
   }
+  .environment(session)
 }

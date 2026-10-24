@@ -103,7 +103,8 @@ struct SignInViewTests {
       UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
     let window = UIWindow(windowScene: scene)
     window.rootViewController = UIHostingController(
-      rootView: view.environment(session).environment(flow))
+      rootView: view.environment(session).environment(flow)
+        .environment(OutboxModel(session: session)).environment(InboxModel(session: session)))
     window.makeKeyAndVisible()
     defer { window.isHidden = true }
     for _ in 0..<50 {

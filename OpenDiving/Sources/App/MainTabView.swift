@@ -36,4 +36,6 @@ struct MainTabView: View {
   MainTabView()
     .environment(session)
     .environment(SignInFlow(session: session))
+    .environment(OutboxModel(session: session))
+    .environment(InboxModel(session: session))
 }
