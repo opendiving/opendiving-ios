@@ -166,7 +166,11 @@ public final class DiveDetailModel: AccountStoresObserver {
   func accountStoresChanged() {
     guard let base, base.uuid == diveUUID, case .loaded = phase else { return }
     if let entry = AccountStores.current(session)?.cache.dive(base.uuid), entry.fetchedAt > baseAt {
-      show(entry.value.dive, at: entry.fetchedAt)
+      let dive = entry.value.dive
+      trip = (trip ?? entry.value.trip).flatMap { $0.uuid == dive.tripUuid ? $0 : nil }
+      course = (course ?? entry.value.course).flatMap { $0.uuid == dive.courseUuid ? $0 : nil }
+      contact = (contact ?? entry.value.contact).flatMap { $0.uuid == dive.contactUuid ? $0 : nil }
+      show(dive, at: entry.fetchedAt)
     } else {
       show(base, at: baseAt)
     }

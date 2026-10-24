@@ -149,20 +149,40 @@ struct OfflineCacheTests {
     let world = try OutboxWorld()
     try await world.load()
     let uuid = UUID()
+    let route = "GET dive/\(uuid.uuidString.lowercased())"
+    let tripID = "01a0a57a-92c3-73d0-8f2c-e200878f9878"
+    var linked =
+      try JSONSerialization.jsonObject(with: KitFixture.data("dive-detail")) as? [String: Any]
+      ?? [:]
+    linked["uuid"] = uuid.uuidString.lowercased()
+    linked["trip_uuid"] = tripID
+    let dive = String(decoding: try JSONSerialization.data(withJSONObject: linked), as: UTF8.self)
+    let trip = try KitFixture.text("trip")
+    world.server.override { request, _ in
+      if request.route == route { return .json(dive) }
+      return request.route == "GET trip/\(tripID)" ? .json(trip) : nil
+    }
     let detail = DiveDetailModel(session: world.session, diveUUID: uuid)
     await detail.load()
-    let route = "GET dive/\(uuid.uuidString.lowercased())"
+    #expect(detail.trip != nil)
+    #expect(world.cacheA.dive(uuid)?.value.trip != nil)
+
     world.server.override { request, _ in
       if request.route == route { throw URLError(.networkConnectionLost) }
       return nil
     }
     let model = world.outbox()
-    try model.queue(.updateDive(.server(uuid), Bodies.notes("Edited")))
+    var update = Bodies.notes("Edited")
+    update.trip = .null
+    try model.queue(.updateDive(.server(uuid), update))
     await model.settled()
     #expect(model.items.isEmpty)
     #expect(!detail.hasPendingEdit)
     #expect(detail.dive?.notes == "Edited")
+    #expect(detail.dive?.tripUuid == nil)
+    #expect(detail.trip == nil)
     #expect(model.cachedDive(uuid)?.notes == "Edited")
+    #expect(world.cacheA.dive(uuid)?.value.trip == nil)
   }
 
   @Test func detailsAreBoundedToTheMostRecentlyOpened() async throws {

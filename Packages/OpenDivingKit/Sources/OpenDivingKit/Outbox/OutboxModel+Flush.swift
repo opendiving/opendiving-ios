@@ -369,7 +369,7 @@ private struct Flush {
       let edited = entry.dive.applying(
         [update], tables: LookupTables(cache: cache, items: outbox.items()))
     else { return }
-    entry.dive = edited
+    entry.replace(edited)
     cache.writeDive(entry)
   }
 
@@ -377,13 +377,9 @@ private struct Flush {
   private func readBack(dive uuid: UUID) async {
     guard let dive = try? await client.dive(uuid) else { return }
     let cache = stores.cache
-    let previous = cache.dive(uuid)?.value
-    cache.writeDive(
-      AccountCache.Dive(
-        dive: dive,
-        trip: previous?.trip.flatMap { $0.uuid == dive.tripUuid ? $0 : nil },
-        course: previous?.course.flatMap { $0.uuid == dive.courseUuid ? $0 : nil },
-        contact: previous?.contact.flatMap { $0.uuid == dive.contactUuid ? $0 : nil }))
+    var entry = cache.dive(uuid)?.value ?? AccountCache.Dive(dive: dive)
+    entry.replace(dive)
+    cache.writeDive(entry)
   }
 
   /// The draft as the server now holds it, unless a write to it is still queued: a newer

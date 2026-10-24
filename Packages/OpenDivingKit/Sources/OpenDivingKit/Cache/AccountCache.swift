@@ -24,6 +24,15 @@ public struct AccountCache: Sendable {
     public var trip: TripRead?
     public var course: CourseRead?
     public var contact: ContactRead?
+
+    /// Puts `dive` in place, keeping the records its cards named only where it still names
+    /// them.
+    mutating func replace(_ dive: DiveReadWithMixtures) {
+      self.dive = dive
+      trip = trip.flatMap { $0.uuid == dive.tripUuid ? $0 : nil }
+      course = course.flatMap { $0.uuid == dive.courseUuid ? $0 : nil }
+      contact = contact.flatMap { $0.uuid == dive.contactUuid ? $0 : nil }
+    }
   }
 
   /// How many dives' details are kept; the least recently opened go first.
