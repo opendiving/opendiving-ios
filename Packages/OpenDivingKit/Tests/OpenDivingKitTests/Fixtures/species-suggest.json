@@ -1,0 +1,31 @@
+{
+  "results": [
+    {
+      "aphia_id": 278400,
+      "uuid": "01a14b2e-0c3d-7a10-9f00-6a2b3c4d5e6f",
+      "scientific_name": "Amphiprion bicinctus",
+      "common_name": "Red Sea clownfish",
+      "rank": "Species",
+      "status": "accepted",
+      "matched_name": null,
+      "source": "catalog",
+      "attribution": "[World Register of Marine Species](https://www.marinespecies.org) (CC BY)",
+      "dive_count_at_sites": 3,
+      "last_seen": "2026-09-14T09:12:00+03:00"
+    },
+    {
+      "aphia_id": 1043488,
+      "uuid": null,
+      "scientific_name": "Mobula birostris",
+      "common_name": "Giant manta ray",
+      "rank": "Species",
+      "status": "accepted",
+      "matched_name": "Manta birostris",
+      "source": "worms",
+      "attribution": "[World Register of Marine Species](https://www.marinespecies.org) (CC BY)",
+      "dive_count_at_sites": 0,
+      "last_seen": null
+    }
+  ],
+  "has_more": false
+}

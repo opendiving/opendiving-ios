@@ -1,0 +1,18 @@
+{
+  "uuid": "01a14b2e-0c3d-7a10-9f00-3a2b3c4d5e6f",
+  "name": "12 L steel",
+  "brand": "Example Cylinders",
+  "type": "cylinder",
+  "notes": "Hydro due next spring.",
+  "rented": false,
+  "volume": 12.0,
+  "working_pressure": 232.0,
+  "material": "steel",
+  "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+  "is_archived": false,
+  "archived_at": null,
+  "dive_count": 0,
+  "dive_time": 0,
+  "service": [],
+  "created_at": "2026-10-24T09:00:00.000001Z"
+}

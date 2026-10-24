@@ -324,7 +324,7 @@ extension DiveDetailContent {
       sitesLabel: dive.diveSites.count > 1 ? "Dive sites" : "Dive site",
       sites: dive.diveSites.map {
         Location.Site(
-          id: $0.uuid, name: $0.name,
+          id: $0.ref.uuid, name: $0.name,
           location: $0.location.flatMap { $0.name.isEmpty ? nil : $0.name })
       },
       entry: entry,

@@ -1,0 +1,13 @@
+{
+  "name": "Red Sea, September",
+  "notes": "Two weeks, two bases.",
+  "parts": [
+    {
+      "start_date": "2026-09-06",
+      "end_date": "2026-09-13",
+      "location": { "name": "Dahab, Egypt", "latitude": 28.4963633, "longitude": 34.5145652 },
+      "accommodation_uuid": "01a14b2e-0c3d-7a10-9f00-8a2b3c4d5e6f"
+    }
+  ],
+  "people": [{ "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d", "role": "companion" }]
+}

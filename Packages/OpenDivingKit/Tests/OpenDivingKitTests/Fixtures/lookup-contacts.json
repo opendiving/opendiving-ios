@@ -1,0 +1,11 @@
+{
+  "data": [
+    {
+      "uuid": "01a14b2e-0c3d-7a10-9f00-2a2b3c4d5e6f",
+      "name": "Example Dive Centre",
+      "address": { "street": null, "city": "Dahab", "postcode": null, "region": "South Sinai", "country": "Egypt" }
+    },
+    { "uuid": "01a14b2e-0c3d-7a10-9f00-2b2b3c4d5e6f", "name": "Harbour Club", "address": null }
+  ],
+  "total_count": 2, "has_more": false, "page": 1, "items_per_page": 50
+}

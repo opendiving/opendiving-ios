@@ -1,0 +1,17 @@
+{
+  "name": "Example Dive Centre",
+  "phone": "+20 69 000 0000",
+  "latitude": 28.4963,
+  "longitude": 34.5146,
+  "notes": "Nitrox on site.",
+  "roles": ["dive_center", "accommodation"],
+  "email": "desk@example.org",
+  "website": "https://example.org",
+  "address": {
+    "street": "1 Example Street",
+    "city": "Dahab",
+    "postcode": "46617",
+    "region": "South Sinai",
+    "country": "Egypt"
+  }
+}

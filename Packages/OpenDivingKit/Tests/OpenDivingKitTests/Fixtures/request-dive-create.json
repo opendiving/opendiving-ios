@@ -1,0 +1,56 @@
+{
+  "dive_number": 214,
+  "start_time": "2026-09-14T09:12:00+03:00",
+  "submerged_time": 2940,
+  "max_depth": 24.6,
+  "avg_depth": 13.2,
+  "bottom_temperature": 26.5,
+  "visibility": 20,
+  "weight": 4.0,
+  "water_type": "salt",
+  "altitude": 0,
+  "type": "open_circuit",
+  "rating": 4,
+  "air_temperature": 31.0,
+  "current": "light",
+  "waves": "calm",
+  "weather": "clear",
+  "entry_type": "boat",
+  "boat_name": "Example Explorer",
+  "notes": "Drift along the north wall.",
+  "trip_uuid": "01a0a57a-92c3-73d0-8f2c-e200878f9878",
+  "course_uuid": "01a14b2e-0c3d-7a10-9f00-1a2b3c4d5e6f",
+  "contact_uuid": "01a14b2e-0c3d-7a10-9f00-2a2b3c4d5e6f",
+  "mixtures": [
+    {
+      "volume": 11.1,
+      "start_pressure": 200.0,
+      "end_pressure": 60.0,
+      "oxygen": 32.0,
+      "helium": 0.0,
+      "po2_limit": 1.4,
+      "gas_number": 1,
+      "role": "bottom",
+      "usage": "parallel",
+      "gear_item_uuid": "01a14b2e-0c3d-7a10-9f00-3a2b3c4d5e6f"
+    }
+  ],
+  "dive_site_uuids": ["01a14b2e-0c3d-7a10-9f00-4a2b3c4d5e6f"],
+  "gear_item_uuids": ["01a14b2e-0c3d-7a10-9f00-5a2b3c4d5e6f"],
+  "sightings": [
+    {
+      "species_uuid": "01a14b2e-0c3d-7a10-9f00-6a2b3c4d5e6f",
+      "count": 3,
+      "notes": "On the cleaning station."
+    },
+    {
+      "species_uuid": "01a14b2e-0c3d-7a10-9f00-7a2b3c4d5e6f",
+      "abundance": "many",
+      "notes": ""
+    }
+  ],
+  "people": [
+    { "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d", "role": "buddy" }
+  ],
+  "tags": ["drift", "wall"]
+}

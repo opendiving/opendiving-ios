@@ -1,0 +1,7 @@
+{
+  "email": "desk@example.org",
+  "phone": null,
+  "date_of_birth": "1988-04-12",
+  "emergency_contacts": [{ "name": "Alex Doe", "phone": "+1 555 0101", "relationship": "Partner" }],
+  "insurance_policies": [{ "provider": "Example Insurance", "number": "EX-0001", "expires_on": "2027-06-30" }]
+}

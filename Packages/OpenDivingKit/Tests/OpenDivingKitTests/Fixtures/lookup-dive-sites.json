@@ -1,0 +1,21 @@
+{
+  "data": [
+    {
+      "uuid": "01a14b2e-0c3d-7a10-9f00-4a2b3c4d5e6f",
+      "name": "North Wall",
+      "location": { "name": "Dahab, South Sinai, Egypt", "latitude": 28.4963633, "longitude": 34.5145652, "bbox_south": null, "bbox_north": null, "bbox_west": null, "bbox_east": null },
+      "water_type": "salt",
+      "altitude": 0,
+      "entry_types": ["shore", "boat"]
+    },
+    {
+      "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f",
+      "name": "Quarry",
+      "location": null,
+      "water_type": null,
+      "altitude": null,
+      "entry_types": []
+    }
+  ],
+  "total_count": 2, "has_more": false, "page": 1, "items_per_page": 50
+}

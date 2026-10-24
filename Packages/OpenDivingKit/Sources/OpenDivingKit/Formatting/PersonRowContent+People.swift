@@ -8,7 +8,7 @@ extension PersonRowContent {
     _ references: [PersonReference], people: [UUID: PersonRead]
   ) -> [PersonRowContent] {
     references.compactMap { reference in
-      guard let person = people[reference.personUuid] else { return nil }
+      guard let person = people[reference.person.uuid] else { return nil }
       return PersonRowContent(
         name: person.name,
         username: person.username.flatMap { $0.isEmpty ? nil : $0 },

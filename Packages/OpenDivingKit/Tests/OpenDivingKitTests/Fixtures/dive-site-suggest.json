@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "name": "SS Thistlegorm",
+      "name_en": null,
+      "latitude": 27.814092,
+      "longitude": 33.920048,
+      "country": "Egypt",
+      "region": "South Sinai",
+      "source": "osm",
+      "source_id": "node/255316037",
+      "attribution": "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)",
+      "external_id": { "registry": "openstreetmap", "identifier": "node/255316037" },
+      "held_site": { "uuid": "01a14b2e-0c3d-7a10-9f00-4c2b3c4d5e6f", "name": "Thistlegorm" }
+    }
+  ],
+  "has_more": true
+}

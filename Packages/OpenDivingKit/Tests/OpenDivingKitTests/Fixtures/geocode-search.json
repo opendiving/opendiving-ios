@@ -1,0 +1,17 @@
+[
+  {
+    "latitude": 28.5717,
+    "longitude": 34.5372,
+    "location": "Dahab, South Sinai, Egypt",
+    "name": "Dahab",
+    "attribution": "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)",
+    "country": "Egypt",
+    "region": "South Sinai",
+    "source": "osm",
+    "source_id": "node/27043265",
+    "bbox_south": 28.41,
+    "bbox_north": 28.73,
+    "bbox_west": 34.37,
+    "bbox_east": 34.69
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "name": "North Wall",
+  "latitude": 28.5091,
+  "longitude": 34.5172,
+  "notes": "Mooring on the south side.",
+  "other_names": ["The Wall"],
+  "external_ids": [{ "registry": "openstreetmap", "identifier": "node/313862678" }],
+  "depth_from": 5.0,
+  "depth_to": 30.0,
+  "water_type": "salt",
+  "altitude": 0,
+  "entry_types": ["shore", "boat"],
+  "location": {
+    "name": "Dahab, South Sinai, Egypt",
+    "latitude": 28.4963633,
+    "longitude": 34.5145652,
+    "bbox_south": 28.3363633,
+    "bbox_north": 28.6563633,
+    "bbox_west": 34.3545652,
+    "bbox_east": 34.6745652
+  },
+  "tags": ["reef"]
+}

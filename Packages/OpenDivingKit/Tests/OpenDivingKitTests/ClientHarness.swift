@@ -77,7 +77,8 @@ struct ClientHarness {
   let background: LoggingBackgroundExecution
   let client: APIClient
 
-  /// `handler` answers each request after the transport has logged `send <route>`.
+  /// `handler` answers each request after the transport has logged `send <route>`. A refresh
+  /// whose reply was lost is retried at once rather than after the device's pause.
   init(
     refreshToken: String? = "refresh-0",
     accessToken: String? = nil,
@@ -93,7 +94,7 @@ struct ClientHarness {
     background = LoggingBackgroundExecution(log: log)
     client = APIClient(
       origin: Self.origin, transport: transport, secrets: secrets, background: background,
-      userAgent: Self.userAgent, accessToken: accessToken
+      userAgent: Self.userAgent, accessToken: accessToken, refreshRetryPause: .zero
     ) {
       log.append("session ended")
     }
@@ -112,6 +113,11 @@ extension URLRequest {
   }
 
   var cookie: String? { value(forHTTPHeaderField: "Cookie") }
+
+  var idempotencyKey: String? { value(forHTTPHeaderField: "Idempotency-Key") }
+
+  /// The body as JSON, compared by value.
+  var json: JSONValue? { httpBody.flatMap { try? JSONValue.parse($0) } }
 
   var route: String { StubTransport.routeKey(self) }
 }

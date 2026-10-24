@@ -9,8 +9,9 @@ import Foundation
 ///
 /// A request the server answers 401 refreshes the session once and is retried once — rebuilt,
 /// not replayed, so the retry carries the new bearer and, on `/auth/logout`, the rotated
-/// cookie — and a second 401 ends the session. Concurrent 401s share one refresh, because the
-/// API rotates with no grace window and a second refresh of the same token is a replay.
+/// cookie — and a second 401 ends the session. Concurrent 401s share one refresh: the loser of
+/// two refreshes racing with one token is refused even inside the API's reuse grace, which
+/// answers only a presentation retried seconds later.
 public actor APIClient {
   /// Every list this app reads is fetched 50 at a time; the API's own default is 10.
   public static let listPageSize = 50
@@ -24,11 +25,13 @@ public actor APIClient {
   private let background: any BackgroundExecution
   private let userAgent: UserAgent
   private let onSessionEnded: (@Sendable () async -> Void)?
+  private let refreshRetryPause: Duration
   private var accessToken: String?
   private var refreshTask: Task<String, any Error>?
 
   /// `onSessionEnded` runs when the server refuses the session, after the refresh token has
-  /// been removed from `secrets`.
+  /// been removed from `secrets`. `refreshRetryPause` is how long a refresh whose reply was
+  /// lost waits before it presents the same cookie again.
   public init(
     origin: ServerOrigin,
     transport: any HTTPTransport,
@@ -36,6 +39,7 @@ public actor APIClient {
     background: any BackgroundExecution,
     userAgent: UserAgent,
     accessToken: String? = nil,
+    refreshRetryPause: Duration = .seconds(2),
     onSessionEnded: (@Sendable () async -> Void)? = nil
   ) {
     self.origin = origin
@@ -44,6 +48,7 @@ public actor APIClient {
     self.background = background
     self.userAgent = userAgent
     self.accessToken = accessToken
+    self.refreshRetryPause = refreshRetryPause
     self.onSessionEnded = onSessionEnded
   }
 
@@ -77,9 +82,12 @@ public actor APIClient {
   /// token is kept in memory and the refresh token in the ``SecretStore``. A 401 is the
   /// server's answer about the code, not an expired session; an uninvited address on an
   /// invite-only instance is a 403 whose sentence says so.
+  ///
+  /// Always asks for the `extended` idle timeout: the Kit's one caller is a phone that may sit
+  /// on a boat for weeks, and the server keeps a standard window for the browsers.
   public func verifyEmailCode(requestID: UUID, code: String) async throws -> AuthOutcome {
     let body = try APICoding.encoder().encode([
-      "request_id": Self.wire(requestID), "code": code,
+      "request_id": Self.wire(requestID), "code": code, "idle_timeout": "extended",
     ])
     let (data, response) = try await perform(
       Call(method: "POST", path: "auth/email/verify-code", body: body, mintsSession: true),
@@ -302,41 +310,64 @@ public actor APIClient {
 
   // MARK: - Sending
 
-  private struct Call {
+  struct Call {
     var method = "GET"
     var path: String
     var query: [URLQueryItem] = []
     var body: Data?
+    /// A `multipart/form-data` body, written to a file and uploaded from it; never with `body`.
+    var parts: [MultipartPart] = []
+    var headers: [String: String] = [:]
     /// `/auth/refresh` and `/auth/logout`, the two routes that read the refresh cookie.
     var sendsRefreshCookie = false
     /// A 401 here is the answer, not an expired session.
     var mintsSession = false
     var etag: String?
+    /// Seconds before the request gives up; nil keeps the configuration's.
+    var timeout: TimeInterval?
   }
 
-  private static func paging(_ page: Int, _ itemsPerPage: Int) -> [URLQueryItem] {
+  static func paging(_ page: Int, _ itemsPerPage: Int) -> [URLQueryItem] {
     [
       URLQueryItem(name: "page", value: String(page)),
       URLQueryItem(name: "items_per_page", value: String(itemsPerPage)),
     ]
   }
 
-  private static func wire(_ uuid: UUID) -> String {
+  static func wire(_ uuid: UUID) -> String {
     uuid.uuidString.lowercased()
   }
 
-  /// Built at send time, so a retry reads the refresh token the store holds now.
-  private func request(_ call: Call, bearer: String?) throws -> URLRequest {
+  /// A request body, encoded so that a local ``RecordRef`` throws rather than being sent.
+  static func json(_ value: some Encodable) throws -> Data {
+    try APICoding.requestEncoder().encode(value)
+  }
+
+  /// Built at send time, so a retry reads the refresh token the store holds now. A multipart
+  /// call's body is written to a new file, returned beside the request for the caller to
+  /// upload and remove.
+  private func request(_ call: Call, bearer: String?) throws -> (URLRequest, bodyFile: URL?) {
     var components = URLComponents(
       url: origin.apiBaseURL.appendingPathComponent(call.path), resolvingAgainstBaseURL: false)
-    if !call.query.isEmpty { components?.queryItems = call.query }
+    if !call.query.isEmpty {
+      components?.queryItems = call.query
+      // A query value may carry a UTC offset, and a `+` left bare is read as a space.
+      let query = components?.percentEncodedQuery
+      components?.percentEncodedQuery = query?.replacingOccurrences(of: "+", with: "%2B")
+    }
     guard let url = components?.url else { throw APIError.unreadableResponse(call.path) }
     var request = URLRequest(url: url)
     request.httpMethod = call.method
     request.setValue(userAgent.headerValue, forHTTPHeaderField: "User-Agent")
+    if let timeout = call.timeout {
+      request.timeoutInterval = timeout
+    }
     if let body = call.body {
       request.httpBody = body
       request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    }
+    for (field, value) in call.headers {
+      request.setValue(value, forHTTPHeaderField: field)
     }
     if let bearer {
       request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
@@ -347,12 +378,22 @@ public actor APIClient {
     if let etag = call.etag {
       request.setValue(etag, forHTTPHeaderField: "If-None-Match")
     }
-    return request
+    guard !call.parts.isEmpty else { return (request, nil) }
+    let boundary = MultipartBody.boundary()
+    request.setValue(
+      MultipartBody.contentType(boundary: boundary), forHTTPHeaderField: "Content-Type")
+    return (request, try MultipartBody.write(call.parts, boundary: boundary))
   }
 
   private func perform(_ call: Call, bearer: String?) async throws -> (Data, HTTPURLResponse) {
-    let request = try request(call, bearer: bearer)
+    let (request, bodyFile) = try request(call, bearer: bearer)
+    defer {
+      if let bodyFile { try? FileManager.default.removeItem(at: bodyFile) }
+    }
     do {
+      if let bodyFile {
+        return try await transport.upload(request, fromFile: bodyFile)
+      }
       return try await transport.send(request)
     } catch let error as URLError {
       throw APIError.unreachable(
@@ -360,7 +401,7 @@ public actor APIClient {
     }
   }
 
-  private func authorized(_ call: Call) async throws -> (Data, HTTPURLResponse) {
+  func authorized(_ call: Call) async throws -> (Data, HTTPURLResponse) {
     let token = try await currentAccessToken()
     let first = try await perform(call, bearer: token)
     guard first.1.statusCode == 401, !call.mintsSession else { return first }
@@ -378,9 +419,16 @@ public actor APIClient {
     return try decode(type, data, response)
   }
 
-  private func authorizedDecoded<T: Decodable>(_ type: T.Type, _ call: Call) async throws -> T {
+  func authorizedDecoded<T: Decodable>(_ type: T.Type, _ call: Call) async throws -> T {
     let (data, response) = try await authorized(call)
     return try decode(type, data, response)
+  }
+
+  /// For a route whose success carries nothing to read: a `PATCH` answering a message, a
+  /// `DELETE`.
+  func authorizedChecked(_ call: Call) async throws {
+    let (data, response) = try await authorized(call)
+    try check(data, response)
   }
 
   private func conditionalBytes(_ call: Call) async throws -> ConditionalFetch<FetchedBytes> {
@@ -392,13 +440,13 @@ public actor APIClient {
       etag: response.value(forHTTPHeaderField: "ETag"))
   }
 
-  private func check(_ data: Data, _ response: HTTPURLResponse) throws {
+  func check(_ data: Data, _ response: HTTPURLResponse) throws {
     guard !(200..<300).contains(response.statusCode) else { return }
     let detail = try? APICoding.decoder().decode(ErrorDetail.self, from: data)
     throw APIError.http(status: response.statusCode, message: detail?.message)
   }
 
-  private func decode<T: Decodable>(_ type: T.Type, _ data: Data, _ response: HTTPURLResponse)
+  func decode<T: Decodable>(_ type: T.Type, _ data: Data, _ response: HTTPURLResponse)
     throws -> T
   {
     try check(data, response)
@@ -431,8 +479,21 @@ public actor APIClient {
     return try await task.value
   }
 
-  /// `POST /auth/refresh`, inside a background-execution assertion held from the send until
-  /// the rotated token is written, so that suspension cannot lose the only live copy of it.
+  /// How long one refresh may take: well inside the API's reuse grace, so that a retry after
+  /// a lost reply lands while the server still holds the pair it minted.
+  static let refreshTimeout: TimeInterval = 20
+
+  /// `POST /auth/refresh`, inside a background-execution assertion held from the first send
+  /// until the rotated token is written, so that suspension cannot lose the only live copy of
+  /// it.
+  ///
+  /// The server spends the presented token before it answers, so a reply lost on the way back
+  /// leaves the phone holding a spent cookie. Inside the API's reuse grace, presenting it again
+  /// is answered with the pair the first presentation minted — so a transport failure is
+  /// retried with the same cookie after a pause, which lets the first request leave the gap
+  /// between the server spending the token and holding its pair; a 401 to that retry may be
+  /// the gap itself and is tried once more. A transport failure on a retry keeps the token for
+  /// the next request; a 401 to the last ends the session, as any refused refresh does.
   private func rotate() async throws -> String {
     guard try readRefreshToken() != nil else {
       await endSession()
@@ -441,19 +502,7 @@ public actor APIClient {
     let assertion = await background.begin(name: "Refreshing the OpenDiving session")
     let result: Result<String?, any Error>
     do {
-      let (data, response) = try await perform(
-        Call(method: "POST", path: "auth/refresh", sendsRefreshCookie: true, mintsSession: true),
-        bearer: nil)
-      if response.statusCode == 401 {
-        result = .success(nil)
-      } else {
-        let body = try decode(RefreshResponse.self, data, response)
-        if let token = RefreshCookie.value(inSetCookie: setCookie(response)) {
-          try store(token)
-        }
-        accessToken = body.accessToken
-        result = .success(body.accessToken)
-      }
+      result = .success(try await refreshRetryingALostReply())
     } catch {
       result = .failure(error)
     }
@@ -463,6 +512,33 @@ public actor APIClient {
       throw APIError.signedOut
     }
     return token
+  }
+
+  /// The rotated access token, or nil when the server refused the cookie.
+  private func refreshRetryingALostReply() async throws -> String? {
+    do {
+      return try await refreshOnce()
+    } catch APIError.unreachable {
+      try await Task.sleep(for: refreshRetryPause)
+      if let token = try await refreshOnce() { return token }
+      try await Task.sleep(for: refreshRetryPause)
+      return try await refreshOnce()
+    }
+  }
+
+  private func refreshOnce() async throws -> String? {
+    let (data, response) = try await perform(
+      Call(
+        method: "POST", path: "auth/refresh", sendsRefreshCookie: true, mintsSession: true,
+        timeout: Self.refreshTimeout),
+      bearer: nil)
+    guard response.statusCode != 401 else { return nil }
+    let body = try decode(RefreshResponse.self, data, response)
+    if let token = RefreshCookie.value(inSetCookie: setCookie(response)) {
+      try store(token)
+    }
+    accessToken = body.accessToken
+    return body.accessToken
   }
 
   private func readRefreshToken() throws -> String? {
