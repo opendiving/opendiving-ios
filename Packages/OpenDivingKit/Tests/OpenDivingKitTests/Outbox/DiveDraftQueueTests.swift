@@ -150,6 +150,31 @@ struct DiveDraftQueueTests {
     #expect(model.drafts.isEmpty)
   }
 
+  @Test func aChangeToAFailedDraftThatWasNeverSentSendsItAgain() async throws {
+    let world = try OutboxWorld()
+    let model = world.outbox()
+    try await world.load(model)
+    world.offline()
+    let set = try model.queue(.createGearSet(GearSetCreate(name: "Warm")))
+    let draft = try model.beginDraft(DiveDraftWrite(gearSet: set.creates))
+    model.leaveDraft()
+    await model.settled()
+    world.server.override { request, _ in
+      request.route == "POST gear-set" ? .status(410, "Deleted.") : nil
+    }
+    model.syncNow()
+    await model.settled()
+    #expect(model.items.first?.failure?.kind == .unresolvable)
+    #expect(world.server.count("POST dive-draft") == 0)
+
+    world.online()
+    try model.saveDraft(draft, Bodies.draft("without the set"))
+    model.leaveDraft()
+    await model.settled()
+    #expect(world.server.count("POST dive-draft") == 1)
+    #expect(model.items.isEmpty)
+  }
+
   @Test func discardingADraftNeverSentSendsNothing() async throws {
     let world = try OutboxWorld()
     let model = world.outbox()

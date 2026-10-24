@@ -27,6 +27,8 @@ extension OutboxModel {
     {
       create.operation = .createDiveDraft(write)
       create.changedAt = Date()
+      // A create failed before it was ever sent goes again with the corrected state.
+      create.state = .pending(lastAnswer: create.lastAnswer)
       try outbox.save(create)
     } else if var update = queued.first(where: { item in
       guard case .updateDiveDraft(let target, _) = item.operation else { return false }
