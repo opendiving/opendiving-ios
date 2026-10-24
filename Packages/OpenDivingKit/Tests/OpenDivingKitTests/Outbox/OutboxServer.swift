@@ -232,7 +232,10 @@ struct OutboxWorld {
   let log = EventLog()
   let session: Session
 
-  init(server: OutboxServer? = nil, root: URL? = nil, token: String? = "refresh") throws {
+  init(
+    server: OutboxServer? = nil, root: URL? = nil, token: String? = "refresh",
+    background: (any BackgroundExecution)? = nil
+  ) throws {
     self.server = try server ?? OutboxServer()
     self.root =
       root
@@ -242,7 +245,8 @@ struct OutboxWorld {
       transport: self.server,
       secrets: InMemorySecretStore(token.map { [OutboxServer.origin.description: $0] } ?? [:]),
       activeOrigin: InMemoryActiveOriginStore(OutboxServer.origin),
-      background: LoggingBackgroundExecution(log: log), applicationSupport: self.root,
+      background: background ?? LoggingBackgroundExecution(log: log),
+      applicationSupport: self.root,
       userAgent: ClientHarness.userAgent, accessToken: "live")
   }
 
@@ -287,6 +291,24 @@ struct OutboxWorld {
 
   var cacheA: AccountCache {
     AccountCache(store: session.store, origin: OutboxServer.origin, account: OutboxServer.accountA)
+  }
+}
+
+/// A background assertion whose first end waits for the test.
+final class HeldEnd: BackgroundExecution {
+  let gate = Gate()
+  private let ended = Mutex(0)
+
+  func begin(name: String) async -> BackgroundExecutionToken {
+    BackgroundExecutionToken(rawValue: 1)
+  }
+
+  func end(_ token: BackgroundExecutionToken) async {
+    let first = ended.withLock { count in
+      count += 1
+      return count == 1
+    }
+    if first { await gate.pass() }
   }
 }
 

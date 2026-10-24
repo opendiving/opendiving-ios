@@ -26,24 +26,30 @@ extension OutboxModel {
     _ stores: AccountStores, _ client: APIClient, _ hub: OutboxHub, _ session: Session,
     retryAll: Bool
   ) async {
-    let token = await session.background.begin(name: "Sending what the server has not saved")
     var retryAll = retryAll
-    while true {
-      hub.again = nil
-      let flush = Flush(stores: stores, client: client, hub: hub, session: session)
-      let outcome = await flush.run(retryAll: retryAll)
-      // A flush stopped for want of a route is followed by one at the next moment, which
-      // reads the drafts then.
-      if outcome.reachedServer {
-        await OutboxModel.refreshDrafts(session)
+    // An ask that arrives while the assertion ends is a pass of its own: `again` is read last,
+    // with no suspension between that and clearing the slot.
+    repeat {
+      let token = await session.background.begin(name: "Sending what the server has not saved")
+      while true {
+        hub.again = nil
+        let flush = Flush(stores: stores, client: client, hub: hub, session: session)
+        let outcome = await flush.run(retryAll: retryAll)
+        // A flush stopped for want of a route is followed by one at the next moment, which
+        // reads the drafts then.
+        if outcome.reachedServer {
+          await OutboxModel.refreshDrafts(session)
+        }
+        if outcome.landedRecord {
+          await LookupsModel.refresh(session)
+        }
+        guard let again = hub.again else { break }
+        retryAll = again
       }
-      if outcome.landedRecord {
-        await LookupsModel.refresh(session)
-      }
-      guard let again = hub.again else { break }
-      retryAll = again
-    }
-    await session.background.end(token)
+      stores.outbox.pruneResolutions()
+      await session.background.end(token)
+      retryAll = hub.again ?? false
+    } while hub.again != nil
     hub.flush = nil
     hub.sending = nil
     hub.changed()
@@ -116,6 +122,12 @@ private struct Flush {
   // MARK: - Sending
 
   private func send(_ queued: OutboxItem, _ outcome: inout Outcome) async -> Step {
+    // The pass's copy may be stale: the diver can edit or discard anything but the item being
+    // sent while an earlier one waited on the network.
+    guard outbox.items().first(where: { $0.id == queued.id }) == queued else {
+      hub.tried.remove(queued.id)
+      return .changed
+    }
     var item = queued
     let resolutions = outbox.resolutions()
     var lost: String?

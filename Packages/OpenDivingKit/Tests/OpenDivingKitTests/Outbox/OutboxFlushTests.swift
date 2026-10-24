@@ -376,6 +376,77 @@ struct OutboxFlushTests {
     #expect(world.server.writes.map { $0.json["notes"] as? String } == ["sent"])
   }
 
+  @Test func anItemDiscardedWhileAnEarlierOneIsSentIsNotSent() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.offline()
+    let model = world.outbox()
+    _ = try model.queue(.createDiveSite(DiveSiteCreate(name: "Canyon")))
+    let dive = try model.queue(.createDive(Bodies.dive()))
+    await model.settled()
+    let gate = Gate()
+    world.server.override { request, _ in
+      if request.route == "POST dive-site" {
+        await gate.pass()
+        return .status(500)
+      }
+      return nil
+    }
+    model.syncNow()
+    await gate.untilArrived()
+    model.discard(dive.id)
+    await gate.open()
+    await model.settled()
+    #expect(world.server.count("POST dive") == 0)
+    #expect(world.storesA.items().map(\.operation.kind) == [.diveSite])
+  }
+
+  @Test func anItemQueuedWhileTheAssertionEndsIsSent() async throws {
+    let background = HeldEnd()
+    let world = try OutboxWorld(background: background)
+    try await world.load()
+    let model = world.outbox()
+    try model.queue(.createDiveSite(DiveSiteCreate(name: "Canyon")))
+    await background.gate.untilArrived()
+    try model.queue(.createDive(Bodies.dive()))
+    await background.gate.open()
+    await model.settled()
+    #expect(world.server.count("POST dive") == 1)
+    #expect(model.items.isEmpty)
+  }
+
+  @Test func aResolutionNothingNamesIsPrunedAfterADay() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    let outbox = world.storesA
+    let named = UUID()
+    let unnamed = UUID()
+    let fresh = UUID()
+    for local in [named, unnamed, fresh] {
+      try outbox.record(OutboxStore.Resolution(local: local, server: UUID(), sentence: nil))
+    }
+    let folder = outbox.root.appendingPathComponent("resolutions", isDirectory: true)
+    for local in [named, unnamed] {
+      try FileManager.default.setAttributes(
+        [.modificationDate: Date().addingTimeInterval(-2 * 24 * 60 * 60)],
+        ofItemAtPath: folder.appendingPathComponent(
+          KeptFolder<OutboxStore.Resolution>.name(for: local)
+        ).path)
+    }
+    var edit = DiveDraftValues()
+    edit.diveSites = [.local(named)]
+    // Written as the form left it, before its refs were read back through the table.
+    try KeptFolder<DraftStore<DiveDraftValues>.Envelope>(
+      url: world.session.store.directory(for: OutboxServer.origin, account: OutboxServer.accountA)
+        .appendingPathComponent("Drafts", isDirectory: true)
+    ).write(.init(ref: .server(UUID()), savedAt: Date(), value: edit), name: "edit.json")
+
+    let model = world.outbox()
+    let dive = try model.queue(.createDive(Bodies.dive()))
+    await model.settled()
+    #expect(Set(outbox.resolutions().keys) == [named, fresh, dive.creates!.uuid])
+  }
+
   @Test func anAttemptedCreateCannotBeEdited() async throws {
     let world = try OutboxWorld()
     try await world.load()

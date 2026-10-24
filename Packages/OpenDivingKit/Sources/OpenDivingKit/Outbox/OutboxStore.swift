@@ -113,6 +113,32 @@ public struct OutboxStore: Sendable {
     return .server(server)
   }
 
+  /// Removes the resolutions nothing on the phone names any more: no queued item and no edit
+  /// draft holds the local ref, and a day has passed for a form still open on it. Every later
+  /// read of the table decodes what is left.
+  func pruneResolutions(keepingFor age: TimeInterval = 24 * 60 * 60) {
+    let manager = FileManager.default
+    let folder = resolutionFolder.url
+    guard let names = try? manager.contentsOfDirectory(atPath: folder.path), !names.isEmpty
+    else { return }
+    let drafts = root.deletingLastPathComponent().appendingPathComponent(
+      "Drafts", isDirectory: true)
+    var named = Data()
+    for directory in [root.appendingPathComponent("items", isDirectory: true), drafts] {
+      for name in (try? manager.contentsOfDirectory(atPath: directory.path)) ?? [] {
+        named += (try? Data(contentsOf: directory.appendingPathComponent(name))) ?? Data()
+      }
+    }
+    let cutoff = Date().addingTimeInterval(-age)
+    for name in names where name.hasSuffix(".json") {
+      let file = folder.appendingPathComponent(name, isDirectory: false)
+      let recorded = (try? manager.attributesOfItem(atPath: file.path)[.modificationDate]) as? Date
+      guard let recorded, recorded < cutoff else { continue }
+      let ref = Data((RecordRef.localPrefix + name.dropLast(".json".count)).utf8)
+      if named.range(of: ref) == nil { try? manager.removeItem(at: file) }
+    }
+  }
+
   func record(_ resolution: Resolution) throws {
     try resolutionFolder.write(resolution, name: KeptFolder<Resolution>.name(for: resolution.local))
   }
