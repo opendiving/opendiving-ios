@@ -11,13 +11,29 @@ public struct DiveReadWithMixtures: Codable, Hashable, Sendable {
   public let recordings: [RecordingRead]
   /// Null when the dive does not record enough to derive it.
   public let gasUse: DiveGasUse?
+  /// What the weather fetch wrote, when it has run for the dive; only the part an edit reads.
+  public let conditions: Conditions?
+
+  /// A dive's surface conditions, `DiveConditionsRead`, as far as an edit needs them.
+  public struct Conditions: Codable, Hashable, Sendable {
+    public let filled: Filled
+  }
+
+  /// The dive's own fields the fetch wrote, `ConditionsFilled`: each the value it wrote, null
+  /// where it wrote nothing. A field named here is the fetch's until the diver replaces it, and
+  /// the API drops a null sent for it.
+  public struct Filled: Codable, Hashable, Sendable {
+    public let airTemperature: Double?
+    public let weather: String?
+    public let waves: String?
+  }
 
   public subscript<Value>(dynamicMember keyPath: KeyPath<DiveRead, Value>) -> Value {
     dive[keyPath: keyPath]
   }
 
   enum CodingKeys: String, CodingKey {
-    case mixtures, sightings, people, tags, recordings, gasUse
+    case mixtures, sightings, people, tags, recordings, gasUse, conditions
   }
 
   public init(from decoder: any Decoder) throws {
@@ -29,6 +45,7 @@ public struct DiveReadWithMixtures: Codable, Hashable, Sendable {
     tags = try c.decode([String].self, forKey: .tags)
     recordings = try c.decode([RecordingRead].self, forKey: .recordings)
     gasUse = try c.decodeIfPresent(DiveGasUse.self, forKey: .gasUse)
+    conditions = try c.decodeIfPresent(Conditions.self, forKey: .conditions)
   }
 
   public func encode(to encoder: any Encoder) throws {
@@ -40,5 +57,6 @@ public struct DiveReadWithMixtures: Codable, Hashable, Sendable {
     try c.encode(tags, forKey: .tags)
     try c.encode(recordings, forKey: .recordings)
     try c.encodeIfPresent(gasUse, forKey: .gasUse)
+    try c.encodeIfPresent(conditions, forKey: .conditions)
   }
 }

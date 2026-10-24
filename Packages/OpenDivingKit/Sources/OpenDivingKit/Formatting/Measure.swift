@@ -77,6 +77,44 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     }
   }
 
+  /// The dimensions a diver types into, each with an entry-unit toggle on the form. The rest are
+  /// figures the API derives and the app only shows.
+  public static let entryDimensions: [Measure] = [
+    .depth, .temperature, .weight, .pressure, .visibility, .altitude,
+  ]
+
+  /// The metric value behind a number shown in `units`, unrounded; unchanged in metric.
+  public func toMetric(_ display: Double, _ units: UnitSystem) -> Double {
+    guard units == .imperial else { return display }
+    switch self {
+    case .depth, .visibility, .altitude: return display * UnitFormat.metersPerFoot
+    case .temperature: return (display - 32) * 5 / 9
+    case .weight: return display * UnitFormat.kgPerPound
+    case .pressure, .sac: return display / UnitFormat.psiPerBar
+    case .rmv, .gasVolume: return display * UnitFormat.litersPerCubicFoot
+    }
+  }
+
+  /// What a number typed in `units` stores, as the web commits it (`toCommittedMetric`): back to
+  /// metric, then rounded — whole metres for visibility and altitude, two decimals for the rest,
+  /// metric entry included. Rounded after the conversion and never before, so 98 ft commits
+  /// 29.87 m and shows as 98 ft again; a whole-metre column loses a foot now and then (50 ft of
+  /// visibility is 15 m, shown as 49 ft), which the web accepts too.
+  public func fromDisplay(_ display: Double, _ units: UnitSystem) -> Double {
+    let metric = toMetric(display, units)
+    return metricDecimals == 0
+      ? NumberText.round(metric) : NumberText.round(metric, decimals: 2)
+  }
+
+  /// A metric bound as the number that gates the same range in `units`, rounded inward — a
+  /// minimum up, a maximum down — so a stepper never offers a value the bound refuses: −450 m
+  /// is −1476 ft. Unchanged in metric.
+  public func displayBound(_ metric: Double, _ units: UnitSystem, isMinimum: Bool) -> Double {
+    guard units == .imperial else { return metric }
+    let shown = toDisplay(metric, units)
+    return isMinimum ? shown.rounded(.up) : shown.rounded(.down)
+  }
+
   /// Fixed metric decimals, or nil for up to two with trailing zeros trimmed. Visibility
   /// and altitude are whole metres: both are integer columns.
   var metricDecimals: Int? {
