@@ -150,9 +150,15 @@ extension DiveFormModel {
   /// *Use these*: the ticks are already the dive's gear, so this only closes the checklist.
   public func closeChecklist() { isChecklistOpen = false }
 
-  /// The draft's set as a checklist, from the cached sets, ticked as its gear stands.
+  /// The draft's set as a checklist, from the cached sets, ticked as its gear stands. Read from
+  /// the stores themselves, which the form's lookups may not have reloaded yet when a refresh
+  /// that brought the set tells the form.
   func rebuiltChecklist(_ set: RecordRef) -> GearChecklist? {
-    guard let row = lookups.gearSets.first(where: { $0.ref == set }) else { return nil }
+    let sets =
+      AccountStores.current(session).map {
+        LookupTables(cache: $0.cache, items: $0.outbox.items()).gearSets
+      } ?? lookups.gearSets
+    guard let row = sets.first(where: { $0.ref == set }) else { return nil }
     remember(gear: row.items)
     return Self.checklist(row, ticked: values.gearItems)
   }

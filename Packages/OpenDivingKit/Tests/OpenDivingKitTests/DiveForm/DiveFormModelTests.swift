@@ -254,6 +254,14 @@ struct DiveFormModelTests {
     model.change { $0.notes = "Finished on the phone" }
     await model.settled()
     #expect(model.outbox.drafts.first?.write.gearSet == set)
+
+    // The set arrives with a refresh after the edit, and opens as the checklist.
+    let mask = GearItemInfo(ref: .server(UUID()), name: "Mask")
+    let stores = try #require(AccountStores.current(world.session))
+    stores.cache.writeLookup(
+      [GearSetRow(ref: set, name: "Reef kit", items: [mask])], table: .gearSets)
+    OutboxHub.hub(for: stores.directory).changed()
+    #expect(model.checklist?.name == "Reef kit")
   }
 
   @Test func returnOnAKnownNameAddsThatPersonRatherThanASecond() async throws {
