@@ -64,10 +64,12 @@ public final class SignInFlow {
   }
 
   /// Exactly what the sign-in screen offers besides signing in: everything while a server is
-  /// active, nothing on the server screen with none.
+  /// active — the pending screen only once an account has loaded there, since it is that
+  /// account's — and nothing on the server screen with none.
   public var signedOutEntries: [SignedOutEntry] {
-    if case .signingIn = session.state { return SignedOutEntry.allCases }
-    return []
+    guard case .signingIn(let origin) = session.state else { return [] }
+    let hasAccount = session.store.lastAccount(for: origin) != nil
+    return SignedOutEntry.allCases.filter { $0 != .waitingToSync || hasAccount }
   }
 
   /// The active server, while signing in to it.
@@ -152,9 +154,7 @@ public final class SignInFlow {
       refreshForgettable()
       return failure
     }
-    var message =
-      "Removed everything this phone kept for \(origin): its sign-in, account"
-      + " and check-in sheet."
+    var message = KeptText.forgotten(origin)
     if let signOutFailure {
       message +=
         " Signing out on the server failed (\(signOutFailure)), so the session there stays"

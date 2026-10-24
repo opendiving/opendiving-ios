@@ -4,12 +4,13 @@ import SwiftUI
 /// The one confirmation *Forget this server* asks for, wherever it is offered: the server
 /// screen, the signed-out screen and Settings.
 struct ForgetServerConfirmation: ViewModifier {
+  @Environment(Session.self) private var session
   @Binding var origin: ServerOrigin?
   let perform: (ServerOrigin) -> Void
 
   /// Under a *Forget* offered for a server that is not active.
   static func heldMessage(_ origin: ServerOrigin) -> String {
-    "This phone holds a sign-in, an account or a check-in sheet for \(origin)."
+    KeptText.held(origin)
   }
 
   func body(content: Content) -> some View {
@@ -18,11 +19,9 @@ struct ForgetServerConfirmation: ViewModifier {
       titleVisibility: .visible, presenting: origin
     ) { origin in
       Button("Forget", role: .destructive) { perform(origin) }
-    } message: { _ in
-      Text(
-        "Removes the server's sign-in, your account details and the saved check-in sheet from"
-          + " this phone. It signs out on the server first when it can; it removes them even"
-          + " when the server cannot be reached.")
+    } message: { origin in
+      // Read when it is asked: every account's writes on the server, which `forget` discards.
+      Text(KeptText.forgetMessage(OutboxStore.summary(store: session.store, origin: origin)))
     }
   }
 
@@ -46,4 +45,5 @@ extension View {
     origin = ServerOrigin("https://opendiving.app")
   }
   .forgetServerConfirmation(origin: $origin) { _ in }
+  .environment(Session.signedOutStub(transport: StubTransport(routes: [:])))
 }
