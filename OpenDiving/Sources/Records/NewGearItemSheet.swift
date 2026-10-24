@@ -105,8 +105,14 @@ private struct GearItemSheetForm: View {
     .padding(.bottom, 8)
   }
 
+  /// A cylinder's boxes, once the type is changed away from one, are neither shown nor sent, so
+  /// what they last held cannot hold the save back.
+  private var blocking: Set<String> {
+    model.values.isCylinder ? invalid : invalid.subtracting(["volume", "working_pressure"])
+  }
+
   private func save() -> Bool {
-    guard invalid.isEmpty, let ref = model.save() else { return false }
+    guard blocking.isEmpty, let ref = model.save() else { return false }
     onCreated(ref)
     return true
   }

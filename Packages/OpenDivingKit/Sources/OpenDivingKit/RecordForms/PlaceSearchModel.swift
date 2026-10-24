@@ -104,14 +104,16 @@ public final class PlaceSearchModel {
     try? await Task.sleep(for: debounce)
     guard mine == generation, !Task.isCancelled else { return }
 
-    var suggestions: DiveSiteSuggestResponse?
-    var catalogFailed = false
-    if let catalog {
-      do { suggestions = try await catalog(trimmed, position) } catch { catalogFailed = true }
-    }
-    var places: [GeocodeResult]?
-    do { places = try await geocode(trimmed) } catch {}
+    // Both asked at once, as the web's `allSettled` asks them.
+    let catalog = catalog
+    let geocode = geocode
+    async let suggested = Self.settle { try await catalog?(trimmed, position) }
+    async let found = Self.settle { try await geocode(trimmed) }
+    let (suggestedAnswer, foundAnswer) = await (suggested, found)
     guard mine == generation else { return }
+    let suggestions = (try? suggestedAnswer.get()) ?? nil
+    let catalogFailed = (try? suggestedAnswer.get()) == nil
+    let places = try? foundAnswer.get()
 
     if places == nil && (catalog == nil || catalogFailed) {
       state = .failed
@@ -129,6 +131,12 @@ public final class PlaceSearchModel {
       attributions.append(credit)
     }
     state = rows.isEmpty ? .noMatches : .results(rows, hasMore: suggestions?.hasMore ?? false)
+  }
+
+  private static func settle<Value: Sendable>(_ work: @MainActor () async throws -> Value) async
+    -> Result<Value, any Error>
+  {
+    do { return .success(try await work()) } catch { return .failure(error) }
   }
 
   /// The box emptied, or a pick made: no list until the next query.

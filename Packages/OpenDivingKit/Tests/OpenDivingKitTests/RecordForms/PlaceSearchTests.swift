@@ -152,6 +152,24 @@ struct PlaceSearchTests {
     #expect(neither.state == .failed)
   }
 
+  @Test func bothSourcesAreAskedAtOnce() async {
+    var geocoderAsked = false
+    var overlapped = false
+    let model = PlaceSearchModel(
+      text: .diveSite,
+      catalog: { _, _ in
+        for _ in 0..<200 where !geocoderAsked { try await Task.sleep(for: .milliseconds(5)) }
+        overlapped = geocoderAsked
+        return DiveSiteSuggestResponse(results: [], hasMore: false)
+      },
+      geocode: { _ in
+        geocoderAsked = true
+        return []
+      }, debounce: .zero)
+    await model.search("blue", near: nil, units: .metric)
+    #expect(overlapped)
+  }
+
   @Test func aShortOrLongQueryAsksNeitherSource() async {
     var asked = 0
     let model = PlaceSearchModel(
