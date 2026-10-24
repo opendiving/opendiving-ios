@@ -145,6 +145,26 @@ struct OfflineCacheTests {
     #expect(!detail.hasPendingEdit)
   }
 
+  @Test func aLandedEditStaysOnTheDiveWhenItsReadBackFails() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    let uuid = UUID()
+    let detail = DiveDetailModel(session: world.session, diveUUID: uuid)
+    await detail.load()
+    let route = "GET dive/\(uuid.uuidString.lowercased())"
+    world.server.override { request, _ in
+      if request.route == route { throw URLError(.networkConnectionLost) }
+      return nil
+    }
+    let model = world.outbox()
+    try model.queue(.updateDive(.server(uuid), Bodies.notes("Edited")))
+    await model.settled()
+    #expect(model.items.isEmpty)
+    #expect(!detail.hasPendingEdit)
+    #expect(detail.dive?.notes == "Edited")
+    #expect(model.cachedDive(uuid)?.notes == "Edited")
+  }
+
   @Test func detailsAreBoundedToTheMostRecentlyOpened() async throws {
     let world = try OutboxWorld()
     try await world.load()

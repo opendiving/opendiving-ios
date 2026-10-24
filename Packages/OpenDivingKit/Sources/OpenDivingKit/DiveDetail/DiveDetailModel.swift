@@ -39,6 +39,8 @@ public final class DiveDetailModel: AccountStoresObserver {
   @ObservationIgnored private var generation = 0
   /// The dive as the server or the cache gave it, before any queued edit.
   @ObservationIgnored private var base: DiveReadWithMixtures?
+  /// When the server answered `base`, so a newer copy in the cache replaces it.
+  @ObservationIgnored private var baseAt = Date.distantPast
 
   public init(session: Session, diveUUID: UUID) {
     self.session = session
@@ -105,7 +107,7 @@ public final class DiveDetailModel: AccountStoresObserver {
     guard generation == self.generation else { return }
     if !fromCache { (trip, course, contact) = (nil, nil, nil) }
     lastUpdated = nil
-    show(dive)
+    show(dive, at: Date())
     isStepping = false
 
     async let trip = dive.tripUuid.asyncMap { try? await client.trip($0) }
@@ -131,13 +133,14 @@ public final class DiveDetailModel: AccountStoresObserver {
     if stores.loaded { stores.cache.touchDive(uuid) }
     (trip, course, contact) = (entry.value.trip, entry.value.course, entry.value.contact)
     lastUpdated = entry.fetchedAt
-    show(entry.value.dive)
+    show(entry.value.dive, at: entry.fetchedAt)
     return true
   }
 
   /// Puts `dive` on screen with what the queue still holds for it laid over.
-  private func show(_ dive: DiveReadWithMixtures) {
+  private func show(_ dive: DiveReadWithMixtures, at answered: Date) {
     base = dive
+    baseAt = answered
     guard let stores = AccountStores.current(session) else {
       hasPendingEdit = false
       phase = .loaded(dive)
@@ -158,13 +161,15 @@ public final class DiveDetailModel: AccountStoresObserver {
     phase = .loaded(shown ?? dive)
   }
 
-  /// The queue changed: an edit queued, or one landed and the dive read back into the cache.
+  /// The queue changed: an edit queued, or one landed — the cache then holds the dive with it,
+  /// as read back or, until that read lands, as the edit left it.
   func accountStoresChanged() {
     guard let base, base.uuid == diveUUID, case .loaded = phase else { return }
-    let cached = AccountStores.current(session)?.cache.dive(base.uuid)?.value.dive
-    let hadEdit = hasPendingEdit
-    show(base)
-    if hadEdit, !hasPendingEdit, let cached { show(cached) }
+    if let entry = AccountStores.current(session)?.cache.dive(base.uuid), entry.fetchedAt > baseAt {
+      show(entry.value.dive, at: entry.fetchedAt)
+    } else {
+      show(base, at: baseAt)
+    }
   }
 }
 

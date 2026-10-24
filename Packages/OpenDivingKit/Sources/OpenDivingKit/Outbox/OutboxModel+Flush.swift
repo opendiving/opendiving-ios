@@ -273,6 +273,9 @@ private struct Flush {
       rewrite(local, to: .server(server))
       upsertRow(item, landed)
     }
+    if case .updateDive(let ref, let update) = item.operation, let uuid = ref.serverUUID {
+      keepLanded(update, ofDive: uuid)
+    }
     outbox.remove(item.id)
     hub.answers[item.id] = nil
 
@@ -357,6 +360,18 @@ private struct Flush {
   }
 
   // MARK: - Reading back
+
+  /// The cached dive with a landed edit in it, so nothing shows the dive without the edit
+  /// while the read-back is on its way, or when it fails.
+  private func keepLanded(_ update: DiveUpdate, ofDive uuid: UUID) {
+    let cache = stores.cache
+    guard var entry = cache.dive(uuid)?.value,
+      let edited = entry.dive.applying(
+        [update], tables: LookupTables(cache: cache, items: outbox.items()))
+    else { return }
+    entry.dive = edited
+    cache.writeDive(entry)
+  }
 
   /// The dive as the server now holds it, in place of the cached copy.
   private func readBack(dive uuid: UUID) async {
