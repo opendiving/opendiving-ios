@@ -4,9 +4,14 @@ import Observation
 /// One dive's page as it loads: the dive, then what it names — its trip, its course, its
 /// dive centre and the dives either side — each of which may fail without failing the page,
 /// as the web hides a link it could not resolve.
+///
+/// A dive the phone has opened before shows at once from the account's cache, under
+/// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. While
+/// the queue holds an edit of the dive, the edit's values are laid over it and
+/// ``hasPendingEdit`` says so, until the flush reads the dive back.
 @MainActor
 @Observable
-public final class DiveDetailModel {
+public final class DiveDetailModel: AccountStoresObserver {
   public enum Phase: Equatable, Sendable {
     case loading
     case loaded(DiveReadWithMixtures)
@@ -23,13 +28,26 @@ public final class DiveDetailModel {
   public private(set) var neighbors: DiveNeighbors?
   /// A step of the pager is on its way; the dive being left stays on screen until it lands.
   public private(set) var isStepping = false
+  /// When the dive shown was fetched, while it is the cache's rather than this visit's.
+  public private(set) var lastUpdated: Date?
+  /// Why the fetch behind a cached dive failed; the cached dive stays on screen.
+  public private(set) var refreshError: APIError?
+  /// The queue holds an edit of this dive, which the dive shown already carries.
+  public private(set) var hasPendingEdit = false
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private var generation = 0
+  /// The dive as the server or the cache gave it, before any queued edit.
+  @ObservationIgnored private var base: DiveReadWithMixtures?
 
   public init(session: Session, diveUUID: UUID) {
     self.session = session
     self.diveUUID = diveUUID
+  }
+
+  /// The dive on screen, queued edits included: what the edit form starts from.
+  public var dive: DiveReadWithMixtures? {
+    if case .loaded(let dive) = phase { dive } else { nil }
   }
 
   /// The page's content in the account's units, once the dive has loaded.
@@ -62,9 +80,14 @@ public final class DiveDetailModel {
     let generation = generation
     diveUUID = uuid
     neighbors = nil
-    if case .loaded = phase { isStepping = true } else { phase = .loading }
+    refreshError = nil
+    let fromCache = showCached(uuid)
+    if !fromCache {
+      if case .loaded = phase { isStepping = true } else { phase = .loading }
+    }
     defer { if generation == self.generation { isStepping = false } }
 
+    let stores = AccountStores.current(session)
     let client: APIClient
     let dive: DiveReadWithMixtures
     do {
@@ -72,12 +95,17 @@ public final class DiveDetailModel {
       dive = try await client.dive(uuid)
     } catch {
       guard generation == self.generation else { return }
-      phase = .failed(APIError(error))
+      if fromCache {
+        refreshError = APIError(error)
+      } else {
+        phase = .failed(APIError(error))
+      }
       return
     }
     guard generation == self.generation else { return }
-    (trip, course, contact) = (nil, nil, nil)
-    phase = .loaded(dive)
+    if !fromCache { (trip, course, contact) = (nil, nil, nil) }
+    lastUpdated = nil
+    show(dive)
     isStepping = false
 
     async let trip = dive.tripUuid.asyncMap { try? await client.trip($0) }
@@ -88,6 +116,55 @@ public final class DiveDetailModel {
     guard generation == self.generation else { return }
     (self.trip, self.course, self.contact) = (related.0 ?? nil, related.1 ?? nil, related.2 ?? nil)
     self.neighbors = related.3
+    cacheForAnswer(fetchedUnder: stores, session: session)?.writeDive(
+      AccountCache.Dive(dive: dive, trip: self.trip, course: self.course, contact: self.contact))
+  }
+
+  /// Shows the cached copy of `uuid`, if the phone holds one.
+  private func showCached(_ uuid: UUID) -> Bool {
+    guard let stores = AccountStores.current(session),
+      let entry = stores.cache.dive(uuid)
+    else {
+      lastUpdated = nil
+      return false
+    }
+    if stores.loaded { stores.cache.touchDive(uuid) }
+    (trip, course, contact) = (entry.value.trip, entry.value.course, entry.value.contact)
+    lastUpdated = entry.fetchedAt
+    show(entry.value.dive)
+    return true
+  }
+
+  /// Puts `dive` on screen with what the queue still holds for it laid over.
+  private func show(_ dive: DiveReadWithMixtures) {
+    base = dive
+    guard let stores = AccountStores.current(session) else {
+      hasPendingEdit = false
+      phase = .loaded(dive)
+      return
+    }
+    OutboxHub.hub(for: stores.directory).observe(self)
+    let items = stores.outbox.items()
+    let updates = items.compactMap { item -> DiveUpdate? in
+      guard case .updateDive(let target, let update) = item.operation,
+        target == .server(dive.uuid)
+      else { return nil }
+      return update
+    }
+    hasPendingEdit = !updates.isEmpty
+    let shown =
+      updates.isEmpty
+      ? dive : dive.applying(updates, tables: LookupTables(cache: stores.cache, items: items))
+    phase = .loaded(shown ?? dive)
+  }
+
+  /// The queue changed: an edit queued, or one landed and the dive read back into the cache.
+  func accountStoresChanged() {
+    guard let base, base.uuid == diveUUID, case .loaded = phase else { return }
+    let cached = AccountStores.current(session)?.cache.dive(base.uuid)?.value.dive
+    let hadEdit = hasPendingEdit
+    show(base)
+    if hadEdit, !hasPendingEdit, let cached { show(cached) }
   }
 }
 

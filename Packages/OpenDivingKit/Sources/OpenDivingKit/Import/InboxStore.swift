@@ -5,6 +5,10 @@ import Foundation
 ///
 /// It lives in the account's directory, so sign-out leaves it and
 /// ``ServerStateStore/forget(_:)`` removes it with the server's.
+///
+/// A file's record this build cannot read is kept: left out of ``load()`` and written back
+/// beside the rest by every ``save(_:)``, so a later build that reads it still finds the file.
+/// An `inbox.json` that is not JSON at all is moved aside, never overwritten.
 public struct InboxStore: Sendable {
   /// What `inbox.json` holds.
   public struct Contents: Codable, Hashable, Sendable {
@@ -37,13 +41,61 @@ public struct InboxStore: Sendable {
   }
 
   public func load() -> Contents {
-    guard let data = try? Data(contentsOf: recordFile) else { return Contents() }
-    return (try? APICoding.decoder().decode(Contents.self, from: data)) ?? Contents()
+    guard let record = readRecord() else { return Contents() }
+    let decoder = APICoding.decoder()
+    let files = (record["files"] as? [Any] ?? []).compactMap { entry -> InboxFile? in
+      guard let data = Self.json(entry) else { return nil }
+      return try? decoder.decode(InboxFile.self, from: data)
+    }
+    // A read this build cannot decode is an answer to fetch again, not the diver's data.
+    let read = record["read"].flatMap { value -> InboxRead? in
+      guard let data = Self.json(value) else { return nil }
+      return try? decoder.decode(InboxRead.self, from: data)
+    }
+    return Contents(files: files, read: read)
   }
 
   public func save(_ contents: Contents) throws {
     try FileManager.default.createDirectory(at: filesFolder, withIntermediateDirectories: true)
-    try APICoding.encoder().encode(contents).write(to: recordFile, options: .atomic)
+    let kept = unreadableRecords()
+    var data = try APICoding.encoder().encode(contents)
+    if !kept.isEmpty, var record = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+      record["files"] = (record["files"] as? [Any] ?? []) + kept
+      data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+    }
+    try data.write(to: recordFile, options: .atomic)
+  }
+
+  /// How many files' records this build could not read; `forget` removes them with the rest.
+  public var unreadableCount: Int { unreadableRecords().count }
+
+  /// `inbox.json` as JSON; one that is not is moved aside under a name of its own, so the
+  /// next save starts a new one beside it.
+  private func readRecord() -> [String: Any]? {
+    guard let data = try? Data(contentsOf: recordFile) else { return nil }
+    if let record = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+      return record
+    }
+    let aside = root.appendingPathComponent(
+      "inbox.unreadable-\(UUID().uuidString.lowercased()).json", isDirectory: false)
+    try? FileManager.default.moveItem(at: recordFile, to: aside)
+    return nil
+  }
+
+  /// An object or an array as JSON; anything else is no record.
+  private static func json(_ value: Any) -> Data? {
+    guard JSONSerialization.isValidJSONObject(value) else { return nil }
+    return try? JSONSerialization.data(withJSONObject: value)
+  }
+
+  /// The records in `inbox.json` that do not decode as a file's, as they are on disk.
+  private func unreadableRecords() -> [Any] {
+    guard let record = readRecord() else { return [] }
+    let decoder = APICoding.decoder()
+    return (record["files"] as? [Any] ?? []).filter { entry in
+      guard let data = Self.json(entry) else { return true }
+      return (try? decoder.decode(InboxFile.self, from: data)) == nil
+    }
   }
 
   /// Where a waiting file's bytes are.
