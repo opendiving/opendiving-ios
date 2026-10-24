@@ -3,9 +3,9 @@
 **The iPhone app for [OpenDiving](https://github.com/opendiving/opendiving) — an open-source,
 self-hostable dive log.**
 
-> **In development.** The first version builds, runs and reads your logbook; there is nothing in
-> the App Store and no TestFlight. To try it, build it onto your own phone from source —
-> [CONTRIBUTING.md](CONTRIBUTING.md) says how, with a free Apple Account.
+> **In development.** The app builds, runs, reads your logbook and logs dives with or without
+> signal; there is nothing in the App Store and no TestFlight. To try it, build it onto your own
+> phone from source — [CONTRIBUTING.md](CONTRIBUTING.md) says how, with a free Apple Account.
 
 ## What it is
 
@@ -14,7 +14,9 @@ A client of *your* OpenDiving server — the one you run, or [opendiving.app](ht
 to your email, and shows your logbook: dives with their profile charts, trips and dive sites, in
 the units your account uses. Your dive computer's files can be shared to the app from any other
 app or picked from Files, and it imports them the way the web does, showing what each file
-becomes before anything is written. Logging and editing dives on the phone arrive next.
+becomes before anything is written. Dives are logged and edited on the phone, on the web's own
+form, with or without signal, and reach your server when the phone can; a dive begun on the phone
+is a draft the web can finish, and a gear set opens as a checklist to tick at the water's edge.
 
 ## Why an app
 
@@ -27,7 +29,7 @@ dive-profile charts. The phone is where an app can do what a browser can't:
 - **Bluetooth download from dive computers** — pull dives straight off the wrist, no cables, no
   vendor cloud. Later.
 - **Offline-first logging** — dives happen on boats and islands without signal; log now, sync to
-  your own server afterwards. Later.
+  your own server afterwards.
 
 ## Stack
 

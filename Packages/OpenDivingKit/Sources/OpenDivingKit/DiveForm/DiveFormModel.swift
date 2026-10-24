@@ -63,7 +63,9 @@ public final class DiveFormModel: AccountStoresObserver {
   public private(set) var isDone = false
   /// The dive an edit compares against.
   public private(set) var baseline: DiveReadWithMixtures?
-  /// An edit kept on the phone from an earlier visit, which *Discard changes* drops.
+  /// The diver has changed something since the form opened, or since the edit it resumed.
+  public private(set) var isTouched = false
+  /// The form opened on an edit kept from an earlier visit, which *Discard changes* drops.
   public private(set) var hasEditDraft = false
   /// What the form names from outside the lookups: a picked search result, the edited dive's
   /// own records, a resolved species.
@@ -78,7 +80,6 @@ public final class DiveFormModel: AccountStoresObserver {
   @ObservationIgnored private let hiddenKeys: [String]
   @ObservationIgnored private let now: Date
   @ObservationIgnored private let timeZone: TimeZone
-  @ObservationIgnored private var typed = false
   @ObservationIgnored private var numberChosen = false
   @ObservationIgnored private var dirty = false
   @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -281,7 +282,7 @@ public final class DiveFormModel: AccountStoresObserver {
   private func startEdit(_ uuid: UUID) {
     if let saved = DraftStore<DiveEditDraft>(session: session)?.load(.server(uuid)) {
       open(saved.baseline, values: saved.values)
-      typed = true
+      isTouched = true
       hasEditDraft = true
     } else if let cached = outbox.cachedDive(uuid) {
       open(cached)
@@ -292,7 +293,7 @@ public final class DiveFormModel: AccountStoresObserver {
       Task {
         await detail.load()
         if let dive = detail.dive {
-          if !typed { open(dive) }
+          if !isTouched { open(dive) }
         } else if phase == .loading, case .failed(let error) = detail.phase {
           phase = .unavailable(error.message)
         }
@@ -386,7 +387,7 @@ public final class DiveFormModel: AccountStoresObserver {
     if next.diveNumber != values.diveNumber { numberChosen = true }
     let startChanged = next.startTime != values.startTime
     values = next
-    typed = true
+    isTouched = true
     persistSoon()
     if startChanged { suggestNumber() }
   }
@@ -422,7 +423,6 @@ public final class DiveFormModel: AccountStoresObserver {
       guard let baseline, let store = DraftStore<DiveEditDraft>(session: session) else { return }
       do {
         try store.save(DiveEditDraft(baseline: baseline, values: values), for: .server(uuid))
-        hasEditDraft = true
         saveError = nil
       } catch {
         saveError = Self.notKept
@@ -533,7 +533,7 @@ public final class DiveFormModel: AccountStoresObserver {
     dirty = false
     DraftStore<DiveEditDraft>(session: session)?.remove(.server(uuid))
     hasEditDraft = false
-    typed = false
+    isTouched = false
     attempted = false
     if let dive = detail?.dive ?? outbox.cachedDive(uuid) { open(dive) }
   }
