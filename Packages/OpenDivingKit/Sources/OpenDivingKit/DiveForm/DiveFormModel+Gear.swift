@@ -112,6 +112,7 @@ extension DiveFormModel {
     let list = GearChecklist(set: set.ref, name: set.name, items: set.items, weight: set.weight)
     remember(gear: set.items)
     checklist = list
+    gearSet = set.ref
     visibility.reveal(list.filledFields)
     change { list.write(into: &$0) }
     isChecklistOpen = true
@@ -136,11 +137,14 @@ extension DiveFormModel {
 
   /// Opens the loaded set again, ticked as the dive's gear now stands.
   public func reopenChecklist() {
-    guard let list = checklist, let set = list.set else { return }
-    checklist = Self.checklist(
-      GearSetRow(ref: set, name: list.name, weight: list.weight, items: list.items),
-      ticked: values.gearItems)
-    isChecklistOpen = true
+    if let list = checklist, let set = list.set {
+      checklist = Self.checklist(
+        GearSetRow(ref: set, name: list.name, weight: list.weight, items: list.items),
+        ticked: values.gearItems)
+    } else if let set = gearSet {
+      checklist = rebuiltChecklist(set)
+    }
+    if checklist != nil { isChecklistOpen = true }
   }
 
   /// *Use these*: the ticks are already the dive's gear, so this only closes the checklist.

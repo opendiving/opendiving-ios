@@ -2,15 +2,13 @@ import OpenDivingKit
 import SwiftUI
 
 /// The dive form: a new dive, a draft, an edit of a dive the account has, or a queued dive the
-/// server refused. A new form offers the drafts that exist before it is touched. It is pushed
+/// server refused. A new form offers the drafts that exist until it is touched. It is pushed
 /// onto a navigation stack and pops itself once its work is queued.
 struct DiveFormView: View {
   let mode: DiveFormMode
 
   @Environment(Session.self) private var session
   @State private var model: DiveFormModel?
-  /// A new form's drafts are offered until the diver picks one or starts a new dive.
-  @State private var offersDrafts = true
 
   init(mode: DiveFormMode) {
     self.mode = mode
@@ -41,17 +39,12 @@ struct DiveFormView: View {
         .navigationTitle(model.title)
         .navigationBarTitleDisplayMode(.inline)
     case .ready:
-      if model.mode == .create, offersDrafts, !model.isTouched, !model.draftRows.isEmpty {
-        DiveDraftChooser(rows: model.draftRows) {
-          offersDrafts = false
-        } onPick: { ref in
-          offersDrafts = false
-          model.leave()
-          Task { await open(.draft(ref)) }
-        }
-      } else {
-        DiveFormScreen(model: model)
+      // The drafts sit above a new form rather than in place of it, so a drafts list that
+      // arrives while the form is open adds a section instead of tearing the form down.
+      DiveFormScreen(model: model) { ref in
+        Task { await open(.draft(ref)) }
       }
+      .id(ObjectIdentifier(model))
     }
   }
 

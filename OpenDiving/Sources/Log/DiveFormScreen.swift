@@ -5,6 +5,8 @@ import SwiftUI
 /// the actions — *Log dive* or *Save changes*, and *Discard draft* once there is one.
 struct DiveFormScreen: View {
   @Bindable var model: DiveFormModel
+  /// Opens a draft in place of a new form that has not been touched.
+  var onContinueDraft: ((RecordRef) -> Void)?
 
   @Environment(\.dismiss) private var dismiss
   @State private var confirmsDiscard = false
@@ -17,6 +19,11 @@ struct DiveFormScreen: View {
             Label(sentence, systemImage: "exclamationmark.triangle")
               .foregroundStyle(.red)
           }
+        }
+        if let onContinueDraft, model.mode == .create, !model.isTouched,
+          !model.draftRows.isEmpty
+        {
+          DiveDraftChooser(rows: model.draftRows, onPick: onContinueDraft)
         }
         if model.hasEditDraft {
           Section {

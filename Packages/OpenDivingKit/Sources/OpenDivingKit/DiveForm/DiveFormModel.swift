@@ -46,8 +46,11 @@ public final class DiveFormModel: AccountStoresObserver {
   public private(set) var entryUnits: EntryUnits
   /// Which rules a save checks: a new dive's, or an edit's.
   public private(set) var purpose: DiveFormPurpose
-  /// The gear set loaded as a checklist, with what is ticked on it.
+  /// The gear set loaded as a checklist, with what is ticked on it — once the phone has the set.
   public internal(set) var checklist: GearChecklist?
+  /// The set the dive's gear was loaded from, which a draft names: kept apart from the checklist,
+  /// so a draft whose set the phone has not fetched yet still names it when it is written.
+  public internal(set) var gearSet: RecordRef?
   public var isChecklistOpen = false
   /// A save was tried, so the form says what is wrong under each field from now on.
   public private(set) var attempted = false
@@ -72,6 +75,8 @@ public final class DiveFormModel: AccountStoresObserver {
   private(set) var knownRows: [RecordRef: FormPickerRow] = [:]
   private(set) var knownGear: [RecordRef: GearItemInfo] = [:]
   private(set) var knownSpecies: [UUID: String] = [:]
+  /// The people a search found, among the rows the form remembers.
+  @ObservationIgnored private(set) var peopleFound: Set<RecordRef> = []
 
   public let outbox: OutboxModel
   public let lookups: LookupsModel
@@ -270,7 +275,8 @@ public final class DiveFormModel: AccountStoresObserver {
     draft = entry.ref
     values = DiveFormValues(draft: entry.write.values)
     visibility.reveal(holdingValuesIn: values)
-    if let set = entry.write.gearSet { checklist = rebuiltChecklist(set) }
+    gearSet = entry.write.gearSet
+    if let set = gearSet { checklist = rebuiltChecklist(set) }
     attachVessels()
     phase = .ready
     if values.diveNumber == nil {
@@ -408,7 +414,7 @@ public final class DiveFormModel: AccountStoresObserver {
     dirty = false
     switch mode {
     case .create, .draft:
-      let write = values.draft(gearSet: checklist?.set)
+      let write = values.draft(gearSet: gearSet)
       do {
         if let draft {
           try outbox.saveDraft(draft, write)
@@ -560,6 +566,12 @@ public final class DiveFormModel: AccountStoresObserver {
       list.rewriteRefs(rewrite)
       if list != checklist { checklist = list }
     }
+    if let set = gearSet {
+      let next = rewrite(set)
+      if next != set { gearSet = next }
+    }
+    // A draft's set arriving with the lookups' refresh opens as its checklist.
+    if checklist == nil, let set = gearSet { checklist = rebuiltChecklist(set) }
     if let draft, case .local = draft, let server = rewrite(draft), server != draft {
       self.draft = server
     }
@@ -606,6 +618,10 @@ public final class DiveFormModel: AccountStoresObserver {
 
   func remember(gear items: [GearItemInfo]) {
     for item in items { knownGear[item.ref] = item }
+  }
+
+  func rememberPeople(_ refs: [RecordRef]) {
+    peopleFound.formUnion(refs)
   }
 
   func remember(species uuid: UUID, name: String) {

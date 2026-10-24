@@ -30,7 +30,7 @@ struct GearField: View {
           .disabled(gear.isEmpty)
       }
       .buttonStyle(.borderless)
-      if let checklist = model.checklist, checklist.set != nil {
+      if let checklist = model.checklist, model.gearSet != nil {
         Button("Checklist: \(checklist.name)", systemImage: "checkmark.circle") {
           model.reopenChecklist()
         }

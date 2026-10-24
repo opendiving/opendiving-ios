@@ -238,6 +238,37 @@ struct DiveFormModelTests {
     #expect(reopened.outbox.items.last?.operation == .deleteDiveDraft(ref))
   }
 
+  @Test func aDraftKeepsTheSetItNamesWhenThePhoneHasNotFetchedIt() async throws {
+    let world = try FormWorld()
+    try await world.loaded()
+    world.offline()
+    let set = RecordRef.server(UUID())
+    let outbox = OutboxModel(session: world.session)
+    var values = DiveDraftValues()
+    values.notes = "Packed on the web"
+    let ref = try outbox.beginDraft(DiveDraftWrite(gearSet: set, values: values))
+
+    let model = await world.form(.draft(ref))
+    #expect(model.checklist == nil)
+    #expect(model.gearSet == set)
+    model.change { $0.notes = "Finished on the phone" }
+    await model.settled()
+    #expect(model.outbox.drafts.first?.write.gearSet == set)
+  }
+
+  @Test func returnOnAKnownNameAddsThatPersonRatherThanASecond() async throws {
+    let world = try FormWorld()
+    try await world.loaded()
+    world.offline()
+    let model = await world.form(.create)
+    #expect(model.addPerson(named: "ana diaz"))
+    let ana = RecordRef.server(UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d")!)
+    #expect(model.values.people.map(\.person) == [ana])
+    #expect(model.addPerson(named: "Ana Diaz"))
+    #expect(model.values.people.count == 1)
+    #expect(model.outbox.items.allSatisfy { $0.operation.kind != .person })
+  }
+
   @Test func aDraftNoLongerHereSaysSo() async throws {
     let world = try FormWorld()
     try await world.loaded()

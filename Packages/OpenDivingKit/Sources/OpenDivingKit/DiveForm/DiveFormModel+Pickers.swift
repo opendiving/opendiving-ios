@@ -63,6 +63,7 @@ extension DiveFormModel {
       return []
     }
     remember(found)
+    if picker == .people { rememberPeople(found.map(\.ref)) }
     let shown = Set(rows(picker, matching: search, tank: tank).map(\.ref))
     let excluded = self.excluded(picker, tank: tank)
     return found.filter { !shown.contains($0.ref) && !excluded.contains($0.ref) }
@@ -210,16 +211,40 @@ extension DiveFormModel {
     }
   }
 
-  /// The picker's create on Enter: a person of that name, queued and on the dive at once.
-  /// False when the name is not one the web would save.
+  /// Return in the people picker: the person of exactly that name where the phone knows one —
+  /// already on the dive, listed, or found by a search — else a new person of that name, queued
+  /// and on the dive at once, since the server refuses a second person of one name. False when
+  /// the name is not one the web would save.
   @discardableResult
   public func addPerson(named name: String) -> Bool {
+    let wanted = name.trimmedOfWhitespace.lowercased()
+    guard !wanted.isEmpty else { return false }
+    if values.people.contains(where: { row($0.person, .people).title.lowercased() == wanted }) {
+      return true
+    }
+    if let known = knownPerson(named: wanted) {
+      addPerson(known)
+      return true
+    }
     guard let body = try? PersonFormValues(name: name).toCreate(),
       let item = try? outbox.queue(.createPerson(body)), let ref = item.creates
     else { return false }
     remember(FormPickerRow(ref: ref, title: body.name))
     addPerson(ref)
     return true
+  }
+
+  /// A person of the account by name, case aside: the lookups', the account's people table, or
+  /// one a search found.
+  private func knownPerson(named wanted: String) -> RecordRef? {
+    if let row = table(.people).first(where: { $0.title.lowercased() == wanted }) { return row.ref }
+    if let person = session.people.values.first(where: { $0.name.lowercased() == wanted }) {
+      return .server(person.uuid)
+    }
+    return knownRows.values.first {
+      $0.title.lowercased() == wanted && peopleFound.contains($0.ref)
+    }?
+    .ref
   }
 
   public func addGear(_ ref: RecordRef) {

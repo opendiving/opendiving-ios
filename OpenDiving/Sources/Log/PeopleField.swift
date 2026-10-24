@@ -43,24 +43,11 @@ struct PeopleField: View {
     }
     .sheet(isPresented: $picking) {
       RecordPickerSheet(
-        model: model, picker: .people, onSubmitText: submit
+        model: model, picker: .people, onSubmitText: { model.addPerson(named: $0) }
       ) { ref in
         if let ref { model.addPerson(ref) }
       }
     }
-  }
-
-  /// Return in the picker: the person of exactly that name where the phone lists one, else a
-  /// new person of the name typed.
-  private func submit(_ text: String) -> Bool {
-    let name = text.trimmingCharacters(in: .whitespaces).lowercased()
-    if let match = model.rows(.people, matching: text).first(where: {
-      $0.title.lowercased() == name
-    }) {
-      model.addPerson(match.ref)
-      return true
-    }
-    return model.addPerson(named: text)
   }
 
   /// The roles in the web's order, and one a newer server stored kept on offer.

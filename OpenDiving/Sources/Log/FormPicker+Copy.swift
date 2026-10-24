@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 // What each of the form's record pickers says, the web's words, and the sheet its *Add…* row
-// presents — `ios-7`'s record sheets, by the initializers they keep.
+// presents, by the initializers the record sheets keep.
 extension FormPicker {
   /// The picker's prompt, which changes once a multi-select holds something.
   func placeholder(holdsSome: Bool) -> String {
