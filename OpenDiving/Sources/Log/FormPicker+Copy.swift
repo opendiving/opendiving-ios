@@ -37,7 +37,8 @@ extension FormPicker {
     case .contact: NewContactSheet(onCreated: onCreated)
     case .diveSites: NewDiveSiteSheet(onCreated: onCreated)
     case .people: NewPersonSheet(onCreated: onCreated)
-    case .gear, .cylinder: NewGearItemSheet(onCreated: onCreated)
+    case .gear: NewGearItemSheet(onCreated: onCreated)
+    case .cylinder: NewGearItemSheet(type: "cylinder", onCreated: onCreated)
     }
   }
 }

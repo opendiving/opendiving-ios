@@ -126,6 +126,13 @@ struct RecordSheetsTests {
     expectFields(["Cylinder", "e.g. 11.1", "e.g. 232", "Not recorded"], in: cylinder)
   }
 
+  @Test func aTanksCylinderPickerAddsACylinder() async throws {
+    let cylinder = try await texts(FormPicker.cylinder.addSheet { _ in })
+    expectFields(["New Gear", "Cylinder", "e.g. 11.1", "e.g. 232"], in: cylinder)
+    let gear = try await texts(FormPicker.gear.addSheet { _ in })
+    expectFields(["New Gear", "No type"], in: gear)
+  }
+
   @Test func saveAsSetOpensOnTheDivesWeightAndANewSet() async throws {
     let found = try await texts(SaveGearSetSheet(items: [], weight: 6) { _ in })
     expectFields(
