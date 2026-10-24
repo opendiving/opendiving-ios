@@ -46,6 +46,16 @@ struct KeptFileTests {
     #expect(reopened.load(dive) == nil)
   }
 
+  @Test func theDiveFormsEditDraftIsWhatTheStoreKeeps() throws {
+    let dive = try KitFixture.decode(DiveReadWithMixtures.self, "dive-detail")
+    let edits = DraftStore<DiveEditDraft>(store: store, origin: origin, account: account)
+    var edit = DiveEditDraft(editing: dive)
+    edit.values.notes = "Edited"
+    try edits.save(edit, for: .server(dive.uuid))
+    let reopened = DraftStore<DiveEditDraft>(store: store, origin: origin, account: account)
+    #expect(reopened.load(.server(dive.uuid)) == edit)
+  }
+
   @Test func anEditDraftOfAnUnknownShapeIsKeptBesideANewOne() throws {
     let folder = store.directory(for: origin, account: account)
       .appendingPathComponent("Drafts", isDirectory: true)
