@@ -80,7 +80,7 @@ private struct ContactSheetForm: View {
           label: "Region", text: $model.values.region,
           message: model.message("address", member: "region"))
         TextBox(
-          label: hasAddress ? "Country *" : "Country", text: $model.values.country,
+          label: model.values.hasAddress ? "Country *" : "Country", text: $model.values.country,
           message: model.message("address", member: "country"))
       }
       Section {
@@ -106,14 +106,6 @@ private struct ContactSheetForm: View {
           text: $model.values.notes, message: model.message("notes"), multiline: true)
       }
     }
-  }
-
-  /// A country is asked for once any part of an address is.
-  private var hasAddress: Bool {
-    [
-      model.values.street, model.values.city, model.values.postcode, model.values.region,
-      model.values.country,
-    ].contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
   }
 
   private func ticked(_ role: String) -> Binding<Bool> {

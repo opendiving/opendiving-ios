@@ -71,7 +71,8 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
 
   private var addressParts: [String] { [street, city, postcode, region, country] }
 
-  private var hasAddress: Bool { addressParts.contains { !$0.trimmedOfWhitespace.isEmpty } }
+  /// Whether any part of an address is filled, which makes the country required.
+  public var hasAddress: Bool { addressParts.contains { !$0.trimmedOfWhitespace.isEmpty } }
 
   public var issues: [FormIssue] {
     var list = FormIssueList()

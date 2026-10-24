@@ -1,16 +1,6 @@
 import Foundation
 import Observation
 
-/// A record form a sheet edits and queues: its rules, the write saving it queues, and the
-/// values read back out of a queued write the server refused.
-public protocol RecordSheetValues: Hashable, Sendable {
-  var issues: [FormIssue] { get }
-  /// The write *Create* queues.
-  func operation() throws(FormInvalid) -> OutboxOperation
-  /// The values a queued write carried; nil for a write of another kind.
-  init?(reopening operation: OutboxOperation)
-}
-
 /// What one record sheet holds: the values being typed, the sentences under the fields once a
 /// save has been tried, and — opened on a failed item — the server's sentence about it. Saving
 /// queues the create, or re-queues the failed item under its key, and hands back the ref the
