@@ -35,6 +35,7 @@ public struct DiveNumberingSummary: Codable, Hashable, Sendable {
 extension APIClient {
   /// `GET /dives/numbering`.
   public func diveNumbering() async throws -> DiveNumberingSummary {
-    try await authorizedDecoded(DiveNumberingSummary.self, Call(method: "GET", path: "dives/numbering"))
+    try await authorizedDecoded(
+      DiveNumberingSummary.self, Call(method: "GET", path: "dives/numbering"))
   }
 }

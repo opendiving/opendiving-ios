@@ -39,6 +39,13 @@ private struct DiveDetailScreen: View {
           pagerButton("Previous dive", systemImage: "chevron.left", model.neighbors?.previous)
           pagerButton("Next dive", systemImage: "chevron.right", model.neighbors?.next)
         }
+        if case .loaded(let dive) = model.phase {
+          ToolbarItem(placement: .topBarTrailing) {
+            NavigationLink("Edit") {
+              DiveFormView(mode: .edit(dive.uuid))
+            }
+          }
+        }
       }
   }
 

@@ -58,8 +58,10 @@ struct ImportTextTests {
       outOfDateOrderCount: 0, isSequential: false)
     #expect(
       ImportText.numberingSuggestion(before: tidy, after: shared, dives: preview.dives)
-        == "Numbered #1–#3 — 2 dives share a number. Renumber them on the web, from the Dives page.")
-    #expect(ImportText.numberingSuggestion(before: shared, after: shared, dives: preview.dives) == nil)
+        == "Numbered #1–#3 — 2 dives share a number. Renumber them on the web, from the Dives page."
+    )
+    #expect(
+      ImportText.numberingSuggestion(before: shared, after: shared, dives: preview.dives) == nil)
     #expect(ImportText.numberingSuggestion(before: nil, after: shared, dives: preview.dives) == nil)
   }
 }

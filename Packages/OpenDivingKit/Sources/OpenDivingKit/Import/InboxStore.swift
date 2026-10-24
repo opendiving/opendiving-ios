@@ -28,7 +28,8 @@ public struct InboxStore: Sendable {
 
   /// The inbox of every account this server has a directory for.
   static func all(store: ServerStateStore, origin: ServerOrigin) -> [InboxStore] {
-    let accounts = store.directory(for: origin).appendingPathComponent("Accounts", isDirectory: true)
+    let accounts = store.directory(for: origin).appendingPathComponent(
+      "Accounts", isDirectory: true)
     let names = (try? FileManager.default.contentsOfDirectory(atPath: accounts.path)) ?? []
     return names.compactMap(UUID.init(uuidString:)).map {
       InboxStore(store: store, origin: origin, account: $0)

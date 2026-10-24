@@ -71,6 +71,23 @@ and the server's directory holds a pointer to the account `loadAccount()` last r
 then, because a sign-in's answer names no account — which a sign-out leaves, so a signed-out
 phone still knows whose stores and form settings to show. `forget` removes the lot.
 
+## Shared files are imported types, copied in
+
+`project.yml` imports `.fit`, `.uddf`, `.ssrf` and `.divejson` under `app.opendiving.*`, each
+conforming to `public.data`, and lists `public.json`, `public.xml` and `public.zip-archive` beside
+them, every entry a viewer ranked `Alternate`: the project owns none of these formats, and
+exporting one would outrank its owner's declaration. `LSSupportsOpeningDocumentsInPlace` is false,
+so iOS copies the file into `Documents/Inbox` and the app moves that copy into the account's
+inbox. SwiftUI's `onOpenURL` is what delivers it — a document as well as a link, verified in the
+simulator. Rejected: a share extension, which needs a second bundle id.
+
+## The inbox reads on its own only when no read covers it
+
+Every preview sends every waiting file and spends one of the hourly imports the apply also
+spends, so a file arriving into a covered inbox marks the read stale and waits for the diver's
+*Read the files again*. A refusal, a 429 and a 5xx are kept like a preview, so the app never
+retries what the server answered.
+
 ## The phone asks for the extended session, and retries a refresh whose reply was lost
 
 The code sign-in sends `idle_timeout: extended` with no parameter: the Kit's one caller is a

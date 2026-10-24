@@ -44,7 +44,8 @@ public struct ImportDiveRow: Hashable, Sendable, Identifiable {
         notes: dive.notes.map {
           Note(
             badge: ImportText.noteKind($0.kind), tone: ImportText.noteTone($0.kind),
-            text: ImportText.noteText(collection: $0.collection, message: $0.message, implied: "dives"))
+            text: ImportText.noteText(
+              collection: $0.collection, message: $0.message, implied: "dives"))
         },
         truncatedNotes: ImportText.truncatedDiveNotes(dive.notesTruncated))
     }

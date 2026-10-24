@@ -193,11 +193,16 @@ public enum ImportText {
     guard summary.totalDives > 0, let lowest = summary.lowest, let highest = summary.highest
     else { return nil }
     var notes: [String] = []
-    if summary.missingCount > 0 { notes.append(countNoun(summary.missingCount, "number") + " unused") }
-    if summary.duplicateCount > 0 {
-      notes.append(countNoun(summary.duplicateCount, "dive shares", plural: "dives share") + " a number")
+    if summary.missingCount > 0 {
+      notes.append(countNoun(summary.missingCount, "number") + " unused")
     }
-    if summary.outOfDateOrderCount > 0 { notes.append("\(summary.outOfDateOrderCount) out of date order") }
+    if summary.duplicateCount > 0 {
+      notes.append(
+        countNoun(summary.duplicateCount, "dive shares", plural: "dives share") + " a number")
+    }
+    if summary.outOfDateOrderCount > 0 {
+      notes.append("\(summary.outOfDateOrderCount) out of date order")
+    }
     guard !notes.isEmpty else { return nil }
     let range = lowest == highest ? "#\(lowest)" : "#\(lowest)–#\(highest)"
     return "Numbered \(range) — \(notes.joined(separator: ", "))."
@@ -248,7 +253,9 @@ public enum ImportText {
       return line.isEmpty ? nil : line
     case .insurancePolicies(let account, let offered):
       let line = (proposed ? offered : account)
-        .map { joined([$0.provider, $0.number, $0.expiresOn.map { "expires " + DateText.date($0) }]) }
+        .map {
+          joined([$0.provider, $0.number, $0.expiresOn.map { "expires " + DateText.date($0) }])
+        }
         .joined(separator: "; ")
       return line.isEmpty ? nil : line
     case .other:

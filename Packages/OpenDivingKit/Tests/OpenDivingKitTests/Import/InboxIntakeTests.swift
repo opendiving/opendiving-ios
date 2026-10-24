@@ -41,7 +41,9 @@ struct InboxIntakeTests {
     #expect(files.map(\.filename) == ["dive.fit", "dive.fit"])
     #expect(Set(files.map(\.id)).count == 2)
     let store = InboxStore(store: session.store, origin: origin, account: ImportServer.accountA)
-    #expect(try files.map { String(decoding: try Data(contentsOf: store.url(for: $0)), as: UTF8.self) } == ["one", "two"])
+    #expect(
+      try files.map { String(decoding: try Data(contentsOf: store.url(for: $0)), as: UTF8.self) }
+        == ["one", "two"])
     #expect(server.previews == [["dive.fit", "dive.fit"]])
   }
 
@@ -82,7 +84,8 @@ struct InboxIntakeTests {
     model.sessionChanged()
     await model.settled()
 
-    #expect(inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [false])
+    #expect(
+      inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [false])
     #expect(server.previews.count == 1)
   }
 
@@ -120,7 +123,8 @@ struct InboxIntakeTests {
     await model.settled()
 
     #expect(intake == .kept(account: ImportServer.accountA, signedIn: false))
-    #expect(inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [false])
+    #expect(
+      inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [false])
     #expect(server.previews.isEmpty)
   }
 

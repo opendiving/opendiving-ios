@@ -92,7 +92,9 @@ public final class InboxModel {
 
   /// The row of `members` a waiting file became in the read on screen, and the rows of the
   /// files a zip of it opened into.
-  public func members(of file: InboxFile) -> (own: ImportMemberReport?, inside: [ImportMemberReport]) {
+  public func members(of file: InboxFile) -> (
+    own: ImportMemberReport?, inside: [ImportMemberReport]
+  ) {
     guard let read, !read.stale, let preview = read.preview,
       let part = read.files.firstIndex(of: file.id),
       let row = preview.members.firstIndex(where: { $0.part == part && $0.container == nil })
@@ -124,7 +126,9 @@ public final class InboxModel {
       }
     }
     guard !added.isEmpty else {
-      return .notKept("The file could not be kept on this phone: \(failure.map(String.init(describing:)) ?? "nothing was shared").")
+      return .notKept(
+        "The file could not be kept on this phone: \(failure.map(String.init(describing:)) ?? "nothing was shared")."
+      )
     }
     contents.files += added
     if contents.read != nil { contents.read?.stale = true }
@@ -369,7 +373,8 @@ public final class InboxModel {
         return false
       case .http(let status, let message):
         answer = InboxRead(
-          files: ids, refusal: status >= 500 ? ImportText.readFailed : message ?? ImportText.readFailed)
+          files: ids,
+          refusal: status >= 500 ? ImportText.readFailed : message ?? ImportText.readFailed)
       case .notAnInstance, .unreadableResponse:
         answer = InboxRead(files: ids, refusal: ImportText.readFailed)
       }

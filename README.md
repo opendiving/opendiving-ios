@@ -11,8 +11,10 @@ self-hostable dive log.**
 
 A client of *your* OpenDiving server — the one you run, or [opendiving.app](https://opendiving.app)
 — with no cloud of its own. The first version asks where the server is, signs in with a code sent
-to your email, and shows your logbook read-only: dives with their profile charts, trips and
-dive sites, in the units your account uses. Logging and editing stay on the web.
+to your email, and shows your logbook: dives with their profile charts, trips and dive sites, in
+the units your account uses. Your dive computer's files can be shared to the app from any other
+app or picked from Files, and it imports them the way the web does, showing what each file
+becomes before anything is written. Logging and editing dives on the phone arrive next.
 
 ## Why an app
 

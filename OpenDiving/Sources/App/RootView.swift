@@ -7,11 +7,13 @@ struct RootView: View {
   @State private var session: Session
   @State private var signIn: SignInFlow
   @State private var account: AccountLoader
+  @State private var inbox: InboxModel
 
   init(session: Session = .device()) {
     _session = State(initialValue: session)
     _signIn = State(initialValue: SignInFlow(session: session))
     _account = State(initialValue: AccountLoader(session: session))
+    _inbox = State(initialValue: InboxModel(session: session))
   }
 
   var body: some View {
@@ -26,6 +28,7 @@ struct RootView: View {
     }
     .environment(session)
     .environment(signIn)
+    .inboxHost(inbox, session: session)
     .task { await account.launch() }
     .onChange(of: session.state) { old, new in
       Task { await account.sessionChanged(from: old, to: new) }
