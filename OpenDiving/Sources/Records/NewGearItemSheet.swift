@@ -86,6 +86,18 @@ private struct GearItemSheetForm: View {
           text: $model.values.notes, message: model.message("notes"), multiline: true)
       }
     }
+    .onChange(of: model.values.isCylinder) { _, isCylinder in typeChanged(isCylinder: isCylinder) }
+  }
+
+  /// A cylinder's facts go with the cylinder: changed to another type, its boxes leave the
+  /// form, so nothing they held — a figure out of range included — may stop the save from
+  /// under a box no longer shown.
+  private func typeChanged(isCylinder: Bool) {
+    guard !isCylinder else { return }
+    model.values.volume = nil
+    model.values.workingPressure = nil
+    model.values.material = nil
+    invalid.subtract(["volume", "working_pressure"])
   }
 
   private var volumePresets: some View {
@@ -105,14 +117,8 @@ private struct GearItemSheetForm: View {
     .padding(.bottom, 8)
   }
 
-  /// A cylinder's boxes, once the type is changed away from one, are neither shown nor sent, so
-  /// what they last held cannot hold the save back.
-  private var blocking: Set<String> {
-    model.values.isCylinder ? invalid : invalid.subtracting(["volume", "working_pressure"])
-  }
-
   private func save() -> Bool {
-    guard blocking.isEmpty, let ref = model.save() else { return false }
+    guard invalid.isEmpty, let ref = model.save() else { return false }
     onCreated(ref)
     return true
   }
