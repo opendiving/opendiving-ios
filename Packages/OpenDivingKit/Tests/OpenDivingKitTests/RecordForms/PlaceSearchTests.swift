@@ -7,7 +7,8 @@ import Testing
 /// `location-search-dialog.tsx` and `useGeocodedLocation` at `opendiving-web` `d29d21e4`.
 @MainActor
 struct PlaceSearchTests {
-  private static let osm = "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)"
+  private static let osm =
+    "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)"
 
   private func site(
     _ name: String, id: String = "node/1", region: String? = "South Sinai",
@@ -33,7 +34,8 @@ struct PlaceSearchTests {
     let rows = PlaceSearch.siteRows(
       catalog: [site("Blue Hole")],
       geocoded: [
-        place("Blue Hole, South Sinai, Egypt", name: "Blue Hole", source: "osm", sourceId: "node/1"),
+        place(
+          "Blue Hole, South Sinai, Egypt", name: "Blue Hole", source: "osm", sourceId: "node/1"),
         place("Dahab, South Sinai, Egypt", name: "Dahab", region: "South Sinai", country: "Egypt"),
       ], position: nil, units: .metric)
     #expect(rows.map(\.name) == ["Blue Hole", "Dahab"])
@@ -77,7 +79,9 @@ struct PlaceSearchTests {
       first.externalIds, replacing: first.added,
       with: ExternalIdRead(registry: "openstreetmap", identifier: "node/2"))
     #expect(
-      second.externalIds == [kept, ExternalIdWrite(registry: "openstreetmap", identifier: "node/2")])
+      second.externalIds == [
+        kept, ExternalIdWrite(registry: "openstreetmap", identifier: "node/2"),
+      ])
     let again = PlaceSearch.pickExternalId(
       [kept], replacing: nil, with: ExternalIdRead(registry: "wikidata", identifier: "Q1"))
     #expect(again.externalIds == [kept])
@@ -108,6 +112,14 @@ struct PlaceSearchTests {
     #expect(PlaceSearch.coordinatePair("27.8506, 34.3136, 1") == nil)
   }
 
+  @Test func aPositionNeedsBothBoxesInRange() {
+    #expect(
+      PlaceSearch.position(latitude: "28,5", longitude: "-34.5")
+        == DeviceLocation(latitude: 28.5, longitude: -34.5))
+    #expect(PlaceSearch.position(latitude: "91", longitude: "34") == nil)
+    #expect(PlaceSearch.position(latitude: "28", longitude: "") == nil)
+  }
+
   @Test func aCoordinateReadsAsTheShortestDecimal() {
     #expect(PlaceSearch.coordinateText(28.5722) == "28.5722")
     #expect(PlaceSearch.coordinateText(0.00001) == "0.00001")
@@ -121,11 +133,16 @@ struct PlaceSearchTests {
   @Test func oneSourceDownIsAShorterListAndBothDownIsAnError() async {
     let catalogOnly = PlaceSearchModel(
       text: .diveSite,
-      catalog: { _, _ in DiveSiteSuggestResponse(results: [self.site("Blue Hole")], hasMore: true) },
+      catalog: { _, _ in DiveSiteSuggestResponse(results: [self.site("Blue Hole")], hasMore: true)
+      },
       geocode: { _ in throw Down() }, debounce: .zero)
     await catalogOnly.search("blue", near: nil, units: .metric)
-    #expect(catalogOnly.state == .results(PlaceSearch.siteRows(
-      catalog: [site("Blue Hole")], geocoded: [], position: nil, units: .metric), hasMore: true))
+    #expect(
+      catalogOnly.state
+        == .results(
+          PlaceSearch.siteRows(
+            catalog: [site("Blue Hole")], geocoded: [], position: nil, units: .metric),
+          hasMore: true))
     #expect(catalogOnly.attributions == [Self.osm])
 
     let neither = PlaceSearchModel(

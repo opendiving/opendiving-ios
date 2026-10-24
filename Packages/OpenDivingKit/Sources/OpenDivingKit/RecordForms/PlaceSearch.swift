@@ -166,6 +166,15 @@ public enum PlaceSearch {
     }
   }
 
+  /// The position two boxes hold, when both read as coordinates in range: what the map pins
+  /// and the catalogue sorts by (`parseFormPosition`).
+  public static func position(latitude: String, longitude: String) -> DeviceLocation? {
+    guard let latitude = CoordinateEntry.value(latitude), abs(latitude) <= 90,
+      let longitude = CoordinateEntry.value(longitude), abs(longitude) <= 180
+    else { return nil }
+    return DeviceLocation(latitude: latitude, longitude: longitude)
+  }
+
   /// A coordinate as the form's text: the shortest decimal that reads back as it, empty for
   /// none (`formatCoordinateForForm`).
   public static func coordinateText(_ value: Double?) -> String {

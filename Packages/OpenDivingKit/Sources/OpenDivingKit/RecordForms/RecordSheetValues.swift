@@ -8,7 +8,8 @@ extension DiveSiteFormValues: RecordSheetValues {
     guard case .createDiveSite(let body) = operation else { return nil }
     self.init(
       name: body.name, otherNames: body.otherNames, location: body.location,
-      latitude: CoordinateEntry.text(body.latitude), longitude: CoordinateEntry.text(body.longitude),
+      latitude: CoordinateEntry.text(body.latitude),
+      longitude: CoordinateEntry.text(body.longitude),
       depthFrom: body.depthFrom, depthTo: body.depthTo, waterType: body.waterType,
       altitude: body.altitude, entryTypes: body.entryTypes, tags: body.tags,
       externalIds: body.externalIds, notes: body.notes)
@@ -112,7 +113,8 @@ public struct GearSetSaveValues: RecordSheetValues {
   public init?(reopening operation: OutboxOperation) {
     switch operation {
     case .createGearSet(let body):
-      self.init(form: GearSetFormValues(name: body.name, weight: body.weight, items: body.gearItems))
+      self.init(
+        form: GearSetFormValues(name: body.name, weight: body.weight, items: body.gearItems))
     case .updateGearSet(let target, let body):
       self.init(
         form: GearSetFormValues(
