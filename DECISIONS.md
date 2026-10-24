@@ -78,8 +78,7 @@ conforming to `public.data`, and lists `public.json`, `public.xml` and `public.z
 them, every entry a viewer ranked `Alternate`: the project owns none of these formats, and
 exporting one would outrank its owner's declaration. `LSSupportsOpeningDocumentsInPlace` is false,
 so iOS copies the file into `Documents/Inbox` and the app moves that copy into the account's
-inbox. SwiftUI's `onOpenURL` is what delivers it — a document as well as a link, verified in the
-simulator. Rejected: a share extension, which needs a second bundle id.
+inbox. SwiftUI's `onOpenURL` is what delivers it — a document as well as a link. Rejected: a share extension, which needs a second bundle id.
 
 ## The inbox reads on its own only when no read covers it
 
