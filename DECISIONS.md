@@ -87,6 +87,43 @@ spends, so a file arriving into a covered inbox marks the read stale and waits f
 *Read the files again*. A refusal, a 429 and a 5xx are kept like a preview, so the app never
 retries what the server answered.
 
+## A queued write that lands is removed, not logged
+
+The outbox holds what the server has not acknowledged and nothing else: once a write lands the
+server holds it, and a second copy on the phone would be a record nobody reconciles. A create is
+done only once its `local → server` resolution is on disk, so an item that names the record is
+rewritten even if the phone dies between the two writes. Rejected: a sync log of sent writes.
+
+## A refused write holds what depends on it; a discard releases it
+
+A 4xx is the server's answer and retrying it changes nothing, so the item fails and every item
+naming its record waits behind it — sent first, the dive would lose the site the diver may yet
+correct. A discard is the diver's answer: what named the record drops the reference and goes on,
+because a dive without its site is still a dive. Rejected: cascading the discard.
+
+## A success this build cannot read is done
+
+A 2xx means the record exists. Retrying it would make a second one the day the key's hold
+lapses, so the item leaves the queue with a sentence, and whatever named its record fails with
+the same sentence — the uuid can never be learned. A log of a draft that came back unreadable or
+gone becomes a plain dive create instead, since it carries the whole dive. Rejected: treating it
+as transient.
+
+## Nothing is sent, or cached, before the account loads
+
+A sign-in's answer names no account, so until `GET /user` returns in this process the stores
+are the last account's and the token may be another's. Writes made in that window are marked;
+the load keeps them or moves them to the loaded account, dropping what names the other's
+records. Rejected: flushing on the last-account pointer, which sends one account's queue under
+another's token.
+
+## The cache holds what the phone has shown
+
+Pages, dives and drafts are written when a screen loads them, never fetched to fill the cache,
+and dive details are bounded to the two hundred most recently opened. It exists so a screen
+shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
+dive; showing the cache only once a fetch has failed, a minute of spinner offline.
+
 ## The phone asks for the extended session, and retries a refresh whose reply was lost
 
 The code sign-in sends `idle_timeout: extended` with no parameter: the Kit's one caller is a

@@ -40,7 +40,9 @@ public struct AccountCache: Sendable {
 
   // MARK: - Lists
 
-  public func pages<Item: Codable & Sendable>(_ key: String, of type: Item.Type) -> Entry<Pages<Item>>? {
+  public func pages<Item: Codable & Sendable>(_ key: String, of type: Item.Type) -> Entry<
+    Pages<Item>
+  >? {
     read(Entry<Pages<Item>>.self, "pages/\(key).json")
   }
 
@@ -111,11 +113,15 @@ public struct AccountCache: Sendable {
 
   // MARK: - Lookups
 
-  public func lookup<Row: Codable & Sendable>(_ table: LookupTable, of type: Row.Type) -> Entry<[Row]>? {
+  public func lookup<Row: Codable & Sendable>(_ table: LookupTable, of type: Row.Type) -> Entry<
+    [Row]
+  >? {
     read(Entry<[Row]>.self, "lookups/\(table.rawValue).json")
   }
 
-  func writeLookup<Row: Codable & Sendable>(_ rows: [Row], table: LookupTable, fetchedAt: Date = Date()) {
+  func writeLookup<Row: Codable & Sendable>(
+    _ rows: [Row], table: LookupTable, fetchedAt: Date = Date()
+  ) {
     write(Entry(value: rows, fetchedAt: fetchedAt), "lookups/\(table.rawValue).json")
   }
 

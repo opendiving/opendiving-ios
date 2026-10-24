@@ -34,7 +34,8 @@ struct OutboxFlushTests {
     var item = try model.queue(.createDive(Bodies.dive()))
     await model.settled()
     // As the phone left it when it was killed during the send.
-    let bytes = Data(#"{"dive_number":1,"start_time":"2026-10-20T10:00:00+03:00","submerged_time":3000}"#.utf8)
+    let bytes = Data(
+      #"{"dive_number":1,"start_time":"2026-10-20T10:00:00+03:00","submerged_time":3000}"#.utf8)
     item.state = .inFlight
     item.attempted = true
     item.sentBody = bytes
@@ -160,7 +161,9 @@ struct OutboxFlushTests {
     await model.settled()
 
     #expect(model.items.map(\.id) == [site.id, held.id])
-    #expect(model.items[0].failure == OutboxFailure(kind: .refused, status: 422, message: "Name is required."))
+    #expect(
+      model.items[0].failure
+        == OutboxFailure(kind: .refused, status: 422, message: "Name is required."))
     #expect(model.items[0].isEditable)
     #expect(model.items[1].isPending)
     #expect(model.heldBehind(model.items[1])?.id == site.id)
@@ -322,7 +325,8 @@ struct OutboxFlushTests {
     await model.settled()
     #expect(try Data(contentsOf: strange) == bytes)
     #expect(world.server.writes.map(\.route) == ["POST dive"])
-    #expect(OutboxStore.summary(store: world.session.store, origin: OutboxServer.origin).unreadable == 1)
+    #expect(
+      OutboxStore.summary(store: world.session.store, origin: OutboxServer.origin).unreadable == 1)
     model.discardUnreadable("0000-strange.json")
     #expect(!FileManager.default.fileExists(atPath: strange.path))
   }

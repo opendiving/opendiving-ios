@@ -29,7 +29,9 @@ final class OutboxHub {
   }
 
   /// Runs `load` unless one is already running for `key`, and waits for whichever runs.
-  static func loadAccount(key: ObjectIdentifier, _ load: @escaping @MainActor () async -> Void) async {
+  static func loadAccount(key: ObjectIdentifier, _ load: @escaping @MainActor () async -> Void)
+    async
+  {
     if let running = loading[key] {
       await running.value
       return

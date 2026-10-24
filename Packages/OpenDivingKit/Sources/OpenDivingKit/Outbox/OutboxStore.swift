@@ -101,12 +101,15 @@ public struct OutboxStore: Sendable {
 
   func resolutions() -> [UUID: Resolution] {
     Dictionary(
-      resolutionFolder.load().values.map { ($0.value.local, $0.value) }, uniquingKeysWith: { a, _ in a })
+      resolutionFolder.load().values.map { ($0.value.local, $0.value) },
+      uniquingKeysWith: { a, _ in a })
   }
 
   /// `ref` as the server names it, once its create has landed.
   func resolved(_ ref: RecordRef) -> RecordRef {
-    guard case .local(let local) = ref, let server = resolutions()[local]?.server else { return ref }
+    guard case .local(let local) = ref, let server = resolutions()[local]?.server else {
+      return ref
+    }
     return .server(server)
   }
 

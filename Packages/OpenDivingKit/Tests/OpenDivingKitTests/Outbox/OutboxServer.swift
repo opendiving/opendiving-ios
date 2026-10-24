@@ -17,7 +17,8 @@ final class OutboxServer: HTTPTransport {
 
   /// Answers a request before the default does; nil leaves it to the default. `index` counts
   /// the requests to the same route before this one.
-  typealias Override = @Sendable (_ request: URLRequest, _ index: Int) async throws ->
+  typealias Override =
+    @Sendable (_ request: URLRequest, _ index: Int) async throws ->
     StubTransport.Response?
 
   struct Sent: Sendable {
@@ -91,7 +92,7 @@ final class OutboxServer: HTTPTransport {
       state.sent.append(Sent(route: route, body: request.httpBody, key: request.idempotencyKey))
       return (index, state.override)
     }
-    let response = try await override?(request, index) ?? answer(route)
+    let response = try await override?(request, index) ?? answer(route, request.httpBody)
     if (200..<300).contains(response.status) { keepDrafts(route, request.httpBody, response) }
     let http = HTTPURLResponse(
       url: request.url!, statusCode: response.status, httpVersion: "HTTP/1.1",
@@ -99,7 +100,7 @@ final class OutboxServer: HTTPTransport {
     return (response.body, http)
   }
 
-  private func answer(_ route: String) -> StubTransport.Response {
+  private func answer(_ route: String, _ body: Data?) -> StubTransport.Response {
     let parts = route.split(separator: " ", maxSplits: 1).map(String.init)
     let (method, path) = (parts[0], parts[1])
     let segments = path.split(separator: "/").map(String.init)
@@ -142,7 +143,8 @@ final class OutboxServer: HTTPTransport {
       let fixture: String
       switch segments.first! {
       case "dive": fixture = fixtures["dive-detail"]!
-      case "dive-draft": fixture = segments.count > 2 ? fixtures["dive-detail"]! : fixtures["dive-draft"]!
+      case "dive-draft":
+        fixture = segments.count > 2 ? fixtures["dive-detail"]! : fixtures["dive-draft"]!
       case "dive-site": fixture = fixtures["dive-site"]!
       case "trip": fixture = fixtures["trip"]!
       case "course": fixture = fixtures["course"]!
@@ -152,7 +154,18 @@ final class OutboxServer: HTTPTransport {
       case "person": fixture = Self.firstRow(fixtures["people-page"]!)
       default: return .json(#"{"detail":"Not Found"}"#, status: 404)
       }
-      return .json(Self.with(fixture, uuid: uuid.uuidString.lowercased()), status: 201)
+      var created = Self.with(fixture, uuid: uuid.uuidString.lowercased())
+      // A dive comes back with the number it was sent.
+      if fixture == fixtures["dive-detail"], let body,
+        let number = ((try? JSONSerialization.jsonObject(with: body)) as? [String: Any])?[
+          "dive_number"],
+        var object = (try? JSONSerialization.jsonObject(with: Data(created.utf8))) as? [String: Any]
+      {
+        object["dive_number"] = number
+        created = String(
+          decoding: try! JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+      }
+      return .json(created, status: 201)
     case ("PATCH", _): return .json(#"{"message":"Updated"}"#)
     case ("DELETE", _): return .json(#"{"message":"Deleted"}"#)
     default: return .json(#"{"detail":"Not Found"}"#, status: 404)
@@ -190,7 +203,8 @@ final class OutboxServer: HTTPTransport {
   }
 
   static func with(_ fixture: String, uuid: String, values: Any? = nil) -> String {
-    var object = (try? JSONSerialization.jsonObject(with: Data(fixture.utf8))) as? [String: Any] ?? [:]
+    var object =
+      (try? JSONSerialization.jsonObject(with: Data(fixture.utf8))) as? [String: Any] ?? [:]
     object["uuid"] = uuid
     if let values { object["values"] = values }
     return String(decoding: try! JSONSerialization.data(withJSONObject: object), as: UTF8.self)

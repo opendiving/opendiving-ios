@@ -135,7 +135,9 @@ public final class OutboxModel: AccountStoresObserver {
     var operation = operation
     let resolutions = stores.outbox.resolutions()
     operation.rewriteRefs { ref in
-      guard case .local(let local) = ref, let server = resolutions[local]?.server else { return ref }
+      guard case .local(let local) = ref, let server = resolutions[local]?.server else {
+        return ref
+      }
       return .server(server)
     }
     let item = OutboxItem(

@@ -41,7 +41,8 @@ extension DiveReadWithMixtures {
             return read
           }
         case "sightings":
-          dive["sightings"] = (value as? [[String: Any]] ?? []).compactMap { sighting -> [String: Any]? in
+          dive["sightings"] = (value as? [[String: Any]] ?? []).compactMap {
+            sighting -> [String: Any]? in
             guard let species = sighting["species_uuid"] as? String,
               var read = known.species[species]
             else { return nil }
