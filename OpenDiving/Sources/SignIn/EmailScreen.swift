@@ -109,4 +109,5 @@ struct EmailScreen: View {
       flow: SignInFlow(session: session), origin: session.state.origin!, showSheet: {},
       showPending: {})
   }
+  .environment(session)
 }
