@@ -180,8 +180,9 @@ private struct Flush {
       item.attempted = true
     }
     item.state = .inFlight
-    let routed = session.connectivity.isRouteAvailable
+    // The count first: a route appearing between the two reads then reads as routed.
     let appearances = session.connectivity.routeAppearances
+    let routed = session.connectivity.isRouteAvailable
     // Not on disk, not sent: the attempt and its bytes must survive the reply being lost.
     guard (try? outbox.save(item)) != nil else { return .stop }
     hub.sending = item.id
