@@ -57,6 +57,9 @@ targets:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: >-
           OpenDiving connects to the server you choose, which can be one on your local network.
+        NSLocationWhenInUseUsageDescription: >-
+          OpenDiving uses your location only when you ask it to place a new dive site where you
+          are.
         # Every format the server reads can be shared to the app. Imported, never exported:
         # the project owns none of these formats. Ranked Alternate, so a format's own app
         # stays first. Copied into Documents/Inbox rather than opened in place. See
