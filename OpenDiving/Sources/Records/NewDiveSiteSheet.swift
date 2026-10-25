@@ -141,10 +141,12 @@ private struct DiveSiteSheetForm: View {
       LocationSearchSheet(
         latitude: model.values.latitude, longitude: model.values.longitude,
         location: model.values.location, onUse: use,
-        onTakeHeldSite: { uuid in
-          onCreated(.server(uuid))
-          dismiss()
-        })
+        onTakeHeldSite: model.isReopened
+          ? nil
+          : { uuid in
+            onCreated(.server(uuid))
+            dismiss()
+          })
     }
   }
 

@@ -19,8 +19,10 @@ struct LocationSearchSheet: View {
   let longitude: String
   let location: LocationWrite?
   let onUse: (SearchedLocation) -> Void
-  /// The diver took the site they already have; nothing is created.
-  let onTakeHeldSite: (UUID) -> Void
+  /// The diver took the site they already have; nothing is created. Nil offers no held site: a
+  /// sheet reopened on a refused create has a queued record to correct, which taking another
+  /// site would not resolve.
+  let onTakeHeldSite: ((UUID) -> Void)?
 
   @Environment(Session.self) private var session
 
@@ -36,7 +38,7 @@ private struct LocationSearchForm: View {
   @State var search: PlaceSearchModel
   let session: Session
   let onUse: (SearchedLocation) -> Void
-  let onTakeHeldSite: (UUID) -> Void
+  let onTakeHeldSite: ((UUID) -> Void)?
 
   @State private var picked: SearchedLocation
   @State private var query: String
@@ -46,7 +48,7 @@ private struct LocationSearchForm: View {
 
   init(
     search: PlaceSearchModel, session: Session, initial: SearchedLocation,
-    onUse: @escaping (SearchedLocation) -> Void, onTakeHeldSite: @escaping (UUID) -> Void
+    onUse: @escaping (SearchedLocation) -> Void, onTakeHeldSite: ((UUID) -> Void)?
   ) {
     _search = State(initialValue: search)
     self.session = session
@@ -67,7 +69,7 @@ private struct LocationSearchForm: View {
         PlaceSearchSection(
           model: search, query: $query, position: position, units: session.units,
           onPick: pick, onTypeName: { picked.location = PlaceSearch.typedLocation($0) })
-        if let offer, let held = offer.heldSite {
+        if let offer, let held = offer.heldSite, let onTakeHeldSite {
           Section {
             Text("You already have **\(held.name)** for this site.")
             Button("Use \(held.name)") {
@@ -135,7 +137,7 @@ private struct LocationSearchForm: View {
       setPosition(result.latitude, result.longitude)
       picked.location = PlaceSearch.location(of: result)
       adopt(credit: result.attribution)
-    case .catalog(let site) where site.heldSite != nil:
+    case .catalog(let site) where site.heldSite != nil && onTakeHeldSite != nil:
       offer = site
     case .catalog(let site):
       fill(from: site)
