@@ -60,6 +60,28 @@ struct OutboxRouteTests {
     #expect(item.isEditable)
   }
 
+  @Test func syncNowThatSawARouteComeAndGoCountsTheCreateAsSent() async throws {
+    let route = SwitchedRoute()
+    let world = try OutboxWorld(connectivity: route)
+    try await world.load()
+    route.isRouteAvailable = false
+    world.server.override { request, _ in
+      guard request.route == "POST dive" else { return nil }
+      route.isRouteAvailable = true
+      route.isRouteAvailable = false
+      throw URLError(.networkConnectionLost)
+    }
+    let model = world.outbox()
+    try model.queue(.createDive(Bodies.dive()))
+    model.syncNow()
+    await model.settled()
+    let item = try #require(model.items.first)
+    #expect(item.lastAnswer == .unreachable)
+    #expect(item.attempted)
+    #expect(item.sentBody != nil)
+    #expect(!item.isEditable)
+  }
+
   @Test func aDraftSavedWithNoRouteIsWithdrawnWhenItsDiveIsLogged() async throws {
     let route = SwitchedRoute()
     let world = try OutboxWorld(connectivity: route)

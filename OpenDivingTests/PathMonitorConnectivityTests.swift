@@ -32,6 +32,17 @@ struct PathMonitorConnectivityTests {
     #expect(connectivity.isRouteAvailable)
   }
 
+  @Test func everyRouteAppearingIsCounted() {
+    let connectivity = PathMonitorConnectivity(monitor: nil)
+    connectivity.receive(none)
+    #expect(connectivity.routeAppearances == 0)
+    connectivity.receive(wifi)
+    connectivity.receive(wifi)
+    connectivity.receive(none)
+    connectivity.receive(cellular)
+    #expect(connectivity.routeAppearances == 2)
+  }
+
   @Test func aSatisfiedPathThatChangedIsAMomentAndOneThatDidNotIsNone() async {
     let connectivity = PathMonitorConnectivity(monitor: nil)
     let seen = await moments(connectivity, count: 4) {

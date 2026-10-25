@@ -181,6 +181,7 @@ private struct Flush {
     }
     item.state = .inFlight
     let routed = session.connectivity.isRouteAvailable
+    let appearances = session.connectivity.routeAppearances
     // Not on disk, not sent: the attempt and its bytes must survive the reply being lost.
     guard (try? outbox.save(item)) != nil else { return .stop }
     hub.sending = item.id
@@ -199,9 +200,9 @@ private struct Flush {
     } catch {
       let unreachable = if case .unreachable = APIError(error) { true } else { false }
       item.state = .pending(lastAnswer: unreachable ? .unreachable : queued.lastAnswer)
-      // With no route at either end the request waited on the phone and never left it, so the
-      // create can still be edited or withdrawn.
-      if unreachable, !routed, !session.connectivity.isRouteAvailable {
+      // Sent with no route and none appearing since, the request waited on the phone for one
+      // and timed out there, so the create can still be edited or withdrawn.
+      if unreachable, !routed, session.connectivity.routeAppearances == appearances {
         item.attempted = queued.attempted
         item.sentBody = queued.sentBody
       }

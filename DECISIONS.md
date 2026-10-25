@@ -93,9 +93,9 @@ Every request waits for connectivity, so that a local-network server's first req
 Local Network prompt; offline, that is a minute's spinner and then a failure. So an outbox flush
 or an inbox read the app starts itself does not start while the path reports no route, and a
 route appearing starts it. *Sync now* and *Read the files* still try: the diver asked. A create
-that failed unreachable with no route when it was sent and none when it failed never left the
-phone, so it stays unattempted — editable, and a form's draft create still withdrawn when the
-dive is logged. Rejected: dropping `waitsForConnectivity`, which fails a request made during
+sent with no route that fails unreachable with none having appeared since waited on the phone,
+so it stays unattempted — editable, and a form's draft create still withdrawn when the dive is
+logged; one that saw a route come and go may have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a request made during
 the prompt; a shorter timeout, which still spins and still counts the create as sent.
 
 ## A queued write that lands is removed, not logged

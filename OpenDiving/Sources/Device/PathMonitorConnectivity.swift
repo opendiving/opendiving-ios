@@ -15,6 +15,7 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
 
   private struct State {
     var path: Path?
+    var appearances = 0
     var subscribers: [UUID: AsyncStream<ConnectivityMoment>.Continuation] = [:]
   }
 
@@ -56,6 +57,10 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
     state.withLock { $0.path?.satisfied ?? true }
   }
 
+  var routeAppearances: Int {
+    state.withLock { $0.appearances }
+  }
+
   func moments() -> AsyncStream<ConnectivityMoment> {
     let (stream, continuation) = AsyncStream<ConnectivityMoment>.makeStream()
     let id = UUID()
@@ -72,6 +77,7 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
       let previous = state.path
       state.path = path
       guard path.satisfied, path != previous else { return [] }
+      state.appearances += 1
       return Array(state.subscribers.values)
     }
     for subscriber in subscribers { subscriber.yield(.routeAppeared) }

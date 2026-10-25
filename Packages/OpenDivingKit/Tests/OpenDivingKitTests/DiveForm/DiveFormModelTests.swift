@@ -11,12 +11,19 @@ import Testing
 /// A route the test switches on and off: what the form reads to decide whether to ask the
 /// server for a suggestion or a search.
 final class SwitchedRoute: Connectivity {
-  private let available = Mutex(true)
+  private let state = Mutex((available: true, appearances: 0))
 
   var isRouteAvailable: Bool {
-    get { available.withLock { $0 } }
-    set { available.withLock { $0 = newValue } }
+    get { state.withLock { $0.available } }
+    set {
+      state.withLock { state in
+        if newValue, !state.available { state.appearances += 1 }
+        state.available = newValue
+      }
+    }
   }
+
+  var routeAppearances: Int { state.withLock { $0.appearances } }
 
   func moments() -> AsyncStream<ConnectivityMoment> {
     AsyncStream<ConnectivityMoment>.makeStream().stream

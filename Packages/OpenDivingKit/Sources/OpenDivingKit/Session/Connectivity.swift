@@ -10,6 +10,10 @@ public protocol Connectivity: Sendable {
   /// fail with one, and succeed without.
   var isRouteAvailable: Bool { get }
 
+  /// How many routes have appeared since launch, so that work begun with no route can tell
+  /// whether one came and went while it waited.
+  var routeAppearances: Int { get }
+
   /// A route appearing and the app returning to the foreground, as one stream. Each call is a
   /// subscription of its own, ending when the task iterating it is cancelled.
   func moments() -> AsyncStream<ConnectivityMoment>

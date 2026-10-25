@@ -12,9 +12,9 @@ import Observation
 /// account has loaded in this process, so another account's answer never lands in the
 /// previous one's cache.
 ///
-/// A list that has loaded fetches page 1 again, behind the items shown, when the account's
-/// records change under it — an import applied, a queued write landed — rather than waiting
-/// for a pull.
+/// A list that has loaded fetches every page it shows again, behind the items shown, when the
+/// account's records change under it — an import applied, a queued write landed — rather than
+/// waiting for a pull, and rather than dropping back to page 1 under a diver scrolled past it.
 @MainActor
 @Observable
 public final class PagedList<Item: Codable & Sendable> {
@@ -45,9 +45,9 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private let cacheKey: PageCacheKey<Item>?
   @ObservationIgnored private var nextPage = 1
   @ObservationIgnored private var generation = 0
-  /// A refresh of a list already on screen leaves its items and its phase alone while page 1
-  /// is on its way; a later page asked for in that window would be appended to the new page 1.
-  @ObservationIgnored private var isLoadingFirstPage = false
+  /// A refresh of a list already on screen leaves its items and its phase alone while its pages
+  /// are on their way; a later page asked for in that window would be appended to the new ones.
+  @ObservationIgnored private var isReloadingPages = false
   /// The reload a change to the account's records started.
   @ObservationIgnored var reloading: Task<Void, Never>?
 
@@ -74,7 +74,7 @@ public final class PagedList<Item: Codable & Sendable> {
 
   /// The next page, when there is one and none is on its way.
   public func loadMore() async {
-    guard phase == .loaded, hasMore, !isLoadingMore, !isLoadingFirstPage else { return }
+    guard phase == .loaded, hasMore, !isLoadingMore, !isReloadingPages else { return }
     isLoadingMore = true
     defer { isLoadingMore = false }
     let generation = generation
@@ -113,20 +113,33 @@ public final class PagedList<Item: Codable & Sendable> {
   }
 
   private func loadFirstPage() async {
+    await loadPages(through: 1)
+  }
+
+  /// Pages 1 through `last` in place of every page, stopping where the server has no more.
+  private func loadPages(through last: Int) async {
     generation += 1
     let generation = generation
-    isLoadingFirstPage = true
-    defer { if generation == self.generation { isLoadingFirstPage = false } }
+    isReloadingPages = true
+    defer { if generation == self.generation { isReloadingPages = false } }
     if items.isEmpty { phase = .loading }
     let stores = AccountStores.current(session)
     if let stores { OutboxHub.hub(for: stores.directory).observeLists(self) }
     do {
       let client = try session.requireClient()
-      let response = try await fetch(client, 1, itemsPerPage)
-      guard generation == self.generation else { return }
-      items = response.data
-      hasMore = response.hasMore && !response.data.isEmpty
-      nextPage = 2
+      var fetched: [Item] = []
+      var page = 1
+      var more = true
+      while more, page <= last {
+        let response = try await fetch(client, page, itemsPerPage)
+        guard generation == self.generation else { return }
+        fetched += response.data
+        more = response.hasMore && !response.data.isEmpty
+        page += 1
+      }
+      items = fetched
+      hasMore = more
+      nextPage = page
       pageError = nil
       lastUpdated = nil
       phase = .loaded
@@ -167,6 +180,6 @@ public final class PagedList<Item: Codable & Sendable> {
 extension PagedList: AccountListsObserver {
   func accountListsChanged() {
     guard phase != .idle else { return }
-    reloading = Task { await loadFirstPage() }
+    reloading = Task { await loadPages(through: max(nextPage - 1, 1)) }
   }
 }
