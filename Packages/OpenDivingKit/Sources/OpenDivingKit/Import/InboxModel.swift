@@ -81,10 +81,10 @@ public final class InboxModel {
   }
 
   /// *2 files waiting; they are read when the server can be reached*, while no read covers the
-  /// inbox and there is no route to start one over.
+  /// inbox, the files can go as one import and there is no route to start one over.
   public var waitingForRoute: String? {
     guard session.accountLoaded, phase == .idle, read == nil, !sendable.isEmpty,
-      !session.connectivity.isRouteAvailable
+      selectionRefusal == nil, !session.connectivity.isRouteAvailable
     else { return nil }
     return ImportText.waitingForRoute(sendable.count)
   }

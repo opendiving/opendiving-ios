@@ -255,6 +255,22 @@ struct InboxModelTests {
     #expect(model.waitingForRoute == nil)
   }
 
+  @Test func filesThatCannotGoAsOneImportAreNotSaidToWaitForARoute() async throws {
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(try ImportServer(), connectivity: route)
+    let zips = try ["a.zip", "b.zip"].map { name in
+      let url = try shared.make(name)
+      let handle = try FileHandle(forWritingTo: url)
+      try handle.truncate(atOffset: UInt64(ImportBounds.maxArchiveSize / 2 + 1))
+      try handle.close()
+      return url
+    }
+    model.receive(zips, moving: true)
+    #expect(model.selectionRefusal != nil)
+    #expect(model.waitingForRoute == nil)
+  }
+
   @Test func theTapReadsWithNoRoute() async throws {
     let server = try ImportServer()
     let route = SwitchedRoute()
