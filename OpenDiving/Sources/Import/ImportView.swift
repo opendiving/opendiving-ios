@@ -76,6 +76,9 @@ struct ImportView: View {
           Text("The files are read once your account has loaded.")
             .foregroundStyle(.secondary)
         }
+        if let waiting = inbox.waitingForRoute {
+          Text(waiting).foregroundStyle(.secondary)
+        }
         if inbox.read?.stale == true {
           Text(ImportText.staleSentence).foregroundStyle(.secondary)
         } else if let refusal = inbox.read?.refusal {

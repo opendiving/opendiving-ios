@@ -178,6 +178,8 @@ struct DiveFormViewTests {
 private struct NoRoute: Connectivity {
   var isRouteAvailable: Bool { false }
 
+  var routeAppearances: Int { 0 }
+
   func moments() -> AsyncStream<ConnectivityMoment> {
     AsyncStream<ConnectivityMoment>.makeStream().stream
   }

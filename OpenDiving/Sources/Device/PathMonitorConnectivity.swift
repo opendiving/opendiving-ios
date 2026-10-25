@@ -3,9 +3,8 @@ import OpenDivingKit
 import Synchronization
 import UIKit
 
-/// The Kit's ``Connectivity`` over `NWPathMonitor` and the app becoming active. Nothing waits
-/// on it before sending — every request already waits for a route — it only says when work
-/// that is waiting is worth trying again.
+/// The Kit's ``Connectivity`` over `NWPathMonitor` and the app becoming active: whether the app's
+/// own sends and reads start, and when work that is waiting is worth trying again.
 nonisolated final class PathMonitorConnectivity: Connectivity {
   /// What a path update says that matters here.
   struct Path: Equatable, Sendable {
@@ -16,6 +15,7 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
 
   private struct State {
     var path: Path?
+    var appearances = 0
     var subscribers: [UUID: AsyncStream<ConnectivityMoment>.Continuation] = [:]
   }
 
@@ -52,9 +52,13 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
     if let observer { NotificationCenter.default.removeObserver(observer) }
   }
 
-  /// Before the monitor's first update the route is assumed: the seam is never a preflight.
+  /// Before the monitor's first update the route is assumed, so a launch holds nothing back.
   var isRouteAvailable: Bool {
     state.withLock { $0.path?.satisfied ?? true }
+  }
+
+  var routeAppearances: Int {
+    state.withLock { $0.appearances }
   }
 
   func moments() -> AsyncStream<ConnectivityMoment> {
@@ -73,6 +77,7 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
       let previous = state.path
       state.path = path
       guard path.satisfied, path != previous else { return [] }
+      state.appearances += 1
       return Array(state.subscribers.values)
     }
     for subscriber in subscribers { subscriber.yield(.routeAppeared) }

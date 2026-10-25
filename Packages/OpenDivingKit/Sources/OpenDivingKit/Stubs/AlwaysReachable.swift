@@ -5,6 +5,8 @@ public struct AlwaysReachable: Connectivity {
 
   public var isRouteAvailable: Bool { true }
 
+  public var routeAppearances: Int { 0 }
+
   /// A stream that never yields and stays open until its task is cancelled.
   public func moments() -> AsyncStream<ConnectivityMoment> {
     AsyncStream<ConnectivityMoment>.makeStream().stream

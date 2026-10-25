@@ -1,7 +1,8 @@
 import Foundation
-import OpenDivingKit
 import Synchronization
 import Testing
+
+@testable import OpenDivingKit
 
 #if canImport(FoundationNetworking)
   import FoundationNetworking
@@ -64,6 +65,24 @@ struct PagedListTests {
     #expect(list.hasMore)
     #expect(session.people.count == 3)
     #expect(transport.requests.map(\.route).suffix(3) == ["GET user", "GET people", "GET trips"])
+  }
+
+  @Test func aChangeToTheRecordsReloadsEveryPageShownInPlace() async throws {
+    let transport = try transport()
+    let list = trips(Session.stub(transport: transport))
+    await list.load()
+    await list.loadMore()
+    let before = transport.requests.count
+
+    list.accountListsChanged()
+    await list.reloading?.value
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2"])
+    #expect(list.hasMore)
+    let pages = transport.requests.dropFirst(before).map { $0.url?.query ?? "" }
+    #expect(pages.count == 2)
+    #expect(pages.allSatisfy { $0.contains("items_per_page=2") })
+    await list.loadMore()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
   }
 
   @Test func noLaterPageIsAskedForWhileARefreshWaitsForPageOne() async throws {

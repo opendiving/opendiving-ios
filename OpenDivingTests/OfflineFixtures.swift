@@ -137,6 +137,8 @@ nonisolated final class FakePath: Connectivity {
 
   var isRouteAvailable: Bool { true }
 
+  var routeAppearances: Int { 0 }
+
   var subscriberCount: Int { subscribers.withLock { $0.count } }
 
   func moments() -> AsyncStream<ConnectivityMoment> {

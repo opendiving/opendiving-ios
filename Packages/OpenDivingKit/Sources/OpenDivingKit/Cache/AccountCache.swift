@@ -71,6 +71,17 @@ public struct AccountCache: Sendable {
     pruneDives()
   }
 
+  /// Drops a dive the server no longer has: its detail, and its row on the Dives tab's pages.
+  func removeDive(_ uuid: UUID) {
+    try? FileManager.default.removeItem(at: file(Self.divePath(uuid)))
+    let key = PageCacheKey<DiveListItem>.dives.name
+    guard var entry = pages(key, of: DiveListItem.self),
+      entry.value.items.contains(where: { $0.id == uuid })
+    else { return }
+    entry.value.items.removeAll { $0.id == uuid }
+    write(entry, "pages/\(key).json")
+  }
+
   /// Counts a dive opened from the cache as opened, for the bound.
   func touchDive(_ uuid: UUID) {
     try? FileManager.default.setAttributes(

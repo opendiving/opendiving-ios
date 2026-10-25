@@ -7,8 +7,10 @@ import Observation
 ///
 /// A dive the phone has opened before shows at once from the account's cache, under
 /// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. While
-/// the queue holds an edit of the dive, the edit's values are laid over it and
-/// ``hasPendingEdit`` says so, until the flush reads the dive back.
+/// the queue holds an edit of the dive that has not failed, the edit's values are laid over it
+/// and ``hasPendingEdit`` says so, until the flush reads the dive back. A 404 for the dive —
+/// to the fetch or to a queued edit — means the server no longer has it: the page fails with
+/// the API's sentence in place of any cached copy, and the phone forgets the dive.
 @MainActor
 @Observable
 public final class DiveDetailModel: AccountStoresObserver {
@@ -97,7 +99,12 @@ public final class DiveDetailModel: AccountStoresObserver {
       dive = try await client.dive(uuid)
     } catch {
       guard generation == self.generation else { return }
-      if fromCache {
+      if case .http(status: 404, _) = APIError(error) {
+        if cacheForAnswer(fetchedUnder: stores, session: session) != nil {
+          AccountStores.current(session)?.forgetDive(uuid)
+        }
+        gone(APIError(error))
+      } else if fromCache {
         refreshError = APIError(error)
       } else {
         phase = .failed(APIError(error))
@@ -154,8 +161,13 @@ public final class DiveDetailModel: AccountStoresObserver {
     }
     OutboxHub.hub(for: stores.directory).observe(self)
     let items = stores.outbox.items()
+    if let refused = items.lazy.compactMap({ Self.notFound($0, dive.uuid) }).first {
+      gone(.http(status: 404, message: refused.message))
+      return
+    }
+    // A failed edit is the pending screen's to correct or discard; the dive shows without it.
     let updates = items.compactMap { item -> DiveUpdate? in
-      guard case .updateDive(let target, let update) = item.operation,
+      guard !item.isFailed, case .updateDive(let target, let update) = item.operation,
         target == .server(dive.uuid)
       else { return nil }
       return update
@@ -165,6 +177,22 @@ public final class DiveDetailModel: AccountStoresObserver {
       updates.isEmpty
       ? dive : dive.applying(updates, tables: LookupTables(cache: stores.cache, items: items))
     phase = .loaded(shown ?? dive)
+  }
+
+  /// The dive is gone from the server: the page says so, over any copy it was showing.
+  private func gone(_ error: APIError) {
+    hasPendingEdit = false
+    lastUpdated = nil
+    refreshError = nil
+    phase = .failed(error)
+  }
+
+  /// The failure of an edit of `uuid` the server answered 404.
+  private static func notFound(_ item: OutboxItem, _ uuid: UUID) -> OutboxFailure? {
+    guard case .updateDive(let target, _) = item.operation, target == .server(uuid),
+      let failure = item.failure, failure.status == 404
+    else { return nil }
+    return failure
   }
 
   /// The queue changed: an edit queued, or one landed — the cache then holds the dive with it,

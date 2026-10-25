@@ -11,12 +11,19 @@ import Testing
 /// A route the test switches on and off: what the form reads to decide whether to ask the
 /// server for a suggestion or a search.
 final class SwitchedRoute: Connectivity {
-  private let available = Mutex(true)
+  private let state = Mutex((available: true, appearances: 0))
 
   var isRouteAvailable: Bool {
-    get { available.withLock { $0 } }
-    set { available.withLock { $0 = newValue } }
+    get { state.withLock { $0.available } }
+    set {
+      state.withLock { state in
+        if newValue, !state.available { state.appearances += 1 }
+        state.available = newValue
+      }
+    }
   }
+
+  var routeAppearances: Int { state.withLock { $0.appearances } }
 
   func moments() -> AsyncStream<ConnectivityMoment> {
     AsyncStream<ConnectivityMoment>.makeStream().stream
@@ -164,14 +171,12 @@ struct DiveFormModelTests {
     #expect(create.maxDepth == 18.3)
     #expect(model.outbox.queuedDiveCreates == 1)
 
-    // The draft's create was tried after the quiet interval, so it lands before the log.
+    // The draft's create waited for a route, so the log withdrew it: one dive and no draft.
     world.online()
     let mark = world.server.mark
     model.outbox.syncNow()
     await model.outbox.settled()
-    let writes = world.server.writes(since: mark).map(\.route)
-    #expect(writes.first == "POST dive-draft")
-    #expect(writes.last?.hasSuffix("/dive") == true)
+    #expect(world.server.writes(since: mark).map(\.route) == ["POST dive"])
     #expect(model.outbox.items.isEmpty)
   }
 
@@ -231,11 +236,11 @@ struct DiveFormModelTests {
     #expect(reopened.values.notes == "At the water's edge")
     #expect(reopened.draftRows.map(\.ref) == [ref])
 
-    // Its create was tried on leaving, so the discard is a delete queued behind it.
+    // Its create waited for a route, so the discard withdraws it and nothing is sent.
     reopened.discardDraft()
     #expect(reopened.isDone)
     #expect(reopened.outbox.drafts.isEmpty)
-    #expect(reopened.outbox.items.last?.operation == .deleteDiveDraft(ref))
+    #expect(reopened.outbox.items.isEmpty)
   }
 
   @Test func aDraftKeepsTheSetItNamesWhenThePhoneHasNotFetchedIt() async throws {
@@ -355,7 +360,7 @@ struct DiveFormModelTests {
     let world = try FormWorld()
     try await world.loaded()
     world.server.override { request, _ in
-      request.route.hasPrefix("PATCH dive/") ? .status(404, "Dive not found") : nil
+      request.route.hasPrefix("PATCH dive/") ? .status(422, "Notes are too long.") : nil
     }
     let edit = await world.form(.edit(FormWorld.dive))
     edit.change { $0.notes = "Changed offline" }
@@ -365,7 +370,7 @@ struct DiveFormModelTests {
     #expect(item.isFailed)
 
     let failed = await world.form(.failed(item.id))
-    #expect(failed.serverSentence == "Dive not found")
+    #expect(failed.serverSentence == "Notes are too long.")
     #expect(failed.values.notes == "Changed offline")
     #expect(failed.submitLabel == "Save changes")
     world.server.override { _, _ in nil }
