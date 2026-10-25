@@ -11,7 +11,8 @@ import Observation
 /// draft's update waiting for the form to be left or a quiet interval — on a connectivity
 /// moment (``handle(_:)``), and on *Sync now* (``syncNow()``). A moment or *Sync now* arriving
 /// before the account has loaded runs the account load first, through the loader it was given,
-/// and flushes on its success.
+/// and flushes on its success. While the session's connectivity reports no route only *Sync
+/// now* sends: the rest wait for the moment a route appears.
 ///
 /// **How it flushes.** Oldest first, inside a background assertion. An item waits for every
 /// record it names that the queue still has to create and for every earlier write to its own

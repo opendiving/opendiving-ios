@@ -234,7 +234,7 @@ struct OutboxWorld {
 
   init(
     server: OutboxServer? = nil, root: URL? = nil, token: String? = "refresh",
-    background: (any BackgroundExecution)? = nil
+    background: (any BackgroundExecution)? = nil, connectivity: any Connectivity = AlwaysReachable()
   ) throws {
     self.server = try server ?? OutboxServer()
     self.root =
@@ -245,7 +245,7 @@ struct OutboxWorld {
       transport: self.server,
       secrets: InMemorySecretStore(token.map { [OutboxServer.origin.description: $0] } ?? [:]),
       activeOrigin: InMemoryActiveOriginStore(OutboxServer.origin),
-      background: background ?? LoggingBackgroundExecution(log: log),
+      background: background ?? LoggingBackgroundExecution(log: log), connectivity: connectivity,
       applicationSupport: self.root,
       userAgent: ClientHarness.userAgent, accessToken: "live")
   }

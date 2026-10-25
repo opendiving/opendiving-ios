@@ -6,9 +6,16 @@ protocol AccountStoresObserver: AnyObject {
   func accountStoresChanged()
 }
 
+/// Something that lists an account's records and fetches the list again when one may have
+/// joined it or changed in it.
+@MainActor
+protocol AccountListsObserver: AnyObject {
+  func accountListsChanged()
+}
+
 /// What the process holds for one account's outbox, however many models it builds over it:
-/// the one flush, the answers counted against each item, and who to tell when the stores
-/// change. Two flushes would send one item twice, so every model asks this for its flush.
+/// the one flush, the answers counted against each item, and who to tell when the stores or
+/// the lists change. Two flushes would send one item twice, so every model asks this for its flush.
 @MainActor
 final class OutboxHub {
   private static var hubs: [String: OutboxHub] = [:]
@@ -61,6 +68,7 @@ final class OutboxHub {
   var draftsRefresh: Task<Void, Never>?
 
   private var observers: [WeakObserver] = []
+  private var listObservers: [WeakListObserver] = []
 
   func observe(_ observer: some AccountStoresObserver) {
     observers.removeAll { $0.value == nil || $0.value === observer }
@@ -73,7 +81,24 @@ final class OutboxHub {
     for observer in observers { observer.value?.accountStoresChanged() }
   }
 
+  func observeLists(_ observer: some AccountListsObserver) {
+    listObservers.removeAll { $0.value == nil || $0.value === observer }
+    listObservers.append(WeakListObserver(value: observer))
+  }
+
+  /// Tells every list over this account that the server holds records it may not show: an
+  /// import applied, a queued write to a listed record landed. Not ``changed()``, which every
+  /// send fires and a list would answer with a fetch each.
+  func listsChanged() {
+    listObservers.removeAll { $0.value == nil }
+    for observer in listObservers { observer.value?.accountListsChanged() }
+  }
+
   private struct WeakObserver {
     weak var value: (any AccountStoresObserver)?
+  }
+
+  private struct WeakListObserver {
+    weak var value: (any AccountListsObserver)?
   }
 }

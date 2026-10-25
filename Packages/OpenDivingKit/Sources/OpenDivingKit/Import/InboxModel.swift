@@ -8,10 +8,11 @@ import Observation
 /// hour the apply shares, so the app reads on its own only to cover an inbox no read covers —
 /// once the account has loaded in this process, when a file arrives into it, and at the
 /// connectivity seam's moments — and never while the account is unknown, when the inbox it
-/// would read could be another account's. A change to a covered inbox marks its read stale and
-/// the next read is the diver's tap. One read runs at a time; a file arriving during one is
-/// covered by one more when it is answered, and a read that never reached the server leaves
-/// nothing and starts nothing.
+/// would read could be another account's, nor while the session's connectivity reports no
+/// route: the files wait for the moment one appears. A change to a covered inbox marks its read
+/// stale and the next read is the diver's tap, which tries with or without a route. One read
+/// runs at a time; a file arriving during one is covered by one more when it is answered, and a
+/// read that never reached the server leaves nothing and starts nothing.
 @MainActor
 @Observable
 public final class InboxModel {
@@ -77,6 +78,15 @@ public final class InboxModel {
   /// Why the files cannot go as one import, or nil.
   public var selectionRefusal: String? {
     ImportBounds.selectionRefusal(byteSizes: sendable.map(\.byteSize))
+  }
+
+  /// *2 files waiting; they are read when the server can be reached*, while no read covers the
+  /// inbox and there is no route to start one over.
+  public var waitingForRoute: String? {
+    guard session.accountLoaded, phase == .idle, read == nil, !sendable.isEmpty,
+      !session.connectivity.isRouteAvailable
+    else { return nil }
+    return ImportText.waitingForRoute(sendable.count)
   }
 
   /// Whether *Read the files* can be tapped.
@@ -169,7 +179,7 @@ public final class InboxModel {
   /// The diver's *Read the files* and *Read the files again*.
   public func readAgain() {
     guard phase == .idle else { return }
-    startRead(arrival: false)
+    startRead(arrival: false, tapped: true)
   }
 
   /// A connectivity moment: reads an inbox no read covers, and nothing else.
@@ -262,6 +272,9 @@ public final class InboxModel {
       try? store.save(now)
       store.discard(sent)
       reload()
+      if let stores = AccountStores.current(session) {
+        OutboxHub.hub(for: stores.directory).listsChanged()
+      }
       self.result = result
       resultNumbering = ImportText.numberingSuggestion(
         before: read.numbering, after: after, dives: result.dives)
@@ -323,8 +336,9 @@ public final class InboxModel {
     }
   }
 
-  /// Starts a read, or — for a file arriving during one — asks for one more after it.
-  private func startRead(arrival: Bool) {
+  /// Starts a read, or — for a file arriving during one — asks for one more after it. With no
+  /// route only the diver's tap starts one: a read on its own would wait a minute for nothing.
+  private func startRead(arrival: Bool, tapped: Bool = false) {
     guard session.accountLoaded, let store = destination?.store,
       let client = try? session.requireClient()
     else { return }
@@ -332,6 +346,7 @@ public final class InboxModel {
       if arrival { followUp = true }
       return
     }
+    guard tapped || session.connectivity.isRouteAvailable else { return }
     phase = .reading
     applyError = nil
     readTask = Task {

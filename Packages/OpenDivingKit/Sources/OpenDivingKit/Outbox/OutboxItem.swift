@@ -72,15 +72,16 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
     if case .failed(let failure) = state { failure } else { nil }
   }
 
-  /// Whether the pending screen offers *Edit*: any update; a create never sent, or one the
-  /// server refused with a 4xx, which it holds nothing for. A create sent once and answered
-  /// any other way may have committed under its key, so its body stays. A write moved from
-  /// another account's stores has nothing to apply to here. Nothing is edited while it is
-  /// being sent: the answer would overwrite the edit.
+  /// Whether the pending screen offers *Edit*: any update but one to a record the server answered
+  /// 404 for, which is gone; a create never sent, or one the server refused with a 4xx, which it
+  /// holds nothing for. A create sent once and answered any other way may have committed under
+  /// its key, so its body stays. A write moved from another account's stores has nothing to apply
+  /// to here. Nothing is edited while it is being sent: the answer would overwrite the edit.
   public var isEditable: Bool {
     if state == .inFlight || failure?.kind == .wrongAccount { return false }
     switch operation {
-    case .updateDive, .updateGearSet, .updateDiveDraft: return true
+    case .updateDive, .updateGearSet: return failure?.status != 404
+    case .updateDiveDraft: return true
     case .deleteDiveDraft: return false
     default: return holdsNothing
     }

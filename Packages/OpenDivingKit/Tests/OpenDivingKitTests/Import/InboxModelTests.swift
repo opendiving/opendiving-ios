@@ -1,6 +1,7 @@
 import Foundation
-import OpenDivingKit
 import Testing
+
+@testable import OpenDivingKit
 
 #if canImport(FoundationNetworking)
   import FoundationNetworking
@@ -13,16 +14,25 @@ struct InboxModelTests {
     .appendingPathComponent("InboxModelTests-\(UUID().uuidString)", isDirectory: true)
   private let shared = SharedFiles()
 
-  /// A model over a session signed in as A with the account loaded.
-  private func loaded(_ server: ImportServer) async throws -> InboxModel {
+  /// A session signed in as A with the account loaded.
+  private func signedIn(
+    _ server: ImportServer, connectivity: any Connectivity = AlwaysReachable()
+  ) async throws -> Session {
     let session = Session(
       transport: server,
       secrets: InMemorySecretStore([ImportServer.origin.description: "refresh"]),
       activeOrigin: InMemoryActiveOriginStore(ImportServer.origin),
-      background: NoBackgroundExecution(), applicationSupport: root,
+      background: NoBackgroundExecution(), connectivity: connectivity, applicationSupport: root,
       userAgent: ClientHarness.userAgent, accessToken: "live")
     try await session.loadAccount()
-    let model = InboxModel(session: session)
+    return session
+  }
+
+  /// A model over a session signed in as A with the account loaded.
+  private func loaded(
+    _ server: ImportServer, connectivity: any Connectivity = AlwaysReachable()
+  ) async throws -> InboxModel {
+    let model = InboxModel(session: try await signedIn(server, connectivity: connectivity))
     model.sessionChanged()
     return model
   }
@@ -225,6 +235,40 @@ struct InboxModelTests {
     #expect(server.previews == [["a.fit"]])
   }
 
+  @Test func withNoRouteAFileWaitsUnreadAndSaysSoUntilARouteAppears() async throws {
+    let server = try ImportServer()
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(server, connectivity: route)
+    try arrive(model, "a.fit", "b.uddf")
+    await model.settled()
+    model.handle(.becameActive)
+    await model.settled()
+    #expect(server.previews.isEmpty)
+    #expect(
+      model.waitingForRoute == "2 files waiting; they are read when the server can be reached")
+
+    route.isRouteAvailable = true
+    model.handle(.routeAppeared)
+    await model.settled()
+    #expect(server.previews == [["a.fit", "b.uddf"]])
+    #expect(model.waitingForRoute == nil)
+  }
+
+  @Test func theTapReadsWithNoRoute() async throws {
+    let server = try ImportServer()
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(server, connectivity: route)
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(server.previews.isEmpty)
+
+    model.readAgain()
+    await model.settled()
+    #expect(server.previews == [["a.fit"]])
+  }
+
   @Test func aFileTheBoundsRefuseIsNeverSent() async throws {
     let server = try ImportServer()
     let model = try await loaded(server)
@@ -257,6 +301,24 @@ struct InboxModelTests {
     #expect(model.result != nil)
     #expect(model.files.isEmpty)
     #expect(model.read == nil)
+  }
+
+  @Test func anAppliedImportReloadsTheListsShown() async throws {
+    let server = try ImportServer()
+    let session = try await signedIn(server)
+    let model = InboxModel(session: session)
+    let list = PagedList<DiveListItem>(session: session) { client, page, perPage in
+      try await client.dives(page: page, itemsPerPage: perPage)
+    }
+    await list.load()
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(server.routes.filter { $0 == "GET dives" }.count == 1)
+
+    model.apply(ImportCheckInChoices())
+    await model.settled()
+    await list.reloading?.value
+    #expect(server.routes.filter { $0 == "GET dives" }.count == 2)
   }
 
   @Test func a4xxOnTheApplyKeepsTheFiles() async throws {

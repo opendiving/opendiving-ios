@@ -14,6 +14,11 @@ public enum ImportText {
   public static let oneAtATime =
     "Shared files arrive one at a time; to import several, pick them with Import files."
 
+  /// Files no read covers, while the server cannot be reached to read them.
+  public static func waitingForRoute(_ count: Int) -> String {
+    PendingText.filesWaiting(count) + "; they are read when the server can be reached"
+  }
+
   // MARK: - Files
 
   /// What the API read one file as, and what becomes of it; `refused` reads as a refusal.

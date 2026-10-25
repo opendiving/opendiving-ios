@@ -1,9 +1,10 @@
 /// Whether the phone believes it has a route to the network, and the moments worth trying
 /// again. The app target conforms over `NWPathMonitor` and the scene phase.
 ///
-/// Nothing decides to send or not to send on it: every request already waits for
-/// connectivity. A moment is what starts work that is waiting — a queue's flush, an account
-/// load, files to read — so that it runs as soon as it can, never what holds work back.
+/// Every request waits for connectivity, a minute at most, so what the app starts on its own —
+/// a queue's flush, files to read — does not start while no route is believed to exist, and
+/// a moment is what starts it, and an account load, once one appears. What the diver asks for
+/// tries regardless.
 public protocol Connectivity: Sendable {
   /// Whether a route is believed to exist now. A belief, not a promise: a request may still
   /// fail with one, and succeed without.

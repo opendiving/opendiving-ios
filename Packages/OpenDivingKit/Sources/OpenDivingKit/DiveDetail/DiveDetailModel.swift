@@ -7,8 +7,8 @@ import Observation
 ///
 /// A dive the phone has opened before shows at once from the account's cache, under
 /// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. While
-/// the queue holds an edit of the dive, the edit's values are laid over it and
-/// ``hasPendingEdit`` says so, until the flush reads the dive back.
+/// the queue holds an edit of the dive that has not failed, the edit's values are laid over it
+/// and ``hasPendingEdit`` says so, until the flush reads the dive back.
 @MainActor
 @Observable
 public final class DiveDetailModel: AccountStoresObserver {
@@ -154,8 +154,9 @@ public final class DiveDetailModel: AccountStoresObserver {
     }
     OutboxHub.hub(for: stores.directory).observe(self)
     let items = stores.outbox.items()
+    // A failed edit is the pending screen's to correct or discard; the dive shows without it.
     let updates = items.compactMap { item -> DiveUpdate? in
-      guard case .updateDive(let target, let update) = item.operation,
+      guard !item.isFailed, case .updateDive(let target, let update) = item.operation,
         target == .server(dive.uuid)
       else { return nil }
       return update

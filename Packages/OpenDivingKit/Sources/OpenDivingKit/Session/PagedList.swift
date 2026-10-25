@@ -11,6 +11,10 @@ import Observation
 /// phone has, since a request waits a minute for a route. A page is written only once the
 /// account has loaded in this process, so another account's answer never lands in the
 /// previous one's cache.
+///
+/// A list that has loaded fetches page 1 again, behind the items shown, when the account's
+/// records change under it — an import applied, a queued write landed — rather than waiting
+/// for a pull.
 @MainActor
 @Observable
 public final class PagedList<Item: Codable & Sendable> {
@@ -44,6 +48,8 @@ public final class PagedList<Item: Codable & Sendable> {
   /// A refresh of a list already on screen leaves its items and its phase alone while page 1
   /// is on its way; a later page asked for in that window would be appended to the new page 1.
   @ObservationIgnored private var isLoadingFirstPage = false
+  /// The reload a change to the account's records started.
+  @ObservationIgnored var reloading: Task<Void, Never>?
 
   public init(
     session: Session, itemsPerPage: Int = APIClient.listPageSize,
@@ -112,9 +118,10 @@ public final class PagedList<Item: Codable & Sendable> {
     isLoadingFirstPage = true
     defer { if generation == self.generation { isLoadingFirstPage = false } }
     if items.isEmpty { phase = .loading }
+    let stores = AccountStores.current(session)
+    if let stores { OutboxHub.hub(for: stores.directory).observeLists(self) }
     do {
       let client = try session.requireClient()
-      let stores = AccountStores.current(session)
       let response = try await fetch(client, 1, itemsPerPage)
       guard generation == self.generation else { return }
       items = response.data
@@ -154,5 +161,12 @@ public final class PagedList<Item: Codable & Sendable> {
     if firstPage, let number = cacheKey.highestDiveNumber?(items) {
       cache.setHighestDiveNumber(number)
     }
+  }
+}
+
+extension PagedList: AccountListsObserver {
+  func accountListsChanged() {
+    guard phase != .idle else { return }
+    reloading = Task { await loadFirstPage() }
   }
 }

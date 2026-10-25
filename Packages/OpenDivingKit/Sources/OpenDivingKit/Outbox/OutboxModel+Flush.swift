@@ -6,8 +6,11 @@ import Foundation
 
 extension OutboxModel {
   /// Starts a flush of the loaded account's outbox, or asks the one running for another pass.
+  /// With no route only *Sync now* starts one; the app's own triggers leave the queue to the
+  /// moment a route appears.
   func requestFlush(retryAll: Bool) {
-    guard let stores = AccountStores.current(session), stores.loaded,
+    guard retryAll || session.connectivity.isRouteAvailable,
+      let stores = AccountStores.current(session), stores.loaded,
       let client = try? session.requireClient()
     else { return }
     let hub = OutboxHub.hub(for: stores.directory)
@@ -35,6 +38,7 @@ extension OutboxModel {
         hub.again = nil
         let flush = Flush(stores: stores, client: client, hub: hub, session: session)
         let outcome = await flush.run(retryAll: retryAll)
+        if outcome.changedLists { hub.listsChanged() }
         // A flush stopped for want of a route is followed by one at the next moment, which
         // reads the drafts then.
         if outcome.reachedServer {
@@ -67,6 +71,8 @@ private struct Flush {
   struct Outcome {
     var reachedServer = true
     var landedRecord = false
+    /// A write to a record a tab lists landed.
+    var changedLists = false
   }
 
   /// What sending one item came to.
@@ -88,7 +94,9 @@ private struct Flush {
     passes: while true {
       let items = outbox.items()
       for item in items {
-        guard stores.sameAccount(AccountStores.current(session)) else {
+        guard stores.sameAccount(AccountStores.current(session)),
+          retryAll || session.connectivity.isRouteAvailable
+        else {
           outcome.reachedServer = false
           break passes
         }
@@ -172,6 +180,7 @@ private struct Flush {
       item.attempted = true
     }
     item.state = .inFlight
+    let routed = session.connectivity.isRouteAvailable
     // Not on disk, not sent: the attempt and its bytes must survive the reply being lost.
     guard (try? outbox.save(item)) != nil else { return .stop }
     hub.sending = item.id
@@ -188,9 +197,14 @@ private struct Flush {
         method: request.method, path: request.path, body: body,
         idempotencyKey: keyed ? item.idempotencyKey : nil)
     } catch {
-      let answer: OutboxAnswer? =
-        if case .unreachable = APIError(error) { .unreachable } else { queued.lastAnswer }
-      item.state = .pending(lastAnswer: answer)
+      let unreachable = if case .unreachable = APIError(error) { true } else { false }
+      item.state = .pending(lastAnswer: unreachable ? .unreachable : queued.lastAnswer)
+      // With no route at either end the request waited on the phone and never left it, so the
+      // create can still be edited or withdrawn.
+      if unreachable, !routed, !session.connectivity.isRouteAvailable {
+        item.attempted = queued.attempted
+        item.sentBody = queued.sentBody
+      }
       save(item)
       return .stop
     }
@@ -204,6 +218,7 @@ private struct Flush {
     let keyed = item.operation.isCreate
     switch status {
     case 200..<300:
+      outcome.changedLists = outcome.changedLists || item.operation.changesLists
       let landed: LandedRecord?
       do {
         landed = try item.operation.landed(data)

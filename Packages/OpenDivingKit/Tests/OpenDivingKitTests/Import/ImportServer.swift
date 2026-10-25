@@ -27,12 +27,14 @@ final class ImportServer: HTTPTransport {
   private let state: Mutex<State>
   private let user: String
   private let people: String
+  private let dives: String
   private let numbering =
     #"{"total_dives":3,"lowest":1,"highest":3,"missing_count":0,"duplicate_count":0,"out_of_date_order_count":0,"is_sequential":true}"#
 
   init() throws {
     user = try KitFixture.text("user")
     people = try KitFixture.text("people-page")
+    dives = try KitFixture.text("dives-page")
     let preview = try KitFixture.text("import-preview")
     let result = try KitFixture.text("import-result")
     state = Mutex(
@@ -71,6 +73,8 @@ final class ImportServer: HTTPTransport {
           of: Self.accountA.uuidString.lowercased(), with: account.uuidString.lowercased()))
     case "GET people":
       response = .json(people)
+    case "GET dives":
+      response = .json(dives)
     case "GET dives/numbering":
       response = .json(numbering)
     case "POST import/logbook/preview":
