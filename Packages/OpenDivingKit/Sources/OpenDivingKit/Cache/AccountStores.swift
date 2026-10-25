@@ -36,6 +36,14 @@ struct AccountStores: Sendable {
   /// The cache, when it may be written.
   var writableCache: AccountCache? { loaded ? cache : nil }
 
+  /// The server answered 404 for the dive, so it no longer has it: the cache drops it and
+  /// every list fetches again.
+  @MainActor
+  func forgetDive(_ uuid: UUID) {
+    cache.removeDive(uuid)
+    OutboxHub.hub(for: directory).listsChanged()
+  }
+
   func sameAccount(_ other: AccountStores?) -> Bool {
     other?.origin == origin && other?.account == account && other?.loaded == loaded
   }

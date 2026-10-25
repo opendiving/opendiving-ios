@@ -243,6 +243,10 @@ private struct Flush {
         notice(.diveDraft, OutboxText.draftGone)
         if let uuid = ref.serverUUID { stores.cache.removeDiveDraft(uuid) }
         return .changed
+      case .updateDive(let ref, _):
+        // The dive is gone from the server; the edit fails below, with *Discard* alone.
+        if let uuid = ref.serverUUID { stores.cache.removeDive(uuid) }
+        outcome.changedLists = true
       case .logDive(let draft, let dive):
         // The draft went on another device: the dive the diver logged here is still a dive.
         item.operation = .createDive(dive)
