@@ -11,15 +11,19 @@ public struct InboxFile: Codable, Hashable, Sendable, Identifiable {
   /// Received while signed in before the account had loaded, into the inbox of the account
   /// last loaded: it moves if the load names another account.
   public var receivedBeforeAccountKnown: Bool
+  /// Set on an archive downloaded from dive computers. A build before it reads the file as
+  /// any other and drops the member at its next save.
+  public var download: InboxDownload?
 
   public init(
     id: UUID = UUID(), filename: String, byteSize: Int, arrivedAt: Date = Date(),
-    receivedBeforeAccountKnown: Bool = false
+    receivedBeforeAccountKnown: Bool = false, download: InboxDownload? = nil
   ) {
     self.id = id
     self.filename = filename
     self.byteSize = byteSize
     self.arrivedAt = arrivedAt
     self.receivedBeforeAccountKnown = receivedBeforeAccountKnown
+    self.download = download
   }
 }

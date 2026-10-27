@@ -2,8 +2,8 @@
 
 This repository is the iPhone app: a client of an OpenDiving server, holding on the phone what it
 needs to stay signed in, to show your check-in sheet and the logbook pages it has shown without
-signal, and to keep the drafts, the dives waiting to sync and the files waiting to be read until
-the server has them. A flaw in this code affects everyone who runs the app, and we would much
+signal, to keep the drafts, the dives waiting to sync and the files waiting to be read until the
+server has them, and to remember the dive computers it has downloaded from. A flaw in this code affects everyone who runs the app, and we would much
 rather hear about one privately than read about it in a public issue.
 
 **No running instance is a target for testing, and the one this project operates,
@@ -29,16 +29,17 @@ the maintainers and nobody else.
 What helps most:
 
 - **What an attacker gets** — a session token, another account's data, the cached check-in sheet,
-  logbook pages, drafts or dives waiting to sync off a phone they hold.
+  logbook pages, drafts, dives waiting to sync or the dive computers remembered — their serials —
+  off a phone they hold.
 - **How to reproduce it** — the steps in the app, and the server and request involved.
 - **Which version** — the commit you built from, and the iOS version on the phone.
 
 ## Scope
 
 In scope is anything in this repository: how the app stores credentials, the cached sheet, the
-copies of the logbook, the drafts, the queue of writes waiting to sync and the files waiting to be
-read on the phone, how it talks to a server — which origins it trusts, what it sends where — and
-how it handles what a server sends back.
+copies of the logbook, the drafts, the queue of writes waiting to sync, the files waiting to be
+read and the dive computers it remembers on the phone, how it talks to a server — which origins
+it trusts, what it sends where — and how it handles what a server sends back.
 
 Out of scope here is the server itself. Authentication, authorization and stored data are enforced
 by [opendiving-api](https://github.com/opendiving/opendiving-api), and a flaw on that side belongs
