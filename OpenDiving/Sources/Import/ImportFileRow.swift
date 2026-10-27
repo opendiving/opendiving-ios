@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One waiting file: what a download holds or the file's name, its size, and once read, what the server read it as — or why
-/// the bounds leave it out — with the files a zip of it opened into beneath it.
+/// One waiting file: what a download holds or the file's name, its size, and once read, what
+/// the server read it as — or why the bounds leave it out — with the files a zip of it opened
+/// into beneath it.
 struct ImportFileRow: View {
   let file: InboxFile
 
