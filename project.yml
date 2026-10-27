@@ -11,6 +11,9 @@ options:
 packages:
   OpenDivingKit:
     path: Packages/OpenDivingKit
+  LibDCSwift:
+    url: https://github.com/deepsealabs/libdc-swift
+    exactVersion: 1.18.0
 
 settings:
   base:
@@ -29,6 +32,8 @@ targets:
         type: syncedFolder
     dependencies:
       - package: OpenDivingKit
+      - package: LibDCSwift
+        product: LibDCSwift
     # Carries the bundle identifier and the optional, gitignored signing file. See
     # CONTRIBUTING.md, "Running on your iPhone".
     configFiles:
@@ -60,6 +65,12 @@ targets:
         NSLocationWhenInUseUsageDescription: >-
           OpenDiving uses your location only when you ask it to place a new dive site where you
           are.
+        NSBluetoothAlwaysUsageDescription: >-
+          OpenDiving connects to your dive computer over Bluetooth to download your dives, and
+          for nothing else.
+        # A download in progress keeps going while the phone is locked.
+        UIBackgroundModes:
+          - bluetooth-central
         # Every format the server reads can be shared to the app. Imported, never exported:
         # the project owns none of these formats. Ranked Alternate, so a format's own app
         # stays first. Copied into Documents/Inbox rather than opened in place. See

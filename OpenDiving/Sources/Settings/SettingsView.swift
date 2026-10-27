@@ -17,10 +17,12 @@ struct SettingsView: View {
 
 private struct SettingsList: View {
   @State private var model: SettingsModel
+  @State private var computers: DiveComputersListModel
   @State private var forgetting: ServerOrigin?
 
   init(session: Session, signIn: SignInFlow) {
     _model = State(initialValue: SettingsModel(session: session, signIn: signIn))
+    _computers = State(initialValue: DiveComputersListModel(session: session))
   }
 
   var body: some View {
@@ -68,10 +70,16 @@ private struct SettingsList: View {
       }
       .disabled(model.isWorking)
       Section("App") {
+        NavigationLink {
+          DiveComputersListView(model: computers)
+        } label: {
+          LabeledContent(DiveComputerText.settingsRow, value: "\(computers.computers.count)")
+        }
         LabeledContent("Version", value: Self.appVersion)
       }
     }
     .task { await model.load() }
+    .onAppear { computers.reload() }
     .forgetServerConfirmation(origin: $forgetting) { _ in
       Task { await model.forget() }
     }

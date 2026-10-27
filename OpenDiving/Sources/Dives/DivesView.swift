@@ -24,6 +24,11 @@ struct DivesView: View {
           Menu("Add", systemImage: "plus") {
             Button("Log a dive", systemImage: "square.and.pencil") { route = .logDive }
             Button("Import files", systemImage: "square.and.arrow.down") { route = .importFiles }
+            Button(
+              DiveComputerText.connectMenuItem, systemImage: "antenna.radiowaves.left.and.right"
+            ) {
+              route = .diveComputer
+            }
           }
         }
       }
@@ -31,6 +36,7 @@ struct DivesView: View {
         switch route {
         case .logDive: DiveFormView(mode: .create)
         case .importFiles: ImportView()
+        case .diveComputer: DiveComputerView()
         }
       }
     }
@@ -54,7 +60,7 @@ extension DivesView {
 
 /// Where the `+` leads, mirroring the web's Dives header.
 private enum DivesRoute: Hashable {
-  case logDive, importFiles
+  case logDive, importFiles, diveComputer
 }
 
 private struct DivesList: View {
@@ -83,7 +89,10 @@ private struct DivesList: View {
         EmptyOrErrorView(
           status: .empty(
             systemImage: "water.waves", title: "No dives logged yet",
-            message: "No dives yet. Log one, or import your dive computer's files, with +.")
+            message:
+              "No dives yet. Log one, import your dive computer's files, or connect your dive "
+              + "computer, with +."
+          )
         )
       }
       .refreshable { await list.refresh() }
