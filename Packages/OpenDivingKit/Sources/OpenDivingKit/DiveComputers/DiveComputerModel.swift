@@ -353,10 +353,10 @@ public final class DiveComputerModel {
       kept.receivedBeforeAccountKnown = inbox.keeping?.marked ?? false
       try? store.save(kept)
       outcome = Outcome(
-        kind: .handedOver, sentence: handedOverSentence(parsed, refused, end, family: family))
+        kind: .handedOver, sentence: handedOverSentence(parsed, refused, end))
     case .kept:
       outcome = Outcome(
-        kind: .handedOver, sentence: handedOverSentence(parsed, refused, end, family: family))
+        kind: .handedOver, sentence: handedOverSentence(parsed, refused, end))
     case .notKept(let sentence):
       outcome = Outcome(kind: .notKept, sentence: sentence)
     }
@@ -432,9 +432,9 @@ public final class DiveComputerModel {
     return family == .suuntoNautic ? DiveComputerText.suuntoAppConnected + " " + stopped : stopped
   }
 
-  private func handedOverSentence(
-    _ parsed: Int, _ refused: Int, _ end: DiveComputerDownloadEnd, family: DiveComputerFamily?
-  ) -> String {
+  private func handedOverSentence(_ parsed: Int, _ refused: Int, _ end: DiveComputerDownloadEnd)
+    -> String
+  {
     var sentence = DiveComputerText.downloaded(parsed, refused: refused)
     switch end.kind {
     case .complete: break
