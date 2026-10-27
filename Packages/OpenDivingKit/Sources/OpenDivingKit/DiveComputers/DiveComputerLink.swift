@@ -16,8 +16,10 @@ public protocol DiveComputerLink: AnyObject {
   /// its dives newest first.
   ///
   /// The stream yields ``DiveComputerDownloadEvent/identified(_:)`` once the identity is known
-  /// — from the advertised name before connecting for a family that advertises its serial, from
-  /// the device info otherwise — and calls `lookup` at that moment, folding the serial's case.
+  /// — once the device is open for a family that advertises its serial, whose name gave it
+  /// before connecting, and from the device info otherwise — and calls `lookup` at that moment,
+  /// folding the serial's case. It yields the identity again where the device info later adds
+  /// the firmware.
   /// It sets the fingerprint of the record `lookup` returns on the open device before any dive
   /// is read, and sets none — clearing one an earlier walk on the same device set — when
   /// `lookup` returns nil. Then the watch's zone where the family logs instants and the watch
