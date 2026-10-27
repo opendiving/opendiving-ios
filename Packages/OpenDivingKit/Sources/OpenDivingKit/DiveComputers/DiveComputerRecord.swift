@@ -51,8 +51,9 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   /// *Shearwater Perdix 3*.
   public var title: String { DiveComputerText.title(vendor: vendor, product: product) }
 
-  /// The zone an instant from this computer is written in: the diver's where set, else the
-  /// watch's as last reported.
+  /// The zone Settings shows its dives in: the diver's where set, else the watch's as last
+  /// reported. A download writes in the diver's, else the zone the watch reports for that
+  /// download, and asks where neither exists.
   public var zone: TimeZone? { diverZone ?? watchZone }
 
   /// The fingerprint a download from it sets: none when the diver asked for everything.
