@@ -12,8 +12,11 @@ self-hosting bundle — a local instance is a `docker compose up` away.
 - **[XcodeGen](https://github.com/yonaskolb/XcodeGen)**, which writes the Xcode project:
   `brew install xcodegen`.
 
-Nothing else: no CocoaPods, no third-party packages, no SwiftLint. Formatting is the toolchain's own
-`swift format`.
+Nothing else: no CocoaPods and no SwiftLint, and one third-party package, which SwiftPM fetches
+when Xcode or `xcodebuild` resolves the project. The app target depends on
+[libdc-swift](https://github.com/deepsealabs/libdc-swift), pinned to an exact release in
+`project.yml`, for the Bluetooth download from dive computers; the Kit depends on nothing.
+Formatting is the toolchain's own `swift format`.
 
 ## Generating the project
 

@@ -264,6 +264,26 @@ CI tests the Kit on Linux, so it imports neither UIKit, SwiftUI nor Security —
 protocol with its one conformance in the app target, and the Kit's tests use a fake. Rejected: a
 second package for the Apple half, a manifest and a target for each such type.
 
+## The app depends on libdc-swift, and the Kit on nothing
+
+A Bluetooth protocol stack for forty brands of dive computer is not this project's to write:
+libdivecomputer is the library every logbook builds on, and libdc-swift brings its Core Bluetooth
+transport and the Suunto Ocean backend upstream has not merged. The app target takes it pinned to
+an exact release in `project.yml`, the one place the version lives; the Kit stays dependency-free
+and tested on Linux. The app opens a device through the bridge's C entry and walks and parses the
+dives itself, since the package's retriever keeps no dive's bytes, its parser drops the zone and
+fills defaults, and its own open records devices in `UserDefaults`. Rejected: vendoring upstream
+libdivecomputer behind a bridge of our own, which reaches no Ocean.
+
+## libdivecomputer links statically, and the public source meets the LGPL
+
+LGPL-2.1 §6 lets a work linked with the library carry its own terms when whoever receives it can
+modify the library and relink. libdc-swift's package links libdivecomputer statically, so §6(a)
+is the route: this repository's complete source is public, and the exact pin names the libraries'
+source. An app built from source onto one's own phone is not distributed at all.
+`THIRD-PARTY-NOTICES.md` and `LICENSE-LGPL-2.1` carry the notice and the text. Rejected: making the
+package a dynamic framework, which means maintaining a fork of its layout.
+
 ## CI builds the app on macos-15 with Xcode 26.3
 
 `app-macos` runs on `macos-15` with `DEVELOPER_DIR` naming Xcode 26.3, which carries the iOS 26.2

@@ -80,11 +80,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
 
     if family.logsInstants {
-      let resources = NauticZoneResources.fetch(device)
-      if NauticZoneCapture.isEnabled {
-        NauticZoneCapture.write(resources, computer: computer)
-        return .init(.cancelled)
-      }
+      if let zone = NauticWatchZone.decode(watchSettings()) { events.yield(.watchZone(zone)) }
     }
 
     dc_device_set_cancel(handle, cancelCallback, userdata)
@@ -194,6 +190,16 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     guard next != identity else { return }
     identity = next
     events.yield(.identified(next))
+  }
+
+  /// The watch's settings resources its zone is decoded from; one the watch refuses is left
+  /// out, and the decode reads the rest.
+  private func watchSettings() -> [String: Data] {
+    var resources: [String: Data] = [:]
+    for path in NauticWatchZone.paths {
+      resources[path] = try? SuuntoNauticExplorer.fetch(device: device, path: path)
+    }
+    return resources
   }
 
   /// Clears what an earlier walk on the same device set, so a walk sets only what its own
