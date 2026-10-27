@@ -167,6 +167,7 @@ public enum VocabularyLabels {
   static let importSources = [
     "uddf": "UDDF", "ssrf": "Subsurface", "fit": "FIT", "suunto_json": "Suunto app JSON",
     "suunto_xml": "Suunto DM5 XML", "divejson": "DiveJSON", "archive": "OpenDiving archive",
+    "shearwater_db": "Shearwater Cloud database", "shearwater_xml": "Shearwater Cloud XML",
     "zip": "Zip",
     // The import's key for any restored file this server does not read. The phone's downloads
     // are what carries it — a dive computer's original bytes, kept as downloaded — so it is

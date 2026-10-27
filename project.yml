@@ -97,6 +97,11 @@ targets:
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification:
               public.filename-extension: [divejson]
+          - UTTypeIdentifier: app.opendiving.shearwater-db
+            UTTypeDescription: Shearwater Cloud database
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [db]
         CFBundleDocumentTypes:
           - CFBundleTypeName: FIT activity file
             CFBundleTypeRole: Viewer
@@ -114,6 +119,10 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [app.opendiving.divejson]
+          - CFBundleTypeName: Shearwater Cloud database
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [app.opendiving.shearwater-db]
           - CFBundleTypeName: JSON
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate

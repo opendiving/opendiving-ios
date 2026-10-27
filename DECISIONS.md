@@ -73,7 +73,7 @@ phone still knows whose stores and form settings to show. `forget` removes the l
 
 ## Shared files are imported types, copied in
 
-`project.yml` imports `.fit`, `.uddf`, `.ssrf` and `.divejson` under `app.opendiving.*`, each
+`project.yml` imports `.fit`, `.uddf`, `.ssrf`, `.divejson` and `.db` under `app.opendiving.*`, each
 conforming to `public.data`, and lists `public.json`, `public.xml` and `public.zip-archive` beside
 them, every entry a viewer ranked `Alternate`: the project owns none of these formats, and
 exporting one would outrank its owner's declaration. `LSSupportsOpeningDocumentsInPlace` is false,
