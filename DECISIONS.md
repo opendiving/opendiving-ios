@@ -136,6 +136,74 @@ and dive details are bounded to the two hundred most recently opened. It exists 
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 
+## A computer's record is the account's, and its fingerprint moves only once the archive is kept
+
+The fingerprint of the newest dive downloaded says what one account's logbook holds, so each
+account keeps `DiveComputers/<family>_<SERIAL>.json` in its own directory: sign-out leaves it,
+`forget` removes it. It is found by family and serial, never by Core Bluetooth's identifier,
+which iOS rotates for some computers. It advances only after a completed walk with no empty read,
+and only once the inbox has kept the archive for the account the walk began from; a cancel, a
+failure, an archive not kept or an app killed at the time-zone question leaves it, and the
+import's gates make the re-walked dives links. A record written before the load is removed, not
+moved, when the load names another account. Rejected: libdc-swift's `UserDefaults` stores, keyed
+by device alone; advancing at import, which needs the inbox to report back across a sign-out.
+
+## A computer that logs instants keeps two zones, and the diver's wins
+
+A Suunto Nautic reports a dive's start as an instant with no local clock. The record keeps the
+zone the watch last reported and the zone the diver named; a start is written in the diver's
+where set, else this download's watch's, and only where neither exists does the screen ask,
+after the walk and before the archive is written. The offset is the zone's at each dive's own
+instant, so a download across a daylight-saving change is right dive by dive. Rejected: `Z`,
+which puts UTC on every dive's page; the phone's zone written silently, an offset the source
+never carried.
+
+## A download's dives carry derived uuids, and waiting downloads are one union
+
+A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint,
+so a re-download is a dive the account already holds and links. One import restores one
+full-export archive, so a download arriving beside unimported downloads of the same mark
+replaces them with their union — each dive once by uuid, each unnamed member once by digest —
+in one inbox save, while the inbox is idle. Rejected: a random uuid, which leaves every dedupe
+to the recording gates; an archive per dive.
+
+## The device block has no brand, and its model is spelled as the family's export spells it
+
+The api compares devices by brand, model and serial, and a brand or model both sides carry that
+disagree makes them two devices. libdivecomputer says *Shearwater* / *Perdix 3* where Shearwater
+Cloud's UDDF says *Shearwater Research, Inc* / *Perdix 3*, and *Suunto* / *Ocean* where the
+Suunto app's FIT says *suunto* / *Suunto Ocean*. So no brand, the Petrel family's model is its
+product and the Nautic family's is vendor and product, and a Shearwater serial is eight
+uppercase hex digits. Rejected: the descriptor's vendor and product, which duplicate the
+recordings those exports made.
+
+## The Kit computes its own digests
+
+An archive needs SHA-256 for each member, SHA-1 for the version-5 uuids and CRC-32 for the zip,
+and nothing the Kit imports on Linux has them; CryptoKit is Apple-only. They are written in
+Swift and tested against their published vectors, so the writer's goldens are the same bytes on
+Linux and the simulator. Rejected: a digest seam the app conforms over CryptoKit, which would
+make the goldens a fake's output wherever the Kit's tests run.
+
+## What DiveJSON cannot hold rides the recording's extensions, and the server drops it
+
+libdivecomputer reports more than DiveJSON 1.0 holds: each O₂ cell, setpoint, heart rate,
+bearing, a stop's time, a tank's working pressure, the salinity density. The writer puts them
+under the recording's `extensions.opendiving`, its doc comment the shape, and nothing under that
+key on the document, a dive or a stored file, where the api reads members of its own. The api
+stores no extensions at import, so until the format takes these members over they survive on
+the server only inside the stored original. Rejected: dropping them; writing vendor records,
+which the original already holds.
+
+## The import keeps a refused download, and a union never crosses a mark
+
+A download archive is the only copy of its dives until imported, and the import refuses a second
+full-export archive as a row, not the request. So the apply discards what it sent except a
+download whose own row was refused, which waits to be read again alone; a refused shared file
+goes as before, another copy existing. A download unites only with waiting downloads of its own
+mark, so the load settles a marked one as it settles any marked file. Rejected: refusing a
+shared archive while a download waits.
+
 ## The app's tests assert what a screen is given, not the text it draws
 
 A SwiftUI view hosted in the test bundle exposes no accessibility tree — the labels are built

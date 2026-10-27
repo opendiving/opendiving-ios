@@ -135,7 +135,8 @@ public struct ComputerArchiveWriter: Sendable {
       let document: ArchiveJSON
       do {
         reader = try ZipReader(archive.url)
-        guard let entry = reader.entries.first(where: { $0.name == DiveComputerArchive.documentName }),
+        guard
+          let entry = reader.entries.first(where: { $0.name == DiveComputerArchive.documentName }),
           let parsed = ArchiveJSON.parse(try reader.read(entry))
         else { throw DiveComputerArchiveError.unreadableArchive }
         document = parsed
@@ -160,7 +161,9 @@ public struct ComputerArchiveWriter: Sendable {
           var taken = Set(paths.keys)
           let target =
             paths[path] == nil
-            ? path : DiveComputerArchive.filesFolder + Self.unique(Self.base(path), in: &taken, prefix: DiveComputerArchive.filesFolder)
+            ? path
+            : DiveComputerArchive.filesFolder
+              + Self.unique(Self.base(path), in: &taken, prefix: DiveComputerArchive.filesFolder)
           if target != path { dive = Self.renaming(dive, path, to: target) }
           paths[target] = digest
           members.append(Member(path: target, source: .entry(reader, entry)))
@@ -218,7 +221,8 @@ public struct ComputerArchiveWriter: Sendable {
       "format": .string("divejson"),
       "version": .string("1.0"),
       "exported_at": .string(DiveComputerArchive.dateTime(moment, in: zone)),
-      "generator": .object(["name": .string(generator.name), "version": .string(generator.version)]),
+      "generator": .object(["name": .string(generator.name), "version": .string(generator.version)]
+      ),
       "dives": .array(dives),
     ])
     try FileManager.default.createDirectory(

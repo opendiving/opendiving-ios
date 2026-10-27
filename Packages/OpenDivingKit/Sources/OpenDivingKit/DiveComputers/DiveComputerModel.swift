@@ -377,7 +377,8 @@ public final class DiveComputerModel {
       guard !waiting.isEmpty else {
         return inbox.receive([written.url], moving: true, download: written.download)
       }
-      let archives = [(written.url, written.download)]
+      let archives =
+        [(written.url, written.download)]
         + waiting.compactMap { file in
           inbox.url(for: file).flatMap { url in file.download.map { (url, $0) } }
         }

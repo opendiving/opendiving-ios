@@ -40,11 +40,15 @@ struct SHA256Digest {
     var tail = buffer
     tail.append(0x80)
     while tail.count % 64 != 56 { tail.append(0) }
-    for shift in stride(from: 56, through: 0, by: -8) { tail.append(UInt8(truncatingIfNeeded: bits >> UInt64(shift))) }
+    for shift in stride(from: 56, through: 0, by: -8) {
+      tail.append(UInt8(truncatingIfNeeded: bits >> UInt64(shift)))
+    }
     for start in stride(from: 0, to: tail.count, by: 64) {
       compress(Array(tail[start..<start + 64]))
     }
-    return h.flatMap { word in (0..<4).map { UInt8(truncatingIfNeeded: word >> UInt32(24 - $0 * 8)) } }
+    return h.flatMap { word in
+      (0..<4).map { UInt8(truncatingIfNeeded: word >> UInt32(24 - $0 * 8)) }
+    }
   }
 
   /// Lowercase hex of the digest of `bytes`.
@@ -98,24 +102,5 @@ struct SHA256Digest {
     h[5] &+= f
     h[6] &+= g
     h[7] &+= hh
-  }
-}
-
-extension UInt32 {
-  func rotatedRight(_ n: UInt32) -> UInt32 { (self >> n) | (self << (32 - n)) }
-  func rotatedLeft(_ n: UInt32) -> UInt32 { (self << n) | (self >> (32 - n)) }
-}
-
-/// Bytes as hex digits.
-enum Hex {
-  private static let digits = Array("0123456789abcdef".utf8)
-
-  static func lowercase(_ bytes: some Sequence<UInt8>) -> String {
-    var out: [UInt8] = []
-    for byte in bytes {
-      out.append(digits[Int(byte >> 4)])
-      out.append(digits[Int(byte & 0x0F)])
-    }
-    return String(decoding: out, as: UTF8.self)
   }
 }

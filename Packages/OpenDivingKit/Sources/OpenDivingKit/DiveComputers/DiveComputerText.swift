@@ -48,7 +48,8 @@ public enum DiveComputerText {
   public static func inboxRow(_ download: InboxDownload, in zone: TimeZone = .current) -> String {
     let names = download.computers.map(\.title)
     let from = names.count <= 1 ? (names.first ?? "") : PendingText.list(names)
-    return "\(count(download.dives)) from \(from), downloaded \(day(download.downloadedAt, in: zone))"
+    return
+      "\(count(download.dives)) from \(from), downloaded \(day(download.downloadedAt, in: zone))"
   }
 
   // MARK: - Downloading

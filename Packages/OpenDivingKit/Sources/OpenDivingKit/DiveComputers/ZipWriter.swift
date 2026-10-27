@@ -113,6 +113,8 @@ extension Data {
   }
 
   mutating func append(le32 value: UInt32) {
-    for shift in stride(from: 0, to: 32, by: 8) { append(UInt8(truncatingIfNeeded: value >> UInt32(shift))) }
+    for shift in stride(from: 0, to: 32, by: 8) {
+      append(UInt8(truncatingIfNeeded: value >> UInt32(shift)))
+    }
   }
 }

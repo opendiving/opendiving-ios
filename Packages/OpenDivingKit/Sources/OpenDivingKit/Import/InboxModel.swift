@@ -356,7 +356,9 @@ public final class InboxModel {
       let kept = Set(
         sent.enumerated().filter { part, file in
           file.download != nil
-            && result.members.contains { $0.part == part && $0.container == nil && $0.refusal != nil }
+            && result.members.contains {
+              $0.part == part && $0.container == nil && $0.refusal != nil
+            }
         }.map(\.element.id))
       var now = store.load()
       let imported = Set(read.files).subtracting(kept)

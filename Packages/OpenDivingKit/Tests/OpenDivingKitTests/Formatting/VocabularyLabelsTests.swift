@@ -122,6 +122,12 @@ struct VocabularyLabelsTests {
     #expect(Labels.importSource("shearwater_db") == "Shearwater db")
   }
 
+  /// The import's key for a stored file this server does not read: a dive computer's original,
+  /// labelled as the web labels it.
+  @Test func aStoredOriginalTheServerDoesNotRead() {
+    #expect(Labels.importSource("divejson_import") == "Dive computer original (.bin)")
+  }
+
   /// `certifications.ts:89-176`.
   @Test func certifications() {
     #expect(Labels.certificationAgency("padi") == "PADI")

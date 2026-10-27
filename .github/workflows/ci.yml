@@ -13,7 +13,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Both jobs only read the repository. `persist-credentials: false` keeps the token out of
+# Every job only reads the repository. `persist-credentials: false` keeps the token out of
 # `.git/config` in a workspace that then builds and runs this repository's code.
 permissions:
   contents: read
@@ -38,6 +38,28 @@ jobs:
 
       - name: Test the Kit
         run: swift test --package-path Packages/OpenDivingKit
+
+  # The documents the Kit's archive writer must reproduce byte for byte, validated by the
+  # DiveJSON reference validator at the release opendiving-api pins, so a golden the format
+  # rejects fails the build rather than an import.
+  goldens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.15"
+
+      - name: Install the validator
+        run: pip install divejson==0.32.0
+
+      - name: Validate the goldens
+        run: divejson validate Packages/OpenDivingKit/Tests/OpenDivingKitTests/Fixtures/DiveComputers/*.divejson
 
   # The app and both test bundles, on a simulator. The image and the Xcode on it are named
   # rather than left to defaults; see DECISIONS.md, "CI builds the app on macos-15 with

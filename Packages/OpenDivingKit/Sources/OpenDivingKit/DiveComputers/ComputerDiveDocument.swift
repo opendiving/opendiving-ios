@@ -57,7 +57,9 @@ enum ComputerDiveDocument {
     }
     if let location = dive.location, let position = position(location) {
       out["entry_position"] = position
-      if let altitude = location.altitude { extensions["entry_altitude"] = .number(round(altitude, 2)) }
+      if let altitude = location.altitude.flatMap({ round($0, 2) }) {
+        extensions["entry_altitude"] = .number(altitude)
+      }
     }
     let (cylinders, mixNumbers) = self.cylinders(dive, extensions: &extensions)
     if !cylinders.isEmpty { out["cylinders"] = .array(cylinders) }
@@ -86,7 +88,9 @@ enum ComputerDiveDocument {
         if mixNumbers[index] == nil { mixNumbers[index] = number }
       }
       self.usage(usage, into: &cylinder)
-      if let volume = tank.volume, volume > 0 { cylinder["volume"] = .number(round(volume, 2)) }
+      if let volume = tank.volume.flatMap({ $0 > 0 ? round($0, 2) : nil }) {
+        cylinder["volume"] = .number(volume)
+      }
       let start = tank.beginPressure.flatMap { $0 > 0 && $0 <= 350 ? round($0, 2) : nil }
       if let start { cylinder["start_pressure"] = .number(start) }
       if let end = tank.endPressure.flatMap({ $0 > 0 && $0 <= 350 ? round($0, 2) : nil }),
@@ -96,8 +100,8 @@ enum ComputerDiveDocument {
       }
       cylinders.append(.object(cylinder))
       var kept: [String: ArchiveJSON] = [:]
-      if let working = tank.workingPressure, working > 0 {
-        kept["working_pressure"] = .number(round(working, 2))
+      if let working = tank.workingPressure.flatMap({ $0 > 0 ? round($0, 2) : nil }) {
+        kept["working_pressure"] = .number(working)
       }
       switch tank.volumeType {
       case .metric: kept["volume_type"] = .string("metric")
@@ -122,15 +126,16 @@ enum ComputerDiveDocument {
   }
 
   private static func gas(_ mix: ComputerDive.GasMix, into cylinder: inout [String: ArchiveJSON]) {
-    let oxygen = round(mix.oxygen * 100, 1)
-    guard (0...100).contains(oxygen) else { return }
+    guard let oxygen = round(mix.oxygen * 100, 1), (0...100).contains(oxygen) else { return }
     cylinder["oxygen"] = .number(oxygen)
-    let helium = min(round(mix.helium * 100, 1), round(100 - oxygen, 1))
-    if helium >= 0 { cylinder["helium"] = .number(helium) }
+    if let helium = round(mix.helium * 100, 1).map({ min($0, 100 - oxygen) }), helium >= 0 {
+      cylinder["helium"] = .number(helium)
+    }
   }
 
-  private static func usage(_ usage: ComputerDive.Usage?, into cylinder: inout [String: ArchiveJSON])
-  {
+  private static func usage(
+    _ usage: ComputerDive.Usage?, into cylinder: inout [String: ArchiveJSON]
+  ) {
     switch usage {
     case .oxygen: cylinder["role"] = .string("oxygen")
     case .diluent: cylinder["role"] = .string("diluent")
@@ -153,7 +158,9 @@ enum ComputerDiveDocument {
       else { return }
       device[key] = .string(String(value.prefix(limit)))
     }
-    put("model", identity.family.deviceModel(vendor: identity.vendor, product: identity.product), limit: 64)
+    put(
+      "model", identity.family.deviceModel(vendor: identity.vendor, product: identity.product),
+      limit: 64)
     put("serial", identity.serial, limit: 64)
     put("firmware", identity.firmware, limit: 32)
     if !device.isEmpty { out["device"] = .object(device) }
@@ -175,9 +182,11 @@ enum ComputerDiveDocument {
         let en13319 = salinity.density.map { abs($0 - 1020) < 0.5 } ?? false
         out["salinity"] = .string(en13319 ? "en13319" : "salt")
       }
-      if let density = salinity.density { extensions["salinity_density"] = .number(round(density, 2)) }
+      if let density = salinity.density.flatMap({ round($0, 2) }) {
+        extensions["salinity_density"] = .number(density)
+      }
     }
-    if let pressure = dive.atmosphericPressure.map({ round($0, 4) }) {
+    if let pressure = dive.atmosphericPressure.flatMap({ round($0, 4) }) {
       if (0.4...1.2).contains(pressure) {
         out["surface_pressure"] = .number(pressure)
       } else {
@@ -189,7 +198,7 @@ enum ComputerDiveDocument {
       ("temperature_minimum", dive.minimumTemperature),
       ("temperature_maximum", dive.maximumTemperature),
     ] {
-      if let value { extensions[key] = .number(round(value, 2)) }
+      if let value = value.flatMap({ round($0, 2) }) { extensions[key] = .number(value) }
     }
     if let profile = profile(dive, mixNumbers: mixNumbers, extensions: &extensions) {
       out["profile"] = profile
@@ -216,7 +225,9 @@ enum ComputerDiveDocument {
     }
     let target = kept.isEmpty
     if let conservatism = model.conservatism {
-      if target { spec["conservatism"] = .integer(conservatism) } else {
+      if target {
+        spec["conservatism"] = .integer(conservatism)
+      } else {
         kept["conservatism"] = .integer(conservatism)
       }
     }
@@ -243,14 +254,19 @@ enum ComputerDiveDocument {
     var values: [Int] = []
 
     /// Keeps the first reading at an instant: §6.5's times are strictly increasing.
-    mutating func add(_ time: Int, _ value: Int) {
-      guard time >= 0, time > (times.last ?? -1) else { return }
+    mutating func add(_ time: Int, _ value: Int?) {
+      guard let value, time >= 0, time > (times.last ?? -1) else { return }
       times.append(time)
       values.append(value)
     }
 
     var json: ArchiveJSON? {
-      times.isEmpty ? nil : .object(["times": .array(times.map(ArchiveJSON.integer)), "values": .array(values.map(ArchiveJSON.integer))])
+      times.isEmpty
+        ? nil
+        : .object([
+          "times": .array(times.map(ArchiveJSON.integer)),
+          "values": .array(values.map(ArchiveJSON.integer)),
+        ])
     }
   }
 
@@ -285,7 +301,7 @@ enum ComputerDiveDocument {
       if let value = sample.depth { depth.add(t, centi(value)) }
       if let value = sample.temperature { temperature.add(t, centi(value)) }
       for pressure in sample.pressures {
-        pressures[pressure.tank, default: Series()].add(t, Int((pressure.bar * 10).rounded()))
+        pressures[pressure.tank, default: Series()].add(t, scaled(pressure.bar, 10))
       }
       if let deco = sample.deco {
         switch deco.kind {
@@ -298,27 +314,29 @@ enum ComputerDiveDocument {
             .object([
               "time": .integer(t),
               "kind": .string(deco.kind == .safetyStop ? "safety_stop" : "deep_stop"),
-              "depth": .integer(centi(deco.depth)), "duration": .integer(deco.time),
+              "depth": .integer(centi(deco.depth) ?? 0), "duration": .integer(deco.time),
             ]))
         }
         if deco.timeToSurface > 0 { tts.add(t, deco.timeToSurface) }
       }
       for reading in sample.ppo2 where reading.bar >= 0 {
-        let value = centi(reading.bar)
+        guard let value = centi(reading.bar) else { continue }
         if let sensor = reading.sensor {
           sensors[sensor, default: Series()].add(t, value)
         } else {
           ppo2.add(t, value)
         }
       }
-      if let value = sample.cns, value >= 0 { cns.add(t, Int((value * 1000).rounded())) }
+      if let value = sample.cns, value >= 0 { cns.add(t, scaled(value, 1000)) }
       if let value = sample.setpoint { setpoint.add(t, centi(value)) }
       if let value = sample.heartRate { heartRate.add(t, value) }
       if let value = sample.bearing { bearing.add(t, value) }
       if let value = sample.remainingBottomTime { remaining.add(t, value) }
       if let location = sample.location, case .object(var fix)? = position(location) {
         fix["time"] = .integer(t)
-        if let altitude = location.altitude { fix["altitude"] = .number(round(altitude, 2)) }
+        if let altitude = location.altitude.flatMap({ round($0, 2) }) {
+          fix["altitude"] = .number(altitude)
+        }
         positions.append(.object(fix))
       }
       if let mix = sample.gasMix {
@@ -393,19 +411,26 @@ enum ComputerDiveDocument {
   // MARK: - Values
 
   private static func position(_ location: ComputerDive.Location) -> ArchiveJSON? {
-    guard (-90...90).contains(location.latitude), (-180...180).contains(location.longitude)
+    guard let latitude = round(location.latitude, 7), (-90...90).contains(latitude),
+      let longitude = round(location.longitude, 7), (-180...180).contains(longitude)
     else { return nil }
-    return .object([
-      "latitude": .number(round(location.latitude, 7)),
-      "longitude": .number(round(location.longitude, 7)),
-    ])
+    return .object(["latitude": .number(latitude), "longitude": .number(longitude)])
   }
 
   /// Hundredths, the spec's scale for depth in centimetres, temperature and ppO₂.
-  private static func centi(_ value: Double) -> Int { Int((value * 100).rounded()) }
+  private static func centi(_ value: Double) -> Int? { scaled(value, 100) }
 
-  static func round(_ value: Double, _ places: Int) -> Double {
+  /// `value` times `factor`, to the nearest whole number; nil for a value no integer holds.
+  private static func scaled(_ value: Double, _ factor: Double) -> Int? {
+    let result = (value * factor).rounded()
+    guard result.isFinite, abs(result) < 1e15 else { return nil }
+    return Int(result)
+  }
+
+  /// `value` to `places` decimals; nil for a value that is not a number JSON can spell.
+  static func round(_ value: Double, _ places: Int) -> Double? {
     let scale = pow(10, Double(places))
-    return (value * scale).rounded() / scale
+    let result = (value * scale).rounded() / scale
+    return result.isFinite ? result : nil
   }
 }
