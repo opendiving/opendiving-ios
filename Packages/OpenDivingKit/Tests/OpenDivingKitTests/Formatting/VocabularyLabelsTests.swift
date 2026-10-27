@@ -122,8 +122,8 @@ struct VocabularyLabelsTests {
     #expect(Labels.importSource("shearwater_db") == "Shearwater db")
   }
 
-  /// The import's key for a stored file this server does not read: a dive computer's original,
-  /// labelled as the web labels it.
+  /// The import's key for a restored file this server does not read, named for the phone's
+  /// downloads, which are what carries it.
   @Test func aStoredOriginalTheServerDoesNotRead() {
     #expect(Labels.importSource("divejson_import") == "Dive computer original (.bin)")
   }

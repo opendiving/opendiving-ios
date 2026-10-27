@@ -168,8 +168,9 @@ public enum VocabularyLabels {
     "uddf": "UDDF", "ssrf": "Subsurface", "fit": "FIT", "suunto_json": "Suunto app JSON",
     "suunto_xml": "Suunto DM5 XML", "divejson": "DiveJSON", "archive": "OpenDiving archive",
     "zip": "Zip",
-    // The import's key for a stored file no reader of this server reads: a dive computer's
-    // original bytes, kept as downloaded.
+    // The import's key for any restored file this server does not read. The phone's downloads
+    // are what carries it — a dive computer's original bytes, kept as downloaded — so it is
+    // named for them; a restored file of another unread kind wears the same label.
     "divejson_import": "Dive computer original (.bin)",
   ]
 
