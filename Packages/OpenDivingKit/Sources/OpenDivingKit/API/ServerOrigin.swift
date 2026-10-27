@@ -2,9 +2,9 @@ import Foundation
 
 /// The server a phone talks to, as an origin: scheme, host and port, nothing else. Everything
 /// kept per server — the refresh token, the remembered account, the cached sheet, and each
-/// account's drafts, writes waiting to sync, files waiting to be read and copies of the
-/// logbook — is keyed by it, scheme included, so `http://` and `https://` on one host are two
-/// servers.
+/// account's drafts, writes waiting to sync, files waiting to be read, dive computers
+/// downloaded from and copies of the logbook — is keyed by it, scheme included, so `http://`
+/// and `https://` on one host are two servers.
 public struct ServerOrigin: Hashable, Sendable, Codable, CustomStringConvertible {
   /// `http` or `https`.
   public let scheme: String
