@@ -114,12 +114,15 @@ struct VocabularyLabelsTests {
   /// `logbook-import.ts:58-99`.
   @Test func importSources() {
     #expect(
-      ["uddf", "ssrf", "fit", "suunto_json", "suunto_xml", "divejson", "archive", "zip"].map(
-        Labels.importSource) == [
-          "UDDF", "Subsurface", "FIT", "Suunto app JSON", "Suunto DM5 XML", "DiveJSON",
-          "OpenDiving archive", "Zip",
-        ])
-    #expect(Labels.importSource("shearwater_db") == "Shearwater db")
+      [
+        "uddf", "ssrf", "fit", "suunto_json", "suunto_xml", "shearwater_db", "shearwater_xml",
+        "divejson", "archive", "zip",
+      ].map(Labels.importSource) == [
+        "UDDF", "Subsurface", "FIT", "Suunto app JSON", "Suunto DM5 XML",
+        "Shearwater Cloud database", "Shearwater Cloud XML", "DiveJSON", "OpenDiving archive",
+        "Zip",
+      ])
+    #expect(Labels.importSource("garmin_fit") == "Garmin fit")
   }
 
   /// The import's key for a restored file this server does not read, named for the phone's
