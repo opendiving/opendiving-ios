@@ -1,5 +1,5 @@
 /// A ``ProfileChart`` with a selection applied: each shown line on its scale, the depth
-/// plot's labelled edges and the deco panel's rows.
+/// plot's labelled edges and the rows under it.
 public struct ProfileChartLayout: Hashable, Sendable {
   public var placement: ProfileScalePlacement
   /// The shown lines, in the chart's order.
@@ -122,6 +122,7 @@ public struct ProfileChartLayout: Hashable, Sendable {
         case .ceiling: "deco ceiling to \(high) \(word)"
         case .temperature: "temperature \(low) to \(high) \(word)"
         case .pressure: "tank pressure \(high) down to \(low) \(word)"
+        case .heartRate: "heart rate \(low) to \(high) \(word)"
         case .ndl: "no-decompression time down to \(low) \(word)"
         case .tts: "time to surface up to \(high) \(word)"
         case .ppo2: "oxygen partial pressure up to \(high) \(word)"
@@ -149,7 +150,7 @@ public struct ProfileChartLayout: Hashable, Sendable {
 public struct ProfilePlottedLine: Hashable, Sendable, Identifiable {
   public var line: ProfileChartLine
   public var domain: AxisDomain
-  /// The deco panel row the line is drawn in, or nil for the depth plot.
+  /// The row under the depth plot the line is drawn in, or nil for the depth plot.
   public var panelIndex: Int?
 
   public var id: String { line.id }
@@ -229,7 +230,7 @@ public struct ProfilePlottedLine: Hashable, Sendable, Identifiable {
   }
 }
 
-/// A deco panel row's scale: its two rules' numbers, the top one with the unit.
+/// A row's scale under the depth plot: its two rules' numbers, the top one with the unit.
 public struct ProfilePanelRow: Hashable, Sendable {
   public var axis: ProfileAxis
   /// Its position among the rows, from the top.

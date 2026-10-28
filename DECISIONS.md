@@ -187,13 +187,12 @@ make the goldens a fake's output wherever the Kit's tests run.
 
 ## What DiveJSON cannot hold rides the recording's extensions, and the server drops it
 
-libdivecomputer reports more than DiveJSON 1.0 holds: each O₂ cell, setpoint, heart rate,
-bearing, a stop's time, a tank's working pressure, the salinity density. The writer puts them
-under the recording's `extensions.opendiving`, its doc comment the shape, and nothing under that
-key on the document, a dive or a stored file, where the api reads members of its own. The api
-stores no extensions at import, so until the format takes these members over they survive on
-the server only inside the stored original. Rejected: dropping them; writing vendor records,
-which the original already holds.
+libdivecomputer reports more than DiveJSON 1.0 holds: each O₂ cell, setpoint, bearing, a stop's
+time, a tank's working pressure, the salinity density. The writer puts them under the recording's
+`extensions.opendiving`, its doc comment the shape, and nothing under that key on the document, a
+dive or a stored file, where the api reads members of its own. The api stores no extensions at
+import, so until the format takes these members over they survive on the server only inside the
+stored original. Rejected: dropping them; writing vendor records, which the original already holds.
 
 ## The import keeps a refused download, and a union never crosses a mark
 

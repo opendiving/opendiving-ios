@@ -6,6 +6,9 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
   case ceiling
   case temperature
   case pressure
+  /// What the diver's wrist sensor or strap read, a measurement like depth and temperature:
+  /// drawn under the depth plot only because that plot's edges are taken.
+  case heartRate = "heart_rate"
   case ndl
   case tts
   case ppo2
@@ -19,6 +22,7 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
     case .ceiling: "Deco ceiling"
     case .temperature: "Temperature"
     case .pressure: "Tank pressure"
+    case .heartRate: "Heart rate"
     case .ndl: "No-deco time"
     case .tts: "Time to surface"
     case .ppo2: "ppO₂"
@@ -30,13 +34,14 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
 
   /// What the wire's integer values are divided by to reach the display unit: the API's
   /// own scale for depth, the ceiling, temperature and pressure, and 60 for the no-deco
-  /// limit and time to surface, which arrive in seconds and read in minutes.
+  /// limit and time to surface, which arrive in seconds and read in minutes. Heart rate
+  /// arrives in whole beats per minute.
   public var scale: Int {
     switch self {
     case .depth, .ceiling, .temperature, .ppo2: 100
     case .pressure, .cns: 10
     case .ndl, .tts: 60
-    case .surfaceGradientFactor, .gradientFactor: 1
+    case .heartRate, .surfaceGradientFactor, .gradientFactor: 1
     }
   }
 
@@ -46,11 +51,11 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
     switch self {
     case .depth, .ceiling, .cns: 1
     case .temperature, .ppo2: 2
-    case .pressure, .ndl, .tts, .surfaceGradientFactor, .gradientFactor: 0
+    case .pressure, .heartRate, .ndl, .tts, .surfaceGradientFactor, .gradientFactor: 0
     }
   }
 
-  /// The measure the channel converts as, or nil for the six that read the same in both
+  /// The measure the channel converts as, or nil for those that read the same in both
   /// systems. The ceiling is a depth, so it converts exactly as depth does and stays on
   /// the water it bounds.
   public var measure: Measure? {
@@ -68,6 +73,7 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
     case .depth, .ceiling: "m"
     case .temperature: "°C"
     case .pressure, .ppo2: "bar"
+    case .heartRate: "bpm"
     case .ndl, .tts: "min"
     case .cns, .surfaceGradientFactor, .gradientFactor: "%"
     }
@@ -101,6 +107,7 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
   public func word(_ units: UnitSystem) -> String {
     if let measure { return measure.word(units) }
     switch self {
+    case .heartRate: return "beats per minute"
     case .ndl, .tts: return "minutes"
     case .ppo2: return "bar"
     default: return "percent"
@@ -108,7 +115,7 @@ public enum ProfileChannel: String, Sendable, Hashable, CaseIterable {
   }
 
   /// The channel as it is labelled and quoted in `units`: unchanged in metric, and for
-  /// the six with no measure in both systems; otherwise the imperial unit at no decimals,
+  /// the channels with no measure in both systems; otherwise the imperial unit at no decimals,
   /// a foot and a psi each being finer than the tenth the metric reading is stored at.
   public func display(_ units: UnitSystem) -> ChannelDisplay {
     guard units == .imperial, let measure else {

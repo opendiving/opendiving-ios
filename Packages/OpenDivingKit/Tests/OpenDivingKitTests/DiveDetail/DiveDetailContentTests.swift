@@ -72,7 +72,8 @@ struct DiveDetailContentTests {
     #expect(
       profile.recordings.map(\.description) == [
         "359 depth samples recorded by the dive computer, 1 marker.",
-        "359 depth samples recorded by the dive computer.",
+        "359 depth samples recorded by the dive computer, a heart rate peaking at 107 bpm and"
+          + " averaging 77 bpm.",
       ])
   }
 
@@ -99,6 +100,34 @@ struct DiveDetailContentTests {
     #expect(
       charted.description
         == "3,600 depth samples recorded by the dive computer, 2 markers, a deco ceiling to 3.2 m.")
+  }
+
+  /// `dive-profile-card.tsx`'s clause: either figure alone when only one is present, after the
+  /// ceiling, and nothing when both are null.
+  @Test func profileDescriptionStatesTheHeartRatesPeakAndAverage() throws {
+    func description(max: Int?, average: Int?) throws -> String? {
+      var object =
+        try JSONSerialization.jsonObject(with: KitFixture.data("dive-detail")) as? [String: Any]
+        ?? [:]
+      var recordings = object["recordings"] as? [[String: Any]] ?? []
+      var profile = recordings[0]["profile"] as? [String: Any] ?? [:]
+      profile["event_count"] = 0
+      profile["max_ceiling"] = 3.24
+      profile["max_heart_rate"] = max ?? NSNull()
+      profile["average_heart_rate"] = average ?? NSNull()
+      recordings[0]["profile"] = profile
+      object["recordings"] = recordings
+      let read = try APICoding.decoder().decode(
+        DiveReadWithMixtures.self, from: JSONSerialization.data(withJSONObject: object))
+      return content(read).profile?.recordings.first?.description
+    }
+    let lead = "359 depth samples recorded by the dive computer, a deco ceiling to 3.2 m"
+    #expect(
+      try description(max: 107, average: 77)
+        == lead + ", a heart rate peaking at 107 bpm and averaging 77 bpm.")
+    #expect(try description(max: 107, average: nil) == lead + ", a heart rate peaking at 107 bpm.")
+    #expect(try description(max: nil, average: 77) == lead + ", a heart rate averaging 77 bpm.")
+    #expect(try description(max: nil, average: nil) == lead + ".")
   }
 
   // MARK: - Tanks and gas

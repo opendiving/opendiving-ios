@@ -2,7 +2,7 @@ import Charts
 import OpenDivingKit
 import SwiftUI
 
-/// The chart itself: the depth plot with its two edges, the deco panel's rows under it on
+/// The chart itself: the depth plot with its two edges, the rows under it on
 /// one time axis, the markers on the depth plot's baseline, and a drag scrubber. Every
 /// number on it is a Kit string drawn verbatim — never Swift Charts' own axis labels, which
 /// format in the phone's region.
@@ -207,7 +207,7 @@ struct ProfileChartPlot: View {
   // MARK: Geometry
 
   /// The plot's vertical bands, in chart units with the top at ``total``: the depth plot,
-  /// then each deco panel row under it with a gap between.
+  /// then each row under it with a gap between.
   private struct Bands {
     static let plotHeight = 170.0
     static let panelHeight = 46.0
@@ -285,8 +285,8 @@ extension ProfileChartEvent {
 }
 
 extension ProfileChartPlot {
-  /// A forty-minute dive to 18 m with two cylinders, a ceiling and two markers, for
-  /// previews.
+  /// A forty-minute dive to 18 m with two cylinders, a ceiling, a heart rate and two
+  /// markers, for previews.
   static let previewJSON: String = {
     let times = Array(stride(from: 0, through: 2_400_000, by: 20_000))
     let depth = times.map { time -> Int in
@@ -296,6 +296,7 @@ extension ProfileChartPlot {
     let temperature = times.map { 2400 - $0 / 20_000 * 2 }
     let pressure = times.map { 2100 - $0 / 20_000 * 10 }
     let ndl = depth.map { $0 > 1500 ? 1200 : 5940 }
+    let heartRate = depth.map { 70 + $0 / 60 }
     func series(_ values: [Int], _ times: [Int]) -> String {
       #"{"times":\#(times),"values":\#(values)}"#
     }
@@ -304,6 +305,7 @@ extension ProfileChartPlot {
       "ceiling":\(series([300, 300, 300], [600_000, 620_000, 640_000])),
       "temperature":\(series(temperature, times)),
       "pressures":[{"times":\(times),"values":\(pressure),"gas_number":1}],
+      "heart_rate":\(series(heartRate, times)),
       "ndl":\(series(ndl, times)),"tts":null,"ppo2":null,"cns":null,
       "gradient_factor":null,"surface_gradient_factor":null,
       "events":[{"time":4000,"type":"gas_switch","gas_number":1,"label":null},

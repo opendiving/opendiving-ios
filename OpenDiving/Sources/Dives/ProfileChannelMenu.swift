@@ -31,7 +31,7 @@ struct ProfileChannelMenu: View {
     .accessibilityLabel(chart.events.isEmpty ? "Channels" : "Channels and markers")
   }
 
-  /// The depth plot's channels first, then each deco panel row's.
+  /// The depth plot's channels first, then each row's under it.
   private var groups: [[ProfileChannel]] {
     let available = chart.availableChannels
     return

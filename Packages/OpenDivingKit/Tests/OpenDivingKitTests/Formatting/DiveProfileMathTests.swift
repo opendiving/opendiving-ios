@@ -80,6 +80,15 @@ struct DiveProfileMathTests {
     #expect(values(.surfaceGradientFactor, [0, 60_000], [0, 87]) == [0, 87])
   }
 
+  /// Whole beats per minute on the wire and on the screen, the same in both systems.
+  @Test func heartRateIsWholeBeatsInEitherSystem() {
+    #expect(values(.heartRate, [0, 1_000], [57, 107]) == [57, 107])
+    #expect(values(.heartRate, [0, 1_000], [57, 107], .imperial) == [57, 107])
+    #expect(
+      ProfileChannel.heartRate.display(.imperial) == ProfileChannel.heartRate.display(.metric))
+    #expect(ProfileChannel.heartRate.axis == .heartRate)
+  }
+
   /// `:1189-1206` — none of the six converts.
   @Test(arguments: [ProfileChannel.ndl, .tts, .ppo2, .cns, .gradientFactor, .surfaceGradientFactor])
   func decoChannelsReadTheSameInImperial(channel: ProfileChannel) {
@@ -112,14 +121,15 @@ struct DiveProfileMathTests {
     #expect(ProfileChannel.ndl.word(.metric) == "minutes")
     #expect(ProfileChannel.ppo2.word(.imperial) == "bar")
     #expect(ProfileChannel.cns.word(.metric) == "percent")
+    #expect(ProfileChannel.heartRate.word(.imperial) == "beats per minute")
   }
 
   /// `dive-profile.ts:267-278` — the plot, legend and readout order.
   @Test func channelOrder() {
     #expect(
       ProfileChannel.allCases.map(\.rawValue) == [
-        "depth", "ceiling", "temperature", "pressure", "ndl", "tts", "ppo2", "cns",
-        "surface_gradient_factor", "gradient_factor",
+        "depth", "ceiling", "temperature", "pressure", "heart_rate", "ndl", "tts", "ppo2",
+        "cns", "surface_gradient_factor", "gradient_factor",
       ])
   }
 
@@ -135,6 +145,7 @@ struct DiveProfileMathTests {
     #expect(ProfileChannel.ppo2.display(.metric).format(1.32) == "1.32 bar")
     #expect(ProfileChannel.cns.display(.metric).format(23.4) == "23.4%")
     #expect(ProfileChannel.gradientFactor.display(.metric).format(87) == "87%")
+    #expect(ProfileChannel.heartRate.display(.metric).format(83) == "83 bpm")
   }
 
   /// `:1119-1129`.

@@ -88,7 +88,10 @@ struct ModelFixtureTests {
     #expect(dive.recordings.map(\.ordinal) == [0, 1])
     #expect(dive.recordings[1].startedAt?.utcOffsetMinutes == nil)
     #expect(dive.recordings[1].decoModel?.conservatism == -1)
-    #expect(dive.recordings[1].profile?.channels.count == 10)
+    #expect(dive.recordings[1].profile?.channels.count == 11)
+    #expect(dive.recordings[1].profile?.maxHeartRate == 107)
+    #expect(dive.recordings[1].profile?.averageHeartRate == 77)
+    #expect(dive.recordings[0].profile?.maxHeartRate == nil)
     #expect(dive.mixtures.map(\.gasNumber) == [1, 2])
     #expect(dive.mixtures[0].gearItem?.brand == "Faber")
     #expect(dive.mixtures[1].helium == nil)
@@ -114,8 +117,9 @@ struct ModelFixtureTests {
   @Test func aProfileWithEveryChannel() throws {
     let profile = try KitFixture.roundTrip(RecordingProfileRead.self, "profile-all-channels")
     let series = [
-      profile.depth, profile.ceiling, profile.temperature, profile.ndl, profile.tts,
-      profile.ppo2, profile.cns, profile.gradientFactor, profile.surfaceGradientFactor,
+      profile.depth, profile.ceiling, profile.temperature, profile.heartRate, profile.ndl,
+      profile.tts, profile.ppo2, profile.cns, profile.gradientFactor,
+      profile.surfaceGradientFactor,
     ]
     #expect(series.allSatisfy { $0?.times.count == 4 })
     #expect(profile.pressures.map(\.gasNumber) == [1, 2])

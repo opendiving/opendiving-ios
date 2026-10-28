@@ -1,7 +1,7 @@
 /// `GET /dive/{uuid}/recording/{rid}/profile`: the samples. Times are milliseconds and values
 /// stay in their integer scales — centimetres for depth and ceiling, hundredths of a degree,
-/// seconds for NDL and TTS, hundredths of a bar of ppO₂, tenths of a percent of CNS, whole
-/// percent for the gradient factors.
+/// whole beats per minute for heart rate, seconds for NDL and TTS, hundredths of a bar of
+/// ppO₂, tenths of a percent of CNS, whole percent for the gradient factors.
 public struct RecordingProfileRead: Codable, Hashable, Sendable {
   /// Milliseconds.
   public let duration: Int
@@ -9,6 +9,7 @@ public struct RecordingProfileRead: Codable, Hashable, Sendable {
   public let ceiling: DiveProfileSeries?
   public let temperature: DiveProfileSeries?
   public let pressures: [DiveProfilePressureSeries]
+  public let heartRate: DiveProfileSeries?
   public let ndl: DiveProfileSeries?
   public let tts: DiveProfileSeries?
   public let ppo2: DiveProfileSeries?

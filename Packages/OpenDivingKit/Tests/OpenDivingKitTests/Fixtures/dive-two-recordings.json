@@ -198,6 +198,8 @@
         "max_temperature": 28.62,
         "min_pressure": 78.5,
         "max_pressure": 130.0,
+        "max_heart_rate": null,
+        "average_heart_rate": null,
         "updated_at": null
       },
       "updated_at": null
@@ -239,6 +241,7 @@
           "ceiling",
           "temperature",
           "pressure",
+          "heart_rate",
           "ndl",
           "tts",
           "ppo2",
@@ -253,6 +256,8 @@
         "max_temperature": 28.62,
         "min_pressure": 78.5,
         "max_pressure": 130.0,
+        "max_heart_rate": 107,
+        "average_heart_rate": 77,
         "updated_at": null
       },
       "updated_at": null

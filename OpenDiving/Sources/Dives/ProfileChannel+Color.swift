@@ -10,6 +10,7 @@ extension ProfileChannel {
     case .ceiling: hsl(0, 80, 55)
     case .temperature: hsl(16, 100, 65.7)
     case .pressure: hsl(220, 6, 52)
+    case .heartRate: hsl(345, 80, 55)
     case .ndl: hsl(150, 65, 38)
     case .tts: hsl(35, 95, 40)
     case .ppo2: hsl(205, 85, 45)

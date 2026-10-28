@@ -24,9 +24,9 @@ import Foundation
 /// - `average_depth`: metres, where deeper than the maximum.
 /// - `entry_altitude`: metres, the altitude of the dive's position.
 /// - `tanks`: `[{ gas_number, working_pressure, volume_type }]`, bar and `metric`/`imperial`.
-/// - `deco_stop_time`, `setpoint`, `heart_rate`, `bearing`, `remaining_bottom_time`: series on
-///   the profile's axis, in seconds, hundredths of a bar, beats a minute, degrees, and the unit
-///   the family reports remaining bottom time in.
+/// - `deco_stop_time`, `setpoint`, `bearing`, `remaining_bottom_time`: series on the profile's
+///   axis, in seconds, hundredths of a bar, degrees, and the unit the family reports remaining
+///   bottom time in.
 /// - `ppo2_sensors`: `[{ sensor, times, values }]`, each cell's reading in hundredths of a bar.
 /// - `stops`: `[{ time, kind, depth, duration }]`, the safety and deep stops a computer showed,
 ///   `kind` `safety_stop` or `deep_stop`, centimetres and seconds.
@@ -329,7 +329,8 @@ enum ComputerDiveDocument {
       }
       if let value = sample.cns, value >= 0 { cns.add(t, scaled(value, 1000)) }
       if let value = sample.setpoint { setpoint.add(t, centi(value)) }
-      if let value = sample.heartRate { heartRate.add(t, value) }
+      // The format's floor is 1: a 0 is a sensor's absent-marker, and a gap.
+      if let value = sample.heartRate, value >= 1 { heartRate.add(t, value) }
       if let value = sample.bearing { bearing.add(t, value) }
       if let value = sample.remainingBottomTime { remaining.add(t, value) }
       if let location = sample.location, case .object(var fix)? = position(location) {
@@ -356,8 +357,8 @@ enum ComputerDiveDocument {
 
     var out: [String: ArchiveJSON] = ["duration": .integer(duration)]
     for (key, series) in [
-      ("depth", depth), ("ceiling", ceiling), ("temperature", temperature), ("ndl", ndl),
-      ("tts", tts), ("ppo2", ppo2), ("cns", cns),
+      ("depth", depth), ("ceiling", ceiling), ("temperature", temperature),
+      ("heart_rate", heartRate), ("ndl", ndl), ("tts", tts), ("ppo2", ppo2), ("cns", cns),
     ] {
       if let json = series.json { out[key] = json }
     }
@@ -370,8 +371,8 @@ enum ComputerDiveDocument {
     if !events.isEmpty { out["events"] = .array(events) }
 
     for (key, series) in [
-      ("deco_stop_time", stopTime), ("setpoint", setpoint), ("heart_rate", heartRate),
-      ("bearing", bearing), ("remaining_bottom_time", remaining),
+      ("deco_stop_time", stopTime), ("setpoint", setpoint), ("bearing", bearing),
+      ("remaining_bottom_time", remaining),
     ] {
       if let json = series.json { extensions[key] = json }
     }
