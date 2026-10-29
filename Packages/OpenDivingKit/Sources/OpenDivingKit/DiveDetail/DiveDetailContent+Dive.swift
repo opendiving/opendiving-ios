@@ -113,7 +113,8 @@ extension DiveDetailContent {
   }
 
   /// What the computer recorded, from the summary rather than the series: the sample
-  /// count, the markers when there are any, and the deepest ceiling at one decimal.
+  /// count, the markers when there are any, the deepest ceiling at one decimal, and the
+  /// heart rate's peak and average — in the words the web's profile card uses.
   static func profileDescription(_ info: DiveProfileInfo, units: UnitSystem) -> String {
     var parts = [
       NumberText.grouped(info.depthSampleCount) + " depth samples recorded by the dive computer"
@@ -123,6 +124,13 @@ extension DiveDetailContent {
     }
     if let ceiling = info.maxCeiling {
       parts.append("a deco ceiling to " + UnitFormat.depth(ceiling, units, decimals: 1))
+    }
+    let heartRate = [
+      info.maxHeartRate.map { "peaking at \($0) bpm" },
+      info.averageHeartRate.map { "averaging \($0) bpm" },
+    ].compactMap { $0 }
+    if !heartRate.isEmpty {
+      parts.append("a heart rate " + heartRate.joined(separator: " and "))
     }
     return parts.joined(separator: ", ") + "."
   }

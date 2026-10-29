@@ -5,20 +5,25 @@ public enum ProfileAxis: String, Sendable, Hashable, CaseIterable {
   case depth
   case temperature
   case pressure
+  case heartRate = "heart_rate"
   case noDeco = "no_deco"
   case timeToSurface = "time_to_surface"
   case ppo2
   case percent
 
-  /// The rows of the deco panel under the depth plot, in the order they stack. The depth
-  /// plot has two edges and holds three scales at most; these four are given a row each
-  /// so every curve is drawn against numbers that belong to it.
-  public static let panels: [ProfileAxis] = [.noDeco, .timeToSurface, .ppo2, .percent]
+  /// The rows under the depth plot, in the order they stack. The depth plot has two edges
+  /// and holds three scales at most, and they are taken; every other axis is given a row, so
+  /// every curve is drawn against numbers that belong to it. Heart rate first: it is the
+  /// one measurement among them, and the rows below it are the computer's arithmetic.
+  public static let panels: [ProfileAxis] = [
+    .heartRate, .noDeco, .timeToSurface, .ppo2, .percent,
+  ]
 
   /// The value this axis will not scale past, however high a reading goes. Only percent
   /// has one: a Suunto Ocean's `gf99` reads 14 060 % on a deep decompression ascent — a
   /// fault — and fitted to it the row would draw the surface gradient factor beside it as
-  /// a flat line. 200 % is twice the M-value, past anything a diver can act on.
+  /// a flat line. 200 % is twice the M-value, past anything a diver can act on. A heart-rate
+  /// sensor reads in a band an axis fits well, and cannot be wrong by orders of magnitude.
   public var bound: Double? {
     self == .percent ? 200 : nil
   }
@@ -78,6 +83,7 @@ extension ProfileChannel {
     case .depth, .ceiling: .depth
     case .temperature: .temperature
     case .pressure: .pressure
+    case .heartRate: .heartRate
     case .ndl: .noDeco
     case .tts: .timeToSurface
     case .ppo2: .ppo2
@@ -87,7 +93,7 @@ extension ProfileChannel {
 }
 
 /// Where a selection's scales go: which channel labels the depth plot's left edge, which
-/// its right, which is numbered under the right one's, and which rows the deco panel grows.
+/// its right, which is numbered under the right one's, and which rows grow under it.
 /// The sides are fixed while there are two scales to tell apart — metres left, temperature
 /// right, pressure on whichever the others leave free — so an axis does not change edges
 /// with the channel mix from one dive to the next.

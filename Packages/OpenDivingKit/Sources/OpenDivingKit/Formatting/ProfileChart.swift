@@ -7,7 +7,8 @@ public struct ProfileChart: Hashable, Sendable {
   /// recording's own.
   public var duration: Int
   /// Every line with something to draw, in plot, legend and readout order: depth, the
-  /// ceiling, temperature, each cylinder's pressure, then the deco channels row by row.
+  /// ceiling, temperature, each cylinder's pressure, then the rows under the depth plot
+  /// one by one.
   public var lines: [ProfileChartLine]
   /// The markers inside `[0, duration]`, dropped rather than clamped past either end.
   public var events: [ProfileChartEvent]
@@ -71,14 +72,15 @@ public struct ProfileChart: Hashable, Sendable {
       lines.append(line("pressure-\(index)", cylinder, label: label, domain: pressureDomain))
     }
 
-    let deco: [ProfileChannel: DiveProfileSeries?] = [
-      .ndl: profile.ndl, .tts: profile.tts, .ppo2: profile.ppo2, .cns: profile.cns,
+    let rowed: [ProfileChannel: DiveProfileSeries?] = [
+      .heartRate: profile.heartRate, .ndl: profile.ndl, .tts: profile.tts, .ppo2: profile.ppo2,
+      .cns: profile.cns,
       .surfaceGradientFactor: profile.surfaceGradientFactor,
       .gradientFactor: profile.gradientFactor,
     ]
     for axis in ProfileAxis.panels {
       for channel in axis.channels {
-        if let built = series(channel, deco[channel] ?? nil) {
+        if let built = series(channel, rowed[channel] ?? nil) {
           lines.append(line(channel.rawValue, built))
         }
       }
@@ -129,7 +131,7 @@ public struct ProfileChart: Hashable, Sendable {
   }
 
   /// The chart with the channels in `hidden` switched off: where each scale goes, each
-  /// shown line's domain, and the deco panel's rows.
+  /// shown line's domain, and the rows under the depth plot.
   public func layout(hiding hidden: Set<ProfileChannel>) -> ProfileChartLayout {
     ProfileChartLayout(chart: self, visible: Set(availableChannels).subtracting(hidden))
   }
@@ -146,7 +148,7 @@ public struct ProfileChartLine: Hashable, Sendable, Identifiable {
   public var series: ChannelSeries
   public var runs: ProfileRuns
   /// The domain a depth-plot line is scaled against, fixed whatever else is shown; nil for
-  /// a deco-panel line, whose row is fitted to the channels shown on it.
+  /// a line on a row under it, whose row is fitted to the channels shown on it.
   var ownDomain: AxisDomain?
 
   public var channel: ProfileChannel { series.display.channel }

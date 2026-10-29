@@ -1,7 +1,7 @@
 import Foundation
 
-/// A recording's profile summarised: which curves a chart would draw, and their extremes in
-/// metres, °C and bar.
+/// A recording's profile summarised: which curves a chart would draw, their extremes in
+/// metres, °C and bar, and the heart rate's maximum and average in whole beats per minute.
 public struct DiveProfileInfo: Codable, Hashable, Sendable {
   public let uuid: UUID
   /// Milliseconds.
@@ -18,5 +18,9 @@ public struct DiveProfileInfo: Codable, Hashable, Sendable {
   public let maxTemperature: Double?
   public let minPressure: Double?
   public let maxPressure: Double?
+  public let maxHeartRate: Int?
+  /// Taken by the API over every reading the file carried, which the capped series the chart
+  /// draws cannot reproduce.
+  public let averageHeartRate: Int?
   public let updatedAt: DiveTimestamp?
 }

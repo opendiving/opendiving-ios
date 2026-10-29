@@ -177,6 +177,30 @@ struct ComputerArchiveWriterTests {
     #expect(ocean?["recordings"]?.arrayValue?.first?["salinity"]?.stringValue == "salt")
   }
 
+  /// Heart rate is a profile channel and rides nowhere else. A 0 is a sensor's absent-marker,
+  /// below the format's floor of 1, so it writes a gap rather than a reading.
+  @Test func heartRateRidesTheProfileAndAZeroWritesNothing() throws {
+    defer { try? FileManager.default.removeItem(at: folder) }
+    var dive = F.perdixDive
+    dive.samples[0].heartRate = 0
+    var download = F.perdixDownload
+    download[0] = DownloadedDive(
+      identity: F.perdix, fingerprint: F.fingerprint(3), bytes: Data("perdix dive 3".utf8),
+      reading: .dive(dive))
+    let written = try writer.write(
+      .init(
+        identity: F.perdix, dives: download, moment: F.moment, zone: F.helsinki,
+        instantZone: nil), into: folder)
+    let dives = try #require(try document(written.url).json["dives"]?.arrayValue)
+    let recording = try #require(dives[0]["recordings"]?.arrayValue?.first)
+    #expect(
+      recording["profile"]?["heart_rate"]
+        == .object(["times": .array([.integer(10_000)]), "values": .array([.integer(92)])]))
+    #expect(recording["extensions"]?["opendiving"]?["heart_rate"] == nil)
+    // The dive whose computer reported none writes the member nowhere.
+    #expect(!dives[1].text.contains("heart_rate"))
+  }
+
   // MARK: - The union
 
   @Test func theUnionHoldsEachDiveAndEachOriginalOnce() throws {

@@ -16,7 +16,8 @@ struct ProfileChartTests {
 
   private func profile(
     duration: Int = 60_000, diveEnd: Int? = nil, depth: Series? = nil, ceiling: Series? = nil,
-    temperature: Series? = nil, pressures: [(Int, Series)] = [], ndl: Series? = nil,
+    temperature: Series? = nil, pressures: [(Int, Series)] = [], heartRate: Series? = nil,
+    ndl: Series? = nil,
     tts: Series? = nil, ppo2: Series? = nil, cns: Series? = nil,
     gradientFactor: Series? = nil, surfaceGradientFactor: Series? = nil,
     events: [String] = []
@@ -30,7 +31,7 @@ struct ProfileChartTests {
     let fields = [
       "\"duration\":\(duration)",
       field("depth", depth), field("ceiling", ceiling), field("temperature", temperature),
-      "\"pressures\":[\(cylinders.joined(separator: ","))]",
+      "\"pressures\":[\(cylinders.joined(separator: ","))]", field("heart_rate", heartRate),
       field("ndl", ndl), field("tts", tts), field("ppo2", ppo2), field("cns", cns),
       field("gradient_factor", gradientFactor),
       field("surface_gradient_factor", surfaceGradientFactor),
@@ -94,6 +95,7 @@ struct ProfileChartTests {
           (1, Series(times: tenSeconds, values: [2000, 1900, 1800, 1700, 1600, 1500, 1400])),
           (2, Series(times: [20_000, 30_000, 40_000], values: [2000, 1950, 1900])),
         ],
+        heartRate: Series(times: tenSeconds, values: [72, 80, 88, 86, 84, 78, 74]),
         ndl: Series(times: tenSeconds, values: [5940, 3000, 600, 300, 600, 3000, 5940]),
         tts: Series(times: tenSeconds, values: [0, 60, 420, 300, 120, 60, 0]),
         cns: Series(times: tenSeconds, values: [80, 85, 90, 92, 93, 94, 95]),
@@ -103,15 +105,15 @@ struct ProfileChartTests {
 
     #expect(
       built.lines.map(\.id) == [
-        "depth", "ceiling", "temperature", "pressure-0", "pressure-1", "ndl", "tts", "cns",
-        "surface_gradient_factor", "gradient_factor",
+        "depth", "ceiling", "temperature", "pressure-0", "pressure-1", "heart_rate", "ndl",
+        "tts", "cns", "surface_gradient_factor", "gradient_factor",
       ])
     #expect(
       built.lines.map(\.label)[3...4] == ["Tank pressure (tank 1)", "Tank pressure (tank 2)"])
     #expect(
       built.availableChannels == [
-        .depth, .ceiling, .temperature, .pressure, .ndl, .tts, .cns, .surfaceGradientFactor,
-        .gradientFactor,
+        .depth, .ceiling, .temperature, .pressure, .heartRate, .ndl, .tts, .cns,
+        .surfaceGradientFactor, .gradientFactor,
       ])
   }
 
@@ -167,9 +169,11 @@ struct ProfileChartTests {
 
   // MARK: Placement — `dive-profile.ts:473-543`, `dive-profile.test.ts:1291-1420`
 
-  private static let everySelection: [Set<ProfileChannel>] = (0..<1024).map { mask in
-    Set(ProfileChannel.allCases.enumerated().filter { mask & (1 << $0.offset) != 0 }.map(\.element))
-  }
+  private static let everySelection: [Set<ProfileChannel>] =
+    (0..<(1 << ProfileChannel.allCases.count)).map { mask in
+      Set(
+        ProfileChannel.allCases.enumerated().filter { mask & (1 << $0.offset) != 0 }.map(\.element))
+    }
 
   @Test func everySelectionLabelsTheDepthPlotsEdges() {
     for shown in Self.everySelection {
@@ -214,8 +218,8 @@ struct ProfileChartTests {
     #expect(decoOnly.left == nil && decoOnly.right == nil && decoOnly.underRight == nil)
     #expect(decoOnly.panels == [.noDeco, .percent])
     #expect(
-      ProfileScalePlacement(shown: [.cns, .ppo2, .tts, .ndl]).panels
-        == [.noDeco, .timeToSurface, .ppo2, .percent])
+      ProfileScalePlacement(shown: [.cns, .ppo2, .tts, .ndl, .heartRate]).panels
+        == [.heartRate, .noDeco, .timeToSurface, .ppo2, .percent])
     #expect(ProfileScalePlacement(shown: [.depth, .ceiling]).panels.isEmpty)
   }
 
@@ -264,6 +268,47 @@ struct ProfileChartTests {
     #expect(paths.allSatisfy { $0.allSatisfy { (0...1).contains($0.offset) } })
     #expect(paths[0].last?.offset == 0)
     #expect(paths[1].first?.offset == 0)
+  }
+
+  /// One reading a second, 57 to 107 bpm, then a 40 s dropout, beside a CNS row.
+  private func heartRateProfile() throws -> RecordingProfileRead {
+    let seconds =
+      Array(stride(from: 0, through: 20_000, by: 1_000))
+      + Array(stride(from: 60_000, through: 80_000, by: 1_000))
+    return try profile(
+      duration: 80_000,
+      depth: Series(times: [0, 20_000, 40_000, 60_000, 80_000], values: [0, 1500, 3000, 1500, 0]),
+      heartRate: Series(times: seconds, values: seconds.map { 57 + $0 / 1_600 }),
+      cns: Series(times: [0, 40_000, 80_000], values: [0, 60, 95]))
+  }
+
+  /// `dive-profile.ts`'s `PANEL_AXES` and `AXIS_BOUND`: the heart-rate row is the first under
+  /// the depth plot, its scale the readings' nice span with nothing above them setting it.
+  @Test func heartRateTakesTheFirstRowFittedToItsReadings() throws {
+    let built = chart(try heartRateProfile())
+    let layout = built.layout(hiding: [])
+    #expect(layout.placement.panels == [.heartRate, .percent])
+    #expect(layout.plotted(.heartRate)?.panelIndex == 0)
+    #expect(layout.plotted(.heartRate)?.domain == AxisDomain(min: 50, max: 110, step: 10))
+    #expect(layout.panelRows.map(\.top) == ["110 bpm", "10%"])
+    #expect(layout.panelRows.map(\.bottom) == ["50", "0"])
+
+    // Toggled off, its row goes and the CNS row keeps its scale.
+    let without = built.layout(hiding: [.heartRate])
+    #expect(without.placement.panels == [.percent])
+    #expect(without.plotted(.cns)?.domain == layout.plotted(.cns)?.domain)
+  }
+
+  /// A hover 0.4 s from a reading at one-second cadence quotes it; one in the dropout quotes
+  /// a dash.
+  @Test func theHeartRateReadoutQuotesTheNearestBeatOrADash() throws {
+    let layout = chart(try heartRateProfile()).layout(hiding: [])
+    func heartRate(at time: Double) -> ProfileReadout? {
+      layout.readouts(at: time).first { $0.channel == .heartRate }
+    }
+    #expect(heartRate(at: 16_400)?.sample?.text == "67 bpm")
+    #expect(heartRate(at: 40_000)?.sample == nil)
+    #expect(heartRate(at: 40_000)?.panelIndex == 0)
   }
 
   /// A hidden gradient factor does not set the row a CNS is shown on —
@@ -456,5 +501,13 @@ struct ProfileChartTests {
     #expect(
       layout.summary(events: built.events)
         == "Dive profile over 10min, maximum depth 18.3 meters, markers: Dive started at 0min.")
+  }
+
+  @Test func theSummaryGivesTheHeartRatesRange() throws {
+    let layout = chart(try heartRateProfile()).layout(hiding: [.cns])
+    #expect(
+      layout.summary(events: [])
+        == "Dive profile over 1min, maximum depth 30.0 meters,"
+        + " heart rate 57 to 107 beats per minute.")
   }
 }

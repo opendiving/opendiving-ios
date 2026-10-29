@@ -141,6 +141,7 @@ struct AxisDomainTests {
     #expect(ProfileAxis.timeToSurface.unitSuffix(.metric) == " min")
     #expect(ProfileAxis.ppo2.unitSuffix(.metric) == " bar")
     #expect(ProfileAxis.percent.unitSuffix(.metric) == "%")
+    #expect(ProfileAxis.heartRate.unitSuffix(.imperial) == " bpm")
     #expect(ProfileAxis.depth.unitSuffix(.imperial) == " ft")
     #expect(ProfileAxis.percent.unitSuffix(.imperial) == "%")
   }
@@ -150,6 +151,7 @@ struct AxisDomainTests {
     #expect(ProfileAxis.timeToSurface.channels == [.tts])
     #expect(ProfileAxis.ppo2.channels == [.ppo2])
     #expect(ProfileAxis.pressure.channels == [.pressure])
+    #expect(ProfileAxis.heartRate.channels == [.heartRate])
     #expect(ProfileAxis.percent.channels == [.cns, .surfaceGradientFactor, .gradientFactor])
     #expect(ProfileAxis.depth.channels == [.depth, .ceiling])
   }
