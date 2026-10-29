@@ -8,7 +8,8 @@ public enum SignedOutEntry: Hashable, Sendable, CaseIterable, Identifiable {
   /// sync and its files waiting to be read — where a dive can still be logged. Offered only
   /// while the server has such an account.
   case waitingToSync
-  /// Back to the server screen. What the phone keeps for the current server stays on it.
+  /// The servers screen: the saved servers and a field for another. What the phone keeps for
+  /// the current server stays on it.
   case differentServer
   /// Everything kept for the server, removed — the one way to clear what the phone keeps for a
   /// server that can no longer be signed in to.

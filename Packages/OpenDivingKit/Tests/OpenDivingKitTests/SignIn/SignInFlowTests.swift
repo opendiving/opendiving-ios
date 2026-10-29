@@ -60,7 +60,8 @@ struct SignInFlowTests {
     let flow = SignInFlow(
       session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
     #expect(flow.step == .email)
-    #expect(flow.serverText == "https://dive.example.org")
+    // The server is on the saved list, so the field is left for another.
+    #expect(flow.serverText.isEmpty)
     #expect(flow.signedOutEntries == [.checkInSheet, .differentServer, .forgetServer])
   }
 
@@ -102,7 +103,8 @@ struct SignInFlowTests {
     #expect(session.state == .signingIn(origin))
     #expect(session.server?.health?.version == "0.6.0")
     #expect(flow.step == .email)
-    #expect(flow.serverText == "https://dive.example.org")
+    #expect(session.savedServers == [origin])
+    #expect(flow.serverText.isEmpty)
     #expect(flow.serverProblem == nil)
   }
 
@@ -191,7 +193,9 @@ struct SignInFlowTests {
     #expect(!session.hasState(gone))
     #expect(flow.forgettableOrigin == nil)
     #expect(flow.notice?.contains("Removed everything") == true)
-    #expect(transport.requests.isEmpty)
+    // The phone held a session there, so it tried to end it first.
+    #expect(transport.requests.allSatisfy { $0.route == "POST auth/refresh" })
+    #expect(flow.notice?.contains("Signing out on the server failed") == true)
   }
 
   @Test func anotherServerAndBack() {
@@ -247,6 +251,131 @@ struct SignInFlowTests {
     #expect(session.state == .signingIn(origin))
     #expect(flow.step == .email)
     #expect(flow.notice?.contains("could not remove everything") == true)
+  }
+
+  // MARK: - Saved servers
+
+  private static func instanceRoutes() throws -> [String: StubTransport.Response] {
+    [
+      "GET config": .json(try KitFixture.text("config")),
+      "GET health": .json(try KitFixture.text("health")),
+    ]
+  }
+
+  @Test func changingServerSignsNothingOutAndSwitchingBackNeedsNoServer() async throws {
+    let other = ServerOrigin("https://other.example.org")!
+    let transport = StubTransport(routes: try Self.instanceRoutes())
+    let session = session(
+      pointer: origin, secrets: [origin.description: "refresh-0"], transport: transport)
+    let flow = SignInFlow(session: session)
+    #expect(!flow.canCancelServerChange)
+    flow.setServerText(other.description)
+    await flow.continueToServer()
+    #expect(session.state == .signingIn(other))
+    #expect(flow.step == .email)
+    #expect(
+      flow.savedServers == [
+        SavedServer(origin: origin, isActive: false, status: "Signed in"),
+        SavedServer(origin: other, isActive: true, status: "Signed out"),
+      ])
+    flow.switchTo(origin)
+    #expect(session.state == .signedIn(origin))
+    #expect(transport.requests.map(\.route) == ["GET config", "GET health"])
+  }
+
+  @Test func aSavedServersRowNamesTheAccountSignedInThere() async throws {
+    var routes = try Self.instanceRoutes()
+    routes["GET user"] = .json(try KitFixture.text("user"))
+    routes["GET people"] = .json(try KitFixture.text("people-page"))
+    let signedIn = Session(
+      transport: StubTransport(routes: routes),
+      secrets: InMemorySecretStore([origin.description: "refresh"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent, accessToken: "access")
+    try await signedIn.loadAccount()
+    let flow = SignInFlow(session: signedIn)
+    #expect(flow.savedServers.map(\.status) == ["Signed in as diver@example.com"])
+    flow.setServerText("https://other.example.org")
+    await flow.continueToServer()
+    #expect(flow.savedServers.first?.status == "Signed in as diver@example.com")
+  }
+
+  @Test func continuingToTheActiveServerKeepsItsAccount() async throws {
+    var routes = try Self.instanceRoutes()
+    routes["GET user"] = .json(try KitFixture.text("user"))
+    routes["GET people"] = .json(try KitFixture.text("people-page"))
+    let session = Session(
+      transport: StubTransport(routes: routes),
+      secrets: InMemorySecretStore([origin.description: "refresh"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent, accessToken: "access")
+    try await session.loadAccount()
+    let flow = SignInFlow(session: session)
+    flow.setServerText(origin.description)
+    await flow.continueToServer()
+    #expect(session.state == .signedIn(origin))
+    #expect(session.accountLoaded)
+    #expect(session.user != nil)
+  }
+
+  @Test func forgettingAnotherServerSignsOutThereAndLeavesTheActiveOne() async throws {
+    let other = ServerOrigin("https://other.example.org")!
+    var routes = try Self.instanceRoutes()
+    routes["POST auth/refresh"] = .refreshed(access: "fresh", refresh: "refresh-1")
+    routes["POST auth/logout"] = .json(#"{"message":"Logged out successfully"}"#)
+    let transport = StubTransport(routes: routes)
+    let session = session(
+      pointer: origin, secrets: [other.description: "refresh-other"], transport: transport)
+    let flow = SignInFlow(session: session)
+    flow.setServerText(other.description)
+    await flow.continueToServer()
+    #expect(session.state == .signedIn(other))
+    flow.switchTo(origin)
+    #expect(session.state == .signingIn(origin))
+    await flow.forget(other)
+    let signOut = transport.requests.filter { $0.route.hasPrefix("POST auth/") }
+    #expect(signOut.map(\.route) == ["POST auth/refresh", "POST auth/logout"])
+    #expect(signOut.allSatisfy { $0.url?.host == "other.example.org" })
+    #expect(session.savedServers == [origin])
+    #expect(!session.hasState(other))
+    #expect(session.state == .signingIn(origin))
+    #expect(flow.notice?.contains("Removed everything") == true)
+  }
+
+  // MARK: - Waiting for a sign-out
+
+  @Test func aForgetGoesAheadWhenTheServerDoesNotAnswerInTime() async throws {
+    let transport = SilentTransport()
+    defer { transport.release() }
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session, signOutWait: .milliseconds(50))
+    #expect(await flow.forget(origin) == nil)
+    #expect(flow.signingOut == nil)
+    #expect(session.state == .noServer)
+    #expect(!session.hasState(origin))
+    #expect(flow.notice?.contains("did not answer in time") == true)
+  }
+
+  @Test func stoppingTheWaitForgetsAtOnce() async throws {
+    let transport = SilentTransport()
+    defer { transport.release() }
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session, signOutWait: .seconds(3600))
+    let forget = Task { await flow.forget(origin) }
+    while flow.signingOut == nil { await Task.yield() }
+    #expect(flow.signingOut == origin)
+    flow.stopWaiting()
+    #expect(await forget.value == nil)
+    #expect(flow.signingOut == nil)
+    #expect(session.state == .noServer)
+    #expect(!session.hasState(origin))
+    #expect(flow.notice?.contains("You stopped waiting") == true)
   }
 
   // MARK: - The email and the code

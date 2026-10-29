@@ -165,6 +165,44 @@ struct SessionTests {
     #expect(session.state == .signedIn(origin))
   }
 
+  @Test func everyServerChosenIsSavedUntilItIsForgotten() throws {
+    let other = ServerOrigin("https://other.example.org")!
+    let (session, _, _) = session(pointer: origin, refreshToken: nil)
+    #expect(session.savedServers == [origin])
+    session.select(other)
+    session.select(origin)
+    #expect(session.savedServers == [origin, other])
+    let (relaunched, _, _) = self.session(pointer: other, refreshToken: nil)
+    #expect(relaunched.savedServers == [origin, other])
+    try relaunched.forget(origin)
+    #expect(relaunched.savedServers == [other])
+    #expect(!relaunched.hasState(origin))
+  }
+
+  @Test func choosingAnotherServerKeepsTheSessionOnTheOneLeft() throws {
+    let other = ServerOrigin("https://other.example.org")!
+    let (session, secrets, _) = session(pointer: origin, refreshToken: "refresh-0")
+    session.select(other)
+    #expect(session.state == .signingIn(other))
+    #expect(session.isSignedIn(to: origin))
+    #expect(try secrets.secret(for: origin.description) == "refresh-0")
+    session.select(origin)
+    #expect(session.state == .signedIn(origin))
+  }
+
+  @Test func signingOutOfAnotherServerUsesItsOwnSession() async throws {
+    let other = ServerOrigin("https://other.example.org")!
+    let transport = StubTransport(routes: try Self.accountRoutes())
+    let (session, secrets, _) = session(
+      pointer: origin, refreshToken: "refresh-0", transport: transport)
+    session.select(other)
+    try await session.signOut(of: origin)
+    #expect(transport.requests.map(\.route) == ["POST auth/refresh", "POST auth/logout"])
+    #expect(transport.requests.allSatisfy { $0.url?.host == "dive.example.org" })
+    #expect(try secrets.secret(for: origin.description) == nil)
+    #expect(session.state == .signingIn(other))
+  }
+
   @Test func aServerWithNothingStoredHasNoState() {
     let (session, _, _) = session(pointer: nil, refreshToken: nil)
     #expect(!session.hasState(origin))

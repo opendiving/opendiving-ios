@@ -16,7 +16,12 @@ public enum KeptText {
   /// Under Settings' sign-out.
   public static let settingsFooter =
     "Signing out needs the server. " + afterSignOut
-    + " or change server, until you forget the server."
+    + ", until you forget the server. Changing server keeps you signed in here."
+
+  /// Under the saved servers.
+  public static let savedServersFooter =
+    "Changing server keeps you signed in to the one you leave, and everything this phone keeps"
+    + " for it. Swipe a server to forget it: that signs out of it and removes all of that."
 
   /// Under a *Forget* offered for a server that is not active.
   public static func held(_ origin: ServerOrigin) -> String {

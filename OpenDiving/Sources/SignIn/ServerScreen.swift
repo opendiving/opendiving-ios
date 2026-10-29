@@ -1,17 +1,44 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The server field, *Continue*, and *Forget this server* for any typed origin the phone holds
-/// something for — whether or not that server still answers.
+/// The saved servers to switch to or forget, the field and *Continue* for another, and
+/// *Forget this server* for any typed origin the phone holds something for — whether or not
+/// that server still answers. Signed out it is a step of the sign-in; signed in, Settings
+/// pushes it.
 struct ServerScreen: View {
   let flow: SignInFlow
   @State private var forgetting: ServerOrigin?
 
   var body: some View {
+    let servers = flow.savedServers
     Form {
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "info.circle")
+        }
+      }
+      if let origin = flow.signingOut {
+        Section {
+          SigningOutRow(origin: origin) { flow.stopWaiting() }
+        }
+      }
+      if !servers.isEmpty {
+        Section {
+          ForEach(servers) { server in
+            Button {
+              flow.switchTo(server.origin)
+            } label: {
+              SavedServerLabel(server: server)
+            }
+            .disabled(flow.signingOut != nil)
+            .swipeActions {
+              Button("Forget", role: .destructive) { forgetting = server.origin }
+            }
+          }
+        } header: {
+          Text("Saved servers")
+        } footer: {
+          Text(KeptText.savedServersFooter)
         }
       }
       Section {
@@ -28,7 +55,7 @@ struct ServerScreen: View {
         .disabled(flow.isValidating)
         .accessibilityLabel("Server address")
       } header: {
-        Text("Server")
+        Text(servers.isEmpty ? "Server" : "Another server")
       } footer: {
         Text(
           "The OpenDiving server your account is on. The project runs https://opendiving.app,"
@@ -53,15 +80,16 @@ struct ServerScreen: View {
         }
         .disabled(flow.isValidating)
       }
-      if let origin = flow.forgettableOrigin {
+      if let origin = flow.forgettableOrigin, !servers.contains(where: { $0.origin == origin }) {
         Section {
           Button("Forget this server", role: .destructive) { forgetting = origin }
+            .disabled(flow.signingOut != nil)
         } footer: {
           Text(ForgetServerConfirmation.heldMessage(origin))
         }
       }
     }
-    .navigationTitle("Choose a server")
+    .navigationTitle("Servers")
     .toolbar {
       if flow.canCancelServerChange {
         ToolbarItem(placement: .cancellationAction) {
@@ -76,6 +104,30 @@ struct ServerScreen: View {
 
   private func proceed() {
     Task { await flow.continueToServer() }
+  }
+}
+
+/// A saved server's address, whether the phone is signed in there, and a check on the active
+/// one.
+private struct SavedServerLabel: View {
+  let server: SavedServer
+
+  var body: some View {
+    HStack {
+      VStack(alignment: .leading) {
+        Text(server.origin.description)
+          .foregroundStyle(.primary)
+        Text(server.status)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
+      Spacer()
+      if server.isActive {
+        Image(systemName: "checkmark")
+          .foregroundStyle(.tint)
+          .accessibilityLabel("Current server")
+      }
+    }
   }
 }
 

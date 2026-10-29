@@ -28,8 +28,11 @@ struct RootView: View {
       // One branch for both, so the sign-in screens keep their place when a server is chosen.
       case .noServer, .signingIn:
         SignInView()
-      case .signedIn:
+      case .signedIn(let origin):
+        // Switching between two signed-in servers starts the shell over, rather than
+        // showing the last server's lists and screens under the new one.
         MainTabView()
+          .id(origin)
       }
     }
     .environment(session)

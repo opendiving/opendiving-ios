@@ -1,9 +1,10 @@
 import Foundation
 
 /// Everything the phone keeps about one server, as one thing: the refresh token in the
-/// ``SecretStore``, the remembered account, and a directory under Application Support that
-/// other features write into — the check-in sheet among them. ``forget(_:)`` is the only call
-/// that removes all three, so no feature needs a forget path of its own.
+/// ``SecretStore``, the remembered account, a directory under Application Support that other
+/// features write into — the check-in sheet among them — and its place on the saved list.
+/// ``forget(_:)`` is the only call that removes them all, so no feature needs a forget path of
+/// its own.
 ///
 /// Inside the server's directory each account the phone has loaded there has one of its own,
 /// ``directory(for:account:)``, for what belongs to that account rather than to the server —
@@ -104,21 +105,45 @@ public struct ServerStateStore: Sendable {
   }
 
   /// Removes the token, the remembered account and the directory — every account's directory
-  /// and the last-account pointer with it — and clears the active-origin pointer when it names
-  /// this server. Needs no server, so a server that is
+  /// and the last-account pointer with it — takes the server off the saved list, and clears
+  /// the active-origin pointer when it names this server. Needs no server, so a server that is
   /// gone can still be forgotten.
   public func forget(_ origin: ServerOrigin) throws {
     try endSession(for: origin)
     try removeIfPresent(directory(for: origin))
+    let saved = savedServers()
+    if saved.contains(origin) {
+      try write(saved.filter { $0 != origin }, to: savedServersFile)
+    }
     if activeOrigin.load() == origin {
       activeOrigin.save(nil)
     }
   }
 
-  /// Whether the phone holds anything for this server: a token, a remembered account or a
-  /// directory.
+  /// Every server the phone has been pointed at and not forgotten since, in the order each was
+  /// first chosen. A directory's name cannot be read back to its origin, so the list is kept
+  /// on its own.
+  public func savedServers() -> [ServerOrigin] {
+    guard let data = try? Data(contentsOf: savedServersFile) else { return [] }
+    return (try? APICoding.decoder().decode([ServerOrigin].self, from: data)) ?? []
+  }
+
+  /// Adds `origin` to the end of the saved list, unless it is on it.
+  func save(_ origin: ServerOrigin) throws {
+    let saved = savedServers()
+    guard !saved.contains(origin) else { return }
+    try write(saved + [origin], to: savedServersFile)
+  }
+
+  private var savedServersFile: URL {
+    root.appendingPathComponent("saved-servers.json", isDirectory: false)
+  }
+
+  /// Whether the phone holds anything for this server: a token, a remembered account, a
+  /// directory or a place on the saved list.
   public func hasState(_ origin: ServerOrigin) -> Bool {
     hasRefreshToken(origin) || exists(userFile(for: origin)) || exists(directory(for: origin))
+      || savedServers().contains(origin)
   }
 
   func hasRefreshToken(_ origin: ServerOrigin) -> Bool {

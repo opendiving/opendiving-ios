@@ -232,6 +232,21 @@ struct APIClientAuthTests {
     #expect(harness.transport.requests.first?.timeoutInterval == 20)
   }
 
+  @Test func aRotationDoesNotPutBackATokenRemovedWhileItWasOut() async throws {
+    let whileOut = Mutex<(@Sendable () -> Void)?>(nil)
+    let harness = ClientHarness { _ in
+      whileOut.withLock { $0 }?()
+      return Self.rotated
+    }
+    let secrets = harness.secrets
+    whileOut.withLock {
+      $0 = { try? secrets.removeSecret(for: ClientHarness.origin.description) }
+    }
+    try await harness.client.refreshSession()
+    #expect(harness.storedRefreshToken == nil)
+    #expect(!harness.log.all.contains("write refresh-1"))
+  }
+
   @Test func withNoRefreshTokenNothingIsSent() async throws {
     let harness = ClientHarness(refreshToken: nil) { _ in .json(Self.user) }
     await #expect(throws: APIError.signedOut) { try await harness.client.currentUser() }

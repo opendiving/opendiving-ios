@@ -527,6 +527,7 @@ public actor APIClient {
   }
 
   private func refreshOnce() async throws -> String? {
+    let presented = try readRefreshToken()
     let (data, response) = try await perform(
       Call(
         method: "POST", path: "auth/refresh", sendsRefreshCookie: true, mintsSession: true,
@@ -534,7 +535,11 @@ public actor APIClient {
       bearer: nil)
     guard response.statusCode != 401 else { return nil }
     let body = try decode(RefreshResponse.self, data, response)
-    if let token = RefreshCookie.value(inSetCookie: setCookie(response)) {
+    // A *Forget* that stopped waiting for this refresh removes the token while it is out; the
+    // rotation replaces only the token it presented, so it cannot put one back.
+    if let token = RefreshCookie.value(inSetCookie: setCookie(response)),
+      try readRefreshToken() == presented
+    {
       try store(token)
     }
     accessToken = body.accessToken
