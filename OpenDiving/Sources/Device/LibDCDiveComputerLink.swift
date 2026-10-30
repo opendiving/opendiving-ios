@@ -119,17 +119,4 @@ final class LibDCDiveComputerLink: DiveComputerLink {
   func cancelDownload() {
     cancel.set(true)
   }
-
-  func disconnect() {
-    let session = session
-    session.queue.async { session.close() }
-  }
-
-  /// Waits for the work already handed to the session, for a test.
-  func settled() async {
-    let queue = session.queue
-    await withCheckedContinuation { continuation in
-      queue.async { continuation.resume() }
-    }
-  }
 }

@@ -213,11 +213,10 @@ public final class DiveComputerModel {
     zoneAnswer = nil
   }
 
-  /// Leaves the screen: stops scanning and closes the connection.
+  /// Leaves the screen: stops scanning and the download in flight.
   public func close() {
     stopScanning()
     cancel()
-    link.disconnect()
   }
 
   /// Waits for the download in flight.
