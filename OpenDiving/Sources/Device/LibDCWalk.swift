@@ -56,7 +56,6 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       return .init(.failed(status: LibDCNames.status(DC_STATUS_NODEVICE)))
     }
     let userdata = Unmanaged.passUnretained(self).toOpaque()
-    clearFingerprint(handle)
 
     if family.advertisesSerial, let serial = computer.advertisedSerial {
       // The device info's 32-bit serial overflows this family's, so the advertised name is the
@@ -121,7 +120,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   // MARK: - The callbacks' work
 
   /// The device info arrived: the identity, and the record's fingerprint to set, as a buffer
-  /// the bridge frees.
+  /// the device record keeps until the session closes it.
   fileprivate func deviceInfo(serial hex: String, size: UnsafeMutablePointer<Int>?)
     -> UnsafeMutablePointer<UInt8>?
   {
@@ -133,11 +132,6 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       let buffer = malloc(fingerprint.count)?.assumingMemoryBound(to: UInt8.self)
     else { return nil }
     fingerprint.copyBytes(to: buffer, count: fingerprint.count)
-    // The bridge keeps the buffer on the device record; the one a previous walk handed it is
-    // released here, since it frees only the last.
-    free(device.pointee.fingerprint)
-    device.pointee.fingerprint = nil
-    device.pointee.fsize = 0
     size?.pointee = fingerprint.count
     fingerprintSet = true
     return buffer
@@ -200,15 +194,6 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       resources[path] = try? SuuntoNauticExplorer.fetch(device: device, path: path)
     }
     return resources
-  }
-
-  /// Clears what an earlier walk on the same device set, so a walk sets only what its own
-  /// lookup returns.
-  private func clearFingerprint(_ handle: OpaquePointer) {
-    dc_device_set_fingerprint(handle, nil, 0)
-    free(device.pointee.fingerprint)
-    device.pointee.fingerprint = nil
-    device.pointee.fsize = 0
   }
 
   /// libdivecomputer's progress, which the bridge caches on the device record rather than

@@ -1,6 +1,7 @@
 import Clibdivecomputer
 import CoreBluetooth
 import Foundation
+import LibDCBridge
 import OpenDivingKit
 import Testing
 
@@ -126,16 +127,17 @@ struct DiveComputerLinkTests {
     }
   }
 
-  @Test func aSessionLeavesNothingThePackageWrote() async throws {
+  @Test func aSessionLeavesNothingThePackageWrote() throws {
     let name = "DiveComputerLinkTests-\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: name))
     defer { defaults.removePersistentDomain(forName: name) }
     for key in LibDCDeviceSession.packageDefaultsKeys {
       defaults.set(Data([1]), forKey: key)
     }
-    let link = link(defaults)
-    link.disconnect()
-    await link.settled()
+    let session = LibDCDeviceSession(defaults: defaults)
+    let device = try #require(calloc(1, MemoryLayout<device_data_t>.size))
+      .assumingMemoryBound(to: device_data_t.self)
+    session.queue.sync { session.close(device) }
     for key in LibDCDeviceSession.packageDefaultsKeys {
       #expect(defaults.object(forKey: key) == nil)
     }
