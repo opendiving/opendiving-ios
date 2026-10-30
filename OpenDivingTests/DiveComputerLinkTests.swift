@@ -95,6 +95,14 @@ struct DiveComputerLinkTests {
     #expect(unset.kind == .failed(status: "DC_STATUS_PROTOCOL"))
   }
 
+  @Test func anOpenThatGetsNoAnswerIsUnreachable() {
+    #expect(LibDCDeviceSession.openFailure(DC_STATUS_IO) == .unreachable)
+    #expect(LibDCDeviceSession.openFailure(DC_STATUS_TIMEOUT) == .unreachable)
+    #expect(
+      LibDCDeviceSession.openFailure(DC_STATUS_UNSUPPORTED)
+        == .failed(status: "DC_STATUS_UNSUPPORTED"))
+  }
+
   @Test func aWalkOfOnlyEmptyRecordsFails() {
     let end = LibDCWalk.end(
       status: DC_STATUS_SUCCESS, cancelled: false, family: .suuntoNautic, delivered: 0,

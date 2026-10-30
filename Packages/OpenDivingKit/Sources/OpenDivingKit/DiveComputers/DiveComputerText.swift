@@ -91,6 +91,8 @@ public enum DiveComputerText {
   }
 
   public static let cancelled = "The download was cancelled."
+  public static let unreachable =
+    "The dive computer did not answer. Wake it and turn on its Bluetooth, then connect again."
 
   /// The archive could not be written on this phone.
   public static func notWritten(_ error: any Error) -> String {

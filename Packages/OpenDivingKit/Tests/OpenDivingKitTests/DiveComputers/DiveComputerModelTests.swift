@@ -192,6 +192,21 @@ struct DiveComputerModelTests {
         + " again. The download stopped: DC_STATUS_PROTOCOL.")
   }
 
+  @Test func aComputerThatDoesNotAnswerSaysToWakeIt() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [[.finished(.init(.unreachable))]]
+    let model = model(session, InboxModel(session: session), link)
+    model.connect(try await scanned(model))
+    await model.settled()
+    #expect(model.outcome?.kind == .failed)
+    #expect(
+      model.outcome?.sentence
+        == "The dive computer did not answer. Wake it and turn on its Bluetooth, then connect"
+        + " again.")
+  }
+
   @Test func instantsWithNoZoneAskAfterTheWalkOutsideTheBackgroundAssertion() async throws {
     let session = try await session(try ImportServer())
     let inbox = InboxModel(session: session)
