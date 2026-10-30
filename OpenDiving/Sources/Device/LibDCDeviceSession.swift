@@ -46,7 +46,7 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
         &opened, computer.name, computer.id.uuidString, family, computer.modelNumber ?? 0)
       guard status == DC_STATUS_SUCCESS, let opened else {
         clearPackageDefaults()
-        events.yield(.finished(.init(.failed(status: LibDCNames.status(status)))))
+        events.yield(.finished(.init(Self.openFailure(status))))
         return
       }
       device = opened
@@ -58,6 +58,15 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     let end = walk.run()
     events.yield(.finished(end))
     if case .failed = end.kind { close() }
+  }
+
+  /// A link or handshake that failed reads as a computer that did not answer; anything else keeps
+  /// libdivecomputer's status.
+  static func openFailure(_ status: dc_status_t) -> DiveComputerDownloadEnd.Kind {
+    switch status {
+    case DC_STATUS_IO, DC_STATUS_TIMEOUT, DC_STATUS_NODEVICE, DC_STATUS_PROTOCOL: .unreachable
+    default: .failed(status: LibDCNames.status(status))
+    }
   }
 
   /// Closes the device and its link, and removes what the package wrote about it.
