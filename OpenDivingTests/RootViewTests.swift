@@ -30,7 +30,7 @@ struct RootViewTests {
     defer { window.isHidden = true }
 
     #expect(Self.tabBarController(in: window.rootViewController) == nil)
-    #expect(await Self.title(in: window) == "Choose a server")
+    #expect(await Self.title(in: window) == "Servers")
   }
 
   @Test func signedOutOfAServerTheRootIsSigningInThere() async throws {

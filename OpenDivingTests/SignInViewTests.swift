@@ -45,7 +45,7 @@ struct SignInViewTests {
     let session = Session.signedOutStub(origin: nil, transport: StubTransport(routes: [:]))
     #expect(
       try await Self.title(of: SignInView(), session, SignInFlow(session: session))
-        == "Choose a server")
+        == "Servers")
   }
 
   @Test func theEmailScreen() async throws {

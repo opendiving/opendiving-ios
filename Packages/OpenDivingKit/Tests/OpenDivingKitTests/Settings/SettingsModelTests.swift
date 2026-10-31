@@ -81,24 +81,42 @@ struct SettingsModelTests {
     #expect(flow.step == .email)
   }
 
-  @Test func changingServerSignsOutThenShowsTheServerScreen() async throws {
-    let (model, flow, session, _) = try signedIn(["POST auth/logout": Self.loggedOut])
-    let directory = session.store.directory(for: origin)
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    await model.changeServer()
-    #expect(session.state == .signingIn(origin))
-    #expect(flow.step == .server)
-    #expect(FileManager.default.fileExists(atPath: directory.path))
+  /// A model signed in to a server that never answers, waiting `wait` for a sign-out.
+  private func signedInToASilentServer(wait: Duration) -> (
+    SettingsModel, SignInFlow, Session, SilentTransport
+  ) {
+    let transport = SilentTransport()
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: FileManager.default.temporaryDirectory
+        .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
+      userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session, signOutWait: wait)
+    return (SettingsModel(session: session, signIn: flow), flow, session, transport)
   }
 
-  @Test func changingServerStaysWhenTheSignOutFails() async throws {
-    let (model, flow, session, _) = try signedIn([
-      "POST auth/logout": .json(#"{"detail":"Something broke"}"#, status: 500)
-    ])
-    await model.changeServer()
+  @Test func aSignOutTheServerDoesNotAnswerGivesUpAndSaysSo() async throws {
+    let (model, flow, session, transport) = signedInToASilentServer(wait: .milliseconds(50))
+    defer { transport.release() }
+    await model.signOut()
+    #expect(model.error?.contains("did not answer, so you are still signed in") == true)
     #expect(session.state == .signedIn(origin))
-    #expect(model.error == "Something broke")
-    #expect(flow.step == .email)
+    #expect(flow.signingOut == nil)
+    #expect(!model.isWorking)
+  }
+
+  @Test func stoppingTheWaitForASignOutKeepsTheSessionQuietly() async throws {
+    let (model, flow, session, transport) = signedInToASilentServer(wait: .seconds(3600))
+    defer { transport.release() }
+    let signOut = Task { await model.signOut() }
+    while flow.signingOut == nil { await Task.yield() }
+    #expect(model.isWorking)
+    flow.stopWaiting()
+    await signOut.value
+    #expect(model.error == nil)
+    #expect(session.state == .signedIn(origin))
+    #expect(!model.isWorking)
   }
 
   @Test func aForgetThatFailsIsShownInSettings() async throws {
@@ -114,6 +132,25 @@ struct SettingsModelTests {
     #expect(model.error?.contains("could not remove everything") == true)
     #expect(session.state == .signedIn(origin))
     #expect(flow.notice == nil)
+  }
+
+  @Test func aForgetThatSignedOutAndThenFailedIsLeftForTheSignInScreen() async throws {
+    let session = Session(
+      transport: StubTransport(routes: [
+        "POST auth/refresh": .refreshed(access: "fresh", refresh: "refresh-1"),
+        "POST auth/logout": Self.loggedOut,
+      ]),
+      secrets: RefusingSecretStore(),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: FileManager.default.temporaryDirectory
+        .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
+      userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session)
+    let model = SettingsModel(session: session, signIn: flow)
+    await model.forget()
+    // Signed out, the window shows the sign-in screen, not Settings.
+    #expect(session.state == .signingIn(origin))
+    #expect(flow.notice?.contains("could not remove everything") == true)
   }
 
   @Test func forgettingAnOfflineServerRemovesItAnyway() async throws {

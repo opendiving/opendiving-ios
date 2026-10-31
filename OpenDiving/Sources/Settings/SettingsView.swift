@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Settings* tab: the server and the build it runs, the account as read-only rows, and
-/// signing out, changing server and forgetting the server.
+/// The *Settings* tab: the server and the build it runs, the account as read-only rows, the
+/// servers screen, signing out and forgetting the server.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
@@ -55,11 +55,18 @@ private struct SettingsList: View {
         Text("Units are changed on the web.")
       }
       Section {
+        NavigationLink("Change server") {
+          // A notice from an earlier visit is not this one's.
+          ServerScreen(flow: model.signIn)
+            .onAppear { model.signIn.dismissNotice() }
+        }
+        .disabled(model.isWorking)
         Button("Sign out") { Task { await model.signOut() } }
-        Button("Change server") { Task { await model.changeServer() } }
+          .disabled(model.isWorking)
         Button("Forget this server", role: .destructive) { forgetting = model.origin }
-        if model.isWorking {
-          ProgressView()
+          .disabled(model.isWorking)
+        if let origin = model.signIn.signingOut {
+          SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
         }
         if let error = model.error {
           Label(error, systemImage: "exclamationmark.triangle")
@@ -68,7 +75,6 @@ private struct SettingsList: View {
       } footer: {
         Text(KeptText.settingsFooter)
       }
-      .disabled(model.isWorking)
       Section("App") {
         NavigationLink {
           DiveComputersListView(model: computers)

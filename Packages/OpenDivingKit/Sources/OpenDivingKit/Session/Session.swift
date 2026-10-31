@@ -51,6 +51,9 @@ public final class Session {
   public private(set) var server: ServerInfo? = nil
   /// The active server's client; nil with no server.
   public private(set) var client: APIClient? = nil
+  /// Every server the phone has been pointed at and not forgotten since, the active one among
+  /// them, in the order each was first chosen.
+  public private(set) var savedServers: [ServerOrigin] = []
 
   /// The account's units; metric until the account is known.
   public var units: UnitSystem { user?.units ?? .metric }
@@ -104,9 +107,12 @@ public final class Session {
     store = ServerStateStore(root: applicationSupport, secrets: secrets, activeOrigin: activeOrigin)
     state = .noServer
     if let origin = activeOrigin.load() {
+      // The active server of an install from before the list was kept.
+      try? store.save(origin)
       client = makeClient(origin, accessToken: accessToken)
       enter(origin)
     }
+    savedServers = store.savedServers()
   }
 
   // MARK: - Servers
@@ -126,10 +132,12 @@ public final class Session {
     return info
   }
 
-  /// Points the app at `origin`. A session on the previous server is the caller's to sign
-  /// out of first; this changes nothing stored about it.
+  /// Points the app at `origin` and saves it, signed in there when the phone still holds a
+  /// session for it. The previous server keeps its session and everything else stored for it.
   public func select(_ origin: ServerOrigin, info: ServerInfo? = nil) {
     activeOrigin.save(origin)
+    try? store.save(origin)
+    savedServers = store.savedServers()
     client = makeClient(origin)
     server = info
     user = nil
@@ -142,10 +150,22 @@ public final class Session {
     store.hasState(origin)
   }
 
+  /// Whether the phone holds a session for `origin`, active or not.
+  public func isSignedIn(to origin: ServerOrigin) -> Bool {
+    store.hasRefreshToken(origin)
+  }
+
+  /// The account signed in to `origin`, as last read; nil when signed out there or before
+  /// one has loaded.
+  public func account(on origin: ServerOrigin) -> UserRead? {
+    state.origin == origin ? user : store.rememberedUser(for: origin)
+  }
+
   /// Removes everything kept for `origin` — the token, the remembered account, the
   /// per-server directory — and, when it is the active server, leaves no server active. Asks
   /// nothing of the server; a sign-out first is the caller's.
   public func forget(_ origin: ServerOrigin) throws {
+    defer { savedServers = store.savedServers() }
     try store.forget(origin)
     guard state.origin == origin else { return }
     client = nil
@@ -210,9 +230,19 @@ public final class Session {
   /// offline phone cannot sign out: a failure that never reached the server, or any error but
   /// a refused session, changes nothing. The per-server directory stays.
   public func signOut() async throws {
-    let client = try requireClient()
+    try await signOut(of: requireClient().origin)
+  }
+
+  /// ``signOut()`` for any server the phone holds a session for, the active one or another.
+  public func signOut(of origin: ServerOrigin) async throws {
+    let client: APIClient
+    if let active = self.client, active.origin == origin {
+      client = active
+    } else {
+      client = makeClient(origin)
+    }
     try await client.signOut()
-    endSession(on: client.origin)
+    endSession(on: origin)
   }
 
   // MARK: - Lookups

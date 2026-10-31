@@ -23,9 +23,14 @@ public final class SignInFlow {
   /// Seconds before *Resend* is offered again: the web's cooldown. The server's own limit is
   /// three requests per address per 15 minutes, and its 429 says so.
   public static let resendCooldown: TimeInterval = 30
+  /// How long a sign-out is waited for before *Sign out* gives up and *Forget* goes on without
+  /// it. A server that is gone would otherwise hold the screen through every retry of the
+  /// refresh that goes in front of the logout, a minute and more.
+  public static let signOutWait: Duration = .seconds(10)
 
   public let session: Session
   @ObservationIgnored private let now: () -> Date
+  @ObservationIgnored private let waitLimit: Duration
 
   private var chosenStep = Step.email
 
@@ -35,10 +40,19 @@ public final class SignInFlow {
   /// The typed origin, when the phone holds something for it that forgetting would remove —
   /// offered whether or not the server answers, since forgetting needs no server.
   public private(set) var forgettableOrigin: ServerOrigin?
-  /// What the last *Forget* did, shown on the signed-out screen it lands on — the server
-  /// screen when it worked, the signed-out screen it started from when it did not. A failure
-  /// that leaves the session signed in is Settings' to show, through ``forget(_:)``'s answer.
+  /// What the last *Forget* did, shown on the screen it lands on: the servers screen, or the
+  /// signed-out screen it started from when it did not work. Settings shows its own *Forget*'s
+  /// failure, through ``forget(_:)``'s answer, and dismisses this; the next sign-out, server
+  /// or switch clears it.
   public private(set) var notice: String?
+  /// The server a sign-out is waited for, until it answers, ``signOutWait`` runs out or the
+  /// user stops waiting.
+  public private(set) var signingOut: ServerOrigin?
+  /// The wait in progress, numbered so that a sign-out left behind by an earlier wait — still
+  /// awaiting a refresh that cancelling it does not stop — cannot end this one.
+  @ObservationIgnored private var signOutWaiter:
+    (number: Int, continuation: CheckedContinuation<SignOutResult, Never>)?
+  @ObservationIgnored private var signOutWaits = 0
 
   public private(set) var email = ""
   public private(set) var isRequestingCode = false
@@ -51,10 +65,15 @@ public final class SignInFlow {
   public private(set) var resendMessage: String?
   private var codeSentAt: Date?
 
-  public init(session: Session, now: @escaping () -> Date = { Date() }) {
+  /// `signOutWait` stands in for ``signOutWait`` in a test.
+  public init(
+    session: Session, now: @escaping () -> Date = { Date() },
+    signOutWait: Duration = SignInFlow.signOutWait
+  ) {
     self.session = session
     self.now = now
-    serverText = session.state.origin?.description ?? Self.defaultServer
+    waitLimit = signOutWait
+    serverText = Self.emptyServerText(session)
     refreshForgettable()
   }
 
@@ -75,7 +94,20 @@ public final class SignInFlow {
   /// The active server, while signing in to it.
   public var origin: ServerOrigin? { session.state.origin }
 
-  // MARK: - The server screen
+  // MARK: - The servers screen
+
+  /// The saved servers, the active one marked, each with whether the phone is signed in there.
+  public var savedServers: [SavedServer] {
+    session.savedServers.map { origin in
+      let status: String
+      if session.isSignedIn(to: origin) {
+        status = session.account(on: origin).map { "Signed in as \($0.email)" } ?? "Signed in"
+      } else {
+        status = "Signed out"
+      }
+      return SavedServer(origin: origin, isActive: origin == session.state.origin, status: status)
+    }
+  }
 
   public func setServerText(_ text: String) {
     serverText = text
@@ -83,11 +115,15 @@ public final class SignInFlow {
     refreshForgettable()
   }
 
-  /// Whether the server screen can go back to signing in to the server already active.
-  public var canCancelServerChange: Bool { session.state != .noServer }
+  /// Whether the servers screen can go back to signing in to the server already active. Signed
+  /// in, Settings goes back by navigation instead.
+  public var canCancelServerChange: Bool {
+    if case .signingIn = session.state { return true }
+    return false
+  }
 
   /// Asks the typed server whether it is an OpenDiving instance and, when it is, points the
-  /// app at it. The previous server's state stays where it is.
+  /// app at it and saves it. Every other server keeps its session and its state.
   public func continueToServer() async {
     guard !isValidating else { return }
     notice = nil
@@ -99,8 +135,11 @@ public final class SignInFlow {
     defer { isValidating = false }
     do {
       let info = try await session.validate(origin)
-      session.select(origin, info: info)
-      serverText = origin.description
+      // Choosing the active server again would drop its account for nothing.
+      if session.state.origin != origin {
+        session.select(origin, info: info)
+      }
+      serverText = ""
       serverProblem = nil
       restart(at: .email)
     } catch {
@@ -109,10 +148,21 @@ public final class SignInFlow {
     refreshForgettable()
   }
 
+  /// Points the app at a saved server without asking it anything — signed in there when the
+  /// phone still holds that session — so a server that is gone is left, or reached to be
+  /// forgotten, at once. The server left keeps its session.
+  public func switchTo(_ origin: ServerOrigin) {
+    guard origin != session.state.origin, signingOut == nil else { return }
+    notice = nil
+    serverProblem = nil
+    session.select(origin)
+    restart(at: .email)
+    refreshForgettable()
+  }
+
   public func useDifferentServer() {
     notice = nil
     serverProblem = nil
-    if let origin { setServerText(origin.description) }
     chosenStep = .server
   }
 
@@ -123,51 +173,110 @@ public final class SignInFlow {
     restart(at: .email)
   }
 
-  /// Signs out of `origin` when signed in to it, then removes everything kept for it whether
-  /// or not that worked — a server that is gone can never answer the sign-out, and its sheet
-  /// would otherwise stay on the phone for good. A failed sign-out is reported, not a reason
-  /// to stop. Answers why something kept for the server could not be removed, or nil when
-  /// everything was.
+  public func dismissNotice() {
+    notice = nil
+  }
+
+  /// Signs out of `origin` when the phone holds a session there, then removes everything kept
+  /// for it whether or not that worked — a server that is gone can never answer the sign-out,
+  /// and its sheet would otherwise stay on the phone for good. A sign-out that did not happen
+  /// is reported, not a reason to stop. Answers why something kept for the server could not be
+  /// removed, or nil when everything was.
   @discardableResult
   public func forget(_ origin: ServerOrigin) async -> String? {
-    var signOutFailure: String?
-    if session.state == .signedIn(origin) {
-      do {
-        try await session.signOut()
-      } catch {
-        let error = APIError(error)
-        // A refused session is one the server already ended.
-        if error != .signedOut { signOutFailure = error.message }
-      }
+    guard signingOut == nil else { return Self.stillSigningOut }
+    var signOut: SignOutResult?
+    if session.isSignedIn(to: origin) {
+      signOut = await self.signOut(of: origin)
     }
     do {
       try session.forget(origin)
     } catch {
       let failure =
         "This phone could not remove everything kept for \(origin): \(error.localizedDescription)"
-      // Still signed in, the user is in Settings, which shows the answer itself.
-      if case .signedIn = session.state {
-        notice = nil
-      } else {
-        notice = failure
-      }
+      notice = failure
       refreshForgettable()
       return failure
     }
-    var message = KeptText.forgotten(origin)
-    if let signOutFailure {
-      message +=
-        " Signing out on the server failed (\(signOutFailure)), so the session there stays"
-        + " open until it expires."
-    }
-    notice = message
+    notice = KeptText.forgotten(origin) + (signOut.map(Self.sessionLeftOpen) ?? "")
     if session.state == .noServer {
-      serverText = Self.defaultServer
+      serverText = Self.emptyServerText(session)
       serverProblem = nil
       restart(at: .email)
     }
     refreshForgettable()
     return nil
+  }
+
+  // MARK: - Signing out
+
+  /// Signs out of `origin` on its server, waiting no longer than ``signOutWait`` and only until
+  /// ``stopWaiting()``. A sign-out left behind is cancelled: one that had not yet reached the
+  /// server leaves the session open there, and on the phone unless it is forgotten.
+  public func signOut(of origin: ServerOrigin) async -> SignOutResult {
+    guard signingOut == nil else { return .failed(Self.stillSigningOut) }
+    notice = nil
+    signingOut = origin
+    defer { signingOut = nil }
+    let session = session
+    let limit = waitLimit
+    signOutWaits += 1
+    let number = signOutWaits
+    var waits: [Task<Void, Never>] = []
+    let result = await withCheckedContinuation { continuation in
+      signOutWaiter = (number, continuation)
+      waits.append(
+        Task { @MainActor in
+          let result: SignOutResult
+          do {
+            try await session.signOut(of: origin)
+            result = .signedOut
+          } catch {
+            let error = APIError(error)
+            // A refused session is one the server already ended.
+            result = error == .signedOut ? .signedOut : .failed(error.message)
+          }
+          self.finishSignOut(number, result)
+        })
+      waits.append(
+        Task { @MainActor in
+          guard (try? await Task.sleep(for: limit)) != nil else { return }
+          self.finishSignOut(number, .timedOut)
+        })
+    }
+    for wait in waits { wait.cancel() }
+    return result
+  }
+
+  /// Ends the wait for a sign-out now, as ``SignOutResult/stopped``.
+  public func stopWaiting() {
+    guard let waiter = signOutWaiter else { return }
+    finishSignOut(waiter.number, .stopped)
+  }
+
+  private func finishSignOut(_ number: Int, _ result: SignOutResult) {
+    guard let waiter = signOutWaiter, waiter.number == number else { return }
+    signOutWaiter = nil
+    waiter.continuation.resume(returning: result)
+  }
+
+  private static let stillSigningOut = "A sign-out is still being waited for."
+
+  /// What a *Forget* adds about the server's own session when it could not end it.
+  private static func sessionLeftOpen(_ signOut: SignOutResult) -> String {
+    switch signOut {
+    case .signedOut:
+      ""
+    case .failed(let reason):
+      " Signing out on the server failed (\(reason)), so the session there stays open until it"
+        + " expires."
+    case .timedOut:
+      " The server did not answer in time, so the session there may stay open until it"
+        + " expires."
+    case .stopped:
+      " You stopped waiting for the server to sign out, so the session there may stay open"
+        + " until it expires."
+    }
   }
 
   // MARK: - The email screen
@@ -286,6 +395,11 @@ public final class SignInFlow {
 
   private func refreshForgettable() {
     forgettableOrigin = ServerOrigin(serverText).flatMap { session.hasState($0) ? $0 : nil }
+  }
+
+  /// The flagship's address for a phone with no server saved; empty beside a list to pick from.
+  private static func emptyServerText(_ session: Session) -> String {
+    session.savedServers.isEmpty ? defaultServer : ""
   }
 
   private static func codeErrorMessage(_ error: APIError) -> String {
