@@ -15,7 +15,6 @@ final class FakeDiveComputerLink: DiveComputerLink {
   private(set) var downloads = 0
   private(set) var fingerprintsSet: [Data?] = []
   private(set) var cancelled = false
-  private(set) var disconnected = false
   private var held: CheckedContinuation<Void, Never>?
 
   func availability() -> AsyncStream<DiveComputerAvailability> {
@@ -68,8 +67,6 @@ final class FakeDiveComputerLink: DiveComputerLink {
   var isHeld: Bool { held != nil }
 
   func cancelDownload() { cancelled = true }
-
-  func disconnect() { disconnected = true }
 
   /// A whole download: the identity, the dives, the end.
   static func script(

@@ -86,7 +86,10 @@ final class LibDCDiveComputerLink: DiveComputerLink {
         continuation.yield(LibDCNames.found(name: name, id: peripheral.identifier))
       }
     }
-    manager.startScanning(omitUnsupportedPeripherals: true)
+    // Unfiltered: a computer already paired with the phone can advertise its name and no service,
+    // which a service-filtered scan never reports. The package still admits only a stored device
+    // or a name it recognises, which keeps the list to dive computers.
+    manager.startScanning(omitUnsupportedPeripherals: false)
     continuation.onTermination = { [weak self] _ in
       Task { @MainActor in self?.stopScan() }
     }
@@ -115,18 +118,5 @@ final class LibDCDiveComputerLink: DiveComputerLink {
 
   func cancelDownload() {
     cancel.set(true)
-  }
-
-  func disconnect() {
-    let session = session
-    session.queue.async { session.close() }
-  }
-
-  /// Waits for the work already handed to the session, for a test.
-  func settled() async {
-    let queue = session.queue
-    await withCheckedContinuation { continuation in
-      queue.async { continuation.resume() }
-    }
   }
 }

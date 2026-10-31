@@ -5,9 +5,9 @@ import Foundation
 import OpenDivingKit
 import Synchronization
 
-/// The open device and the walks over it, confined to one serial queue: libdivecomputer's calls
-/// block for as long as the computer takes to answer, and its callbacks run on the thread that
-/// called it.
+/// Each download's device, opened for one walk and closed after it, confined to one serial
+/// queue: libdivecomputer's calls block for as long as the computer takes to answer, and its
+/// callbacks run on the thread that called it.
 ///
 /// The device is opened through the bridge's C entry, not libdc-swift's `openBLEDevice`, which
 /// records every device it opens in `UserDefaults`; and the dives are walked with
@@ -20,14 +20,12 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
 
   let queue = DispatchQueue(label: "app.opendiving.dive-computer", qos: .userInitiated)
   private let defaults: UserDefaults
-  /// Only touched on ``queue``.
-  private var open: (computer: UUID, device: UnsafeMutablePointer<device_data_t>)?
 
   init(defaults: UserDefaults) {
     self.defaults = defaults
   }
 
-  /// Opens the computer, or keeps the device a previous walk left open, and walks it.
+  /// Opens the computer, walks it, and closes it.
   func download(
     _ computer: FoundComputer, cancel: CancelFlag,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
@@ -35,37 +33,38 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
   ) {
     dispatchPrecondition(condition: .onQueue(queue))
     defer { events.finish() }
-    if let open, open.computer != computer.id { close() }
-    let device: UnsafeMutablePointer<device_data_t>
-    if let open {
-      device = open.device
-    } else {
-      var opened: UnsafeMutablePointer<device_data_t>?
-      let family = computer.family.flatMap(LibDCNames.dcFamily) ?? DC_FAMILY_NULL
-      let status = open_ble_device_with_identification(
-        &opened, computer.name, computer.id.uuidString, family, computer.modelNumber ?? 0)
-      guard status == DC_STATUS_SUCCESS, let opened else {
-        clearPackageDefaults()
-        events.yield(.finished(.init(.failed(status: LibDCNames.status(status)))))
-        return
-      }
-      device = opened
-      open = (computer.id, opened)
+    var opened: UnsafeMutablePointer<device_data_t>?
+    let family = computer.family.flatMap(LibDCNames.dcFamily) ?? DC_FAMILY_NULL
+    let status = open_ble_device_with_identification(
+      &opened, computer.name, computer.id.uuidString, family, computer.modelNumber ?? 0)
+    guard status == DC_STATUS_SUCCESS, let device = opened else {
+      clearPackageDefaults()
+      events.yield(.finished(.init(Self.openFailure(status))))
+      return
     }
 
     let walk = LibDCWalk(
       computer: computer, device: device, cancel: cancel, lookup: lookup, events: events)
-    let end = walk.run()
-    events.yield(.finished(end))
-    if case .failed = end.kind { close() }
+    events.yield(.finished(walk.run()))
+    // Closed after every walk, not kept for the next: a Perdix 3 answers a second dive-index
+    // read in one session with an all-zero index, so a walk over a device left open finds no
+    // dives.
+    close(device)
+  }
+
+  /// A link or handshake that failed reads as a computer that did not answer; anything else keeps
+  /// libdivecomputer's status.
+  static func openFailure(_ status: dc_status_t) -> DiveComputerDownloadEnd.Kind {
+    switch status {
+    case DC_STATUS_IO, DC_STATUS_TIMEOUT, DC_STATUS_NODEVICE, DC_STATUS_PROTOCOL: .unreachable
+    default: .failed(status: LibDCNames.status(status))
+    }
   }
 
   /// Closes the device and its link, and removes what the package wrote about it.
-  func close() {
+  func close(_ device: UnsafeMutablePointer<device_data_t>) {
     dispatchPrecondition(condition: .onQueue(queue))
     defer { clearPackageDefaults() }
-    guard let device = open?.device else { return }
-    open = nil
     if let handle = device.pointee.device {
       dc_device_close(handle)
       // The close sends the computer a shutdown command whose write is still flushing; cutting

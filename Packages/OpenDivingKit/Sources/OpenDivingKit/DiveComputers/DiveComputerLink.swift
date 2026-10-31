@@ -12,8 +12,7 @@ public protocol DiveComputerLink: AnyObject {
   /// caller stops listening.
   func scan() -> AsyncStream<FoundComputer>
 
-  /// Connects to `computer`, or keeps the connection a previous download left open, and walks
-  /// its dives newest first.
+  /// Connects to `computer`, walks its dives newest first, and disconnects.
   ///
   /// The stream yields ``DiveComputerDownloadEvent/identified(_:)`` once the identity is known
   /// — once the device is open for a family that advertises its serial, whose name gave it
@@ -21,8 +20,7 @@ public protocol DiveComputerLink: AnyObject {
   /// folding the serial's case. It yields the identity again where the device info later adds
   /// the firmware.
   /// It sets the fingerprint of the record `lookup` returns on the open device before any dive
-  /// is read, and sets none — clearing one an earlier walk on the same device set — when
-  /// `lookup` returns nil. Then the watch's zone where the family logs instants and the watch
+  /// is read, and sets none when `lookup` returns nil. Then the watch's zone where the family logs instants and the watch
   /// reports one, progress where the family reports it, each dive as it is read, and last
   /// ``DiveComputerDownloadEvent/finished(_:)``.
   func download(
@@ -33,7 +31,4 @@ public protocol DiveComputerLink: AnyObject {
   /// Stops the walk between dives; the stream still finishes, with
   /// ``DiveComputerDownloadEnd/Kind/cancelled``.
   func cancelDownload()
-
-  /// Closes the connection a download left open.
-  func disconnect()
 }

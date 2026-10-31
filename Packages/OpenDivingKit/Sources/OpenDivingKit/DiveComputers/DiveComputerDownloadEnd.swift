@@ -4,6 +4,8 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
     /// The walk reached the stored fingerprint or the last dive.
     case complete
     case cancelled
+    /// The connection never opened: the computer is off, asleep or out of range.
+    case unreachable
     /// libdivecomputer's status, by name: `DC_STATUS_PROTOCOL`.
     case failed(status: String)
   }

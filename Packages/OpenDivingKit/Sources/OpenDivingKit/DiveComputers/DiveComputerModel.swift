@@ -213,11 +213,10 @@ public final class DiveComputerModel {
     zoneAnswer = nil
   }
 
-  /// Leaves the screen: stops scanning and closes the connection.
+  /// Leaves the screen: stops scanning and the download in flight.
   public func close() {
     stopScanning()
     cancel()
-    link.disconnect()
   }
 
   /// Waits for the download in flight.
@@ -421,15 +420,18 @@ public final class DiveComputerModel {
       }
     case .cancelled:
       outcome = Outcome(kind: .cancelled, sentence: DiveComputerText.cancelled)
+    case .unreachable:
+      outcome = Outcome(
+        kind: .failed, sentence: failureSentence(DiveComputerText.unreachable, family: family))
     case .failed(let status):
-      outcome = Outcome(kind: .failed, sentence: failureSentence(status, family: family))
+      outcome = Outcome(
+        kind: .failed, sentence: failureSentence(DiveComputerText.failed(status), family: family))
     }
     phase = .finished
   }
 
-  private func failureSentence(_ status: String, family: DiveComputerFamily?) -> String {
-    let stopped = DiveComputerText.failed(status)
-    return family == .suuntoNautic ? DiveComputerText.suuntoAppConnected + " " + stopped : stopped
+  private func failureSentence(_ stopped: String, family: DiveComputerFamily?) -> String {
+    family == .suuntoNautic ? DiveComputerText.suuntoAppConnected + " " + stopped : stopped
   }
 
   private func handedOverSentence(_ parsed: Int, _ refused: Int, _ end: DiveComputerDownloadEnd)
@@ -439,6 +441,7 @@ public final class DiveComputerModel {
     switch end.kind {
     case .complete: break
     case .cancelled: sentence = DiveComputerText.cancelled + " " + sentence
+    case .unreachable: sentence = DiveComputerText.unreachable + " " + sentence
     case .failed(let status): sentence = DiveComputerText.failed(status) + " " + sentence
     }
     return sentence
