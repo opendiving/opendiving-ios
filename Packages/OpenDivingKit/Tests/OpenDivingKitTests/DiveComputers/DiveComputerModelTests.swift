@@ -172,6 +172,57 @@ struct DiveComputerModelTests {
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint == nil)
   }
 
+  /// A watch's run is no dive, but the walk read it: the fingerprint moves past it as past a dive,
+  /// or every later download would read it again.
+  @Test func anEntrySkippedAsNoDiveAdvancesTheFingerprintPastIt() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    link.scripts = [
+      [.identified(F.ocean), .watchZone(F.helsinki), .skipped(fingerprint: F.fingerprint(0x13))]
+        + F.oceanDownload.map { .dive($0) } + [.finished(.init(.complete))],
+      [
+        .identified(F.ocean), .skipped(fingerprint: F.fingerprint(0x14)),
+        .finished(.init(.complete)),
+      ],
+      [.identified(F.ocean), .finished(.init(.complete))],
+    ]
+    let model = model(session, inbox, link)
+    try await download(model)
+    #expect(model.outcome?.sentence == "2 dives downloaded.")
+    #expect(inbox.files.first?.download?.dives == 2)
+    let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
+    #expect(ocean()?.fingerprint == F.fingerprint(0x13))
+
+    // A walk that met only skipped entries keeps no archive and still advances.
+    try await download(model)
+    #expect(model.outcome?.kind == .nothingNew)
+    #expect(model.outcome?.sentence == "No new dives since 25 October.")
+    #expect(inbox.files.count == 1)
+    #expect(ocean()?.fingerprint == F.fingerprint(0x14))
+    #expect(ocean()?.lastDownloaded == F.moment)
+
+    try await download(model)
+    #expect(link.fingerprintsSet == [nil, F.fingerprint(0x13), F.fingerprint(0x14)])
+  }
+
+  @Test func aSkipOnlyWalkThatMetAnEmptyReadLeavesTheFingerprint() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    link.scripts = [
+      [
+        .identified(F.ocean), .skipped(fingerprint: F.fingerprint(0x14)),
+        .finished(.init(.complete, emptyReads: 1)),
+      ]
+    ]
+    let model = model(session, InboxModel(session: session), link)
+    try await download(model)
+    #expect(model.outcome?.kind == .noDives)
+    #expect(computers(session).record(family: .suuntoNautic, serial: "253810000400") == nil)
+  }
+
   @Test func aNauticWalkThatFailsBeforeAnyDiveNamesTheSuuntoApp() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()

@@ -145,6 +145,10 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       identify(serial: computer.advertisedSerial ?? "")
     }
     guard let identity else { return false }
+    if family == .suuntoNautic, !NauticSport.isDive(bytes) {
+      events.yield(.skipped(fingerprint: fingerprint))
+      return true
+    }
     let fallback = family == .suuntoNautic ? LibDCDiveParser.fingerprintStart(fingerprint) : nil
     let reading: DownloadedDive.Reading
     switch LibDCDiveParser.parse(

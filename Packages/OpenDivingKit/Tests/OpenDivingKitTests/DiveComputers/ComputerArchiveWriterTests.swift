@@ -201,6 +201,33 @@ struct ComputerArchiveWriterTests {
     #expect(!dives[1].text.contains("heart_rate"))
   }
 
+  /// A sample before the start — a GPS fix the watch took before it — is written nowhere, and
+  /// the profile's duration is the last moment at or after it.
+  @Test func aSampleBeforeTheStartIsLeftOut() throws {
+    defer { try? FileManager.default.removeItem(at: folder) }
+    var dive = F.oceanDownload[0].dive!
+    var early = ComputerDive.Sample(time: -1834)
+    early.location = .init(latitude: 60.1, longitude: 24.9)
+    dive.samples = [
+      early, .init(time: -804, temperature: 11), .init(time: 0, depth: 0.3),
+      .init(time: 1000, depth: 1.2),
+    ]
+    var download = F.oceanDownload
+    download[0] = DownloadedDive(
+      identity: F.ocean, fingerprint: F.fingerprint(0x12), bytes: Data("ocean after".utf8),
+      reading: .dive(dive))
+    let written = try writer.write(
+      .init(
+        identity: F.ocean, dives: download, moment: F.moment, zone: F.helsinki,
+        instantZone: F.helsinki), into: folder)
+    let dives = try #require(try document(written.url).json["dives"]?.arrayValue)
+    let recording = try #require(dives[0]["recordings"]?.arrayValue?.first)
+    #expect(recording["profile"]?["duration"] == .integer(1000))
+    #expect(recording["profile"]?["temperature"] == nil)
+    #expect(!dives[0].text.contains("positions"))
+    #expect(!dives[0].text.contains("4294"))
+  }
+
   // MARK: - The union
 
   @Test func theUnionHoldsEachDiveAndEachOriginalOnce() throws {

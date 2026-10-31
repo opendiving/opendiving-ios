@@ -98,6 +98,16 @@ struct LibDCDiveParserTests {
     #expect(sample.gasMix == nil)
   }
 
+  /// The Nautic parser casts a time before the start to unsigned; it reads back negative, for
+  /// the writer to leave out, never as a time 49 days into the dive.
+  @Test func aTimeBeforeTheStartIsNegative() {
+    var accumulator = SampleAccumulator()
+    accumulator.add(DC_SAMPLE_TIME, value { $0.time = UInt32(bitPattern: -1834) })
+    accumulator.add(DC_SAMPLE_TIME, value { $0.time = 0 })
+    accumulator.add(DC_SAMPLE_TIME, value { $0.time = 1000 })
+    #expect(accumulator.finish().map(\.time) == [-1834, 0, 1000])
+  }
+
   @Test func aWallClockKeepsTheZoneTheParserReported() {
     var datetime = dc_datetime_t(
       year: 2026, month: 10, day: 25, hour: 9, minute: 14, second: 5, timezone: Int32.min)

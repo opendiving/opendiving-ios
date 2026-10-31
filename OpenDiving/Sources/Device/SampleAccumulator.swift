@@ -11,7 +11,9 @@ nonisolated struct SampleAccumulator {
   mutating func add(_ type: dc_sample_type_t, _ value: dc_sample_value_t) {
     if type == DC_SAMPLE_TIME {
       if let current { samples.append(current) }
-      current = ComputerDive.Sample(time: Int(value.time))
+      // A parser summing signed deltas, the Nautic's, reports a sample before the start as a
+      // negative count cast to unsigned. Read as signed, the Kit's writer leaves it out.
+      current = ComputerDive.Sample(time: Int(Int32(bitPattern: value.time)))
       return
     }
     // A value before the first time belongs to the dive's first moment.

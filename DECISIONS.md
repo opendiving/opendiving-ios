@@ -158,6 +158,16 @@ instant, so a download across a daylight-saving change is right dive by dive. Re
 which puts UTC on every dive's page; the phone's zone written silently, an offset the source
 never carried.
 
+## The Ocean's logbook holds every sport, and a download skips what is not a dive
+
+The Ocean is a sports watch, and the Nautic backend lists its whole logbook, so a run arrives as
+a depthless dive. The walk reads each entry's sport from its activity record and skips one whose
+id is not a diving sport's (51, 61, 62); the parser's own read rejects a one-digit sport's record
+as malformed, so it cannot carry the sport. A skipped entry moves the fingerprint as a dive does,
+or every later download reads it again. An entry naming no sport is kept: a dive skipped is never
+walked again, an activity kept can be deleted. Rejected: a denylist of known non-dives, which
+lets a sport Suunto adds later through as a dive.
+
 ## A download's dives carry derived uuids, and waiting downloads are one union
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint,
