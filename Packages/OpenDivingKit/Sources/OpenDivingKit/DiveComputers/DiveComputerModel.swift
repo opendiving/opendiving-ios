@@ -11,11 +11,14 @@ import Observation
 /// second archive of one import.
 ///
 /// **The fingerprint advances only on a completed download that met no empty read**, to the
-/// newest dive's, and only once the inbox has kept the archive holding those dives: never at
+/// newest entry's walked — a dive's, or that of an entry skipped as no dive, so a watch's run
+/// is not walked again — and only once the inbox has kept the archive holding the dives: never at
 /// the walk's end, never while the time-zone question is open, so an archive not kept, or an app
 /// killed at the question, leaves the record as it was and the next download walks those dives
 /// again — the import's gates make the re-delivered dives links. The record is written to the
-/// account the walk began from, and only when the inbox kept the archive for that same account.
+/// account the walk began from, and only when the inbox kept the archive for that same account;
+/// a walk that skipped entries and delivered no dive has no archive, and advances at its end
+/// while the inbox still keeps for that account.
 ///
 /// **One download is one archive and one inbox file.** Download archives of the same mark
 /// already waiting are replaced by the union, so the inbox never holds two that one import
@@ -270,6 +273,8 @@ public final class DiveComputerModel {
     }
     var watchZone: TimeZone?
     var dives: [DownloadedDive] = []
+    // The walk is newest first, so the first fingerprint is the one the record advances to.
+    var newest: Data?
     var end = DiveComputerDownloadEnd(.failed(status: "DC_STATUS_IO"))
     for await event in link.download(computer, lookup: lookup) {
       switch event {
@@ -281,17 +286,27 @@ public final class DiveComputerModel {
       case .progress(let current, let maximum):
         progress = maximum > 0 ? min(1, max(0, Double(current) / Double(maximum))) : nil
       case .dive(let dive):
+        newest = newest ?? dive.fingerprint
         dives.append(dive)
         identity = identity ?? dive.identity
         divesDownloaded = dives.count
         phase = .downloading
+      case .skipped(let fingerprint):
+        newest = newest ?? fingerprint
       case .finished(let finished):
         end = finished
       }
     }
     let family = identity?.family ?? computer.family
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
+    let advances = end.kind == .complete && end.emptyReads == 0
     guard let identity, !dives.isEmpty else {
+      if let identity, advances, let newest, inbox.keeping?.account == store.account {
+        var kept = remembered(record, identity: identity, computer: computer, watchZone: watchZone)
+        kept.fingerprint = newest
+        kept.downloadAllNextTime = false
+        try? store.save(kept)
+      }
       finish(emptyHanded: end, family: family, record: all ? nil : record)
       return
     }
@@ -336,20 +351,13 @@ public final class DiveComputerModel {
     let parsed = dives.count - refused
     switch intake {
     case .kept(let account, _) where account == store.account:
-      let advances = end.kind == .complete && end.emptyReads == 0
-      var kept = record ?? DiveComputerRecord(identity: identity)
-      kept.vendor = identity.vendor
-      kept.product = identity.product
-      kept.firmware = identity.firmware ?? kept.firmware
-      kept.peripheral = computer.id
-      if let watchZone { kept.watchZone = watchZone }
+      var kept = remembered(record, identity: identity, computer: computer, watchZone: watchZone)
       kept.diverZone = diverZone
-      if advances, let newest = dives.first {
-        kept.fingerprint = newest.fingerprint
+      if advances, let newest {
+        kept.fingerprint = newest
         kept.lastDownloaded = download.moment
         kept.downloadAllNextTime = false
       }
-      kept.receivedBeforeAccountKnown = inbox.keeping?.marked ?? false
       try? store.save(kept)
       outcome = Outcome(
         kind: .handedOver, sentence: handedOverSentence(parsed, refused, end))
@@ -360,6 +368,22 @@ public final class DiveComputerModel {
       outcome = Outcome(kind: .notKept, sentence: sentence)
     }
     await session.background.end(token)
+  }
+
+  /// The record as this walk leaves it, before the fingerprint moves: the identity as the
+  /// computer gave it, where the phone saw it, the watch's zone.
+  private func remembered(
+    _ record: DiveComputerRecord?, identity: DiveComputerIdentity, computer: FoundComputer,
+    watchZone: TimeZone?
+  ) -> DiveComputerRecord {
+    var kept = record ?? DiveComputerRecord(identity: identity)
+    kept.vendor = identity.vendor
+    kept.product = identity.product
+    kept.firmware = identity.firmware ?? kept.firmware
+    kept.peripheral = computer.id
+    if let watchZone { kept.watchZone = watchZone }
+    kept.receivedBeforeAccountKnown = inbox.keeping?.marked ?? false
+    return kept
   }
 
   /// Gives the archive to the inbox: as one arrival, or as the union with the download

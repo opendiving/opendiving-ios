@@ -20,9 +20,10 @@ public protocol DiveComputerLink: AnyObject {
   /// folding the serial's case. It yields the identity again where the device info later adds
   /// the firmware.
   /// It sets the fingerprint of the record `lookup` returns on the open device before any dive
-  /// is read, and sets none when `lookup` returns nil. Then the watch's zone where the family logs instants and the watch
-  /// reports one, progress where the family reports it, each dive as it is read, and last
-  /// ``DiveComputerDownloadEvent/finished(_:)``.
+  /// is read, and sets none when `lookup` returns nil. Then the watch's zone where the family
+  /// logs instants and the watch reports one, progress where the family reports it, each dive
+  /// as it is read — or ``DiveComputerDownloadEvent/skipped(fingerprint:)`` for an entry that
+  /// is no dive — and last ``DiveComputerDownloadEvent/finished(_:)``.
   func download(
     _ computer: FoundComputer,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?

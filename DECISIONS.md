@@ -142,11 +142,13 @@ The fingerprint of the newest dive downloaded says what one account's logbook ho
 account keeps `DiveComputers/<family>_<SERIAL>.json` in its own directory: sign-out leaves it,
 `forget` removes it. It is found by family and serial, never by Core Bluetooth's identifier,
 which iOS rotates for some computers. It advances only after a completed walk with no empty read,
-and only once the inbox has kept the archive for the account the walk began from; a cancel, a
-failure, an archive not kept or an app killed at the time-zone question leaves it, and the
-import's gates make the re-walked dives links. A record written before the load is removed, not
-moved, when the load names another account. Rejected: libdc-swift's `UserDefaults` stores, keyed
-by device alone; advancing at import, which needs the inbox to report back across a sign-out.
+and only once the inbox has kept the archive for the account the walk began from — or, for a
+walk that skipped entries as no dive and delivered none, at its end, there being no archive; a
+cancel, a failure, an archive not kept or an app killed at the time-zone question leaves it, and
+the import's gates make the re-walked dives links. A record written before the load is removed,
+not moved, when the load names another account. Rejected: libdc-swift's `UserDefaults` stores,
+keyed by device alone; advancing at import, which needs the inbox to report back across a
+sign-out.
 
 ## A computer that logs instants keeps two zones, and the diver's wins
 
@@ -157,6 +159,16 @@ after the walk and before the archive is written. The offset is the zone's at ea
 instant, so a download across a daylight-saving change is right dive by dive. Rejected: `Z`,
 which puts UTC on every dive's page; the phone's zone written silently, an offset the source
 never carried.
+
+## The Ocean's logbook holds every sport, and a download skips what is not a dive
+
+The Ocean is a sports watch, and the Nautic backend lists its whole logbook, so a run arrives as
+a depthless dive. The walk reads each entry's sport from its activity record and skips one whose
+id is not a diving sport's (51, 61, 62); the parser's own read rejects a one-digit sport's record
+as malformed, so it cannot carry the sport. A skipped entry moves the fingerprint as a dive does,
+or every later download reads it again. An entry naming no sport is kept: a dive skipped is never
+walked again, an activity kept can be deleted. Rejected: a denylist of known non-dives, which
+lets a sport Suunto adds later through as a dive.
 
 ## A download's dives carry derived uuids, and waiting downloads are one union
 
