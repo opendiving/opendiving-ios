@@ -48,7 +48,11 @@ public final class SignInFlow {
   /// The server a sign-out is waited for, until it answers, ``signOutWait`` runs out or the
   /// user stops waiting.
   public private(set) var signingOut: ServerOrigin?
-  @ObservationIgnored private var signOutWaiter: CheckedContinuation<SignOutResult, Never>?
+  /// The wait in progress, numbered so that a sign-out left behind by an earlier wait — still
+  /// awaiting a refresh that cancelling it does not stop — cannot end this one.
+  @ObservationIgnored private var signOutWaiter:
+    (number: Int, continuation: CheckedContinuation<SignOutResult, Never>)?
+  @ObservationIgnored private var signOutWaits = 0
 
   public private(set) var email = ""
   public private(set) var isRequestingCode = false
@@ -216,9 +220,11 @@ public final class SignInFlow {
     defer { signingOut = nil }
     let session = session
     let limit = waitLimit
+    signOutWaits += 1
+    let number = signOutWaits
     var waits: [Task<Void, Never>] = []
     let result = await withCheckedContinuation { continuation in
-      signOutWaiter = continuation
+      signOutWaiter = (number, continuation)
       waits.append(
         Task { @MainActor in
           let result: SignOutResult
@@ -230,12 +236,12 @@ public final class SignInFlow {
             // A refused session is one the server already ended.
             result = error == .signedOut ? .signedOut : .failed(error.message)
           }
-          self.finishSignOut(result)
+          self.finishSignOut(number, result)
         })
       waits.append(
         Task { @MainActor in
           guard (try? await Task.sleep(for: limit)) != nil else { return }
-          self.finishSignOut(.timedOut)
+          self.finishSignOut(number, .timedOut)
         })
     }
     for wait in waits { wait.cancel() }
@@ -244,12 +250,14 @@ public final class SignInFlow {
 
   /// Ends the wait for a sign-out now, as ``SignOutResult/stopped``.
   public func stopWaiting() {
-    finishSignOut(.stopped)
+    guard let waiter = signOutWaiter else { return }
+    finishSignOut(waiter.number, .stopped)
   }
 
-  private func finishSignOut(_ result: SignOutResult) {
-    signOutWaiter?.resume(returning: result)
+  private func finishSignOut(_ number: Int, _ result: SignOutResult) {
+    guard let waiter = signOutWaiter, waiter.number == number else { return }
     signOutWaiter = nil
+    waiter.continuation.resume(returning: result)
   }
 
   private static let stillSigningOut = "A sign-out is still being waited for."

@@ -134,6 +134,25 @@ struct SettingsModelTests {
     #expect(flow.notice == nil)
   }
 
+  @Test func aForgetThatSignedOutAndThenFailedIsLeftForTheSignInScreen() async throws {
+    let session = Session(
+      transport: StubTransport(routes: [
+        "POST auth/refresh": .refreshed(access: "fresh", refresh: "refresh-1"),
+        "POST auth/logout": Self.loggedOut,
+      ]),
+      secrets: RefusingSecretStore(),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: FileManager.default.temporaryDirectory
+        .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
+      userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session)
+    let model = SettingsModel(session: session, signIn: flow)
+    await model.forget()
+    // Signed out, the window shows the sign-in screen, not Settings.
+    #expect(session.state == .signingIn(origin))
+    #expect(flow.notice?.contains("could not remove everything") == true)
+  }
+
   @Test func forgettingAnOfflineServerRemovesItAnyway() async throws {
     let (model, flow, session, transport) = try signedIn([
       "POST auth/refresh": .json(#"{"detail":"Bad gateway"}"#, status: 502)

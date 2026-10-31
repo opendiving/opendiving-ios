@@ -63,7 +63,8 @@ public final class SettingsModel {
     guard let origin, !isWorking else { return }
     error = nil
     error = await signIn.forget(origin)
-    // Still here, Settings shows the failure itself.
-    if error != nil { signIn.dismissNotice() }
+    // Still signed in, Settings is still on screen and shows the failure itself; a sign-out
+    // that worked has left it for the sign-in screen, which shows the notice.
+    if error != nil, session.state == .signedIn(origin) { signIn.dismissNotice() }
   }
 }

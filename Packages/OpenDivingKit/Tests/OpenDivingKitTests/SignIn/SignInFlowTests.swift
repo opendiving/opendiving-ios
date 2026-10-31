@@ -1,5 +1,6 @@
 import Foundation
 import OpenDivingKit
+import Synchronization
 import Testing
 
 #if canImport(FoundationNetworking)
@@ -378,6 +379,28 @@ struct SignInFlowTests {
     #expect(flow.notice?.contains("You stopped waiting") == true)
   }
 
+  @Test func aSignOutLeftBehindDoesNotEndTheNextWait() async throws {
+    let transport = HeldRefreshTransport()
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session, signOutWait: .seconds(1))
+    #expect(await flow.signOut(of: origin) == .timedOut)
+    // The refresh that sign-out started is still out, and the Forget waits on the same one.
+    let forget = Task { await flow.forget(origin) }
+    while flow.signingOut == nil { await Task.yield() }
+    await transport.refresh.open()
+    // The sign-out left behind fails its logout, cancelled, while the Forget's is held.
+    await transport.logout.untilArrived()
+    while transport.refusedLogouts == 0 { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(100))
+    await transport.logout.open()
+    #expect(await forget.value == nil)
+    #expect(flow.notice?.contains("Removed everything") == true)
+    #expect(flow.notice?.contains("failed") == false)
+  }
+
   // MARK: - The email and the code
 
   @Test func anEmailLeadsToTheCode() async throws {
@@ -542,4 +565,43 @@ private final class UnremovableSecretStore: SecretStore {
   func secret(for account: String) throws -> String? { nil }
   func setSecret(_ value: String, for account: String) throws {}
   func removeSecret(for account: String) throws { throw Refused() }
+}
+
+/// Holds the refresh at ``refresh`` and then answers it with a rotated cookie; refuses a logout
+/// sent from a cancelled task, as `URLSession` does, and holds any other at ``logout``.
+private final class HeldRefreshTransport: HTTPTransport {
+  let refresh = Gate()
+  let logout = Gate()
+  private let refused = Mutex(0)
+
+  var refusedLogouts: Int { refused.withLock { $0 } }
+
+  func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    let response: StubTransport.Response
+    switch request.route {
+    case "POST auth/refresh":
+      await refresh.pass()
+      response = .refreshed(access: "fresh", refresh: "refresh-1")
+    case "POST auth/logout":
+      if Task.isCancelled {
+        refused.withLock { $0 += 1 }
+        throw URLError(.cancelled)
+      }
+      await logout.pass()
+      response = .json(#"{"message":"Logged out successfully"}"#)
+    default:
+      response = .json(#"{"detail":"Not Found"}"#, status: 404)
+    }
+    guard
+      let url = request.url,
+      let http = HTTPURLResponse(
+        url: url, statusCode: response.status, httpVersion: "HTTP/1.1",
+        headerFields: response.headers)
+    else { throw URLError(.badServerResponse) }
+    return (response.body, http)
+  }
+
+  func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
+    try await send(request)
+  }
 }
