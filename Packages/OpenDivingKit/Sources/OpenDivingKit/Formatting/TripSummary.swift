@@ -66,7 +66,15 @@ public enum TripSummary {
       guard let location = part.location, let latitude = location.latitude,
         let longitude = location.longitude
       else { return nil }
-      return MapPoint(name: location.name, latitude: latitude, longitude: longitude)
+      var bounds: LatLonBounds?
+      // All four or none: half a box is not an extent.
+      if let south = location.bboxSouth, let north = location.bboxNorth,
+        let west = location.bboxWest, let east = location.bboxEast
+      {
+        bounds = LatLonBounds(south: south, north: north, west: west, east: east)
+      }
+      return MapPoint(
+        name: location.name, latitude: latitude, longitude: longitude, bounds: bounds)
     }
   }
 

@@ -59,6 +59,16 @@ struct TripSummaryTests {
     #expect(hero.points == [MapPoint(name: "Dahab, Egypt", latitude: 28.5, longitude: 34.5)])
   }
 
+  @Test func aPlaceCarriesItsFootprintToTheMap() throws {
+    #expect(
+      TripSummary.points(try Self.trip()) == [
+        MapPoint(
+          name: "Dahab, Egypt", latitude: 28.4963633, longitude: 34.5145652,
+          bounds: LatLonBounds(
+            south: 28.3363633, north: 28.6563633, west: 34.3545652, east: 34.6745652))
+      ])
+  }
+
   @Test func noSpeciesShowsTheDepthAndAnUndatedPlacelessTripHasNoFacts() throws {
     let trip = try Self.trip([
       "parts": [["candidate_count": 0]], "dive_count": 0, "dive_site_count": 0, "max_depth": 10,

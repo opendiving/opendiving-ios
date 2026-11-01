@@ -267,6 +267,22 @@ public actor APIClient {
     return FetchedBytes(data: data, contentType: response.value(forHTTPHeaderField: "Content-Type"))
   }
 
+  // MARK: - Map tiles
+
+  /// `GET /map-tiles/{theme}/{z}/{x}/{y}`: a 1024-pixel WebP of one square of the instance's
+  /// map, drawn on first request, so the answer can wait for a draw. `language` is a BCP 47
+  /// tag the labels carry a second line in where the basemap names a place in it.
+  public func mapTile(_ address: MapTileAddress, language: String?, etag: String?) async throws
+    -> ConditionalFetch<FetchedBytes>
+  {
+    try await conditionalBytes(
+      Call(
+        path: "map-tiles/\(address.theme.rawValue)/\(address.z)/\(address.x)/\(address.y)",
+        query: language.map { [URLQueryItem(name: "language", value: $0)] } ?? [], etag: etag,
+        // Past the API's own 90 s default for a draw, queueing at the renderer included.
+        timeout: 120))
+  }
+
   // MARK: - Certifications
 
   /// `GET /certifications`, newest `certified_on` first and dateless last.
