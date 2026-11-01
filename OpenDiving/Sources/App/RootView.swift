@@ -1,15 +1,16 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What the window shows — the server and sign-in screens, or the signed-in shell — and where
-/// the one session, the sign-in flow Settings reaches back into, the inbox and the outbox are
-/// injected.
+/// What the window shows — the server and sign-in screens, or the signed-in shell, under the
+/// launch splash until the first of them has loaded — and where the one session, the sign-in
+/// flow Settings reaches back into, the inbox and the outbox are injected.
 struct RootView: View {
   @State private var session: Session
   @State private var signIn: SignInFlow
   @State private var account: AccountLoader
   @State private var inbox: InboxModel
   @State private var outbox: OutboxModel
+  @State private var splash = LaunchSplash()
 
   init(session: Session = .device()) {
     let account = AccountLoader(session: session)
@@ -35,11 +36,19 @@ struct RootView: View {
           .id(origin)
       }
     }
+    .overlay {
+      if splash.isShowing {
+        LaunchSplashView()
+          .transition(.opacity)
+      }
+    }
+    .animation(.easeOut(duration: 0.3), value: splash.isShowing)
     .environment(session)
     .environment(signIn)
     .inboxHost(inbox, session: session)
     .outboxHost(outbox, session: session)
     .task { await account.launch() }
+    .task { await splash.run(session.requests) }
     .onChange(of: session.state) { old, new in
       Task { await account.sessionChanged(from: old, to: new) }
     }
