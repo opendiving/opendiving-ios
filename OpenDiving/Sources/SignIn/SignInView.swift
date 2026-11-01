@@ -15,6 +15,9 @@ struct SignInView: View {
     NavigationStack {
       screen
     }
+    // A server chosen or forgotten on a pushed servers screen starts the stack over at the new
+    // server's first screen, rather than leaving the list on top of it.
+    .id(flow.origin)
     // A sheet, never a push: the Cards view owns its own navigation stack.
     .sheet(isPresented: $showsSheet) {
       CardsView()

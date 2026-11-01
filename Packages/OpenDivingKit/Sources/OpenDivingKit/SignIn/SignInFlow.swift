@@ -2,8 +2,9 @@ import Foundation
 import Observation
 
 /// The signed-out screens: choosing a server, an email, the code, and what redeeming it led to.
-/// The root holds one for the app's life, so that Settings can send the user back to the
-/// server screen and a *Forget* can report what it did on the screen that follows it.
+/// The root holds one for the app's life, so that the servers screen Settings and the sign-in
+/// push reads the same state, and a *Forget* can report what it did on the screen that follows
+/// it.
 @MainActor
 @Observable
 public final class SignInFlow {
@@ -17,8 +18,6 @@ public final class SignInFlow {
     case deletionPending(email: String?, purgeAfter: String?)
   }
 
-  /// What the server field holds when no server is active.
-  public static let defaultServer = "https://opendiving.app"
   public static let codeLength = 6
   /// Seconds before *Resend* is offered again: the web's cooldown. The server's own limit is
   /// three requests per address per 15 minutes, and its 429 says so.
@@ -73,7 +72,7 @@ public final class SignInFlow {
     self.session = session
     self.now = now
     waitLimit = signOutWait
-    serverText = Self.emptyServerText(session)
+    serverText = ""
     refreshForgettable()
   }
 
@@ -84,11 +83,18 @@ public final class SignInFlow {
 
   /// Exactly what the sign-in screen offers besides signing in: everything while a server is
   /// active — the pending screen only once an account has loaded there, since it is that
-  /// account's — and nothing on the server screen with none.
+  /// account's, and *Forget* for every server but the flagship — and nothing on the server
+  /// screen with none.
   public var signedOutEntries: [SignedOutEntry] {
     guard case .signingIn(let origin) = session.state else { return [] }
     let hasAccount = session.store.lastAccount(for: origin) != nil
-    return SignedOutEntry.allCases.filter { $0 != .waitingToSync || hasAccount }
+    return SignedOutEntry.allCases.filter { entry in
+      switch entry {
+      case .checkInSheet: true
+      case .waitingToSync: hasAccount
+      case .forgetServer: !origin.isFlagship
+      }
+    }
   }
 
   /// The active server, while signing in to it.
@@ -96,16 +102,33 @@ public final class SignInFlow {
 
   // MARK: - The servers screen
 
-  /// The saved servers, the active one marked, each with whether the phone is signed in there.
+  /// The saved servers and the flagship, saved or not, each with whether the phone is signed in
+  /// there: the active one first, then the rest by when each was last used, most recent first.
+  /// A server no build has marked used goes last, in the order it was saved.
   public var savedServers: [SavedServer] {
-    session.savedServers.map { origin in
+    let active = session.state.origin
+    var origins = session.savedServers
+    if !origins.contains(.flagship) { origins.append(.flagship) }
+    let ranked = origins.enumerated().map { index, origin in
+      (index: index, origin: origin, used: session.store.lastUsed(origin))
+    }
+    let ordered = ranked.sorted { a, b in
+      if (a.origin == active) != (b.origin == active) { return a.origin == active }
+      switch (a.used, b.used) {
+      case (let x?, let y?) where x != y: return x > y
+      case (.some, nil): return true
+      case (nil, .some): return false
+      default: return a.index < b.index
+      }
+    }
+    return ordered.map(\.origin).map { origin in
       let status: String
       if session.isSignedIn(to: origin) {
         status = session.account(on: origin).map { "Signed in as \($0.email)" } ?? "Signed in"
       } else {
         status = "Signed out"
       }
-      return SavedServer(origin: origin, isActive: origin == session.state.origin, status: status)
+      return SavedServer(origin: origin, isActive: origin == active, status: status)
     }
   }
 
@@ -115,21 +138,16 @@ public final class SignInFlow {
     refreshForgettable()
   }
 
-  /// Whether the servers screen can go back to signing in to the server already active. Signed
-  /// in, Settings goes back by navigation instead.
-  public var canCancelServerChange: Bool {
-    if case .signingIn = session.state { return true }
-    return false
-  }
-
   /// Asks the typed server whether it is an OpenDiving instance and, when it is, points the
-  /// app at it and saves it. Every other server keeps its session and its state.
-  public func continueToServer() async {
-    guard !isValidating else { return }
+  /// app at it and saves it. Every other server keeps its session and its state. Answers
+  /// whether it is now the active server, which leaves the screen that asked with nothing to do.
+  @discardableResult
+  public func continueToServer() async -> Bool {
+    guard !isValidating else { return false }
     notice = nil
     guard let origin = ServerOrigin(serverText) else {
       serverProblem = .unreadableAddress
-      return
+      return false
     }
     isValidating = true
     defer { isValidating = false }
@@ -142,10 +160,13 @@ public final class SignInFlow {
       serverText = ""
       serverProblem = nil
       restart(at: .email)
+      refreshForgettable()
+      return true
     } catch {
       serverProblem = ServerProblem(APIError(error), origin: origin)
+      refreshForgettable()
+      return false
     }
-    refreshForgettable()
   }
 
   /// Points the app at a saved server without asking it anything — signed in there when the
@@ -160,19 +181,6 @@ public final class SignInFlow {
     refreshForgettable()
   }
 
-  public func useDifferentServer() {
-    notice = nil
-    serverProblem = nil
-    chosenStep = .server
-  }
-
-  public func cancelServerChange() {
-    guard canCancelServerChange else { return }
-    notice = nil
-    serverProblem = nil
-    restart(at: .email)
-  }
-
   public func dismissNotice() {
     notice = nil
   }
@@ -184,6 +192,9 @@ public final class SignInFlow {
   /// removed, or nil when everything was.
   @discardableResult
   public func forget(_ origin: ServerOrigin) async -> String? {
+    // Deliberate, and the owner's call: the flagship offers no Forget, though the list would
+    // show it again anyway. What the phone keeps for it outlives a sign-out.
+    guard !origin.isFlagship else { return Self.flagshipStays }
     guard signingOut == nil else { return Self.stillSigningOut }
     var signOut: SignOutResult?
     if session.isSignedIn(to: origin) {
@@ -198,9 +209,10 @@ public final class SignInFlow {
       refreshForgettable()
       return failure
     }
-    notice = KeptText.forgotten(origin) + (signOut.map(Self.sessionLeftOpen) ?? "")
+    // A Forget that worked says nothing; only a session it could not end is worth a line.
+    notice = signOut.flatMap(Self.sessionLeftOpen)
     if session.state == .noServer {
-      serverText = Self.emptyServerText(session)
+      serverText = ""
       serverProblem = nil
       restart(at: .email)
     }
@@ -261,21 +273,21 @@ public final class SignInFlow {
   }
 
   private static let stillSigningOut = "A sign-out is still being waited for."
+  private static let flagshipStays = "\(ServerOrigin.flagship) stays on this phone's list."
 
   /// What a *Forget* adds about the server's own session when it could not end it.
-  private static func sessionLeftOpen(_ signOut: SignOutResult) -> String {
+  private static func sessionLeftOpen(_ signOut: SignOutResult) -> String? {
     switch signOut {
     case .signedOut:
-      ""
+      nil
     case .failed(let reason):
-      " Signing out on the server failed (\(reason)), so the session there stays open until it"
+      "Signing out on the server failed (\(reason)), so the session there stays open until it"
         + " expires."
     case .timedOut:
-      " The server did not answer in time, so the session there may stay open until it"
-        + " expires."
+      "The server did not answer in time, so the session there may stay open until it expires."
     case .stopped:
-      " You stopped waiting for the server to sign out, so the session there may stay open"
-        + " until it expires."
+      "You stopped waiting for the server to sign out, so the session there may stay open until"
+        + " it expires."
     }
   }
 
@@ -394,12 +406,9 @@ public final class SignInFlow {
   }
 
   private func refreshForgettable() {
-    forgettableOrigin = ServerOrigin(serverText).flatMap { session.hasState($0) ? $0 : nil }
-  }
-
-  /// The flagship's address for a phone with no server saved; empty beside a list to pick from.
-  private static func emptyServerText(_ session: Session) -> String {
-    session.savedServers.isEmpty ? defaultServer : ""
+    forgettableOrigin = ServerOrigin(serverText).flatMap {
+      !$0.isFlagship && session.hasState($0) ? $0 : nil
+    }
   }
 
   private static func codeErrorMessage(_ error: APIError) -> String {

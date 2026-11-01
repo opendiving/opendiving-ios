@@ -49,6 +49,12 @@ public final class Session {
   public private(set) var people: [UUID: PersonRead] = [:]
   /// The active server as it last answered ``validate(_:)``.
   public private(set) var server: ServerInfo? = nil
+  /// When ``server`` was answered.
+  @ObservationIgnored private var serverAnsweredAt: Date?
+  /// The servers ``validate(_:)`` is asking, for a card that shows it is updating.
+  public private(set) var validating: Set<ServerOrigin> = []
+  /// Why ``validate(_:)`` last failed for a server, until it next answers.
+  public private(set) var validationFailures: [ServerOrigin: String] = [:]
   /// The active server's client; nil with no server.
   public private(set) var client: APIClient? = nil
   /// Every server the phone has been pointed at and not forgotten since, the active one among
@@ -62,6 +68,7 @@ public final class Session {
   @ObservationIgnored private let secrets: any SecretStore
   @ObservationIgnored private let activeOrigin: any ActiveOriginStore
   @ObservationIgnored private let userAgent: UserAgent
+  @ObservationIgnored private let now: () -> Date
   @ObservationIgnored public let store: ServerStateStore
   /// Keeps the app running while work that must not be cut off finishes: a token rotating, a
   /// queue flushing.
@@ -95,6 +102,7 @@ public final class Session {
       applicationSupport: applicationSupport, userAgent: userAgent)
   }
 
+  /// `now` stands in for the clock that marks a server used, in a test.
   public init(
     transport: any HTTPTransport,
     secrets: any SecretStore,
@@ -103,7 +111,8 @@ public final class Session {
     connectivity: any Connectivity = AlwaysReachable(),
     applicationSupport: URL,
     userAgent: UserAgent,
-    accessToken: String? = nil
+    accessToken: String? = nil,
+    now: @escaping () -> Date = { Date() }
   ) {
     self.transport = transport
     self.secrets = secrets
@@ -111,6 +120,7 @@ public final class Session {
     self.background = background
     self.connectivity = connectivity
     self.userAgent = userAgent
+    self.now = now
     store = ServerStateStore(root: applicationSupport, secrets: secrets, activeOrigin: activeOrigin)
     state = .noServer
     if let origin = activeOrigin.load() {
@@ -118,6 +128,7 @@ public final class Session {
       try? store.save(origin)
       client = makeClient(origin, accessToken: accessToken)
       enter(origin)
+      try? store.markUsed(origin, at: now())
     }
     savedServers = store.savedServers()
   }
@@ -134,22 +145,76 @@ public final class Session {
     } else {
       checker = makeClient(origin)
     }
-    let info = try await checker.instance()
-    if state.origin == origin { server = info }
+    validating.insert(origin)
+    validationFailures[origin] = nil
+    defer { validating.remove(origin) }
+    let info: ServerInfo
+    do {
+      info = try await checker.instance()
+    } catch {
+      validationFailures[origin] = ServerProblem(APIError(error), origin: origin).message
+      throw error
+    }
+    if state.origin == origin {
+      server = info
+      serverAnsweredAt = now()
+    }
+    // Only a saved server's build is kept: a typed one may never be chosen.
+    if let health = info.health, store.savedServers().contains(origin) {
+      try? store.rememberHealth(health, for: origin)
+    }
     return info
   }
 
   /// Points the app at `origin` and saves it, signed in there when the phone still holds a
-  /// session for it. The previous server keeps its session and everything else stored for it.
+  /// session for it, and marks both it and the server it leaves as used now. The previous
+  /// server keeps its session and everything else stored for it.
   public func select(_ origin: ServerOrigin, info: ServerInfo? = nil) {
+    let used = now()
+    if let left = state.origin, left != origin {
+      try? store.markUsed(left, at: used)
+    }
     activeOrigin.save(origin)
     try? store.save(origin)
+    try? store.markUsed(origin, at: used)
+    if let health = info?.health { try? store.rememberHealth(health, for: origin) }
     savedServers = store.savedServers()
     client = makeClient(origin)
     server = info
+    serverAnsweredAt = info.map { _ in now() }
     user = nil
     people = [:]
     enter(origin)
+  }
+
+  /// The active server's card: the build it runs, as it last answered ``validate(_:)`` in this
+  /// launch or any before, and whether it is being asked again.
+  public var serverCard: ServerCardContent? {
+    state.origin.map { card(for: $0) }
+  }
+
+  /// `origin`'s card, from what this session or the phone last heard from it.
+  public func card(for origin: ServerOrigin, answered: ServerInfo? = nil) -> ServerCardContent {
+    let live = answered ?? (state.origin == origin ? server : nil)
+    return ServerCardContent(
+      origin: origin, health: live?.health ?? store.health(origin),
+      isUpdating: validating.contains(origin), updateFailure: validationFailures[origin])
+  }
+
+  /// How long the active server's answer stands before ``loadServerInfo()`` asks again: long
+  /// enough that the screen a *Continue* lands on does not repeat what it just asked.
+  public static let serverInfoFreshness: TimeInterval = 60
+
+  /// Asks the active server again what it runs, unless it answered within
+  /// ``serverInfoFreshness``; a failure leaves the build it last reported.
+  public func loadServerInfo() async {
+    guard let origin = state.origin, !validating.contains(origin) else { return }
+    if server != nil, let answeredAt = serverAnsweredAt,
+      now().timeIntervalSince(answeredAt) < Self.serverInfoFreshness
+    {
+      return
+    }
+    _ = try? await validate(origin)
   }
 
   /// Whether the phone holds anything for `origin` that ``forget(_:)`` would remove.

@@ -1,16 +1,15 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The saved servers to switch to or forget, the field and *Continue* for another, and
-/// *Forget this server* for any typed origin the phone holds something for — whether or not
-/// that server still answers. Signed out it is a step of the sign-in; signed in, Settings
-/// pushes it.
+/// The saved servers, the active one first, to switch to, forget or open; *+* adds another.
+/// With no server it is the first screen; otherwise Settings or the sign-in pushes it.
 struct ServerScreen: View {
   let flow: SignInFlow
   @State private var forgetting: ServerOrigin?
+  @State private var showing: ServerOrigin?
+  @State private var adding = false
 
   var body: some View {
-    let servers = flow.savedServers
     Form {
       if let notice = flow.notice {
         Section {
@@ -22,88 +21,57 @@ struct ServerScreen: View {
           SigningOutRow(origin: origin) { flow.stopWaiting() }
         }
       }
-      if !servers.isEmpty {
-        Section {
-          ForEach(servers) { server in
+      Section {
+        ForEach(flow.savedServers) { server in
+          HStack {
             Button {
               flow.switchTo(server.origin)
             } label: {
               SavedServerLabel(server: server)
             }
+            // Two buttons in one row: a style other than the default gives each its own taps
+            // rather than the row's, and plain keeps the address out of the tint.
+            .buttonStyle(.plain)
             .disabled(flow.signingOut != nil)
-            .swipeActions {
+            Button {
+              showing = server.origin
+            } label: {
+              Image(systemName: "info.circle")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("About \(server.origin.description)")
+          }
+          .swipeActions {
+            if server.canForget {
               Button("Forget", role: .destructive) { forgetting = server.origin }
             }
           }
-        } header: {
-          Text("Saved servers")
-        } footer: {
-          Text(KeptText.savedServersFooter)
         }
-      }
-      Section {
-        TextField(
-          "https://opendiving.app",
-          text: Binding(get: { flow.serverText }, set: { flow.setServerText($0) })
-        )
-        .keyboardType(.URL)
-        .textContentType(.URL)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .submitLabel(.continue)
-        .onSubmit(proceed)
-        .disabled(flow.isValidating)
-        .accessibilityLabel("Server address")
-      } header: {
-        Text(servers.isEmpty ? "Server" : "Another server")
       } footer: {
-        Text(
-          "The OpenDiving server your account is on. The project runs https://opendiving.app,"
-            + " and a server you run yourself works the same way.")
-      }
-      if let problem = flow.serverProblem {
-        Section {
-          Label(problem.message, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
-        }
-      }
-      Section {
-        Button(action: proceed) {
-          if flow.isValidating {
-            HStack {
-              ProgressView()
-              Text("Connecting…")
-            }
-          } else {
-            Text("Continue")
-          }
-        }
-        .disabled(flow.isValidating)
-      }
-      if let origin = flow.forgettableOrigin, !servers.contains(where: { $0.origin == origin }) {
-        Section {
-          Button("Forget this server", role: .destructive) { forgetting = origin }
-            .disabled(flow.signingOut != nil)
-        } footer: {
-          Text(ForgetServerConfirmation.heldMessage(origin))
-        }
+        Text(KeptText.savedServersFooter)
       }
     }
     .navigationTitle("Servers")
     .toolbar {
-      if flow.canCancelServerChange {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { flow.cancelServerChange() }
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          adding = true
+        } label: {
+          Image(systemName: "plus")
         }
+        .accessibilityLabel("Add server")
+        .disabled(flow.signingOut != nil)
       }
+    }
+    .navigationDestination(item: $showing) { origin in
+      SavedServerScreen(flow: flow, origin: origin)
+    }
+    .navigationDestination(isPresented: $adding) {
+      AddServerScreen(flow: flow)
     }
     .forgetServerConfirmation(origin: $forgetting) { origin in
       Task { await flow.forget(origin) }
     }
-  }
-
-  private func proceed() {
-    Task { await flow.continueToServer() }
   }
 }
 
@@ -128,6 +96,7 @@ private struct SavedServerLabel: View {
           .accessibilityLabel("Current server")
       }
     }
+    .contentShape(.rect)
   }
 }
 

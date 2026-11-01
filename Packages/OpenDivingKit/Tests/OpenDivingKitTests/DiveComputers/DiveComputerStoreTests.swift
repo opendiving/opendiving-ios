@@ -152,8 +152,7 @@ struct DiveComputerStoreTests {
   @Test func everySentenceThatListsWhatThePhoneKeepsNamesTheComputers() throws {
     let origin = ImportServer.origin
     for sentence in [
-      KeptText.signedOutFooter, KeptText.settingsFooter, KeptText.held(origin),
-      KeptText.forgetMessage(OutboxSummary()), KeptText.forgotten(origin),
+      KeptText.signedOutFooter(origin), KeptText.signedOutFooter(.flagship), KeptText.held(origin),
     ] {
       #expect(sentence.contains("dive computers"))
     }

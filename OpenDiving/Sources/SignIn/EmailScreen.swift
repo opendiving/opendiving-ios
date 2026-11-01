@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Signing in to the active server: the email field, and what is reachable signed out — the
-/// cached check-in sheet, what is waiting to sync for the account last signed in here,
-/// another server, and forgetting this one.
+/// Signing in to the active server: the email field, the server card with another server, and
+/// what is reachable signed out — the cached check-in sheet, what is waiting to sync for the
+/// account last signed in here, and forgetting this server.
 struct EmailScreen: View {
   let flow: SignInFlow
   let origin: ServerOrigin
@@ -17,13 +17,6 @@ struct EmailScreen: View {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
             .foregroundStyle(.red)
-        }
-      }
-      Section {
-        LabeledContent("Server", value: origin.description)
-        if !origin.isEncrypted {
-          Label("The connection to this server is not encrypted.", systemImage: "lock.open")
-            .foregroundStyle(.orange)
         }
       }
       Section {
@@ -61,6 +54,16 @@ struct EmailScreen: View {
         }
         .disabled(!flow.canSendCode)
       }
+      ServerCard(content: flow.session.card(for: origin)) {
+        NavigationLink("Change server") {
+          // A notice from an earlier visit is not this one's, though one set while here, by a
+          // page pushed over the list, is. One the list showed is not the sign-in's, unless the
+          // server it is about has changed under it.
+          ServerScreen(flow: flow)
+            .onFirstAppear { flow.dismissNotice() }
+            .onDisappear { if flow.origin == origin { flow.dismissNotice() } }
+        }
+      }
       Section {
         ForEach(flow.signedOutEntries) { entry in
           switch entry {
@@ -72,25 +75,16 @@ struct EmailScreen: View {
             Button(action: showPending) {
               Label("Your dives waiting to sync", systemImage: "arrow.triangle.2.circlepath")
             }
-          case .differentServer:
-            Button {
-              flow.useDifferentServer()
-            } label: {
-              Label("Use a different server", systemImage: "server.rack")
-            }
           case .forgetServer:
-            Button(role: .destructive) {
-              forgetting = origin
-            } label: {
-              Label("Forget this server", systemImage: "trash")
-            }
+            Button("Forget this server", role: .destructive) { forgetting = origin }
           }
         }
       } footer: {
-        Text(KeptText.signedOutFooter)
+        Text(KeptText.signedOutFooter(origin))
       }
     }
     .navigationTitle("Sign in")
+    .task { await flow.session.loadServerInfo() }
     .forgetServerConfirmation(origin: $forgetting) { origin in
       Task { await flow.forget(origin) }
     }
