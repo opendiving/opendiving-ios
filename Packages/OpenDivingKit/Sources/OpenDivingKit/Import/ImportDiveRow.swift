@@ -16,6 +16,8 @@ public struct ImportDiveRow: Hashable, Sendable, Identifiable {
   public let recordedBy: String
   public let files: [String]
   public let outcome: String
+  /// Why a skipped dive was skipped.
+  public let reason: String?
   /// The dive to open, where the row links one: every written dive in a result, and in a
   /// review only the dives the diver already has.
   public let opens: UUID?
@@ -40,6 +42,7 @@ public struct ImportDiveRow: Hashable, Sendable, Identifiable {
         } ?? "—",
         files: dive.members.compactMap { members.indices.contains($0) ? members[$0].name : nil },
         outcome: ImportText.diveOutcome(dive),
+        reason: dive.reason,
         opens: linkable ? dive.uuid : nil,
         notes: dive.notes.map {
           Note(

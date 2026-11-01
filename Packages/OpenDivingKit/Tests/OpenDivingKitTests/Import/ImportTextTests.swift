@@ -42,6 +42,21 @@ struct ImportTextTests {
         == ("Refused: This file is not one OpenDiving reads.", true))
   }
 
+  @Test func aSkippedRowSaysWhyOnceBeneathItsOutcome() throws {
+    let data = Data(
+      #"""
+      {"uuid":null,"outcome":"skipped","files_added":0,"recordings_added":0,
+       "reason":"A dive needs a start time, and this one has none.","start_time":null,
+       "submerged_time":null,"max_depth":12.5,"device":null,"members":[0],"notes":[],
+       "notes_truncated":0}
+      """#.utf8)
+    let dive = try APICoding.decoder().decode(ImportDiveReport.self, from: data)
+    let row = try #require(
+      ImportDiveRow.rows([dive], members: [], units: .metric, written: false).first)
+    #expect(row.outcome == "Skipped")
+    #expect(row.reason == "A dive needs a start time, and this one has none.")
+  }
+
   @Test func theButtonNeverClaimsTheNegative() throws {
     let preview = try KitFixture.decode(ImportPreview.self, "import-preview")
     #expect(ImportText.buttonLabel(preview.dives) == "Import 1 dive")
