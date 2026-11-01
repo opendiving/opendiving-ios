@@ -78,8 +78,8 @@ struct AddServerScreen: View {
 
   private func proceed() {
     Task {
-      // Signed out, the screen beneath is replaced by the sign-in, and this one would stay
-      // pushed on top of it.
+      // A new server starts the stack over by itself; the one already active changes nothing,
+      // and would leave this screen open.
       if await flow.continueToServer() { dismiss() }
     }
   }
