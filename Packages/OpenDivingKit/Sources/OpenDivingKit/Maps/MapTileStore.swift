@@ -12,7 +12,7 @@ public actor MapTileStore {
   /// A tile not drawn yet holds its request open for the draw, and the rest of the app needs
   /// connections to the same host; the web keeps the same four.
   static let concurrentRequests = 4
-  /// About a hundred page heads at four tiles each.
+  /// About seventy page heads at six tiles each.
   static let keptTiles = 400
 
   public nonisolated let client: APIClient

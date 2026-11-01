@@ -81,6 +81,22 @@ struct MapBackdropLayoutTests {
     #expect(!layout.tiles.isEmpty)
   }
 
+  @Test func aBarOverTheTopKeepsThePinsBelowIt() throws {
+    let points = [
+      MapPoint(name: "Fiji", latitude: -17.7, longitude: 178.0),
+      MapPoint(name: "Samoa", latitude: -13.8, longitude: -172.1),
+    ]
+    let open = try #require(
+      MapBackdropLayout(
+        points: points, fixes: [], theme: .light, width: 393, height: 280, coveredBottom: 150))
+    let covered = try #require(
+      MapBackdropLayout(
+        points: points, fixes: [], theme: .light, width: 393, height: 380, coveredTop: 100,
+        coveredBottom: 150))
+    #expect(covered.pins.allSatisfy { $0.y >= 100 + MapBackdropLayout.fitPadding })
+    #expect(covered.tiles.map(\.address) == open.tiles.map(\.address))
+  }
+
   @Test func theThemeIsEveryTilesAddress() throws {
     let layout = try #require(
       MapBackdropLayout(

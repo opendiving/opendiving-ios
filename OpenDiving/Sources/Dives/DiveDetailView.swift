@@ -35,6 +35,8 @@ private struct DiveDetailScreen: View {
     page
       .navigationTitle(model.content?.navigationTitle ?? "")
       .navigationBarTitleDisplayMode(.inline)
+      // The title names the page in the back button's history; the head says it on screen.
+      .toolbar(removing: .title)
       .toolbar {
         ToolbarItemGroup(placement: .topBarTrailing) {
           pagerButton("Previous dive", systemImage: "chevron.left", model.neighbors?.previous)
@@ -129,6 +131,7 @@ private struct DiveDetailPage: View {
         .padding(.bottom)
       }
     }
+    .heroUnderTopBar()
     .background(Color(.systemGroupedBackground))
   }
 

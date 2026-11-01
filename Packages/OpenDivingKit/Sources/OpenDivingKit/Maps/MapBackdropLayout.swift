@@ -3,8 +3,8 @@ import Foundation
 /// A page head's map as the tiles and pins that draw it, placed in the frame's points: the web
 /// app's `MapBackdrop` fit, so a record's head shows the same square of the same map on both.
 ///
-/// The places' extents are fitted over the frame and their pins into the band above the
-/// details, the lesser zoom, floored to one the renderer draws tiles at and capped at
+/// The places' extents are fitted over the frame and their pins into the band between the
+/// bar over its top and the details over its bottom, the lesser zoom, floored to one the renderer draws tiles at and capped at
 /// ``maxZoom``. The web draws its hero on a canvas 1024 points wide with fading sides; no
 /// iPhone is that wide, so the frame here is the middle of that canvas and the fades never
 /// show.
@@ -40,14 +40,14 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// Nil when there is nothing to place, or no frame to place it in.
   public init?(
     points: [MapPoint], fixes: [MapPoint], theme: MapTileTheme, width: Double, height: Double,
-    coveredBottom: Double
+    coveredTop: Double = 0, coveredBottom: Double
   ) {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
     guard !placed.isEmpty, width > 0, height > 0 else { return nil }
 
     let padding = Self.fitPadding
-    let bandTop = padding
+    let bandTop = padding + coveredTop
     let bandBottom = min(padding + coveredBottom, height - bandTop - padding)
     let anchorX = WebMercator.round(width / 2)
     let anchorY = WebMercator.round((bandTop + height - bandBottom) / 2)

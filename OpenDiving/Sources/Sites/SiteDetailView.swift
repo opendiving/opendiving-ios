@@ -52,11 +52,14 @@ private struct SiteDetailContent: View {
           .padding(.bottom)
         }
         .refreshable { await model.refresh() }
+        .heroUnderTopBar()
       }
     }
     .background(Color(.systemGroupedBackground))
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)
+    // The title names the page in the back button's history; the head says it on screen.
+    .toolbar(removing: .title)
     .task { await model.load() }
   }
 
