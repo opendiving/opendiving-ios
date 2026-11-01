@@ -320,3 +320,11 @@ where `swift format lint` runs, and a formatter a patch release ahead of the one
 maintainers' Xcode can disagree with it about a file. Move the pin with the maintainers' Xcode.
 The container, rather than the runner image's own Swift, is what keeps the toolchain fixed while
 `ubuntu-latest` moves.
+
+## The app icon is the web app's home-screen tile
+
+`AppIcon.png` is the tile `opendiving-web/scripts/generate-favicon.mjs` draws from
+`src/app/icon.svg` — the white mark on its coral, inside the maskable safe zone, opaque — rendered
+at 1024 px. One icon serves the web home screen and this app, so a change to the mark is made
+there and the tile re-rendered here, never redrawn. A single 1024 px image is the whole set: iOS
+scales it, and derives the dark and tinted appearances from it.
