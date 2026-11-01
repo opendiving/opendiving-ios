@@ -64,9 +64,13 @@ private struct DiveSiteSheetForm: View {
               "Location", text: locationName, prompt: Text("e.g. Dahab, South Sinai, Egypt")
             )
             .labelsHidden()
-            Button("Search location", systemImage: "magnifyingglass") { searching = true }
-              .labelStyle(.iconOnly)
-              .buttonStyle(.borderless)
+            Button {
+              searching = true
+            } label: {
+              Label("Search location", icon: .mapSearch)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
           }
           FieldMessage(model.message("location", member: "name"))
         }

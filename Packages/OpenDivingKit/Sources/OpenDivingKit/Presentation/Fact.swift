@@ -3,13 +3,12 @@
 /// needs an accessibility label to be read at all.
 public struct Fact: Hashable, Sendable {
   public var text: String?
-  /// An SF Symbols name.
-  public var systemImage: String?
+  public var icon: Icon?
   public var accessibilityLabel: String?
 
-  public init(text: String? = nil, systemImage: String? = nil, accessibilityLabel: String? = nil) {
+  public init(text: String? = nil, icon: Icon? = nil, accessibilityLabel: String? = nil) {
     self.text = text
-    self.systemImage = systemImage
+    self.icon = icon
     self.accessibilityLabel = accessibilityLabel
   }
 }

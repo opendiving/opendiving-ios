@@ -47,6 +47,7 @@ public struct DiveDetailContent: Hashable, Sendable {
     public struct Tank: Hashable, Sendable {
       /// `#1`.
       public var number: String
+      public var icon: TankIcon
       /// `EAN32`; nil reads *Gas not recorded*.
       public var gas: String?
       /// The role's label, as a badge.

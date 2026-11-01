@@ -21,11 +21,11 @@ struct DiveSiteSummaryTests {
     #expect(
       DiveSiteSummary.facts(site, units: .metric) == [
         Fact(text: "Dahab, Egypt"),
-        Fact(text: "Fresh water", systemImage: "water.waves", accessibilityLabel: "Water type"),
-        Fact(text: "5 m – 30.5 m", systemImage: "arrow.down.to.line", accessibilityLabel: "Depth"),
-        Fact(text: "420 m", systemImage: "mountain.2", accessibilityLabel: "Altitude"),
+        Fact(text: "Fresh water", icon: .waves, accessibilityLabel: "Water type"),
+        Fact(text: "5 m – 30.5 m", icon: .arrowDownToLine, accessibilityLabel: "Depth"),
+        Fact(text: "420 m", icon: .mountain, accessibilityLabel: "Altitude"),
         Fact(
-          text: "Shore, Boat", systemImage: "water.waves.and.arrow.down",
+          text: "Shore, Boat", icon: .wavesArrowDown,
           accessibilityLabel: "Entry types"),
       ])
     let sea = try Self.site([
@@ -33,7 +33,7 @@ struct DiveSiteSummaryTests {
     ])
     #expect(
       DiveSiteSummary.facts(sea, units: .metric) == [
-        Fact(text: "To 30 m", systemImage: "arrow.down.to.line", accessibilityLabel: "Depth")
+        Fact(text: "To 30 m", icon: .arrowDownToLine, accessibilityLabel: "Depth")
       ])
     let shallow = try Self.site(["depth_from": 5, "location": NSNull()])
     #expect(DiveSiteSummary.facts(shallow, units: .metric).map(\.text) == ["From 5 m"])

@@ -12,19 +12,19 @@ struct MainTabView: View {
 
   var body: some View {
     TabView(selection: $selection) {
-      Tab("Dives", systemImage: "water.waves", value: AppTab.dives) {
+      Tab("Dives", image: Icon.dive.rawValue, value: AppTab.dives) {
         DivesView()
       }
-      Tab("Trips", systemImage: "suitcase", value: AppTab.trips) {
+      Tab("Trips", image: Icon.luggage.rawValue, value: AppTab.trips) {
         TripsView()
       }
-      Tab("Sites", systemImage: "mappin.and.ellipse", value: AppTab.sites) {
+      Tab("Sites", image: Icon.diveSite.rawValue, value: AppTab.sites) {
         SitesView()
       }
-      Tab("Cards", systemImage: "person.text.rectangle", value: AppTab.cards) {
+      Tab("Cards", image: Icon.idCard.rawValue, value: AppTab.cards) {
         CardsView()
       }
-      Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+      Tab("Settings", image: Icon.settings.rawValue, value: AppTab.settings) {
         SettingsView()
       }
     }

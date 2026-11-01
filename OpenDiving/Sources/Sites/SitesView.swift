@@ -43,7 +43,7 @@ private struct SiteList: View {
       case .loaded where list.items.isEmpty:
         EmptyOrErrorView(
           status: .empty(
-            systemImage: "mappin.and.ellipse", title: "No dive sites yet",
+            icon: .diveSite, title: "No dive sites yet",
             message: "Dive sites you add on the web, or when logging a dive, appear here."))
       case .loaded:
         ScrollView {

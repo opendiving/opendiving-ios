@@ -16,7 +16,7 @@ struct DiveDetailProfileCard: View {
 
   var body: some View {
     let shown = profile.recordings.first { $0.id == shownUUID } ?? profile.recordings[0]
-    SectionCard(title: "Dive Profile", systemImage: "chart.xyaxis.line") {
+    SectionCard(title: "Dive Profile", icon: .chartLine) {
       if profile.recordings.count > 1 {
         FlowLayout(spacing: 8, lineSpacing: 8) {
           ForEach(profile.recordings) { recording in

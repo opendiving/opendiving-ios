@@ -1,0 +1,35 @@
+{
+  "lucide": {
+    "version": "1.52.0",
+    "integrity": "sha512-0zZYihAze4ZmUCcyNa9OkWYqn/Y5f9AdTh02AZIxMtP5ravcTTfoSIAnUPBH6ZvKxt+ZW28JB0ldzLRyD82fcw==",
+    "icons": [
+      "activity",
+      "arrow-down-to-line",
+      "backpack",
+      "bed-double",
+      "building-2",
+      "calendar",
+      "chart-line",
+      "cloud-sun",
+      "file-text",
+      "fish",
+      "gauge",
+      "globe",
+      "graduation-cap",
+      "id-card",
+      "luggage",
+      "map-pin",
+      "mountain",
+      "paperclip",
+      "phone",
+      "settings",
+      "ship",
+      "upload",
+      "user",
+      "users",
+      "waves",
+      "waves-arrow-down",
+      "weight"
+    ]
+  }
+}

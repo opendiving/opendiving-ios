@@ -5,20 +5,20 @@ import SwiftUI
 /// its title led by the section's symbol where it has one.
 struct SectionCard<Content: View>: View {
   let title: String
-  let systemImage: String?
+  let icon: Icon?
   let content: Content
 
-  init(title: String, systemImage: String? = nil, @ViewBuilder content: () -> Content) {
+  init(title: String, icon: Icon? = nil, @ViewBuilder content: () -> Content) {
     self.title = title
-    self.systemImage = systemImage
+    self.icon = icon
     self.content = content()
   }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(spacing: 8) {
-        if let systemImage {
-          Image(systemName: systemImage)
+        if let icon {
+          Image(icon)
             .foregroundStyle(.secondary)
             .accessibilityHidden(true)
         }
@@ -38,7 +38,7 @@ struct SectionCard<Content: View>: View {
 #Preview {
   ScrollView {
     VStack(spacing: 16) {
-      SectionCard(title: "People", systemImage: "person.2") {
+      SectionCard(title: "People", icon: .users) {
         PersonRowView(content: PersonRowContent(name: "Ana Diaz", username: "ana", role: "Buddy"))
       }
       SectionCard(title: "Notes") {

@@ -3,7 +3,7 @@
 public enum ContentStatus: Hashable, Sendable {
   case loading
   /// `title` names the absence — "No dives logged yet", not "Nothing here".
-  case empty(systemImage: String, title: String, message: String?)
+  case empty(icon: Icon, title: String, message: String?)
   case notFound(message: String)
   /// Offers *Try again*.
   case failed(message: String)

@@ -31,6 +31,18 @@ Then open `OpenDiving.xcodeproj` in Xcode, or use the commands below. Adding a S
 regenerate — the app's and the tests' folders are synchronized folders, so a file is in its target
 by existing.
 
+## Icons
+
+Outside system chrome, the app draws its own symbols: Lucide's icons, as the web app does, and
+OpenDiving's, drawn to match. `OpenDiving/Sources/Icons.xcassets` and the Kit's `Icon` enum are
+generated from `scripts/icons` and committed. To add an icon, name a Lucide one in
+`scripts/icons/icons.json` or draw one into `scripts/icons/custom/`, on Lucide's 24-unit grid
+with its 2-unit stroke, then regenerate — this needs [uv](https://docs.astral.sh/uv/):
+
+```bash
+scripts/icons/generate.py
+```
+
 ## Building and testing
 
 This section is the test suite. Run all of it before you open a pull request; CI runs the same

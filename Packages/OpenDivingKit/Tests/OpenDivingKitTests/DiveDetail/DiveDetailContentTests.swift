@@ -41,7 +41,7 @@ struct DiveDetailContentTests {
       ])
     #expect(hero.points.map(\.name) == ["Blue Hole"])
     #expect(hero.fixes.map(\.name) == ["Entry", "Exit"])
-    #expect(hero.facts.last?.systemImage == "paperclip")
+    #expect(hero.facts.last?.icon == .paperclip)
   }
 
   @Test func heroPutsTheAverageBeforeTheReadings() throws {
@@ -135,6 +135,7 @@ struct DiveDetailContentTests {
   @Test func tanksAreOneCardPerCylinder() throws {
     let tanks = try #require(content(try dive("dive-two-recordings")).tanks)
     #expect(tanks.tanks.map(\.number) == ["#1", "#2"])
+    #expect(tanks.tanks.map(\.icon.kind) == [.single, .single])
     // Helium unrecorded: no name and no MOD, as the web's `gasName` and `isNameableMix`.
     #expect(tanks.tanks.map(\.gas) == [nil, nil])
     #expect(tanks.tanks.map(\.role) == ["Bottom", "Deco"])
