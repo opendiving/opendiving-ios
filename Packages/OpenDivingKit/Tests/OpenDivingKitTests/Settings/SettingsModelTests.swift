@@ -106,6 +106,14 @@ struct SettingsModelTests {
     #expect(!model.isWorking)
   }
 
+  @Test func aTimedOutSignOutOffersForgettingOnlyWhereItCanBeDone() {
+    #expect(SignOutResult.timedOut.failure(origin)?.contains("or forgetting this one") == true)
+    #expect(
+      SignOutResult.timedOut.failure(.flagship)
+        == "\(ServerOrigin.flagship) did not answer, so you are still signed in. Changing server"
+        + " does not need it to.")
+  }
+
   @Test func stoppingTheWaitForASignOutKeepsTheSessionQuietly() async throws {
     let (model, flow, session, transport) = signedInToASilentServer(wait: .seconds(3600))
     defer { transport.release() }

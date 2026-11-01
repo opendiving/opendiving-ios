@@ -18,8 +18,8 @@ public enum SignOutResult: Hashable, Sendable {
     case .failed(let reason):
       reason
     case .timedOut:
-      "\(origin) did not answer, so you are still signed in. Changing server or forgetting"
-        + " this one does not need it to."
+      "\(origin) did not answer, so you are still signed in. Changing server"
+        + (origin.isFlagship ? " does" : " or forgetting this one does") + " not need it to."
     }
   }
 }
