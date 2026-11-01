@@ -10,6 +10,28 @@ enum AppTab: Hashable {
 struct MainTabView: View {
   @State private var selection = AppTab.dives
 
+  init() {
+    Self.boldLabels
+  }
+
+  /// The labels a weight heavier than the system's. Set on the appearance proxy, before the bar
+  /// exists, because the tab bar reads no SwiftUI font; scaled, so Dynamic Type still moves it.
+  static let boldLabels: Void = {
+    let font = UIFontMetrics(forTextStyle: .caption2)
+      .scaledFont(for: .systemFont(ofSize: 10, weight: .semibold))
+    let appearance = UITabBarAppearance()
+    appearance.configureWithDefaultBackground()
+    for layout in [
+      appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance,
+      appearance.compactInlineLayoutAppearance,
+    ] {
+      layout.normal.titleTextAttributes[.font] = font
+      layout.selected.titleTextAttributes[.font] = font
+    }
+    UITabBar.appearance().standardAppearance = appearance
+    UITabBar.appearance().scrollEdgeAppearance = appearance
+  }()
+
   var body: some View {
     TabView(selection: $selection) {
       Tab("Dives", image: Icon.tabDive.rawValue, value: AppTab.dives) {
