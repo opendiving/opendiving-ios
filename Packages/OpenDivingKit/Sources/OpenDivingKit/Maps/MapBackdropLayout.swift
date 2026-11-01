@@ -37,18 +37,21 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// The side of a tile, in points.
   public var tileSize: Double { WebMercator.tileSize }
 
-  /// Nil when there is nothing to place, or no frame to place it in.
+  /// Nil when there is nothing to place, or no frame to place it in. The top `overflowTop`
+  /// points of the frame are out of sight until a pull-down shows them: tiles are laid out
+  /// there, but nothing is fitted into them.
   public init?(
     points: [MapPoint], fixes: [MapPoint], theme: MapTileTheme, width: Double, height: Double,
-    coveredTop: Double = 0, coveredBottom: Double
+    overflowTop: Double = 0, coveredTop: Double = 0, coveredBottom: Double
   ) {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
     guard !placed.isEmpty, width > 0, height > 0 else { return nil }
 
     let padding = Self.fitPadding
-    let bandTop = padding + coveredTop
-    let bandBottom = min(padding + coveredBottom, height - bandTop - padding)
+    let shown = height - overflowTop
+    let bandTop = overflowTop + padding + coveredTop
+    let bandBottom = min(padding + coveredBottom, shown - padding - coveredTop - padding)
     let anchorX = WebMercator.round(width / 2)
     let anchorY = WebMercator.round((bandTop + height - bandBottom) / 2)
 
@@ -59,7 +62,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let fitWidth = width - 2 * padding
     let zoom = min(
       Self.fitZoom(
-        WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: height - 2 * padding),
+        WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: shown - 2 * padding),
       Self.fitZoom(pinBounds, width: fitWidth, height: height - bandTop - bandBottom))
     let centreLongitude = WebMercator.wrap(
       longitude: WebMercator.longitude(

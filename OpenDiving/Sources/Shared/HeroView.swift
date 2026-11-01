@@ -58,7 +58,7 @@ struct HeroView: View {
         if hasMap {
           MapBackdropView(
             points: content.points, fixes: content.fixes,
-            coveredTop: Self.pullReach + topInset, coveredBottom: detailsHeight,
+            overflowTop: Self.pullReach, coveredTop: topInset, coveredBottom: detailsHeight,
             credit: $credit
           )
           .allowsHitTesting(false)
