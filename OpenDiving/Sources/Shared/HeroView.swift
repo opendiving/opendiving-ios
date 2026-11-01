@@ -1,50 +1,72 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The head of a dive's, a trip's or a site's page: a map of its places, fading into the
-/// page, under its chips, title, facts and figures, and the map's credit after them. A record
+/// The head of a dive's, a trip's or a site's page: a map of its places, up under the top bar
+/// on a page that lets it (``SwiftUI/View/heroUnderTopBar()``) and on above the page for a
+/// pull-down to show, fading into the page, under
+/// its chips, title, facts and figures, and the map's credit after them. A record
 /// with nowhere to put on a map, or on an instance with no map to draw, gets the band without
 /// one.
 struct HeroView: View {
   let content: HeroContent
 
+  /// How far the band is drawn above the head, out of sight until a pull-down reveals it.
+  private static let pullReach: CGFloat = 400
+
+  @Environment(\.heroTopInset) private var topInset
+  @State private var height: CGFloat = 0
   @State private var detailsHeight: CGFloat = 0
   @State private var credit: String?
 
+  private var hasMap: Bool { !content.points.isEmpty || !content.fixes.isEmpty }
+
   var body: some View {
-    ZStack(alignment: .bottomLeading) {
-      Color(.secondarySystemBackground)
-      if !content.points.isEmpty || !content.fixes.isEmpty {
-        MapBackdropView(
-          points: content.points, fixes: content.fixes, coveredBottom: detailsHeight,
-          credit: $credit
-        )
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+    VStack(alignment: .leading, spacing: 6) {
+      ChipsRow(chips: content.chips)
+      TitleLine(
+        title: content.title, isCourse: content.isCourse, rating: content.rating,
+        font: .title2.bold())
+      FactsLine(facts: content.facts)
+      FiguresRow(figures: content.figures)
+        .padding(.top, 4)
+      if let credit {
+        AttributionLine(credits: [credit], underline: false)
+          .frame(maxWidth: .infinity, alignment: .trailing)
+      }
+    }
+    .padding()
+    .onGeometryChange(for: CGFloat.self) {
+      $0.size.height
+    } action: {
+      detailsHeight = $0
+    }
+    .frame(maxWidth: .infinity, minHeight: 280 + topInset, alignment: .bottomLeading)
+    .onGeometryChange(for: CGFloat.self) {
+      $0.size.height
+    } action: {
+      height = $0
+    }
+    .background {
+      if hasMap {
         LinearGradient(
           colors: [.clear, Color(.systemBackground)], startPoint: .center, endPoint: .bottom)
       }
-      VStack(alignment: .leading, spacing: 6) {
-        ChipsRow(chips: content.chips)
-        TitleLine(
-          title: content.title, isCourse: content.isCourse, rating: content.rating,
-          font: .title2.bold())
-        FactsLine(facts: content.facts)
-        FiguresRow(figures: content.figures)
-          .padding(.top, 4)
-        if let credit {
-          AttributionLine(credits: [credit])
-            .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+    .background(alignment: .bottom) {
+      ZStack {
+        Color(.secondarySystemBackground)
+        if hasMap {
+          MapBackdropView(
+            points: content.points, fixes: content.fixes,
+            overflowTop: Self.pullReach, coveredTop: topInset, coveredBottom: detailsHeight,
+            credit: $credit
+          )
+          .allowsHitTesting(false)
+          .accessibilityHidden(true)
         }
       }
-      .padding()
-      .onGeometryChange(for: CGFloat.self) {
-        $0.size.height
-      } action: {
-        detailsHeight = $0
-      }
+      .frame(height: height + Self.pullReach)
     }
-    .frame(minHeight: 280)
   }
 }
 

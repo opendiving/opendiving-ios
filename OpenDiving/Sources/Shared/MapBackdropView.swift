@@ -3,11 +3,14 @@ import SwiftUI
 import UIKit
 
 /// A page head's map: the instance's own tiles for its places, the web's, with the pins drawn
-/// over them and fitted above the `coveredBottom` points the details cover. Nothing is drawn
+/// over them and fitted between the `coveredTop` points a bar covers and the `coveredBottom`
+/// points the details cover, below an `overflowTop` that only a pull-down shows. Nothing is drawn
 /// until every tile is to hand, nor where the tiles cannot be had, so the band behind shows.
 struct MapBackdropView: View {
   let points: [MapPoint]
   let fixes: [MapPoint]
+  var overflowTop: CGFloat = 0
+  var coveredTop: CGFloat = 0
   let coveredBottom: CGFloat
   /// The credit the instance's tiles owe, wherever it draws them, whether or not a set is on
   /// screen yet.
@@ -25,7 +28,8 @@ struct MapBackdropView: View {
   private var layout: MapBackdropLayout? {
     MapBackdropLayout(
       points: points, fixes: fixes, theme: colorScheme == .dark ? .dark : .light,
-      width: size.width, height: size.height, coveredBottom: coveredBottom)
+      width: size.width, height: size.height, overflowTop: overflowTop, coveredTop: coveredTop,
+      coveredBottom: coveredBottom)
   }
 
   var body: some View {

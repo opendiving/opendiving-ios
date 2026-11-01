@@ -81,6 +81,38 @@ struct MapBackdropLayoutTests {
     #expect(!layout.tiles.isEmpty)
   }
 
+  @Test func aBarOverTheTopKeepsThePinsBelowIt() throws {
+    let points = [
+      MapPoint(name: "Fiji", latitude: -17.7, longitude: 178.0),
+      MapPoint(name: "Samoa", latitude: -13.8, longitude: -172.1),
+    ]
+    let open = try #require(
+      MapBackdropLayout(
+        points: points, fixes: [], theme: .light, width: 393, height: 280, coveredBottom: 150))
+    let covered = try #require(
+      MapBackdropLayout(
+        points: points, fixes: [], theme: .light, width: 393, height: 380, coveredTop: 100,
+        coveredBottom: 150))
+    #expect(covered.pins.allSatisfy { $0.y >= 100 + MapBackdropLayout.fitPadding })
+    #expect(covered.tiles.map(\.address) == open.tiles.map(\.address))
+  }
+
+  @Test func whatOnlyAPullDownShowsTakesTilesButNoPartInTheFit() throws {
+    // Taller than it is wide, so the frame's height decides its zoom.
+    let maldives = MapPoint(
+      name: "Maldives", latitude: 3.2, longitude: 73.2,
+      bounds: LatLonBounds(south: -0.7, north: 7.1, west: 72.6, east: 73.8))
+    let shown = try layout([maldives], width: 300, height: 340, coveredBottom: 120)
+    let pulled = try #require(
+      MapBackdropLayout(
+        points: [maldives], fixes: [], theme: .light, width: 300, height: 740, overflowTop: 400,
+        coveredBottom: 120))
+    #expect(pulled.tiles.map(\.address.z) == pulled.tiles.map { _ in shown.tiles[0].address.z })
+    #expect(Set(shown.tiles.map(\.address)).isSubset(of: pulled.tiles.map(\.address)))
+    #expect(pulled.tiles.map(\.y).min()! <= 0)
+    expectPins(pulled, shown.pins.map { ($0.x, $0.y + 400) })
+  }
+
   @Test func theThemeIsEveryTilesAddress() throws {
     let layout = try #require(
       MapBackdropLayout(
