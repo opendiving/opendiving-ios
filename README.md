@@ -61,4 +61,4 @@ AGPL-licensed; the data stays yours.
 
 The app links libdc-swift and libdivecomputer, both under the
 [GNU LGPL 2.1](LICENSE-LGPL-2.1); [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) names them
-and the exact versions built.
+and the exact versions built, along with the Lucide icons the app's symbols draw on.

@@ -16,6 +16,10 @@ struct ImportFileRow: View {
     file.download.map { DiveComputerText.inboxRow($0) } ?? file.filename
   }
 
+  /// The trash button's label and, with a question mark, its confirmation's title: the row's
+  /// own title, since a download's filename is a serial and a timestamp nobody reads.
+  static func removeLabel(_ file: InboxFile) -> String { "Remove \(title(file))" }
+
   var body: some View {
     let members = inbox.members(of: file)
     HStack(alignment: .top, spacing: 12) {
@@ -45,7 +49,7 @@ struct ImportFileRow: View {
         }
       }
       Spacer(minLength: 0)
-      Button("Remove \(file.filename)", systemImage: "trash") {
+      Button(Self.removeLabel(file), systemImage: "trash") {
         if inbox.removalNeedsConfirmation(file) {
           confirming = true
         } else {
@@ -57,7 +61,7 @@ struct ImportFileRow: View {
       .disabled(inbox.phase != .idle)
     }
     .confirmationDialog(
-      "Remove \(file.filename)?", isPresented: $confirming, titleVisibility: .visible
+      Self.removeLabel(file) + "?", isPresented: $confirming, titleVisibility: .visible
     ) {
       Button("Remove", role: .destructive) { inbox.remove(file) }
     } message: {

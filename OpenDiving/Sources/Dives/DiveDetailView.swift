@@ -152,7 +152,7 @@ private struct DiveDetailPage: View {
       DiveDetailSpeciesCard(sightings: content.sightings, photo: speciesPhoto)
     }
     if let notes = content.notes {
-      SectionCard(title: "Notes", systemImage: "doc.text") {
+      SectionCard(title: "Notes", icon: .fileText) {
         Text(notes)
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -162,9 +162,9 @@ private struct DiveDetailPage: View {
 
   @ViewBuilder private var sidebar: some View {
     if let course = content.course {
-      SectionCard(title: "Training", systemImage: "graduationcap") {
+      SectionCard(title: "Training", icon: .graduationCap) {
         InfoRow(label: "Course") {
-          Label(course, systemImage: "graduationcap")
+          Label(course, icon: .graduationCap)
         }
       }
     }
@@ -172,7 +172,7 @@ private struct DiveDetailPage: View {
       DiveDetailLocationCard(location: location)
     }
     if !content.people.isEmpty {
-      SectionCard(title: "People", systemImage: "person.2") {
+      SectionCard(title: "People", icon: .users) {
         VStack(alignment: .leading, spacing: 8) {
           ForEach(Array(content.people.enumerated()), id: \.offset) { _, person in
             PersonRowView(content: person)
@@ -181,7 +181,7 @@ private struct DiveDetailPage: View {
       }
     }
     if !content.environment.isEmpty {
-      SectionCard(title: "Environment", systemImage: "cloud.sun") {
+      SectionCard(title: "Environment", icon: .cloudSun) {
         FiguresRow(figures: content.environment)
       }
     }

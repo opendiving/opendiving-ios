@@ -22,12 +22,20 @@ struct DivesView: View {
       .toolbar {
         ToolbarItem(placement: .primaryAction) {
           Menu("Add", systemImage: "plus") {
-            Button("Log a dive", systemImage: "square.and.pencil") { route = .logDive }
-            Button("Import files", systemImage: "square.and.arrow.down") { route = .importFiles }
-            Button(
-              DiveComputerText.connectMenuItem, systemImage: "antenna.radiowaves.left.and.right"
-            ) {
+            Button {
+              route = .logDive
+            } label: {
+              Label("Log a dive", icon: .dive)
+            }
+            Button {
+              route = .importFiles
+            } label: {
+              Label("Import files", icon: .upload)
+            }
+            Button {
               route = .diveComputer
+            } label: {
+              Label(DiveComputerText.connectMenuItem, icon: .diveComputer)
             }
           }
         }
@@ -88,7 +96,7 @@ private struct DivesList: View {
         pending
         EmptyOrErrorView(
           status: .empty(
-            systemImage: "water.waves", title: "No dives logged yet",
+            icon: .dive, title: "No dives logged yet",
             message:
               "No dives yet. Log one, import your dive computer's files, or connect your dive "
               + "computer, with +."

@@ -68,17 +68,17 @@ private struct TripDives: View {
   let units: UnitSystem
 
   private static let title = "Dives in This Trip"
-  private static let symbol = "water.waves"
+  private static let icon = Icon.dive
 
   var body: some View {
     switch list.phase {
     case .idle, .loading:
-      SectionCard(title: Self.title, systemImage: Self.symbol) {
+      SectionCard(title: Self.title, icon: Self.icon) {
         ProgressView()
           .frame(maxWidth: .infinity)
       }
     case .failed:
-      SectionCard(title: Self.title, systemImage: Self.symbol) {
+      SectionCard(title: Self.title, icon: Self.icon) {
         Text("This trip's dives could not be loaded.")
           .font(.subheadline)
           .foregroundStyle(.secondary)
@@ -88,9 +88,9 @@ private struct TripDives: View {
     case .loaded where trip.parts.isEmpty && list.items.isEmpty:
       EmptyOrErrorView(
         status: .empty(
-          systemImage: Self.symbol, title: "No dives logged for this trip yet", message: nil))
+          icon: Self.icon, title: "No dives logged for this trip yet", message: nil))
     case .loaded where trip.parts.isEmpty:
-      SectionCard(title: Self.title, systemImage: Self.symbol) {
+      SectionCard(title: Self.title, icon: Self.icon) {
         Text("Every dive logged on this trip")
           .font(.subheadline)
           .foregroundStyle(.secondary)
@@ -106,7 +106,7 @@ private struct TripDives: View {
           DiveCardLinks(items: items, units: units)
         case .part(let index, let items):
           let heading = TripSummary.partHeading(trip.parts[index])
-          SectionCard(title: heading.title, systemImage: "mappin") {
+          SectionCard(title: heading.title, icon: .mapPin) {
             if let subtitle = heading.subtitle {
               Text(subtitle)
                 .font(.subheadline)
@@ -141,7 +141,7 @@ private struct TripInformationCard: View {
     let people = PersonRowContent.rows(trip.people, people: people)
     let centres = TripSummary.diveCenters(trip, contacts: contacts)
     if !parts.isEmpty || !people.isEmpty || centres != nil || !trip.notes.isEmpty {
-      SectionCard(title: "Trip Information", systemImage: "calendar") {
+      SectionCard(title: "Trip Information", icon: .calendar) {
         VStack(alignment: .leading, spacing: 16) {
           if !parts.isEmpty {
             InfoRow(label: parts.count > 1 ? "Parts" : "Part") {
@@ -182,14 +182,14 @@ private struct PartRowView: View {
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Image(systemName: "mappin")
+      Image(.mapPin)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(row.place ?? "No place recorded")
           .foregroundStyle(row.place == nil ? Color.secondary : Color.primary)
         if let accommodation = row.accommodation {
-          Label(accommodation, systemImage: "bed.double")
+          Label(accommodation, icon: .bedDouble)
             .font(.caption)
             .foregroundStyle(.secondary)
             .accessibilityLabel("Stayed at " + accommodation)

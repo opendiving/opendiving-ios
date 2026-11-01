@@ -27,16 +27,16 @@ private struct FactView: View {
   let fact: Fact
 
   var body: some View {
-    switch (fact.text, fact.systemImage) {
+    switch (fact.text, fact.icon) {
     case (let text?, let image?):
-      Label(text, systemImage: image)
+      Label(text, icon: image)
         .labelStyle(.titleAndIcon)
         .accessibilityLabel(fact.accessibilityLabel.map { "\($0): \(text)" } ?? text)
     case (let text?, nil):
       Text(text)
         .accessibilityLabel(fact.accessibilityLabel ?? text)
     case (nil, let image?):
-      Image(systemName: image)
+      Image(image)
         .accessibilityLabel(fact.accessibilityLabel ?? "")
     case (nil, nil):
       EmptyView()
@@ -48,8 +48,8 @@ private struct FactView: View {
   FactsLine(facts: [
     Fact(text: "Apr 4, 2021, 10:04"),
     Fact(text: "Dahab, Egypt"),
-    Fact(text: "Legend", systemImage: "ferry", accessibilityLabel: "Boat"),
-    Fact(systemImage: "paperclip", accessibilityLabel: "Recording attached"),
+    Fact(text: "Legend", icon: .ship, accessibilityLabel: "Boat"),
+    Fact(icon: .paperclip, accessibilityLabel: "Recording attached"),
   ])
   .padding()
 }

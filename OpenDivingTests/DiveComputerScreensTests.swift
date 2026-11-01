@@ -66,5 +66,8 @@ struct DiveComputerScreensTests {
       download: download)
     #expect(ImportFileRow.title(file) == DiveComputerText.inboxRow(download))
     #expect(ImportFileRow.title(InboxFile(filename: "dive.fit", byteSize: 1)) == "dive.fit")
+    #expect(ImportFileRow.removeLabel(file) == "Remove " + DiveComputerText.inboxRow(download))
+    #expect(
+      ImportFileRow.removeLabel(InboxFile(filename: "dive.fit", byteSize: 1)) == "Remove dive.fit")
   }
 }

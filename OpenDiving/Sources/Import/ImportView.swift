@@ -53,8 +53,12 @@ struct ImportView: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
-      Button("Import files", systemImage: "doc.badge.plus") { picking = true }
-        .disabled(inbox.phase != .idle)
+      Button {
+        picking = true
+      } label: {
+        Label("Import files", icon: .upload)
+      }
+      .disabled(inbox.phase != .idle)
     } footer: {
       if inbox.files.isEmpty {
         Text(

@@ -48,10 +48,10 @@ extension DiveCardContent {
     var facts = [Fact(text: DateText.diveDateTime(start))]
     if let locationName, !locationName.isEmpty { facts.append(Fact(text: locationName)) }
     if let boatName, !boatName.isEmpty {
-      facts.append(Fact(text: boatName, systemImage: "ferry", accessibilityLabel: "Boat"))
+      facts.append(Fact(text: boatName, icon: .ship, accessibilityLabel: "Boat"))
     }
     if hasRecording {
-      facts.append(Fact(systemImage: "paperclip", accessibilityLabel: "Recording attached"))
+      facts.append(Fact(icon: .paperclip, accessibilityLabel: "Recording attached"))
     }
 
     let depth = { (meters: Double?) in meters.map { UnitFormat.depth($0, units, decimals: 0) } }
