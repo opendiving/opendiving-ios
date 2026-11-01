@@ -97,7 +97,11 @@ private struct ContactSheetForm: View {
             model.values.longitude = longitude
           }
         } else {
-          Button("Show map", systemImage: "mappin") { mapOpen = true }
+          Button {
+            mapOpen = true
+          } label: {
+            Label("Show map", icon: .mapPin)
+          }
         }
       }
       Section {

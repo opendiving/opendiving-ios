@@ -40,7 +40,7 @@ struct DiveListItemCardTests {
     let card = DiveCardContent.dive(
       try item(["recording_count": 0, "depth_outline": NSNull()]), units: .metric)
     #expect(card.outline.isEmpty)
-    #expect(!card.facts.contains { $0.systemImage == "paperclip" })
+    #expect(!card.facts.contains { $0.icon == .paperclip })
     #expect(card.title == "Dive #532")
     #expect(!card.isCourse)
   }

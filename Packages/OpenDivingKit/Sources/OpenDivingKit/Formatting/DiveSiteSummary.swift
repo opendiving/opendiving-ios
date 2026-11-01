@@ -76,24 +76,24 @@ public enum DiveSiteSummary {
     if let waterType = site.waterType, !waterType.isEmpty, waterType != "salt" {
       facts.append(
         Fact(
-          text: VocabularyLabels.waterType(waterType), systemImage: "water.waves",
+          text: VocabularyLabels.waterType(waterType), icon: .waves,
           accessibilityLabel: "Water type"))
     }
     if let depths = depthRange(site, units: units) {
       facts.append(
-        Fact(text: depths, systemImage: "arrow.down.to.line", accessibilityLabel: "Depth"))
+        Fact(text: depths, icon: .arrowDownToLine, accessibilityLabel: "Depth"))
     }
     if let altitude = site.altitude, altitude != 0 {
       facts.append(
         Fact(
-          text: UnitFormat.altitude(Double(altitude), units), systemImage: "mountain.2",
+          text: UnitFormat.altitude(Double(altitude), units), icon: .mountain,
           accessibilityLabel: "Altitude"))
     }
     if !site.entryTypes.isEmpty {
       facts.append(
         Fact(
           text: site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", "),
-          systemImage: "water.waves.and.arrow.down",
+          icon: .wavesArrowDown,
           accessibilityLabel: site.entryTypes.count > 1 ? "Entry types" : "Entry type"))
     }
     return facts

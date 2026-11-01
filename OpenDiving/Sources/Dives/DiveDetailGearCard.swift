@@ -7,7 +7,7 @@ struct DiveDetailGearCard: View {
   let gear: DiveDetailContent.Gear
 
   var body: some View {
-    SectionCard(title: "Gear", systemImage: "backpack") {
+    SectionCard(title: "Gear", icon: .backpack) {
       if !gear.items.isEmpty {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
           GridRow {
@@ -38,7 +38,7 @@ struct DiveDetailGearCard: View {
       }
       if let weight = gear.weight {
         InfoRow(label: "Weight") {
-          Label(weight, systemImage: "scalemass")
+          Label(weight, icon: .weight)
             .fontWeight(.medium)
         }
       }

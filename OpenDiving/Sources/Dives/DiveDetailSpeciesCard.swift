@@ -8,7 +8,7 @@ struct DiveDetailSpeciesCard: View {
   let photo: (UUID, String) async -> Data?
 
   var body: some View {
-    SectionCard(title: "Species Spotted", systemImage: "fish") {
+    SectionCard(title: "Species Spotted", icon: .fish) {
       VStack(spacing: 8) {
         ForEach(sightings) { sighting in
           SightingView(sighting: sighting, photo: photo)

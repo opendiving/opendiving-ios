@@ -147,6 +147,7 @@ extension DiveDetailContent {
     let attributable =
       warning != nil && (mixtures.count == 1 || GasMath.isSingleGasParallelSet(fractions))
     let showHelium = mixtures.contains { ($0.helium ?? 0) > 0 }
+    let firstParallel = mixtures.firstIndex { $0.usage == "parallel" }
 
     let cards = mixtures.enumerated().map { index, mixture in
       var facts: [String] = []
@@ -167,6 +168,9 @@ extension DiveDetailContent {
         ? GasMath.mod(oxygen: mixture.oxygen, ppO2: limit) : nil
       return Tanks.Tank(
         number: "#\(index + 1)",
+        icon: TankIcon(
+          volume: mixture.volume, oxygen: mixture.oxygen, helium: mixture.helium,
+          left: index == firstParallel),
         gas: GasMath.name(oxygen: mixture.oxygen, helium: mixture.helium),
         role: mixture.role.flatMap { $0.isEmpty ? nil : VocabularyLabels.gasRole($0) },
         facts: facts,

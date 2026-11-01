@@ -66,7 +66,7 @@ struct EmailScreen: View {
           switch entry {
           case .checkInSheet:
             Button(action: showSheet) {
-              Label("Your check-in sheet", systemImage: "person.text.rectangle")
+              Label("Your check-in sheet", icon: .idCard)
             }
           case .waitingToSync:
             Button(action: showPending) {
