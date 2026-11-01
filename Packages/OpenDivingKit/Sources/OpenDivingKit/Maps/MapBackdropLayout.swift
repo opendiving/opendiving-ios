@@ -37,16 +37,18 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// The side of a tile, in points.
   public var tileSize: Double { WebMercator.tileSize }
 
-  /// Nil when there is nothing to place, or no frame to place it in. The top `overflowTop`
-  /// points of the frame are out of sight until a pull-down shows them: tiles are laid out
-  /// there, but nothing is fitted into them.
+  /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
+  /// and `worldWhenEmpty`, the whole world at zoom 0, the equator across the band's middle.
+  /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
+  /// them: tiles are laid out there, but nothing is fitted into them.
   public init?(
     points: [MapPoint], fixes: [MapPoint], theme: MapTileTheme, width: Double, height: Double,
-    overflowTop: Double = 0, coveredTop: Double = 0, coveredBottom: Double
+    overflowTop: Double = 0, coveredTop: Double = 0, coveredBottom: Double,
+    worldWhenEmpty: Bool = false
   ) {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
-    guard !placed.isEmpty, width > 0, height > 0 else { return nil }
+    guard !placed.isEmpty || worldWhenEmpty, width > 0, height > 0 else { return nil }
 
     let padding = Self.fitPadding
     let shown = height - overflowTop
@@ -55,22 +57,31 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let anchorX = WebMercator.round(width / 2)
     let anchorY = WebMercator.round((bandTop + height - bandBottom) / 2)
 
-    let pinBounds = WebMercator.union(
+    let zoom: Double
+    let centreLongitude: Double
+    let centreLatitude: Double
+    if let pinBounds = WebMercator.union(
       placed.map {
         LatLonBounds(south: $0.latitude, north: $0.latitude, west: $0.longitude, east: $0.longitude)
-      })!
-    let fitWidth = width - 2 * padding
-    let zoom = min(
-      Self.fitZoom(
-        WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: shown - 2 * padding),
-      Self.fitZoom(pinBounds, width: fitWidth, height: height - bandTop - bandBottom))
-    let centreLongitude = WebMercator.wrap(
-      longitude: WebMercator.longitude(
-        x: (WebMercator.x(longitude: pinBounds.west) + WebMercator.x(longitude: pinBounds.east))
-          / 2))
-    let centreLatitude = WebMercator.latitude(
-      y: (WebMercator.y(latitude: WebMercator.clamp(latitude: pinBounds.south))
-        + WebMercator.y(latitude: WebMercator.clamp(latitude: pinBounds.north))) / 2)
+      })
+    {
+      let fitWidth = width - 2 * padding
+      zoom = min(
+        Self.fitZoom(
+          WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: shown - 2 * padding),
+        Self.fitZoom(pinBounds, width: fitWidth, height: height - bandTop - bandBottom))
+      centreLongitude = WebMercator.wrap(
+        longitude: WebMercator.longitude(
+          x: (WebMercator.x(longitude: pinBounds.west) + WebMercator.x(longitude: pinBounds.east))
+            / 2))
+      centreLatitude = WebMercator.latitude(
+        y: (WebMercator.y(latitude: WebMercator.clamp(latitude: pinBounds.south))
+          + WebMercator.y(latitude: WebMercator.clamp(latitude: pinBounds.north))) / 2)
+    } else {
+      zoom = 0
+      centreLongitude = 0
+      centreLatitude = 0
+    }
 
     // Floored, so the pins only draw closer and a tile's lettering stays the size it was drawn
     // at; the centre on a whole point, so the tiles meet without a seam.

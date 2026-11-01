@@ -19,11 +19,13 @@ public enum TripSummary {
     }
   }
 
-  /// The trip's card on the trips list: its name, its facts, and the first three figures,
-  /// so a trip with species shows those over its depth.
+  /// The trip's card on the trips list: its name, its facts, the first three figures, so a
+  /// trip with species shows those over its depth, and a map of its places, or of the world
+  /// before it has any.
   public static func card(_ trip: TripRead, units: UnitSystem) -> RecordCardContent {
     RecordCardContent(
-      title: trip.name, facts: facts(trip), figures: Array(figures(trip, units: units).prefix(3)))
+      title: trip.name, facts: facts(trip), figures: Array(figures(trip, units: units).prefix(3)),
+      points: points(trip), mapsTheWorldWhenEmpty: true)
   }
 
   /// The trip's page's head: the card the width of the screen, every figure, and a map of

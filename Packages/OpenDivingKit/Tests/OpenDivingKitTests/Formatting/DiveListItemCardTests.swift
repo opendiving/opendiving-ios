@@ -31,9 +31,33 @@ struct DiveListItemCardTests {
       locationName: "Dahab", boatName: "Blue Seas", hasRecording: true, submergedSeconds: 3243,
       maxDepth: 23.41, avgDepth: 13.62, waterTemperature: 27.2,
       outline: [321, 449, 685, 972, 1346, 1643, 1690, 1727, 1987, 2269, 2341, 2177],
+      places: (
+        [],
+        [
+          MapPoint(name: "Entry", latitude: 28.420546, longitude: 34.457623),
+          MapPoint(name: "Exit", latitude: 28.420563, longitude: 34.457658),
+        ]
+      ),
       units: .imperial)
     #expect(DiveCardContent.dive(row, units: .imperial) == expected)
     #expect(expected.title == "#532 Blue Hole +1")
+  }
+
+  @Test func mapsThePinnedSitesAndTheFixesApart() throws {
+    let pinned: [String: Any] = [
+      "uuid": "01a0e2ed-0000-7000-8000-000000000001", "name": "Blue Hole", "latitude": 28.5722,
+      "longitude": 34.5372,
+    ]
+    let unpinned: [String: Any] = [
+      "uuid": "01a0e2ed-0000-7000-8000-000000000002", "name": "Canyon",
+    ]
+    let card = DiveCardContent.dive(
+      try item([
+        "dive_sites": [pinned, unpinned], "entry_latitude": 0, "entry_longitude": 34.5,
+        "exit_latitude": NSNull(), "exit_longitude": 34.6,
+      ]), units: .metric)
+    #expect(card.points == [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)])
+    #expect(card.fixes == [MapPoint(name: "Entry", latitude: 0, longitude: 34.5)])
   }
 
   @Test func noRecordingAndNoOutline() throws {

@@ -30,7 +30,7 @@ public enum DiveSiteSummary {
   }
 
   /// The site's card on the sites list: its name, its facts, and its dives, its deepest —
-  /// a dash where it has none — and its species once there are some.
+  /// a dash where it has none — and its species once there are some, over a map of its pin.
   public static func card(_ site: DiveSiteRead, units: UnitSystem) -> RecordCardContent {
     var figures = [
       Figure(label: "Dives", value: String(site.diveCount)),
@@ -39,7 +39,8 @@ public enum DiveSiteSummary {
     if site.speciesCount > 0 {
       figures.append(Figure(label: "Species seen", value: String(site.speciesCount)))
     }
-    return RecordCardContent(title: site.name, facts: facts(site, units: units), figures: figures)
+    return RecordCardContent(
+      title: site.name, facts: facts(site, units: units), figures: figures, points: points(site))
   }
 
   /// The site's page's head: its card the width of the screen, over a map of its pin when
@@ -56,13 +57,15 @@ public enum DiveSiteSummary {
     if let lastDivedOn = site.lastDivedOn {
       figures.append(Figure(label: "Last dive", value: DateText.date(lastDivedOn)))
     }
-    // The pin alone: the locality's centre is the town a geocoder resolved, not the site.
-    var points: [MapPoint] = []
-    if let latitude = site.latitude, let longitude = site.longitude {
-      points.append(MapPoint(name: site.name, latitude: latitude, longitude: longitude))
-    }
     return HeroContent(
-      title: site.name, facts: facts(site, units: units), figures: figures, points: points)
+      title: site.name, facts: facts(site, units: units), figures: figures, points: points(site))
+  }
+
+  /// The site's pin alone, where it has one: its locality's centre is the town a geocoder
+  /// resolved, not the site.
+  public static func points(_ site: DiveSiteRead) -> [MapPoint] {
+    guard let latitude = site.latitude, let longitude = site.longitude else { return [] }
+    return [MapPoint(name: site.name, latitude: latitude, longitude: longitude)]
   }
 
   /// Where the site is, in what water, how deep, how high and how divers get in — each only

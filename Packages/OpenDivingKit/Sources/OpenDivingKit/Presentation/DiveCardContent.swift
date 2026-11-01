@@ -13,6 +13,10 @@ public struct DiveCardContent: Hashable, Sendable {
   /// The depth outline, evenly spaced in time, each point a fraction of the deepest one —
   /// 0 at the surface, 1 at the bottom. Empty draws no outline.
   public var outline: [Double]
+  /// The dive's sites where they are pinned.
+  public var points: [MapPoint]
+  /// Where a dive computer put the diver, drawn apart from the sites.
+  public var fixes: [MapPoint]
 
   public init(
     title: String,
@@ -21,7 +25,9 @@ public struct DiveCardContent: Hashable, Sendable {
     chips: [Chip] = [],
     facts: [Fact] = [],
     figures: [Figure] = [],
-    outline: [Double] = []
+    outline: [Double] = [],
+    points: [MapPoint] = [],
+    fixes: [MapPoint] = []
   ) {
     self.title = title
     self.isCourse = isCourse
@@ -30,5 +36,7 @@ public struct DiveCardContent: Hashable, Sendable {
     self.facts = facts
     self.figures = figures
     self.outline = outline
+    self.points = points
+    self.fixes = fixes
   }
 }
