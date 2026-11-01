@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// A page head's map: the tiles of a ``MapBackdropLayout`` once every one of them is to hand,
-/// and the credit they owe.
+/// and the credit the instance's tiles owe.
 ///
 /// Tiles the phone holds show at once, before the instance has said whether it draws any;
 /// the rest are asked for only where it does and names their credit. A set shows whole or not
@@ -15,11 +15,13 @@ public final class MapBackdropModel {
   public struct Shown: Hashable, Sendable {
     public let layout: MapBackdropLayout
     public let images: [MapTileAddress: Data]
-    /// A markdown link, as the instance names it.
-    public let credit: String
   }
 
   public private(set) var shown: Shown?
+  /// The instance's credit for its tiles, a markdown link, wherever it draws them — whether or
+  /// not a set is on screen, so a head that lays its details out around it is not refitted
+  /// each time a set comes and goes.
+  public private(set) var credit: String?
 
   @ObservationIgnored private let session: Session
   /// Bumped by every ``show(_:)``, so one superseded by another while it waited lands nothing.
@@ -43,18 +45,21 @@ public final class MapBackdropModel {
     }
     let heldCredit = await store.credit()
     guard current == generation else { return }
-    if images.count == addresses.count, let heldCredit {
-      shown = Shown(layout: layout, images: images, credit: heldCredit)
+    if credit == nil { credit = heldCredit }
+    if images.count == addresses.count, heldCredit != nil {
+      shown = Shown(layout: layout, images: images)
     }
 
     // No answer is no reason to take down what the phone holds.
     guard let config = await session.mapConfig() else { return }
     guard current == generation else { return }
-    guard config.mapTiles == true, let credit = config.mapAttribution else {
+    guard config.mapTiles == true, let named = config.mapAttribution else {
       shown = nil
+      credit = nil
       return
     }
-    await store.remember(credit: credit)
+    credit = named
+    await store.remember(credit: named)
 
     // What is missing, and what is held but not asked about since launch.
     let asking = addresses.filter { images[$0] == nil }
@@ -71,8 +76,6 @@ public final class MapBackdropModel {
     }
     guard current == generation, !Task.isCancelled else { return }
     images.merge(fetched) { $1 }
-    shown =
-      images.count == addresses.count
-      ? Shown(layout: layout, images: images, credit: credit) : nil
+    shown = images.count == addresses.count ? Shown(layout: layout, images: images) : nil
   }
 }

@@ -9,7 +9,8 @@ struct MapBackdropView: View {
   let points: [MapPoint]
   let fixes: [MapPoint]
   let coveredBottom: CGFloat
-  /// The credit the map on screen owes; nil while none is on screen.
+  /// The credit the instance's tiles owe, wherever it draws them, whether or not a set is on
+  /// screen yet.
   @Binding var credit: String?
 
   @Environment(Session.self) private var session
@@ -48,7 +49,9 @@ struct MapBackdropView: View {
       }
       .onChange(of: model?.shown, initial: true) { _, shown in
         images = (shown?.images ?? [:]).compactMapValues(UIImage.init(data:))
-        credit = shown?.credit
+      }
+      .onChange(of: model?.credit, initial: true) { _, named in
+        credit = named
       }
   }
 

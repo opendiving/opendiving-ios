@@ -71,6 +71,8 @@ public final class Session {
   /// Bumped on every change of ``state``, so a load that began before one cannot land after it.
   @ObservationIgnored private var stateGeneration = 0
   @ObservationIgnored private var mapTiles: MapTileStore?
+  @ObservationIgnored private var mapConfigAsked:
+    (origin: ServerOrigin, at: ContinuousClock.Instant)?
 
   /// The device's session. `configuration` is the app target's, carrying what Linux's
   /// Foundation cannot express; `applicationSupport` is where per-server state is kept.
@@ -275,12 +277,19 @@ public final class Session {
 
   /// The active server's config, asked for when it has not answered since launch — or when it
   /// draws tiles but had no credit for them yet, which it learns from its renderer after it
-  /// starts. Nil when it cannot be had.
+  /// starts. Asked at most once a minute, the time `/config` is cacheable for, however many
+  /// page heads open meanwhile. Nil when it cannot be had.
   public func mapConfig() async -> InstanceConfigRead? {
     if let config = server?.config, config.mapTiles != true || config.mapAttribution != nil {
       return config
     }
     guard let origin = state.origin else { return nil }
+    if let asked = mapConfigAsked, asked.origin == origin,
+      ContinuousClock.now - asked.at < .seconds(60)
+    {
+      return server?.origin == origin ? server?.config : nil
+    }
+    mapConfigAsked = (origin, .now)
     return try? await validate(origin).config
   }
 

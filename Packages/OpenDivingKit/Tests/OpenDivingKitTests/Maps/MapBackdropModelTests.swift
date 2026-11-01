@@ -68,7 +68,7 @@ struct MapBackdropModelTests {
     await model.show(layout)
 
     let shown = try #require(model.shown)
-    #expect(shown.credit == Self.credit)
+    #expect(model.credit == Self.credit)
     #expect(Set(shown.images.keys) == Set(layout.tiles.map(\.address)))
     let requests = tileRequests(transport)
     #expect(
@@ -85,15 +85,19 @@ struct MapBackdropModelTests {
     #expect(tileRequests(transport).isEmpty)
   }
 
-  @Test func tilesWithNoCreditYetAreNotAskedFor() async {
+  @Test func tilesWithNoCreditYetAreNotAskedForAndTheConfigOnceAMinute() async {
     let transport = Self.transport(config: Self.config(tiles: true, credit: nil))
-    let model = MapBackdropModel(session: session(transport))
+    let session = session(transport)
+    let model = MapBackdropModel(session: session)
     await model.show(layout)
+    await MapBackdropModel(session: session).show(layout)
     #expect(model.shown == nil)
+    #expect(model.credit == nil)
     #expect(tileRequests(transport).isEmpty)
+    #expect(transport.requests.filter { StubTransport.routeKey($0) == "GET config" }.count == 1)
   }
 
-  @Test func oneTileThatCannotBeHadLeavesNoMap() async {
+  @Test func oneTileThatCannotBeHadLeavesNoMapButKeepsTheCredit() async {
     let transport = Self.transport(config: Self.config(tiles: true, credit: Self.credit)) {
       request in
       StubTransport.routeKey(request).hasSuffix("/305/213")
@@ -103,6 +107,7 @@ struct MapBackdropModelTests {
     let model = MapBackdropModel(session: session(transport))
     await model.show(layout)
     #expect(model.shown == nil)
+    #expect(model.credit == Self.credit)
   }
 
   @Test func theNextLaunchShowsWhatWasShownOfflineAndRevalidatesOnline() async throws {
@@ -112,7 +117,7 @@ struct MapBackdropModelTests {
     let offline = StubTransport { _ in throw URLError(.notConnectedToInternet) }
     let model = MapBackdropModel(session: session(offline))
     await model.show(layout)
-    #expect(model.shown?.credit == Self.credit)
+    #expect(model.credit == Self.credit)
     #expect(model.shown?.images.count == layout.tiles.count)
 
     let online = Self.transport(config: Self.config(tiles: true, credit: Self.credit)) { _ in
@@ -134,6 +139,7 @@ struct MapBackdropModelTests {
       session: session(Self.transport(config: Self.config(tiles: false, credit: nil))))
     await model.show(layout)
     #expect(model.shown == nil)
+    #expect(model.credit == nil)
   }
 
   @Test func aTileAskedForOnceIsNotAskedAgainThisLaunch() async {
