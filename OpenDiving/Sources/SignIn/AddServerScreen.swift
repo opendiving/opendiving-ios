@@ -3,13 +3,25 @@ import SwiftUI
 
 /// The field and *Continue* for a server not on the list, and *Forget this server* for any
 /// typed origin the phone holds something for — whether or not that server still answers.
-/// The servers screen pushes it.
+/// The servers screen pushes it, and it closes once the server is chosen.
 struct AddServerScreen: View {
   let flow: SignInFlow
   @State private var forgetting: ServerOrigin?
+  @Environment(\.dismiss) private var dismiss
 
   var body: some View {
     Form {
+      // What the *Forget* below did, as the servers screen shows it.
+      if let notice = flow.notice {
+        Section {
+          Label(notice, systemImage: "info.circle")
+        }
+      }
+      if let origin = flow.signingOut {
+        Section {
+          SigningOutRow(origin: origin) { flow.stopWaiting() }
+        }
+      }
       Section {
         TextField(
           "https://dive.example.org",
@@ -65,7 +77,11 @@ struct AddServerScreen: View {
   }
 
   private func proceed() {
-    Task { await flow.continueToServer() }
+    Task {
+      // Signed out, the screen beneath is replaced by the sign-in, and this one would stay
+      // pushed on top of it.
+      if await flow.continueToServer() { dismiss() }
+    }
   }
 }
 

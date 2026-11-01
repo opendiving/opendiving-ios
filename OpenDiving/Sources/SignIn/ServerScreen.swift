@@ -29,16 +29,18 @@ struct ServerScreen: View {
             } label: {
               SavedServerLabel(server: server)
             }
+            // Two buttons in one row: a style other than the default gives each its own taps
+            // rather than the row's, and plain keeps the address out of the tint.
+            .buttonStyle(.plain)
             .disabled(flow.signingOut != nil)
             Button {
               showing = server.origin
             } label: {
               Image(systemName: "info.circle")
             }
+            .buttonStyle(.borderless)
             .accessibilityLabel("About \(server.origin.description)")
           }
-          // Two buttons in one row: each takes its own taps rather than the row's.
-          .buttonStyle(.borderless)
           .swipeActions {
             if server.canForget {
               Button("Forget", role: .destructive) { forgetting = server.origin }
@@ -52,8 +54,15 @@ struct ServerScreen: View {
     .navigationTitle("Servers")
     .toolbar {
       if flow.canCancelServerChange {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { flow.cancelServerChange() }
+        // A back button of its own: signed out, this screen replaces the sign-in rather than
+        // being pushed over it, so the stack has none to draw.
+        ToolbarItem(placement: .navigation) {
+          Button {
+            flow.cancelServerChange()
+          } label: {
+            Image(systemName: "chevron.left")
+          }
+          .accessibilityLabel("Back")
         }
       }
       ToolbarItem(placement: .primaryAction) {

@@ -114,7 +114,7 @@ struct SignInFlowTests {
     let session = session(pointer: nil, transport: transport)
     let flow = SignInFlow(session: session)
     flow.setServerText("dive.example.org/dives")
-    await flow.continueToServer()
+    #expect(await flow.continueToServer())
     #expect(session.state == .signingIn(origin))
     #expect(session.server?.health?.version == "0.6.0")
     #expect(flow.step == .email)

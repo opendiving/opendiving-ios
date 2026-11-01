@@ -145,13 +145,15 @@ public final class SignInFlow {
   }
 
   /// Asks the typed server whether it is an OpenDiving instance and, when it is, points the
-  /// app at it and saves it. Every other server keeps its session and its state.
-  public func continueToServer() async {
-    guard !isValidating else { return }
+  /// app at it and saves it. Every other server keeps its session and its state. Answers
+  /// whether it is now the active server, which leaves the screen that asked with nothing to do.
+  @discardableResult
+  public func continueToServer() async -> Bool {
+    guard !isValidating else { return false }
     notice = nil
     guard let origin = ServerOrigin(serverText) else {
       serverProblem = .unreadableAddress
-      return
+      return false
     }
     isValidating = true
     defer { isValidating = false }
@@ -164,10 +166,13 @@ public final class SignInFlow {
       serverText = ""
       serverProblem = nil
       restart(at: .email)
+      refreshForgettable()
+      return true
     } catch {
       serverProblem = ServerProblem(APIError(error), origin: origin)
+      refreshForgettable()
+      return false
     }
-    refreshForgettable()
   }
 
   /// Points the app at a saved server without asking it anything — signed in there when the
