@@ -209,7 +209,6 @@ struct SignInFlowTests {
     try await flow.forget(#require(flow.forgettableOrigin))
     #expect(!session.hasState(gone))
     #expect(flow.forgettableOrigin == nil)
-    #expect(flow.notice?.contains("Removed everything") == true)
     // The phone held a session there, so it tried to end it first.
     #expect(transport.requests.allSatisfy { $0.route == "POST auth/refresh" })
     #expect(flow.notice?.contains("Signing out on the server failed") == true)
@@ -231,7 +230,7 @@ struct SignInFlowTests {
     #expect(!session.hasState(origin))
     #expect(flow.step == .server)
     #expect(flow.serverText.isEmpty)
-    #expect(flow.notice?.contains("failed") == false)
+    #expect(flow.notice == nil)
   }
 
   @Test func aFailedSignOutIsReportedAndForgettingGoesAhead() async throws {
@@ -373,7 +372,7 @@ struct SignInFlowTests {
     #expect(session.savedServers == [origin])
     #expect(!session.hasState(other))
     #expect(session.state == .signingIn(origin))
-    #expect(flow.notice?.contains("Removed everything") == true)
+    #expect(flow.notice == nil)
   }
 
   // MARK: - Waiting for a sign-out
@@ -430,8 +429,7 @@ struct SignInFlowTests {
     try await Task.sleep(for: .milliseconds(100))
     await transport.logout.open()
     #expect(await forget.value == nil)
-    #expect(flow.notice?.contains("Removed everything") == true)
-    #expect(flow.notice?.contains("failed") == false)
+    #expect(flow.notice == nil)
   }
 
   // MARK: - The email and the code

@@ -209,7 +209,8 @@ public final class SignInFlow {
       refreshForgettable()
       return failure
     }
-    notice = KeptText.forgotten(origin) + (signOut.map(Self.sessionLeftOpen) ?? "")
+    // A Forget that worked says nothing; only a session it could not end is worth a line.
+    notice = signOut.flatMap(Self.sessionLeftOpen)
     if session.state == .noServer {
       serverText = ""
       serverProblem = nil
@@ -275,19 +276,18 @@ public final class SignInFlow {
   private static let flagshipStays = "\(ServerOrigin.flagship) stays on this phone's list."
 
   /// What a *Forget* adds about the server's own session when it could not end it.
-  private static func sessionLeftOpen(_ signOut: SignOutResult) -> String {
+  private static func sessionLeftOpen(_ signOut: SignOutResult) -> String? {
     switch signOut {
     case .signedOut:
-      ""
+      nil
     case .failed(let reason):
-      " Signing out on the server failed (\(reason)), so the session there stays open until it"
+      "Signing out on the server failed (\(reason)), so the session there stays open until it"
         + " expires."
     case .timedOut:
-      " The server did not answer in time, so the session there may stay open until it"
-        + " expires."
+      "The server did not answer in time, so the session there may stay open until it expires."
     case .stopped:
-      " You stopped waiting for the server to sign out, so the session there may stay open"
-        + " until it expires."
+      "You stopped waiting for the server to sign out, so the session there may stay open until"
+        + " it expires."
     }
   }
 

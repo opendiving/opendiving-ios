@@ -153,7 +153,6 @@ struct DiveComputerStoreTests {
     let origin = ImportServer.origin
     for sentence in [
       KeptText.signedOutFooter(origin), KeptText.signedOutFooter(.flagship), KeptText.held(origin),
-      KeptText.forgetMessage(OutboxSummary()), KeptText.forgotten(origin),
     ] {
       #expect(sentence.contains("dive computers"))
     }

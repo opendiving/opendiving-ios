@@ -76,11 +76,7 @@ struct EmailScreen: View {
               Label("Your dives waiting to sync", systemImage: "arrow.triangle.2.circlepath")
             }
           case .forgetServer:
-            Button(role: .destructive) {
-              forgetting = origin
-            } label: {
-              Label("Forget this server", systemImage: "trash")
-            }
+            Button("Forget this server", role: .destructive) { forgetting = origin }
           }
         }
       } footer: {

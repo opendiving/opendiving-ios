@@ -14,19 +14,21 @@ struct ForgetServerConfirmation: ViewModifier {
   }
 
   func body(content: Content) -> some View {
-    content.confirmationDialog(
-      title, isPresented: Binding(get: { origin != nil }, set: { if !$0 { origin = nil } }),
-      titleVisibility: .visible, presenting: origin
+    content.alert(
+      origin?.description ?? "",
+      isPresented: Binding(get: { origin != nil }, set: { if !$0 { origin = nil } }),
+      presenting: origin
     ) { origin in
-      Button("Forget", role: .destructive) { perform(origin) }
+      Button("Forget Server", role: .destructive) { perform(origin) }
+      Button("Cancel", role: .cancel) {}
     } message: { origin in
       // Read when it is asked: every account's writes on the server, which `forget` discards.
-      Text(KeptText.forgetMessage(OutboxStore.summary(store: session.store, origin: origin)))
+      if let loss = KeptText.forgetMessage(
+        OutboxStore.summary(store: session.store, origin: origin))
+      {
+        Text(loss)
+      }
     }
-  }
-
-  private var title: String {
-    origin.map { "Forget \($0)?" } ?? "Forget this server?"
   }
 }
 
