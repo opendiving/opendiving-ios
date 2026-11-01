@@ -45,8 +45,6 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
-        # Icons.xcassets holds symbols only; without this the build demands an AppIcon in it.
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
         # The Kit's `Icon` names the symbols; Xcode's generated `ImageResource` names would
         # make `Image(.fish)` ambiguous.
         ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: NO
