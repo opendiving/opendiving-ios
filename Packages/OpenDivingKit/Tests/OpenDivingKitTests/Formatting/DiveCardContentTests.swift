@@ -89,7 +89,7 @@ struct DiveCardContentTests {
         Chip(text: "CCR", accessibilityLabel: "Closed circuit", kind: .vocabulary),
       ])
     #expect(
-      content.facts.last == Fact(text: "Legend", systemImage: "ferry", accessibilityLabel: "Boat"))
+      content.facts.last == Fact(text: "Legend", icon: .ship, accessibilityLabel: "Boat"))
   }
 
   /// `:290`.
@@ -110,7 +110,7 @@ struct DiveCardContentTests {
   @Test func paperclipWhereARecordingIsAttached() {
     #expect(
       card(hasRecording: true).facts.last
-        == Fact(systemImage: "paperclip", accessibilityLabel: "Recording attached"))
+        == Fact(icon: .paperclip, accessibilityLabel: "Recording attached"))
     #expect(card(hasRecording: false).facts.count == 1)
   }
 

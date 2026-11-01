@@ -35,7 +35,7 @@ struct RecordCardView: View {
         title: "Tiger Reef",
         facts: [
           Fact(text: "Dahab, Egypt"),
-          Fact(text: "To 30 m", systemImage: "arrow.down.to.line", accessibilityLabel: "Depth"),
+          Fact(text: "To 30 m", icon: .arrowDownToLine, accessibilityLabel: "Depth"),
         ],
         figures: [Figure(label: "Dives", value: "2"), Figure(label: "Deepest", value: nil)]))
   }

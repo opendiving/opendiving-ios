@@ -41,7 +41,7 @@ struct DiveDetailContentTests {
       ])
     #expect(hero.points.map(\.name) == ["Blue Hole"])
     #expect(hero.fixes.map(\.name) == ["Entry", "Exit"])
-    #expect(hero.facts.last?.systemImage == "paperclip")
+    #expect(hero.facts.last?.icon == .paperclip)
   }
 
   @Test func heroPutsTheAverageBeforeTheReadings() throws {
@@ -135,6 +135,7 @@ struct DiveDetailContentTests {
   @Test func tanksAreOneCardPerCylinder() throws {
     let tanks = try #require(content(try dive("dive-two-recordings")).tanks)
     #expect(tanks.tanks.map(\.number) == ["#1", "#2"])
+    #expect(tanks.tanks.map(\.icon.kind) == [.single, .single])
     // Helium unrecorded: no name and no MOD, as the web's `gasName` and `isNameableMix`.
     #expect(tanks.tanks.map(\.gas) == [nil, nil])
     #expect(tanks.tanks.map(\.role) == ["Bottom", "Deco"])
@@ -180,6 +181,23 @@ struct DiveDetailContentTests {
     #expect(tanks.tanks[0].facts.contains("He 0%"))
     #expect(tanks.tanks[1].facts.contains("He 35%"))
     #expect(tanks.tanks[1].gas == "50/35")
+  }
+
+  /// `dive-mixtures-card.render.test.tsx`, "draws the first parallel cylinder as the left of
+  /// the pair", at `opendiving-web` `2edb6d51`.
+  @Test func theFirstParallelCylinderDrawsAsTheLeftOfThePair() throws {
+    var object =
+      try JSONSerialization.jsonObject(with: KitFixture.data("dive-two-recordings"))
+      as? [String: Any] ?? [:]
+    var mixtures = object["mixtures"] as? [[String: Any]] ?? []
+    mixtures[0]["usage"] = NSNull()
+    mixtures[1]["usage"] = "parallel"
+    mixtures.append(mixtures[1])
+    object["mixtures"] = mixtures
+    let read = try APICoding.decoder().decode(
+      DiveReadWithMixtures.self, from: JSONSerialization.data(withJSONObject: object))
+    let tanks = try #require(content(read).tanks)
+    #expect(tanks.tanks.map(\.icon.kind) == [.single, .left, .single])
   }
 
   @Test func noMixturesMeansNoTanksAndNoGasCard() throws {

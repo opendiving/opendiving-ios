@@ -42,7 +42,7 @@ private struct TripList: View {
       case .loaded where list.items.isEmpty:
         EmptyOrErrorView(
           status: .empty(
-            systemImage: "suitcase", title: "No trips yet",
+            icon: .luggage, title: "No trips yet",
             message: "Trips you add on the web, or when logging a dive, appear here."))
       case .loaded:
         ScrollView {

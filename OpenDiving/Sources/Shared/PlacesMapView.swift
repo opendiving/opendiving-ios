@@ -11,7 +11,7 @@ struct PlacesMapView: View {
   var body: some View {
     Map(initialPosition: .automatic) {
       ForEach(Array(points.enumerated()), id: \.offset) { _, point in
-        Marker(point.name, systemImage: "mappin", coordinate: point.coordinate)
+        Marker(point.name, image: Icon.mapPin.rawValue, coordinate: point.coordinate)
       }
       ForEach(Array(fixes.enumerated()), id: \.offset) { _, fix in
         Annotation(fix.name, coordinate: fix.coordinate) {

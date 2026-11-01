@@ -46,7 +46,7 @@ private struct CheckinSheetScreen: View {
       } else {
         EmptyOrErrorView(
           status: .empty(
-            systemImage: "person.text.rectangle", title: "No check-in sheet on this phone",
+            icon: .idCard, title: "No check-in sheet on this phone",
             message: model.isSignedIn
               ? nil : "Sign in once with a connection and the sheet is kept here."))
       }

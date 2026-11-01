@@ -12,9 +12,9 @@ struct EmptyOrErrorView: View {
     case .loading:
       ProgressView()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    case .empty(let systemImage, let title, let message):
+    case .empty(let icon, let title, let message):
       ContentUnavailableView {
-        Label(title, systemImage: systemImage)
+        Label(title, icon: icon)
       } description: {
         if let message {
           Text(message)
@@ -40,7 +40,7 @@ struct EmptyOrErrorView: View {
 #Preview("Empty") {
   EmptyOrErrorView(
     status: .empty(
-      systemImage: "water.waves", title: "No dives logged yet",
+      icon: .dive, title: "No dives logged yet",
       message:
         "No dives yet. Log one, import your dive computer's files, or connect your dive "
         + "computer, with +."

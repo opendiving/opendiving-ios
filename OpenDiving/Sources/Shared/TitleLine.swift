@@ -12,7 +12,7 @@ struct TitleLine: View {
       Text(title)
         .font(font)
       if isCourse {
-        Image(systemName: "graduationcap")
+        Image(.graduationCap)
           .font(font)
           .accessibilityLabel("Training dive")
       }
