@@ -40,7 +40,7 @@ private struct SiteDetailContent: View {
               PageEndTrigger(list: model.dives)
               SiteInformationCard(info: DiveSiteSummary.info(site))
               if !site.notes.isEmpty {
-                SectionCard(title: "Notes", systemImage: "doc.text") {
+                SectionCard(title: "Notes", icon: .fileText) {
                   Text(site.notes)
                     .foregroundStyle(.secondary)
                 }
@@ -71,17 +71,17 @@ private struct SiteDives: View {
   let units: UnitSystem
 
   private static let title = "Dives at This Site"
-  private static let symbol = "water.waves"
+  private static let icon = Icon.dive
 
   var body: some View {
     switch list.phase {
     case .idle, .loading:
-      SectionCard(title: Self.title, systemImage: Self.symbol) {
+      SectionCard(title: Self.title, icon: Self.icon) {
         ProgressView()
           .frame(maxWidth: .infinity)
       }
     case .failed:
-      SectionCard(title: Self.title, systemImage: Self.symbol) {
+      SectionCard(title: Self.title, icon: Self.icon) {
         Text("This site's dives could not be loaded.")
           .font(.subheadline)
           .foregroundStyle(.secondary)
@@ -91,9 +91,9 @@ private struct SiteDives: View {
     case .loaded where list.items.isEmpty:
       EmptyOrErrorView(
         status: .empty(
-          systemImage: Self.symbol, title: "No dives logged at this site yet", message: nil))
+          icon: Self.icon, title: "No dives logged at this site yet", message: nil))
     case .loaded:
-      SectionCard(title: Self.title, systemImage: Self.symbol) {
+      SectionCard(title: Self.title, icon: Self.icon) {
         Text("All dives logged at this dive site")
           .font(.subheadline)
           .foregroundStyle(.secondary)
@@ -111,7 +111,7 @@ private struct SiteInformationCard: View {
 
   var body: some View {
     if !info.isEmpty {
-      SectionCard(title: "Dive Site Information", systemImage: "mappin.and.ellipse") {
+      SectionCard(title: "Dive Site Information", icon: .diveSite) {
         VStack(alignment: .leading, spacing: 16) {
           if let alsoKnownAs = info.alsoKnownAs {
             InfoRow(label: "Also known as") {
@@ -208,7 +208,7 @@ private struct SiteSpecies: View {
   }
 
   private func card(@ViewBuilder _ content: () -> some View) -> some View {
-    SectionCard(title: "Species Seen Here", systemImage: "fish", content: content)
+    SectionCard(title: "Species Seen Here", icon: .fish, content: content)
   }
 
   private func message(_ text: String) -> some View {

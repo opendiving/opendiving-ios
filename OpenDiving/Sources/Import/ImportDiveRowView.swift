@@ -2,7 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// One dive of a review or a result: the start, opening the dive where the row links one,
-/// then Dive time, Depth and Recorded by, the files it came from, the outcome and the notes.
+/// then Dive time, Depth and Recorded by, the files it came from, the outcome, why a skipped
+/// dive was skipped, and the notes.
 struct ImportDiveRowView: View {
   let row: ImportDiveRow
 
@@ -16,6 +17,9 @@ struct ImportDiveRowView: View {
         }
       } else {
         content
+      }
+      if let reason = row.reason {
+        ImportNoteLine(badge: nil, tone: .warning, text: reason)
       }
       ForEach(Array(row.notes.enumerated()), id: \.offset) { _, note in
         ImportNoteLine(badge: note.badge, tone: note.tone, text: note.text)

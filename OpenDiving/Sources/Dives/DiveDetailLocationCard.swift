@@ -8,32 +8,32 @@ struct DiveDetailLocationCard: View {
   let location: DiveDetailContent.Location
 
   var body: some View {
-    SectionCard(title: "Location", systemImage: "mappin") {
+    SectionCard(title: "Location", icon: .mapPin) {
       VStack(alignment: .leading, spacing: 16) {
         if let trip = location.trip {
           LinkedBlock(label: "Trip") {
             NavigationLink {
               TripDetailView(tripUUID: trip.uuid)
             } label: {
-              placeLabel(trip.name, detail: trip.locations, systemImage: "suitcase")
+              placeLabel(trip.name, detail: trip.locations, icon: .luggage)
             }
           }
         }
         if let center = location.diveCenter {
           LinkedBlock(label: "Dive center") {
-            placeLabel(center.name, detail: center.place, systemImage: "building.2")
+            placeLabel(center.name, detail: center.place, icon: .building2)
             if let phone = center.phone {
               if let url = center.phoneURL {
-                Link(destination: url) { Label(phone, systemImage: "phone") }
+                Link(destination: url) { Label(phone, icon: .phone) }
               } else {
-                Label(phone, systemImage: "phone")
+                Label(phone, icon: .phone)
               }
             }
             if let website = center.website {
               if let url = center.websiteURL {
-                Link(destination: url) { Label(website, systemImage: "globe").lineLimit(1) }
+                Link(destination: url) { Label(website, icon: .globe).lineLimit(1) }
               } else {
-                Label(website, systemImage: "globe").lineLimit(1)
+                Label(website, icon: .globe).lineLimit(1)
               }
             }
           }
@@ -44,7 +44,7 @@ struct DiveDetailLocationCard: View {
               NavigationLink {
                 SiteDetailView(siteUUID: site.id)
               } label: {
-                placeLabel(site.name, detail: site.location, systemImage: "mappin.and.ellipse")
+                placeLabel(site.name, detail: site.location, icon: .diveSite)
               }
             }
           }
@@ -69,9 +69,9 @@ struct DiveDetailLocationCard: View {
   }
 
   /// A name over its place, led by an icon level with the name.
-  private func placeLabel(_ name: String, detail: String?, systemImage: String) -> some View {
+  private func placeLabel(_ name: String, detail: String?, icon: Icon) -> some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Image(systemName: systemImage)
+      Image(icon)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {

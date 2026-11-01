@@ -7,7 +7,7 @@ struct DiveDetailGasCard: View {
   let gas: DiveDetailContent.GasConsumption
 
   var body: some View {
-    SectionCard(title: "Gas Consumption", systemImage: "waveform.path.ecg") {
+    SectionCard(title: "Gas Consumption", icon: .activity) {
       switch gas {
       case .unavailable(let reason):
         note(reason, font: .subheadline)

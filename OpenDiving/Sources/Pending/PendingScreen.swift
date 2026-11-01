@@ -33,7 +33,11 @@ struct PendingScreen: View {
     List {
       if !signedIn {
         Section {
-          Button("Log a dive", systemImage: "square.and.pencil") { route = .form(.create) }
+          Button {
+            route = .form(.create)
+          } label: {
+            Label("Log a dive", icon: .dive)
+          }
         } footer: {
           VStack(alignment: .leading, spacing: 4) {
             Text(PendingText.signInToSync).font(.footnote.weight(.semibold))

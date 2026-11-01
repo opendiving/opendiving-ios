@@ -7,7 +7,7 @@ struct DiveDetailRecordingsCard: View {
   let recordings: [DiveDetailContent.Recording]
 
   var body: some View {
-    SectionCard(title: "Recordings", systemImage: "applewatch") {
+    SectionCard(title: "Recordings", icon: .diveComputer) {
       VStack(alignment: .leading, spacing: 20) {
         ForEach(recordings) { recording in
           RecordingView(recording: recording)
@@ -42,7 +42,7 @@ private struct RecordingView: View {
       } else {
         ForEach(recording.files) { file in
           HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "paperclip")
+            Image(.paperclip)
               .foregroundStyle(.secondary)
               .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {

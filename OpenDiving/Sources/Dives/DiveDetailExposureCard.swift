@@ -7,7 +7,7 @@ struct DiveDetailExposureCard: View {
   let exposure: DiveDetailContent.Exposure
 
   var body: some View {
-    SectionCard(title: "Exposure & Pressure", systemImage: "gauge.with.needle") {
+    SectionCard(title: "Exposure & Pressure", icon: .gauge) {
       FlowLayout(spacing: 16, lineSpacing: 8) {
         ForEach(Array(exposure.readings.enumerated()), id: \.offset) { _, reading in
           VStack(alignment: .leading, spacing: 0) {

@@ -87,9 +87,10 @@ struct OfflineScreensTests {
     let offline = F.signedIn(directory, transport: held)
     let list = make(offline)
     let load = Task { await list.load() }
-    let shown = await F.eventually { !list.items.isEmpty }
-    let asked = held.routes.contains(route)
-    let count = shown && asked ? list.items.count : 0
+    // The copy goes up before the fetch leaves, and the fetch crosses the client's actor before
+    // the transport sees it, so wait for the request and read what was on screen by then.
+    let asked = await F.eventually { held.routes.contains(route) }
+    let count = asked ? list.items.count : 0
     let lastUpdated = list.lastUpdated
     held.release()
     await load.value

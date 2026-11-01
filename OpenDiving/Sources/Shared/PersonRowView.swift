@@ -8,7 +8,7 @@ struct PersonRowView: View {
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Image(systemName: "person")
+      Image(.user)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {

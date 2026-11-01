@@ -44,7 +44,7 @@ struct SpeciesCardView: View {
     } else {
       ZStack {
         Color(.tertiarySystemGroupedBackground)
-        Image(systemName: "fish")
+        Image(.fish)
           .font(.largeTitle)
           .foregroundStyle(.secondary)
       }

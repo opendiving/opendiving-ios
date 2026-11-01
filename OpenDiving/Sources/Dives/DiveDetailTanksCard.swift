@@ -7,7 +7,7 @@ struct DiveDetailTanksCard: View {
   let tanks: DiveDetailContent.Tanks
 
   var body: some View {
-    SectionCard(title: "Tanks", systemImage: "cylinder.split.1x2") {
+    SectionCard(title: "Tanks", icon: .twinTank) {
       VStack(spacing: 8) {
         ForEach(Array(tanks.tanks.enumerated()), id: \.offset) { _, tank in
           TankView(tank: tank)
@@ -26,6 +26,17 @@ private struct TankView: View {
   let tank: DiveDetailContent.Tanks.Tank
 
   var body: some View {
+    HStack(alignment: .top, spacing: 12) {
+      TankIconView(icon: tank.icon)
+        .frame(width: 40, height: 40)
+      details
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(.separator)))
+  }
+
+  private var details: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 6) {
         Text(tank.number)
@@ -63,9 +74,6 @@ private struct TankView: View {
         .accessibilityElement(children: .combine)
       }
     }
-    .padding(12)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(.separator)))
   }
 
   private func figure(_ label: String, value: String?) -> some View {
