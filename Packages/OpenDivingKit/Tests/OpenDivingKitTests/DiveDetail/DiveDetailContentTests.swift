@@ -183,6 +183,23 @@ struct DiveDetailContentTests {
     #expect(tanks.tanks[1].gas == "50/35")
   }
 
+  /// `dive-mixtures-card.render.test.tsx`, "draws the first parallel cylinder as the left of
+  /// the pair", at `opendiving-web` `2edb6d51`.
+  @Test func theFirstParallelCylinderDrawsAsTheLeftOfThePair() throws {
+    var object =
+      try JSONSerialization.jsonObject(with: KitFixture.data("dive-two-recordings"))
+      as? [String: Any] ?? [:]
+    var mixtures = object["mixtures"] as? [[String: Any]] ?? []
+    mixtures[0]["usage"] = NSNull()
+    mixtures[1]["usage"] = "parallel"
+    mixtures.append(mixtures[1])
+    object["mixtures"] = mixtures
+    let read = try APICoding.decoder().decode(
+      DiveReadWithMixtures.self, from: JSONSerialization.data(withJSONObject: object))
+    let tanks = try #require(content(read).tanks)
+    #expect(tanks.tanks.map(\.icon.kind) == [.single, .left, .single])
+  }
+
   @Test func noMixturesMeansNoTanksAndNoGasCard() throws {
     let page = content(try dive("dive-detail", ["mixtures": []]))
     #expect(page.tanks == nil)
