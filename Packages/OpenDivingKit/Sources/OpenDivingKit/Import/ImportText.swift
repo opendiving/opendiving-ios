@@ -66,7 +66,9 @@ public enum ImportText {
       return gains.isEmpty
         ? "Adds to a dive you have" : "Adds \(gains.joined(separator: " and ")) to a dive you have"
     case "skipped":
-      return row.reason.map { "Skipped: " + $0 } ?? "Skipped"
+      // The reason is a sentence, too long for the column this sits in; the row prints it
+      // beneath, at full width.
+      return "Skipped"
     default:
       return row.outcome
     }
