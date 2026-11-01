@@ -7,4 +7,7 @@ public struct InstanceConfigRead: Codable, Hashable, Sendable {
   public let projectOperated: Bool
   public let joinLinks: Bool?
   public let mapTiles: Bool?
+  /// The credit the map tiles owe, as a markdown link; nil until the API has heard it from
+  /// its renderer.
+  public let mapAttribution: String?
 }

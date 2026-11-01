@@ -70,6 +70,7 @@ public final class Session {
   @ObservationIgnored public nonisolated let connectivity: any Connectivity
   /// Bumped on every change of ``state``, so a load that began before one cannot land after it.
   @ObservationIgnored private var stateGeneration = 0
+  @ObservationIgnored private var mapTiles: MapTileStore?
 
   /// The device's session. `configuration` is the app target's, carrying what Linux's
   /// Foundation cannot express; `applicationSupport` is where per-server state is kept.
@@ -255,6 +256,32 @@ public final class Session {
   public func requireClient() throws -> APIClient {
     guard let client else { throw APIError.signedOut }
     return client
+  }
+
+  // MARK: - Map tiles
+
+  /// The active server's map tiles; nil with no server.
+  public func mapTileStore() -> MapTileStore? {
+    guard let client else { return nil }
+    if let mapTiles, mapTiles.client === client { return mapTiles }
+    let tiles = MapTileStore(
+      client: client,
+      directory: store.directory(for: client.origin)
+        .appendingPathComponent("MapTiles", isDirectory: true),
+      language: Locale.preferredLanguages.first)
+    mapTiles = tiles
+    return tiles
+  }
+
+  /// The active server's config, asked for when it has not answered since launch — or when it
+  /// draws tiles but had no credit for them yet, which it learns from its renderer after it
+  /// starts. Nil when it cannot be had.
+  public func mapConfig() async -> InstanceConfigRead? {
+    if let config = server?.config, config.mapTiles != true || config.mapAttribution != nil {
+      return config
+    }
+    guard let origin = state.origin else { return nil }
+    return try? await validate(origin).config
   }
 
   // MARK: - Internals
