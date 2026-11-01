@@ -57,7 +57,6 @@ struct SignInFlowTests {
       flow.savedServers == [SavedServer(origin: .flagship, isActive: false, status: "Signed out")])
     #expect(flow.savedServers.first?.canForget == false)
     #expect(flow.signedOutEntries.isEmpty)
-    #expect(!flow.canCancelServerChange)
   }
 
   @Test func signingInOffersExactlyTheSheetAndForgetting() {
@@ -216,17 +215,6 @@ struct SignInFlowTests {
     #expect(flow.notice?.contains("Signing out on the server failed") == true)
   }
 
-  @Test func anotherServerAndBack() {
-    let session = session(pointer: origin, transport: Self.failing(.notConnectedToInternet))
-    let flow = SignInFlow(session: session)
-    flow.useDifferentServer()
-    #expect(flow.step == .server)
-    #expect(flow.canCancelServerChange)
-    flow.cancelServerChange()
-    #expect(flow.step == .email)
-    #expect(session.state == .signingIn(origin))
-  }
-
   // MARK: - Forgetting the active server
 
   @Test func forgettingASignedInServerSignsOutFirst() async throws {
@@ -286,7 +274,6 @@ struct SignInFlowTests {
     let session = session(
       pointer: origin, secrets: [origin.description: "refresh-0"], transport: transport)
     let flow = SignInFlow(session: session)
-    #expect(!flow.canCancelServerChange)
     flow.setServerText(other.description)
     await flow.continueToServer()
     #expect(session.state == .signingIn(other))

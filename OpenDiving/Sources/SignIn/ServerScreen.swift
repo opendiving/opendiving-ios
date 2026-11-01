@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The saved servers, the active one first, to switch to, forget or open; *+* adds another.
-/// Signed out it is a step of the sign-in; signed in, Settings pushes it.
+/// With no server it is the first screen; otherwise Settings or the sign-in pushes it.
 struct ServerScreen: View {
   let flow: SignInFlow
   @State private var forgetting: ServerOrigin?
@@ -53,18 +53,6 @@ struct ServerScreen: View {
     }
     .navigationTitle("Servers")
     .toolbar {
-      if flow.canCancelServerChange {
-        // A back button of its own: signed out, this screen replaces the sign-in rather than
-        // being pushed over it, so the stack has none to draw.
-        ToolbarItem(placement: .navigation) {
-          Button {
-            flow.cancelServerChange()
-          } label: {
-            Image(systemName: "chevron.left")
-          }
-          .accessibilityLabel("Back")
-        }
-      }
       ToolbarItem(placement: .primaryAction) {
         Button {
           adding = true

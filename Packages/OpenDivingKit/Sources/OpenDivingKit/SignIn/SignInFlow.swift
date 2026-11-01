@@ -2,8 +2,9 @@ import Foundation
 import Observation
 
 /// The signed-out screens: choosing a server, an email, the code, and what redeeming it led to.
-/// The root holds one for the app's life, so that Settings can send the user back to the
-/// server screen and a *Forget* can report what it did on the screen that follows it.
+/// The root holds one for the app's life, so that the servers screen Settings and the sign-in
+/// push reads the same state, and a *Forget* can report what it did on the screen that follows
+/// it.
 @MainActor
 @Observable
 public final class SignInFlow {
@@ -137,13 +138,6 @@ public final class SignInFlow {
     refreshForgettable()
   }
 
-  /// Whether the servers screen can go back to signing in to the server already active. Signed
-  /// in, Settings goes back by navigation instead.
-  public var canCancelServerChange: Bool {
-    if case .signingIn = session.state { return true }
-    return false
-  }
-
   /// Asks the typed server whether it is an OpenDiving instance and, when it is, points the
   /// app at it and saves it. Every other server keeps its session and its state. Answers
   /// whether it is now the active server, which leaves the screen that asked with nothing to do.
@@ -185,19 +179,6 @@ public final class SignInFlow {
     session.select(origin)
     restart(at: .email)
     refreshForgettable()
-  }
-
-  public func useDifferentServer() {
-    notice = nil
-    serverProblem = nil
-    chosenStep = .server
-  }
-
-  public func cancelServerChange() {
-    guard canCancelServerChange else { return }
-    notice = nil
-    serverProblem = nil
-    restart(at: .email)
   }
 
   public func dismissNotice() {

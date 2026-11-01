@@ -55,7 +55,13 @@ struct EmailScreen: View {
         .disabled(!flow.canSendCode)
       }
       ServerCard(content: flow.session.card(for: origin)) {
-        Button("Change server") { flow.useDifferentServer() }
+        NavigationLink("Change server") {
+          // A notice from an earlier visit is not this one's, and one the list showed is not
+          // the sign-in's, unless the server it is about has changed under it.
+          ServerScreen(flow: flow)
+            .onAppear { flow.dismissNotice() }
+            .onDisappear { if flow.origin == origin { flow.dismissNotice() } }
+        }
       }
       Section {
         ForEach(flow.signedOutEntries) { entry in
