@@ -1,5 +1,6 @@
 import Foundation
 import OpenDivingKit
+import Synchronization
 import Testing
 
 #if canImport(FoundationNetworking)
@@ -17,7 +18,7 @@ struct MapBackdropModelTests {
   private let support = FileManager.default.temporaryDirectory
     .appendingPathComponent("MapBackdropModelTests-\(UUID().uuidString)", isDirectory: true)
 
-  private func session(_ transport: StubTransport) -> Session {
+  private func session(_ transport: any HTTPTransport) -> Session {
     Session(
       transport: transport,
       secrets: InMemorySecretStore([Self.origin.description: "refresh"]),
@@ -148,5 +149,59 @@ struct MapBackdropModelTests {
     await MapBackdropModel(session: session).show(layout)
     await MapBackdropModel(session: session).show(layout)
     #expect(tileRequests(transport).count == layout.tiles.count)
+  }
+
+  @Test func aHeadThatLeavesWhileTheConfigIsAskedLeavesItToTheNextHead() async {
+    let gate = Gate()
+    let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
+    let session = session(FirstConfig(inner: inner, gate: gate))
+    let leaving = Task { await MapBackdropModel(session: session).show(layout) }
+    await gate.untilArrived()
+    leaving.cancel()
+    let next = MapBackdropModel(session: session)
+    let showing = Task { await next.show(layout) }
+    await gate.open()
+    await showing.value
+    #expect(next.shown != nil)
+    #expect(inner.requests.filter { StubTransport.routeKey($0) == "GET config" }.count == 1)
+  }
+
+  @Test func aConfigThatCouldNotBeHadIsAskedAgainByTheNextHead() async {
+    let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
+    let session = session(FirstConfig(inner: inner, gate: nil))
+    await MapBackdropModel(session: session).show(layout)
+    let next = MapBackdropModel(session: session)
+    await next.show(layout)
+    #expect(next.shown != nil)
+  }
+}
+
+/// Holds the first `GET config` at `gate`, or with no gate fails it as unreachable.
+private final class FirstConfig: HTTPTransport {
+  let inner: StubTransport
+  private let gate: Gate?
+  private let first = Mutex(true)
+
+  init(inner: StubTransport, gate: Gate?) {
+    self.inner = inner
+    self.gate = gate
+  }
+
+  func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    let isFirst =
+      StubTransport.routeKey(request) == "GET config"
+      && first.withLock { first in
+        defer { first = false }
+        return first
+      }
+    if isFirst {
+      guard let gate else { throw URLError(.timedOut) }
+      await gate.pass()
+    }
+    return try await inner.send(request)
+  }
+
+  func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
+    try await inner.upload(request, fromFile: file)
   }
 }

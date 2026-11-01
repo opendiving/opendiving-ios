@@ -71,7 +71,11 @@ public final class Session {
   /// Bumped on every change of ``state``, so a load that began before one cannot land after it.
   @ObservationIgnored private var stateGeneration = 0
   @ObservationIgnored private var mapTiles: MapTileStore?
-  @ObservationIgnored private var mapConfigAsked:
+  /// The `/config` request page heads are waiting on, which none of them cancels by leaving.
+  @ObservationIgnored private var mapConfigAsk:
+    (origin: ServerOrigin, task: Task<InstanceConfigRead?, Never>)?
+  /// When the active server last answered `/config` for a page head.
+  @ObservationIgnored private var mapConfigAnswered:
     (origin: ServerOrigin, at: ContinuousClock.Instant)?
 
   /// The device's session. `configuration` is the app target's, carrying what Linux's
@@ -277,20 +281,28 @@ public final class Session {
 
   /// The active server's config, asked for when it has not answered since launch — or when it
   /// draws tiles but had no credit for them yet, which it learns from its renderer after it
-  /// starts. Asked at most once a minute, the time `/config` is cacheable for, however many
-  /// page heads open meanwhile. Nil when it cannot be had.
+  /// starts. Asked again at most once a minute after an answer, the time `/config` is
+  /// cacheable for, and once for every page head waiting at the same time. Nil when it cannot
+  /// be had.
   public func mapConfig() async -> InstanceConfigRead? {
     if let config = server?.config, config.mapTiles != true || config.mapAttribution != nil {
       return config
     }
     guard let origin = state.origin else { return nil }
-    if let asked = mapConfigAsked, asked.origin == origin,
-      ContinuousClock.now - asked.at < .seconds(60)
+    if let answered = mapConfigAnswered, answered.origin == origin,
+      ContinuousClock.now - answered.at < .seconds(60), let server, server.origin == origin
     {
-      return server?.origin == origin ? server?.config : nil
+      return server.config
     }
-    mapConfigAsked = (origin, .now)
-    return try? await validate(origin).config
+    if let ask = mapConfigAsk, ask.origin == origin {
+      return await ask.task.value
+    }
+    let task = Task { try? await self.validate(origin).config }
+    mapConfigAsk = (origin, task)
+    let config = await task.value
+    if mapConfigAsk?.origin == origin { mapConfigAsk = nil }
+    if config != nil { mapConfigAnswered = (origin, .now) }
+    return config
   }
 
   // MARK: - Internals
