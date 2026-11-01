@@ -37,16 +37,16 @@ struct SettingsModelTests {
       "GET health": .json(try KitFixture.text("health")),
     ])
     #expect(session.server == nil)
-    #expect(model.serverVersion == "Unknown")
+    #expect(model.card?.version == "Unknown")
     await model.load()
-    #expect(model.serverVersion == "0.6.0")
-    #expect(model.serverCommit == "unknown")
+    // The fixture's build knows no commit, so the version stands alone.
+    #expect(model.card?.version == "0.6.0")
   }
 
   @Test func aServerThatDoesNotAnswerLeavesTheVersionUnknown() async throws {
     let (model, _, session, _) = try signedIn([:])
     await model.load()
-    #expect(model.serverVersion == "Unknown")
+    #expect(model.card?.version == "Unknown")
     #expect(session.state == .signedIn(origin))
   }
 
@@ -118,58 +118,4 @@ struct SettingsModelTests {
     #expect(session.state == .signedIn(origin))
     #expect(!model.isWorking)
   }
-
-  @Test func aForgetThatFailsIsShownInSettings() async throws {
-    let session = Session(
-      transport: StubTransport(routes: [:]), secrets: RefusingSecretStore(),
-      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
-      applicationSupport: FileManager.default.temporaryDirectory
-        .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
-      userAgent: ClientHarness.userAgent)
-    let flow = SignInFlow(session: session)
-    let model = SettingsModel(session: session, signIn: flow)
-    await model.forget()
-    #expect(model.error?.contains("could not remove everything") == true)
-    #expect(session.state == .signedIn(origin))
-    #expect(flow.notice == nil)
-  }
-
-  @Test func aForgetThatSignedOutAndThenFailedIsLeftForTheSignInScreen() async throws {
-    let session = Session(
-      transport: StubTransport(routes: [
-        "POST auth/refresh": .refreshed(access: "fresh", refresh: "refresh-1"),
-        "POST auth/logout": Self.loggedOut,
-      ]),
-      secrets: RefusingSecretStore(),
-      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
-      applicationSupport: FileManager.default.temporaryDirectory
-        .appendingPathComponent("SettingsModelTests-\(UUID().uuidString)", isDirectory: true),
-      userAgent: ClientHarness.userAgent)
-    let flow = SignInFlow(session: session)
-    let model = SettingsModel(session: session, signIn: flow)
-    await model.forget()
-    // Signed out, the window shows the sign-in screen, not Settings.
-    #expect(session.state == .signingIn(origin))
-    #expect(flow.notice?.contains("could not remove everything") == true)
-  }
-
-  @Test func forgettingAnOfflineServerRemovesItAnyway() async throws {
-    let (model, flow, session, transport) = try signedIn([
-      "POST auth/refresh": .json(#"{"detail":"Bad gateway"}"#, status: 502)
-    ])
-    await model.forget()
-    #expect(transport.requests.map(\.route) == ["POST auth/refresh"])
-    #expect(session.state == .noServer)
-    #expect(!session.hasState(origin))
-    #expect(flow.notice?.contains("Signing out on the server failed") == true)
-  }
-}
-
-/// A Keychain holding a token it will not give up.
-private final class RefusingSecretStore: SecretStore {
-  struct Refused: Error {}
-
-  func secret(for account: String) throws -> String? { "refresh-0" }
-  func setSecret(_ value: String, for account: String) throws {}
-  func removeSecret(for account: String) throws { throw Refused() }
 }

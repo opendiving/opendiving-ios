@@ -62,6 +62,7 @@ public final class Session {
   @ObservationIgnored private let secrets: any SecretStore
   @ObservationIgnored private let activeOrigin: any ActiveOriginStore
   @ObservationIgnored private let userAgent: UserAgent
+  @ObservationIgnored private let now: () -> Date
   @ObservationIgnored public let store: ServerStateStore
   /// Keeps the app running while work that must not be cut off finishes: a token rotating, a
   /// queue flushing.
@@ -88,6 +89,7 @@ public final class Session {
       applicationSupport: applicationSupport, userAgent: userAgent)
   }
 
+  /// `now` stands in for the clock that marks a server used, in a test.
   public init(
     transport: any HTTPTransport,
     secrets: any SecretStore,
@@ -96,7 +98,8 @@ public final class Session {
     connectivity: any Connectivity = AlwaysReachable(),
     applicationSupport: URL,
     userAgent: UserAgent,
-    accessToken: String? = nil
+    accessToken: String? = nil,
+    now: @escaping () -> Date = { Date() }
   ) {
     self.transport = transport
     self.secrets = secrets
@@ -104,6 +107,7 @@ public final class Session {
     self.background = background
     self.connectivity = connectivity
     self.userAgent = userAgent
+    self.now = now
     store = ServerStateStore(root: applicationSupport, secrets: secrets, activeOrigin: activeOrigin)
     state = .noServer
     if let origin = activeOrigin.load() {
@@ -111,6 +115,7 @@ public final class Session {
       try? store.save(origin)
       client = makeClient(origin, accessToken: accessToken)
       enter(origin)
+      try? store.markUsed(origin, at: now())
     }
     savedServers = store.savedServers()
   }
@@ -133,16 +138,34 @@ public final class Session {
   }
 
   /// Points the app at `origin` and saves it, signed in there when the phone still holds a
-  /// session for it. The previous server keeps its session and everything else stored for it.
+  /// session for it, and marks both it and the server it leaves as used now. The previous
+  /// server keeps its session and everything else stored for it.
   public func select(_ origin: ServerOrigin, info: ServerInfo? = nil) {
+    let used = now()
+    if let left = state.origin, left != origin {
+      try? store.markUsed(left, at: used)
+    }
     activeOrigin.save(origin)
     try? store.save(origin)
+    try? store.markUsed(origin, at: used)
     savedServers = store.savedServers()
     client = makeClient(origin)
     server = info
     user = nil
     people = [:]
     enter(origin)
+  }
+
+  /// The active server's card, with the build it runs once it has answered ``validate(_:)``.
+  public var serverCard: ServerCardContent? {
+    state.origin.map { ServerCardContent(origin: $0, health: server?.health) }
+  }
+
+  /// Asks the active server what it runs when nothing has since it became active — after a
+  /// cold start nothing has. A failure leaves the version unknown.
+  public func loadServerInfo() async {
+    guard server == nil, let origin = state.origin else { return }
+    _ = try? await validate(origin)
   }
 
   /// Whether the phone holds anything for `origin` that ``forget(_:)`` would remove.

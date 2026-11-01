@@ -48,22 +48,36 @@ struct SignInFlowTests {
 
   // MARK: - Where the flow starts, and what it offers
 
-  @Test func withNoServerItIsTheServerScreenPrefilledWithTheFlagship() {
+  @Test func withNoServerItIsTheServerScreenListingTheFlagship() {
     let flow = SignInFlow(
       session: session(pointer: nil, transport: Self.failing(.notConnectedToInternet)))
     #expect(flow.step == .server)
-    #expect(flow.serverText == "https://opendiving.app")
+    #expect(flow.serverText.isEmpty)
+    #expect(
+      flow.savedServers == [SavedServer(origin: .flagship, isActive: false, status: "Signed out")])
+    #expect(flow.savedServers.first?.canForget == false)
     #expect(flow.signedOutEntries.isEmpty)
     #expect(!flow.canCancelServerChange)
   }
 
-  @Test func signingInOffersExactlyTheSheetAnotherServerAndForgetting() {
+  @Test func signingInOffersExactlyTheSheetAndForgetting() {
     let flow = SignInFlow(
       session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
     #expect(flow.step == .email)
     // The server is on the saved list, so the field is left for another.
     #expect(flow.serverText.isEmpty)
-    #expect(flow.signedOutEntries == [.checkInSheet, .differentServer, .forgetServer])
+    #expect(flow.signedOutEntries == [.checkInSheet, .forgetServer])
+  }
+
+  @Test func signingInToTheFlagshipOffersNoForget() async {
+    let session = session(pointer: .flagship, transport: Self.failing(.notConnectedToInternet))
+    let flow = SignInFlow(session: session)
+    #expect(flow.signedOutEntries == [.checkInSheet])
+    flow.setServerText(ServerOrigin.flagship.description)
+    #expect(flow.forgettableOrigin == nil)
+    #expect(await flow.forget(.flagship) != nil)
+    #expect(session.state == .signingIn(.flagship))
+    #expect(session.savedServers == [.flagship])
   }
 
   @Test func signedOutOfAnAccountItAlsoOffersWhatIsWaitingToSync() async throws {
@@ -79,7 +93,7 @@ struct SignInFlowTests {
     let flow = SignInFlow(
       session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
     #expect(
-      flow.signedOutEntries == [.checkInSheet, .waitingToSync, .differentServer, .forgetServer])
+      flow.signedOutEntries == [.checkInSheet, .waitingToSync, .forgetServer])
   }
 
   @Test func signedInOffersNothingSignedOut() {
@@ -225,7 +239,7 @@ struct SignInFlowTests {
     #expect(session.state == .noServer)
     #expect(!session.hasState(origin))
     #expect(flow.step == .server)
-    #expect(flow.serverText == "https://opendiving.app")
+    #expect(flow.serverText.isEmpty)
     #expect(flow.notice?.contains("failed") == false)
   }
 
@@ -276,8 +290,9 @@ struct SignInFlowTests {
     #expect(flow.step == .email)
     #expect(
       flow.savedServers == [
-        SavedServer(origin: origin, isActive: false, status: "Signed in"),
         SavedServer(origin: other, isActive: true, status: "Signed out"),
+        SavedServer(origin: origin, isActive: false, status: "Signed in"),
+        SavedServer(origin: .flagship, isActive: false, status: "Signed out"),
       ])
     flow.switchTo(origin)
     #expect(session.state == .signedIn(origin))
@@ -295,10 +310,38 @@ struct SignInFlowTests {
       applicationSupport: root, userAgent: ClientHarness.userAgent, accessToken: "access")
     try await signedIn.loadAccount()
     let flow = SignInFlow(session: signedIn)
-    #expect(flow.savedServers.map(\.status) == ["Signed in as diver@example.com"])
+    #expect(flow.savedServers.map(\.status) == ["Signed in as diver@example.com", "Signed out"])
     flow.setServerText("https://other.example.org")
     await flow.continueToServer()
-    #expect(flow.savedServers.first?.status == "Signed in as diver@example.com")
+    #expect(
+      flow.savedServers.map(\.status) == [
+        "Signed out", "Signed in as diver@example.com", "Signed out",
+      ])
+  }
+
+  @Test func theServersRunActiveFirstThenByWhenEachWasLastUsed() throws {
+    let second = ServerOrigin("https://second.example.org")!
+    let third = ServerOrigin("https://third.example.org")!
+    var tick = 0.0
+    let session = Session(
+      transport: Self.failing(.notConnectedToInternet), secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent,
+      now: {
+        tick += 60
+        return Date(timeIntervalSince1970: tick)
+      })
+    let flow = SignInFlow(session: session)
+    session.select(second)
+    session.select(third)
+    #expect(flow.savedServers.map(\.origin) == [third, second, origin, .flagship])
+    #expect(session.store.lastUsed(second) == Date(timeIntervalSince1970: 180))
+    flow.switchTo(origin)
+    #expect(flow.savedServers.map(\.origin) == [origin, third, second, .flagship])
+    // The one left is marked when it is left, not when it was chosen.
+    #expect(session.store.lastUsed(third) == Date(timeIntervalSince1970: 240))
+    try session.forget(third)
+    #expect(session.store.lastUsed(third) == nil)
   }
 
   @Test func continuingToTheActiveServerKeepsItsAccount() async throws {

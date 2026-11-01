@@ -2,7 +2,8 @@ import Foundation
 
 /// Everything the phone keeps about one server, as one thing: the refresh token in the
 /// ``SecretStore``, the remembered account, a directory under Application Support that other
-/// features write into — the check-in sheet among them — and its place on the saved list.
+/// features write into — the check-in sheet among them — its place on the saved list, and
+/// when it was last used.
 /// ``forget(_:)`` is the only call that removes them all, so no feature needs a forget path of
 /// its own.
 ///
@@ -105,7 +106,8 @@ public struct ServerStateStore: Sendable {
   }
 
   /// Removes the token, the remembered account and the directory — every account's directory
-  /// and the last-account pointer with it — takes the server off the saved list, and clears
+  /// and the last-account pointer with it — takes the server off the saved list and drops when
+  /// it was last used, and clears
   /// the active-origin pointer when it names this server. Needs no server, so a server that is
   /// gone can still be forgotten.
   public func forget(_ origin: ServerOrigin) throws {
@@ -114,6 +116,10 @@ public struct ServerStateStore: Sendable {
     let saved = savedServers()
     if saved.contains(origin) {
       try write(saved.filter { $0 != origin }, to: savedServersFile)
+    }
+    var used = lastUsedTimes()
+    if used.removeValue(forKey: origin.description) != nil {
+      try write(used, to: lastUsedFile)
     }
     if activeOrigin.load() == origin {
       activeOrigin.save(nil)
@@ -137,6 +143,30 @@ public struct ServerStateStore: Sendable {
 
   private var savedServersFile: URL {
     root.appendingPathComponent("saved-servers.json", isDirectory: false)
+  }
+
+  /// When the app was last pointed at the server: the launch or the choice that made it
+  /// active, or the moment another was chosen over it. Nil for a server last used by a build
+  /// that did not keep it.
+  public func lastUsed(_ origin: ServerOrigin) -> Date? {
+    lastUsedTimes()[origin.description]
+  }
+
+  func markUsed(_ origin: ServerOrigin, at date: Date) throws {
+    var used = lastUsedTimes()
+    used[origin.description] = date
+    try write(used, to: lastUsedFile)
+  }
+
+  /// Kept beside the saved list rather than in each server's directory, so that a launch
+  /// creates no directory for a server nothing has been kept for yet.
+  private func lastUsedTimes() -> [String: Date] {
+    guard let data = try? Data(contentsOf: lastUsedFile) else { return [:] }
+    return (try? APICoding.decoder().decode([String: Date].self, from: data)) ?? [:]
+  }
+
+  private var lastUsedFile: URL {
+    root.appendingPathComponent("server-last-used.json", isDirectory: false)
   }
 
   /// Whether the phone holds anything for this server: a token, a remembered account, a

@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Settings* tab: the server and the build it runs, the account as read-only rows, the
-/// servers screen, signing out and forgetting the server.
+/// The *Settings* tab: the server card, with the servers screen and signing out, the account
+/// as read-only rows, and the app.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
@@ -18,7 +18,6 @@ struct SettingsView: View {
 private struct SettingsList: View {
   @State private var model: SettingsModel
   @State private var computers: DiveComputersListModel
-  @State private var forgetting: ServerOrigin?
 
   init(session: Session, signIn: SignInFlow) {
     _model = State(initialValue: SettingsModel(session: session, signIn: signIn))
@@ -27,13 +26,23 @@ private struct SettingsList: View {
 
   var body: some View {
     List {
-      Section("Server") {
-        LabeledContent("Address", value: model.origin?.description ?? "None")
-        LabeledContent("Version", value: model.serverVersion)
-        LabeledContent("Commit", value: model.serverCommit)
-        if let origin = model.origin, !origin.isEncrypted {
-          Label("The connection to this server is not encrypted.", systemImage: "lock.open")
-            .foregroundStyle(.orange)
+      if let card = model.card {
+        ServerCard(content: card) {
+          NavigationLink("Change server") {
+            // A notice from an earlier visit is not this one's.
+            ServerScreen(flow: model.signIn)
+              .onAppear { model.signIn.dismissNotice() }
+          }
+          .disabled(model.isWorking)
+          Button("Sign out") { Task { await model.signOut() } }
+            .disabled(model.isWorking)
+          if let origin = model.signIn.signingOut {
+            SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
+          }
+          if let error = model.error {
+            Label(error, systemImage: "exclamationmark.triangle")
+              .foregroundStyle(.red)
+          }
         }
       }
       Section {
@@ -54,27 +63,6 @@ private struct SettingsList: View {
       } footer: {
         Text("Units are changed on the web.")
       }
-      Section {
-        NavigationLink("Change server") {
-          // A notice from an earlier visit is not this one's.
-          ServerScreen(flow: model.signIn)
-            .onAppear { model.signIn.dismissNotice() }
-        }
-        .disabled(model.isWorking)
-        Button("Sign out") { Task { await model.signOut() } }
-          .disabled(model.isWorking)
-        Button("Forget this server", role: .destructive) { forgetting = model.origin }
-          .disabled(model.isWorking)
-        if let origin = model.signIn.signingOut {
-          SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
-        }
-        if let error = model.error {
-          Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
-        }
-      } footer: {
-        Text(KeptText.settingsFooter)
-      }
       Section("App") {
         NavigationLink {
           DiveComputersListView(model: computers)
@@ -86,9 +74,6 @@ private struct SettingsList: View {
     }
     .task { await model.load() }
     .onAppear { computers.reload() }
-    .forgetServerConfirmation(origin: $forgetting) { _ in
-      Task { await model.forget() }
-    }
   }
 
   private static var appVersion: String {

@@ -10,18 +10,17 @@ public enum KeptText {
     + " the dive computers you have downloaded from and the copies of your logbook kept for"
     + " offline stay on this phone after you sign out"
 
-  /// Under the signed-out screen's entries.
-  public static let signedOutFooter = afterSignOut + ", until you forget the server."
-
-  /// Under Settings' sign-out.
-  public static let settingsFooter =
-    "Signing out needs the server. " + afterSignOut
-    + ", until you forget the server. Changing server keeps you signed in here."
+  /// Under the signed-out screen's entries, for `origin`: only a server that can be forgotten
+  /// mentions it.
+  public static func signedOutFooter(_ origin: ServerOrigin) -> String {
+    afterSignOut + (origin.isFlagship ? "." : ", until you forget the server.")
+  }
 
   /// Under the saved servers.
   public static let savedServersFooter =
     "Changing server keeps you signed in to the one you leave, and everything this phone keeps"
     + " for it. Swipe a server to forget it: that signs out of it and removes all of that."
+    + " \(ServerOrigin.flagship) stays on the list."
 
   /// Under a *Forget* offered for a server that is not active.
   public static func held(_ origin: ServerOrigin) -> String {

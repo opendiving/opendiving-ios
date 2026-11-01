@@ -9,6 +9,9 @@ public struct SavedServer: Hashable, Sendable, Identifiable {
 
   public var id: ServerOrigin { origin }
 
+  /// Every server but the flagship, which stays on the list.
+  public var canForget: Bool { !origin.isFlagship }
+
   public init(origin: ServerOrigin, isActive: Bool, status: String) {
     self.origin = origin
     self.isActive = isActive

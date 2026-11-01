@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The one confirmation *Forget this server* asks for, wherever it is offered: the server
-/// screen, the signed-out screen and Settings.
+/// The one confirmation *Forget this server* asks for, wherever it is offered: the servers
+/// screen, a saved server's page, the add-server screen and the signed-out screen.
 struct ForgetServerConfirmation: ViewModifier {
   @Environment(Session.self) private var session
   @Binding var origin: ServerOrigin?

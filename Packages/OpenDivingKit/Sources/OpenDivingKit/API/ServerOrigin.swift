@@ -35,6 +35,11 @@ public struct ServerOrigin: Hashable, Sendable, Codable, CustomStringConvertible
     self.port = components.port.flatMap { $0 == defaultPort ? nil : $0 }
   }
 
+  /// The server the project runs. It is always on the servers screen, and never forgotten.
+  public static let flagship = ServerOrigin("https://opendiving.app")!
+
+  public var isFlagship: Bool { self == .flagship }
+
   /// `scheme://host[:port]`, the form ``init(_:)`` reads back to the same origin.
   public var description: String {
     let hostPart = host.contains(":") ? "[\(host)]" : host
