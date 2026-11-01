@@ -8,7 +8,7 @@ public enum InboxFileStage: Hashable, Sendable {
   case reading
   /// The inbox changed after the read that covered it, so it waits for *Read the files again*.
   case toReadAgain
-  /// Read, and ready to import as the server read it: *Garmin FIT · kept on its dive*.
+  /// Read, and ready to import as the server read it: *FIT · kept on its dive*.
   case ready(String)
   /// Left out, and why: by the bounds, by the server refusing the read, or refusing its row.
   case refused(String)
