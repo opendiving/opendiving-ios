@@ -37,7 +37,6 @@ SCALE = 4.5
 BASELINE = 1126.0
 CAP_HEIGHT = 70.46
 LEFT = 1400.0
-WIDTH = 24 * SCALE
 
 
 def lucide_svgs(version: str, integrity: str, names: list[str]) -> dict[str, bytes]:
@@ -58,30 +57,31 @@ def lucide_svgs(version: str, integrity: str, names: list[str]) -> dict[str, byt
     return svgs
 
 
-def outlined_paths(svg: bytes) -> list[str]:
+def outlined_paths(svg: bytes, scale: float, stroke: float) -> list[str]:
     # Lucide's files open with a licence comment, which the parser takes for the root.
     text = re.sub(rb"<!--.*?-->", b"", svg, flags=re.S).decode()
+    text = text.replace('stroke-width="2"', f'stroke-width="{stroke:g}"', 1)
     picture = SVG.fromstring(text).topicosvg()
-    to_template = Affine2D(SCALE, 0, 0, SCALE, 0, -12 * SCALE - CAP_HEIGHT / 2)
+    to_template = Affine2D(scale, 0, 0, scale, 0, -12 * scale - CAP_HEIGHT / 2)
     return [
         shape.as_path().apply_transform(to_template).round_floats(2).d
         for shape in picture.shapes()
     ]
 
 
-def template(paths: list[str]) -> str:
+def template(paths: list[str], scale: float) -> str:
     glyphs = "\n".join(
         f'      <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="{d}"/>'
         for d in paths
     )
     guide = 'style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;"'
     lines = []
-    for scale, baseline in (("S", 696.0), ("M", BASELINE), ("L", 1556.0)):
+    for size, baseline in (("S", 696.0), ("M", BASELINE), ("L", 1556.0)):
         for line, y in (("Baseline", baseline), ("Capline", baseline - CAP_HEIGHT)):
             lines.append(
-                f'    <line id="{line}-{scale}" {guide} x1="263" x2="3036" y1="{y:g}" y2="{y:g}"/>'
+                f'    <line id="{line}-{size}" {guide} x1="263" x2="3036" y1="{y:g}" y2="{y:g}"/>'
             )
-    for side, x in (("left", LEFT), ("right", LEFT + WIDTH)):
+    for side, x in (("left", LEFT), ("right", LEFT + 24 * scale)):
         lines.append(
             f'    <line id="{side}-margin-Regular-M" {guide} x1="{x:g}" x2="{x:g}" '
             f'y1="{BASELINE - 100:g}" y2="{BASELINE + 30:g}"/>'
@@ -141,14 +141,20 @@ def main() -> None:
     CATALOG.mkdir(parents=True)
     info = {"info": {"author": "xcode", "version": 1}}
     (CATALOG / "Contents.json").write_text(json.dumps(info, indent=2) + "\n")
-    for name, svg in sorted(sources.items()):
+    # The tab bar sets a symbol's size and weight itself, ignoring the font, so its icons are
+    # drawn again: larger, and with a heavier stroke, to stand beside SF Symbols' tab glyphs.
+    tab = manifest["tab"]
+    symbols = {name: (svg, SCALE, 2.0) for name, svg in sources.items()}
+    for name in tab["icons"]:
+        symbols[f"tab-{name}"] = (sources[name], SCALE * tab["scale"], tab["stroke"])
+    for name, (svg, scale, stroke) in sorted(symbols.items()):
         symbolset = CATALOG / f"{name}.symbolset"
         symbolset.mkdir()
-        (symbolset / f"{name}.svg").write_text(template(outlined_paths(svg)))
+        (symbolset / f"{name}.svg").write_text(template(outlined_paths(svg, scale, stroke), scale))
         contents = {"info": info["info"], "symbols": [{"filename": f"{name}.svg", "idiom": "universal"}]}
         (symbolset / "Contents.json").write_text(json.dumps(contents, indent=2) + "\n")
 
-    ENUM.write_text(enum_source(sorted(sources)))
+    ENUM.write_text(enum_source(sorted(symbols)))
 
 
 if __name__ == "__main__":

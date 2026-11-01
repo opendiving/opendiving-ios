@@ -31,5 +31,16 @@
       "waves-arrow-down",
       "weight"
     ]
+  },
+  "tab": {
+    "scale": 1.35,
+    "stroke": 2.5,
+    "icons": [
+      "dive",
+      "dive-site",
+      "id-card",
+      "luggage",
+      "settings"
+    ]
   }
 }
