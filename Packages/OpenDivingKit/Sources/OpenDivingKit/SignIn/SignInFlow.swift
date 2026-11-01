@@ -211,6 +211,8 @@ public final class SignInFlow {
   /// removed, or nil when everything was.
   @discardableResult
   public func forget(_ origin: ServerOrigin) async -> String? {
+    // Deliberate, and the owner's call: the flagship offers no Forget, though the list would
+    // show it again anyway. What the phone keeps for it outlives a sign-out.
     guard !origin.isFlagship else { return Self.flagshipStays }
     guard signingOut == nil else { return Self.stillSigningOut }
     var signOut: SignOutResult?
