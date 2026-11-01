@@ -20,7 +20,7 @@ public final class LaunchSplash {
 
   /// `sleep` stands in for the clock in a test.
   public init(
-    minimum: Duration = .seconds(1),
+    minimum: Duration = .milliseconds(500),
     settle: Duration = .milliseconds(150),
     ceiling: Duration = .seconds(5),
     sleep: @escaping Sleep = { try await Task.sleep(for: $0) }

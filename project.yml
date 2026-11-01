@@ -59,8 +59,6 @@ targets:
         # #FF7F50's P3 components, written as sRGB, and serves nothing else.
         UILaunchScreen:
           UIColorName: LaunchCoral
-        UIAppFonts:
-          - Outfit-Bold.ttf
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
