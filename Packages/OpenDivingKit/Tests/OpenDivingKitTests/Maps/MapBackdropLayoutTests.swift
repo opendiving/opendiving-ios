@@ -113,6 +113,21 @@ struct MapBackdropLayoutTests {
     expectPins(pulled, shown.pins.map { ($0.x, $0.y + 400) })
   }
 
+  @Test func nothingPlacedCanStillBeTheWholeWorld() throws {
+    #expect(
+      MapBackdropLayout(
+        points: [], fixes: [], theme: .light, width: 361, height: 240, coveredBottom: 100) == nil)
+    let world = try #require(
+      MapBackdropLayout(
+        points: [], fixes: [], theme: .light, width: 361, height: 240, coveredBottom: 100,
+        worldWhenEmpty: true))
+    #expect(world.pins.isEmpty)
+    #expect(Set(world.tiles.map(\.address)) == [MapTileAddress(theme: .light, z: 0, x: 0, y: 0)])
+    // The equator across the band's middle, between the padding and the details.
+    let equator = world.tiles[0].y + world.tileSize / 2
+    #expect(equator == WebMercator.round((24 + 240 - 124) / 2.0))
+  }
+
   @Test func theThemeIsEveryTilesAddress() throws {
     let layout = try #require(
       MapBackdropLayout(

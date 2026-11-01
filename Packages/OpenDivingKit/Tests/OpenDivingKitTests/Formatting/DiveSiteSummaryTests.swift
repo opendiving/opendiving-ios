@@ -62,6 +62,8 @@ struct DiveSiteSummaryTests {
       ])
     #expect(hero.points == [MapPoint(name: "Tiger Reef", latitude: 28.57, longitude: 34.53)])
     #expect(DiveSiteSummary.card(site, units: .metric).figures.count == 3)
+    #expect(DiveSiteSummary.card(site, units: .metric).points == hero.points)
+    #expect(!DiveSiteSummary.card(site, units: .metric).mapsTheWorldWhenEmpty)
     #expect(DiveSiteSummary.hero(try Self.site(["latitude": 28.57]), units: .metric).points == [])
   }
 
