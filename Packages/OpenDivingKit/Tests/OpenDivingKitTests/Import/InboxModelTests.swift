@@ -285,6 +285,58 @@ struct InboxModelTests {
     #expect(server.previews == [["a.fit"]])
   }
 
+  @Test func syncNowReadsAnUncoveredInboxWithNoRouteAndNothingOverACoveredOne() async throws {
+    let server = try ImportServer()
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(server, connectivity: route)
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(server.previews.isEmpty)
+
+    model.syncNow()
+    await model.settled()
+    #expect(server.previews == [["a.fit"]])
+
+    model.syncNow()
+    try arrive(model, "b.fit")
+    model.syncNow()
+    await model.settled()
+    #expect(server.previews.count == 1)
+  }
+
+  @Test func eachFileStandsWhereItsReadLeftIt() async throws {
+    let server = try ImportServer()
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(server, connectivity: route)
+    try arrive(model, "a.fit", "notes.txt")
+    await model.settled()
+    #expect(model.files.map(model.stage(of:)) == [.unread, .unread])
+
+    model.syncNow()
+    await model.settled()
+    #expect(
+      model.files.map(model.stage(of:)) == [
+        .ready("FIT · kept on its dive"), .refused("This file is not one OpenDiving reads."),
+      ])
+
+    try arrive(model, "c.fit")
+    #expect(model.files.map(model.stage(of:)) == [.toReadAgain, .toReadAgain, .toReadAgain])
+  }
+
+  @Test func aRefusedReadRefusesEveryFileItSent() async throws {
+    let server = try ImportServer()
+    server.answerPreviews { _ in
+      .json(#"{"detail":"None of these files is one OpenDiving reads."}"#, status: 415)
+    }
+    let model = try await loaded(server)
+    try arrive(model, "notes.txt")
+    await model.settled()
+    #expect(
+      model.stage(of: model.files[0]) == .refused("None of these files is one OpenDiving reads."))
+  }
+
   @Test func aFileTheBoundsRefuseIsNeverSent() async throws {
     let server = try ImportServer()
     let model = try await loaded(server)

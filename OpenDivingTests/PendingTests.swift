@@ -67,6 +67,48 @@ struct PendingTests {
     #expect(window != nil)
   }
 
+  @Test func aFileTheAppReadShowsAsReadyAndSyncNowDoesNotReadItAgain() async throws {
+    let previews = Counter()
+    let session = F.signedIn(
+      F.directory(),
+      transport: StubTransport { request in
+        if let answer = F.account(request) { return answer }
+        guard StubTransport.routeKey(request) == "POST import/logbook/preview" else {
+          return F.notFound
+        }
+        _ = previews.next()
+        return .json(
+          #"{"collections":[],"files":{"referenced":0,"restored":0,"not_contained":0,"skipped":0},"#
+            + #""notes":[],"notes_truncated":0,"members":[{"part":0,"container":null,"#
+            + #""name":"dive.fit","byte_size":2,"sha256":"00","format":"fit","opened":null,"#
+            + #""kept":true,"not_kept":null,"refusal":null}],"dives":[],"format":"fit","#
+            + #""version":"1","archive":false,"token":"t"}"#)
+      })
+    try await session.loadAccount()
+    let outbox = OutboxModel(session: session)
+    let inbox = InboxModel(session: session)
+    let file = FileManager.default.temporaryDirectory
+      .appendingPathComponent("\(UUID().uuidString).fit")
+    try Data([0x0e, 0x10]).write(to: file)
+    _ = inbox.receive([file], moving: false)
+    await inbox.settled()
+
+    #expect(
+      inbox.files.map(inbox.stage(of:)).map(PendingText.fileStage) == [
+        "FIT · kept on its dive"
+      ])
+    #expect(PendingScreen.filesFooter(inbox) == PendingText.filesReady)
+    inbox.syncNow()
+    await inbox.settled()
+    #expect(previews.next() == 1)
+
+    let window = F.window(
+      NavigationStack { PendingScreen() }
+        .environment(session).environment(outbox).environment(inbox))
+    defer { window?.isHidden = true }
+    #expect(window != nil)
+  }
+
   @Test func anEmptyOutboxDrawsNoSection() async throws {
     let session = try await loaded(F.directory(), online: Flag(true))
     let outbox = OutboxModel(session: session)

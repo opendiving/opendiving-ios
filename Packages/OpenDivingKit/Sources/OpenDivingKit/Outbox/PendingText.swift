@@ -46,9 +46,24 @@ public enum PendingText {
     count == 1 ? OutboxText.unreadableItem : "\(count) saved by another version of the app"
   }
 
-  /// *2 files waiting*, to be read for import.
+  /// *2 files waiting*, to be read and imported.
   public static func filesWaiting(_ count: Int) -> String {
     count == 1 ? "1 file waiting" : "\(count) files waiting"
+  }
+
+  public static let filesHeader = "Files to import"
+  public static let openImport = "Go to Import"
+  public static let filesReady = "Read and ready to import on the Import screen."
+
+  /// One waiting file's line beneath its name.
+  public static func fileStage(_ stage: InboxFileStage) -> String {
+    switch stage {
+    case .unread: "Not read yet"
+    case .reading: "Reading…"
+    case .toReadAgain: "To be read again on the Import screen"
+    case .ready(let status): status
+    case .refused(let reason): "Refused: " + reason
+    }
   }
 
   /// What a queued write is, by the record it makes or changes. `dive` names a dive the phone
@@ -218,7 +233,7 @@ public enum PendingText {
 
 /// The rows above the Dives list, each omitted when it would count nothing: the drafts, the
 /// writes waiting, the failures, each done-but-unreadable notice until dismissed, the items
-/// this build cannot read, and the files waiting to be read.
+/// this build cannot read, and the files waiting to import.
 public struct PendingSummary: Hashable, Sendable {
   public enum Row: Hashable, Sendable, Identifiable {
     case drafts(String)

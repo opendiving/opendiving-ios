@@ -112,6 +112,19 @@ public final class InboxModel {
     return (preview.members[row], preview.members.filter { $0.container == row })
   }
 
+  /// Where `file` stands: refused by the bounds, being read, not read yet, waiting to be read
+  /// again since the inbox changed, or read — refused, or as the server read it.
+  public func stage(of file: InboxFile) -> InboxFileStage {
+    if let refusal = refusal(for: file) { return .refused(refusal) }
+    if phase == .reading { return .reading }
+    guard let read else { return .unread }
+    guard !read.stale, read.files.contains(file.id) else { return .toReadAgain }
+    if let refusal = read.refusal { return .refused(refusal) }
+    guard let own = members(of: file).own else { return .toReadAgain }
+    if let refusal = own.refusal { return .refused(refusal) }
+    return .ready(ImportText.memberStatus(own).text)
+  }
+
   // MARK: - Files in
 
   /// Takes files handed to the app into the inbox the session names, as one arrival:
@@ -250,6 +263,14 @@ public final class InboxModel {
   /// The diver's *Read the files* and *Read the files again*.
   public func readAgain() {
     guard phase == .idle else { return }
+    startRead(arrival: false, tapped: true)
+  }
+
+  /// The pending screen's *Sync now*: reads an inbox no read covers, trying with or without a
+  /// route, as the diver asked. A covered inbox is left to *Read the files again*, since every
+  /// read spends one of the hourly imports.
+  public func syncNow() {
+    guard canRead, read == nil else { return }
     startRead(arrival: false, tapped: true)
   }
 

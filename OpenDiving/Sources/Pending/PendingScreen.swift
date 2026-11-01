@@ -3,9 +3,10 @@ import SwiftUI
 
 /// Everything the phone holds that the server does not have yet, item by item, with what the
 /// server last said about each and the way out of each: the drafts, the writes waiting, what
-/// this build cannot read, what is done but said once, and the files waiting to be read.
+/// this build cannot read, what is done but said once, and the files waiting to import, each
+/// with where its read stands.
 ///
-/// Signed in it ends in *Sync now*. Signed out — a sheet off the email screen, over the stores
+/// Signed in it ends in *Sync now*, which also reads files no read covers. Signed out — a sheet off the email screen, over the stores
 /// of the account last loaded here — it offers *Log a dive* and says that signing in syncs.
 struct PendingScreen: View {
   @Environment(Session.self) private var session
@@ -25,6 +26,8 @@ struct PendingScreen: View {
     outbox.drafts.isEmpty && outbox.items.isEmpty && outbox.unreadable.isEmpty
       && outbox.notices.isEmpty && inbox.files.isEmpty
   }
+
+  private var isSyncing: Bool { outbox.isFlushing || inbox.phase == .reading }
 
   var body: some View {
     List {
@@ -57,8 +60,9 @@ struct PendingScreen: View {
         Section {
           Button {
             outbox.syncNow()
+            inbox.syncNow()
           } label: {
-            if outbox.isFlushing {
+            if isSyncing {
               HStack {
                 ProgressView()
                 Text("Syncing…")
@@ -67,7 +71,7 @@ struct PendingScreen: View {
               Text(PendingText.syncNow)
             }
           }
-          .disabled(outbox.isFlushing)
+          .disabled(isSyncing)
         }
       }
     }
@@ -172,17 +176,37 @@ struct PendingScreen: View {
 
   @ViewBuilder private var files: some View {
     if !inbox.files.isEmpty {
-      Section("Files waiting to be read") {
+      Section {
         ForEach(inbox.files) { file in
-          Label(file.filename, systemImage: "doc")
+          let stage = inbox.stage(of: file)
+          VStack(alignment: .leading, spacing: 2) {
+            Label(ImportFileRow.title(file), systemImage: "doc")
+            Text(PendingText.fileStage(stage))
+              .font(.caption)
+              .foregroundStyle(stage.isRefused ? Color.red : Color.secondary)
+          }
         }
         if signedIn {
-          Button("Read for import", systemImage: "square.and.arrow.down") {
+          Button(PendingText.openImport, systemImage: "square.and.arrow.down") {
             route = .importFiles
           }
         }
+      } header: {
+        Text(PendingText.filesHeader)
+      } footer: {
+        if let footer = Self.filesFooter(inbox) {
+          Text(footer)
+        }
       }
     }
+  }
+
+  /// Beneath the files: why they cannot go as one import, that they wait for a route, or that
+  /// a read stands ready to import.
+  static func filesFooter(_ inbox: InboxModel) -> String? {
+    if let refusal = inbox.selectionRefusal { return refusal }
+    if let waiting = inbox.waitingForRoute { return waiting }
+    return inbox.importable == nil ? nil : PendingText.filesReady
   }
 
   // MARK: - Editing and discarding
