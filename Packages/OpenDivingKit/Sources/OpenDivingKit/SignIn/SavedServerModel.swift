@@ -26,8 +26,7 @@ public final class SavedServerModel {
   public var isActive: Bool { session.state.origin == origin }
 
   public var card: ServerCardContent {
-    ServerCardContent(
-      origin: origin, health: info?.health ?? (isActive ? session.server?.health : nil))
+    session.card(for: origin, answered: info)
   }
 
   public var isSignedIn: Bool { session.isSignedIn(to: origin) }
@@ -52,11 +51,13 @@ public final class SavedServerModel {
   /// While a sign-out is waited for, nothing else here starts.
   public var isWorking: Bool { signIn.signingOut != nil }
 
-  /// Asks the server what it runs, unless the session already knows; a failure leaves the
-  /// version unknown.
+  /// Asks the server again what it runs; a failure leaves the build it last reported.
   public func load() async {
-    guard info == nil, !(isActive && session.server != nil) else { return }
-    info = try? await session.validate(origin)
+    if isActive {
+      await session.loadServerInfo()
+    } else if let answered = try? await session.validate(origin) {
+      info = answered
+    }
   }
 
   /// Signs out on the server, as Settings does.

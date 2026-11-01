@@ -58,6 +58,41 @@ struct SavedServerModelTests {
     #expect(session.server == nil)
   }
 
+  @Test func theLastVersionOutlivesARelaunchAndAFailedUpdate() async throws {
+    let answering = session([
+      "GET config": .json(try KitFixture.text("config")),
+      "GET health": .json(try KitFixture.text("health")),
+    ])
+    await answering.loadServerInfo()
+    #expect(answering.serverCard?.version == "0.6.0")
+    let relaunched = session([:])
+    #expect(relaunched.serverCard?.version == "0.6.0")
+    await relaunched.loadServerInfo()
+    #expect(relaunched.serverCard?.version == "0.6.0")
+    #expect(relaunched.serverCard?.updateFailure != nil)
+    try relaunched.forget(origin)
+    #expect(relaunched.store.health(origin) == nil)
+  }
+
+  @Test func theCardSaysItIsUpdatingUntilTheServerAnswersOrFails() async {
+    let transport = SilentTransport()
+    defer { transport.release() }
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let load = Task { await session.loadServerInfo() }
+    while !session.validating.contains(origin) { await Task.yield() }
+    #expect(session.serverCard?.isUpdating == true)
+    #expect(session.serverCard?.version == "")
+    #expect(session.serverCard?.updateFailure == nil)
+    transport.release()
+    await load.value
+    #expect(session.serverCard?.isUpdating == false)
+    #expect(session.serverCard?.version == "Unknown")
+    #expect(session.serverCard?.updateFailure != nil)
+  }
+
   // MARK: - The account and when it was used
 
   @Test func theActiveServerIsUsedNowAndAnotherWhenItWasLeft() {

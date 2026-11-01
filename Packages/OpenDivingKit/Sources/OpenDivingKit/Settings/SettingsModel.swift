@@ -21,7 +21,7 @@ public final class SettingsModel {
   /// While a sign-out is waited for, nothing else here starts.
   public var isWorking: Bool { signIn.signingOut != nil }
 
-  /// The version reads `Unknown` until the server has answered ``load()``.
+  /// The build the server last reported, updating while ``load()`` asks it again.
   public var card: ServerCardContent? { session.serverCard }
 
   public var unitsLabel: String {

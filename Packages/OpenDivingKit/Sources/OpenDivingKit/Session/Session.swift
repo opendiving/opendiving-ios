@@ -49,6 +49,10 @@ public final class Session {
   public private(set) var people: [UUID: PersonRead] = [:]
   /// The active server as it last answered ``validate(_:)``.
   public private(set) var server: ServerInfo? = nil
+  /// The servers ``validate(_:)`` is asking, for a card that shows it is updating.
+  public private(set) var validating: Set<ServerOrigin> = []
+  /// Why ``validate(_:)`` last failed for a server, until it next answers.
+  public private(set) var validationFailures: [ServerOrigin: String] = [:]
   /// The active server's client; nil with no server.
   public private(set) var client: APIClient? = nil
   /// Every server the phone has been pointed at and not forgotten since, the active one among
@@ -132,8 +136,21 @@ public final class Session {
     } else {
       checker = makeClient(origin)
     }
-    let info = try await checker.instance()
+    validating.insert(origin)
+    validationFailures[origin] = nil
+    defer { validating.remove(origin) }
+    let info: ServerInfo
+    do {
+      info = try await checker.instance()
+    } catch {
+      validationFailures[origin] = ServerProblem(APIError(error), origin: origin).message
+      throw error
+    }
     if state.origin == origin { server = info }
+    // Only a saved server's build is kept: a typed one may never be chosen.
+    if let health = info.health, store.savedServers().contains(origin) {
+      try? store.rememberHealth(health, for: origin)
+    }
     return info
   }
 
@@ -148,6 +165,7 @@ public final class Session {
     activeOrigin.save(origin)
     try? store.save(origin)
     try? store.markUsed(origin, at: used)
+    if let health = info?.health { try? store.rememberHealth(health, for: origin) }
     savedServers = store.savedServers()
     client = makeClient(origin)
     server = info
@@ -156,15 +174,23 @@ public final class Session {
     enter(origin)
   }
 
-  /// The active server's card, with the build it runs once it has answered ``validate(_:)``.
+  /// The active server's card: the build it runs, as it last answered ``validate(_:)`` in this
+  /// launch or any before, and whether it is being asked again.
   public var serverCard: ServerCardContent? {
-    state.origin.map { ServerCardContent(origin: $0, health: server?.health) }
+    state.origin.map { card(for: $0) }
   }
 
-  /// Asks the active server what it runs when nothing has since it became active — after a
-  /// cold start nothing has. A failure leaves the version unknown.
+  /// `origin`'s card, from what this session or the phone last heard from it.
+  public func card(for origin: ServerOrigin, answered: ServerInfo? = nil) -> ServerCardContent {
+    let live = answered ?? (state.origin == origin ? server : nil)
+    return ServerCardContent(
+      origin: origin, health: live?.health ?? store.health(origin),
+      isUpdating: validating.contains(origin), updateFailure: validationFailures[origin])
+  }
+
+  /// Asks the active server again what it runs; a failure leaves the build it last reported.
   public func loadServerInfo() async {
-    guard server == nil, let origin = state.origin else { return }
+    guard let origin = state.origin, !validating.contains(origin) else { return }
     _ = try? await validate(origin)
   }
 

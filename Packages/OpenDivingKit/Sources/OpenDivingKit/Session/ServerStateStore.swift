@@ -3,7 +3,7 @@ import Foundation
 /// Everything the phone keeps about one server, as one thing: the refresh token in the
 /// ``SecretStore``, the remembered account, a directory under Application Support that other
 /// features write into — the check-in sheet among them — its place on the saved list, and
-/// when it was last used.
+/// when it was last used and the build it last said it runs.
 /// ``forget(_:)`` is the only call that removes them all, so no feature needs a forget path of
 /// its own.
 ///
@@ -106,10 +106,9 @@ public struct ServerStateStore: Sendable {
   }
 
   /// Removes the token, the remembered account and the directory — every account's directory
-  /// and the last-account pointer with it — takes the server off the saved list and drops when
-  /// it was last used, and clears
-  /// the active-origin pointer when it names this server. Needs no server, so a server that is
-  /// gone can still be forgotten.
+  /// and the last-account pointer with it — takes the server off the saved list, drops when it
+  /// was last used and what it runs, and clears the active-origin pointer when it names this
+  /// server. Needs no server, so a server that is gone can still be forgotten.
   public func forget(_ origin: ServerOrigin) throws {
     try endSession(for: origin)
     try removeIfPresent(directory(for: origin))
@@ -117,10 +116,8 @@ public struct ServerStateStore: Sendable {
     if saved.contains(origin) {
       try write(saved.filter { $0 != origin }, to: savedServersFile)
     }
-    var used = lastUsedTimes()
-    if used.removeValue(forKey: origin.description) != nil {
-      try write(used, to: lastUsedFile)
-    }
+    try setRow(Date?.none, for: origin, in: lastUsedFile)
+    try setRow(HealthRead?.none, for: origin, in: healthFile)
     if activeOrigin.load() == origin {
       activeOrigin.save(nil)
     }
@@ -149,24 +146,45 @@ public struct ServerStateStore: Sendable {
   /// active, or the moment another was chosen over it. Nil for a server last used by a build
   /// that did not keep it.
   public func lastUsed(_ origin: ServerOrigin) -> Date? {
-    lastUsedTimes()[origin.description]
+    (table(lastUsedFile) as [String: Date])[origin.description]
   }
 
   func markUsed(_ origin: ServerOrigin, at date: Date) throws {
-    var used = lastUsedTimes()
-    used[origin.description] = date
-    try write(used, to: lastUsedFile)
+    try setRow(date, for: origin, in: lastUsedFile)
   }
 
-  /// Kept beside the saved list rather than in each server's directory, so that a launch
-  /// creates no directory for a server nothing has been kept for yet.
-  private func lastUsedTimes() -> [String: Date] {
-    guard let data = try? Data(contentsOf: lastUsedFile) else { return [:] }
-    return (try? APICoding.decoder().decode([String: Date].self, from: data)) ?? [:]
+  /// The build the server last said it runs, shown until it answers again.
+  public func health(_ origin: ServerOrigin) -> HealthRead? {
+    (table(healthFile) as [String: HealthRead])[origin.description]
+  }
+
+  func rememberHealth(_ health: HealthRead, for origin: ServerOrigin) throws {
+    try setRow(health, for: origin, in: healthFile)
   }
 
   private var lastUsedFile: URL {
     root.appendingPathComponent("server-last-used.json", isDirectory: false)
+  }
+
+  private var healthFile: URL {
+    root.appendingPathComponent("server-health.json", isDirectory: false)
+  }
+
+  /// A file of one value per server, kept beside the saved list rather than in each server's
+  /// directory, so that writing one creates no directory for a server nothing else is kept for.
+  private func table<Value: Decodable>(_ file: URL) -> [String: Value] {
+    guard let data = try? Data(contentsOf: file) else { return [:] }
+    return (try? APICoding.decoder().decode([String: Value].self, from: data)) ?? [:]
+  }
+
+  /// Sets the server's value in `file`, or removes it when `value` is nil.
+  private func setRow<Value: Codable>(_ value: Value?, for origin: ServerOrigin, in file: URL)
+    throws
+  {
+    var rows: [String: Value] = table(file)
+    guard rows[origin.description] != nil || value != nil else { return }
+    rows[origin.description] = value
+    try write(rows, to: file)
   }
 
   /// Whether the phone holds anything for this server: a token, a remembered account, a

@@ -38,7 +38,7 @@ struct AddServerScreen: View {
       } header: {
         Text("Server")
       } footer: {
-        Text("The address of an OpenDiving server: one you run yourself works the same way.")
+        Text("The address of an OpenDiving API server.")
       }
       if let problem = flow.serverProblem {
         Section {

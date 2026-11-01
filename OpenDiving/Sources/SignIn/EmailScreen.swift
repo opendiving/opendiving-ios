@@ -54,7 +54,7 @@ struct EmailScreen: View {
         }
         .disabled(!flow.canSendCode)
       }
-      ServerCard(content: ServerCardContent(origin: origin, health: flow.session.server?.health)) {
+      ServerCard(content: flow.session.card(for: origin)) {
         Button("Change server") { flow.useDifferentServer() }
       }
       Section {

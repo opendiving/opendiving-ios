@@ -19,8 +19,7 @@ public enum KeptText {
   /// Under the saved servers.
   public static let savedServersFooter =
     "Changing server keeps you signed in to the one you leave, and everything this phone keeps"
-    + " for it. Swipe a server to forget it: that signs out of it and removes all of that."
-    + " \(ServerOrigin.flagship) stays on the list."
+    + " for it."
 
   /// Under a *Forget* offered for a server that is not active.
   public static func held(_ origin: ServerOrigin) -> String {
