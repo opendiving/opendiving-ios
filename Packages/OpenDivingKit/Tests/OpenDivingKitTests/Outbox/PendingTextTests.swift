@@ -96,15 +96,15 @@ struct PendingTextTests {
 
   @Test func theForgetConfirmationCountsWhatHasNotReachedTheServer() {
     var summary = OutboxSummary()
-    #expect(KeptText.forgetMessage(summary).contains("the dives waiting to sync"))
+    #expect(KeptText.forgetMessage(summary) == nil)
     summary.dives = 2
     #expect(
-      KeptText.forgetMessage(summary).contains(
-        "kept for offline from this phone, and 2 dives that have not been saved to the server."))
+      KeptText.forgetMessage(summary)
+        == "2 dives have not been saved to the server and will be lost.")
     summary = OutboxSummary()
     summary.others = 1
     #expect(
-      KeptText.forgetMessage(summary).contains(
-        "and 1 other change that has not been saved to the server."))
+      KeptText.forgetMessage(summary)
+        == "1 other change has not been saved to the server and will be lost.")
   }
 }

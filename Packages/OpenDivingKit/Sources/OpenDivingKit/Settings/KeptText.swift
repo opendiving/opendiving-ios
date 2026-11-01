@@ -10,18 +10,16 @@ public enum KeptText {
     + " the dive computers you have downloaded from and the copies of your logbook kept for"
     + " offline stay on this phone after you sign out"
 
-  /// Under the signed-out screen's entries.
-  public static let signedOutFooter = afterSignOut + ", until you forget the server."
-
-  /// Under Settings' sign-out.
-  public static let settingsFooter =
-    "Signing out needs the server. " + afterSignOut
-    + ", until you forget the server. Changing server keeps you signed in here."
+  /// Under the signed-out screen's entries, for `origin`: only a server that can be forgotten
+  /// mentions it.
+  public static func signedOutFooter(_ origin: ServerOrigin) -> String {
+    afterSignOut + (origin.isFlagship ? "." : ", until you forget the server.")
+  }
 
   /// Under the saved servers.
   public static let savedServersFooter =
     "Changing server keeps you signed in to the one you leave, and everything this phone keeps"
-    + " for it. Swipe a server to forget it: that signs out of it and removes all of that."
+    + " for it."
 
   /// Under a *Forget* offered for a server that is not active.
   public static func held(_ origin: ServerOrigin) -> String {
@@ -30,22 +28,10 @@ public enum KeptText {
       + " \(origin)."
   }
 
-  /// The one warning before `forget` discards what has not reached the server: what it
-  /// removes, and by count what it would lose, across every account the phone has signed in
-  /// to there.
-  public static func forgetMessage(_ summary: OutboxSummary) -> String {
-    let removes =
-      "Removes the server's sign-in, your account details, the saved check-in sheet, your"
-      + " drafts, "
-    let rest =
-      "the files waiting to be read, the dive computers you have downloaded from and the copies"
-      + " of your logbook kept for offline"
-    let after =
-      " It signs out on the server first when it can; it removes them even when the server"
-      + " cannot be reached."
-    guard !summary.isEmpty else {
-      return removes + "the dives waiting to sync, " + rest + " from this phone." + after
-    }
+  /// The one line the *Forget* confirmation carries, and only when it would lose something:
+  /// what has not reached the server, by count, across every account the phone has signed in
+  /// to there. Nil when nothing would be lost.
+  public static func forgetMessage(_ summary: OutboxSummary) -> String? {
     var parts: [String] = []
     func count(_ n: Int, _ one: String, _ many: String) {
       if n > 0 { parts.append(n == 1 ? "1 \(one)" : "\(n) \(many)") }
@@ -56,17 +42,10 @@ public enum KeptText {
     count(
       summary.unreadable, "item saved by another version of the app",
       "items saved by another version of the app")
+    guard !parts.isEmpty else { return nil }
     let total = summary.dives + summary.others + summary.editDrafts + summary.unreadable
     let have = total == 1 ? "has" : "have"
-    return removes + rest + " from this phone, and " + PendingText.list(parts)
-      + " that \(have) not been saved to the server." + after
-  }
-
-  /// What a *Forget* that worked says on the screen it lands on.
-  public static func forgotten(_ origin: ServerOrigin) -> String {
-    "Removed everything this phone kept for \(origin): its sign-in, account, check-in sheet,"
-      + " drafts, dives waiting to sync, files waiting to be read, dive computers downloaded from"
-      + " and copies of the logbook kept for offline."
+    return PendingText.list(parts) + " \(have) not been saved to the server and will be lost."
   }
 }
 

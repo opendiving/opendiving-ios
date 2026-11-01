@@ -169,7 +169,7 @@ struct PendingTests {
     let summary = OutboxStore.summary(store: b.store, origin: F.origin)
     #expect(summary.dives == 2)
     #expect(
-      KeptText.forgetMessage(summary).contains(
-        "and 2 dives that have not been saved to the server."))
+      KeptText.forgetMessage(summary)
+        == "2 dives have not been saved to the server and will be lost.")
   }
 }
