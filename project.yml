@@ -54,7 +54,13 @@ targets:
         CFBundleDisplayName: OpenDiving
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        UILaunchScreen: {}
+        # The splash's coral, so the system's launch screen hands over to it without a flash. The
+        # launch screen paints a colour's sRGB components as Display P3, so the asset holds
+        # #FF7F50's P3 components, written as sRGB, and serves nothing else.
+        UILaunchScreen:
+          UIColorName: LaunchCoral
+        UIAppFonts:
+          - Outfit-Bold.ttf
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:

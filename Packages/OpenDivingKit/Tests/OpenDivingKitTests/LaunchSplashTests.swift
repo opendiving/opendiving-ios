@@ -80,7 +80,9 @@ struct LaunchSplashTests {
     try Data("dive".utf8).write(to: file)
     defer { try? FileManager.default.removeItem(at: file) }
     let uploading = Task {
-      _ = try? await session.client!.importPreview(files: [ImportFile(file: file, filename: "dive.fit")])
+      _ = try? await session.client!.importPreview(files: [
+        ImportFile(file: file, filename: "dive.fit")
+      ])
     }
     while transport.requests.isEmpty { await Task.yield() }
     #expect(session.requests.inFlight == 0)

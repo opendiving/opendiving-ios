@@ -73,7 +73,8 @@ public enum SplashBubbles {
   // comes to rest there instead of overshooting.
   private static func tangent(_ i: Int, _ key: KeyPath<Slot, Double>) -> Double {
     if i == top { return 0 }
-    let prev = i == 0 ? 2 * slots[0][keyPath: key] - slots[1][keyPath: key] : slots[i - 1][keyPath: key]
+    let prev =
+      i == 0 ? 2 * slots[0][keyPath: key] - slots[1][keyPath: key] : slots[i - 1][keyPath: key]
     return (slots[i + 1][keyPath: key] - prev) / 2
   }
 
