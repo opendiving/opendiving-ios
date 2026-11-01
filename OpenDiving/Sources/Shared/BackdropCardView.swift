@@ -2,7 +2,8 @@ import SwiftUI
 
 /// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
 /// water standing in for one — above the details, which sit over its foot as it fades into
-/// the card, the way a page head's map fades into the page. However tall the details grow,
+/// the card, in the page head's colours: the map fades into the card as the head's into the
+/// page. However tall the details grow,
 /// the band shows as much of itself. The backdrop is handed how many points of its foot the
 /// details cover.
 struct BackdropCardView<Backdrop: View, Details: View>: View {
@@ -28,12 +29,12 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
         ZStack {
           backdrop(detailsHeight)
           LinearGradient(
-            colors: [.clear, Color(.secondarySystemGroupedBackground)], startPoint: .center,
+            colors: [.clear, Color(.systemBackground)], startPoint: .center,
             endPoint: .bottom)
         }
         .allowsHitTesting(false)
       }
-      .background(Color(.secondarySystemGroupedBackground))
+      .background(Color(.systemBackground))
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .accessibilityElement(children: .combine)
   }
