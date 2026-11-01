@@ -55,7 +55,8 @@ private struct SiteList: View {
               NavigationLink {
                 SiteDetailView(siteUUID: site.uuid)
               } label: {
-                RecordCardView(content: DiveSiteSummary.card(site, units: session.units))
+                RecordCardView(
+                  content: DiveSiteSummary.card(site, units: session.units), icon: .tabDiveSite)
               }
               .buttonStyle(.plain)
               .onAppear { Task { await list.loadMore(after: site) } }

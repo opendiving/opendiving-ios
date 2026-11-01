@@ -1,34 +1,54 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One dive as a card, in every list of dives: its chips, title, facts and figures, over
-/// its depth outline across the foot of the card.
+/// One dive as a card, in every list of dives: a map of its sites and fixes, its depth
+/// silhouette over the map's foot and its chips over the silhouette's, then its title, facts
+/// and figures, as the web's dive card.
 struct DiveCardView: View {
   let content: DiveCardContent
 
+  private static let silhouetteHeight: CGFloat = 56
+  private static let silhouetteGap: CGFloat = 4
+  private static let chipsHeight: CGFloat = 26
+
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      ChipsRow(chips: content.chips)
-      TitleLine(title: content.title, isCourse: content.isCourse, rating: content.rating)
-      FactsLine(facts: content.facts)
-      FiguresRow(figures: content.figures)
-        .padding(.top, 2)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(12)
-    .background(alignment: .bottom) {
-      if content.outline.count > 1 {
-        DepthOutlineShape(depths: content.outline)
-          .fill(Color.accentColor.opacity(0.15))
-          .frame(height: 44)
-          .padding(.horizontal, 12)
-          .padding(.bottom, 6)
-          .accessibilityHidden(true)
+    BackdropCardView { coveredBottom in
+      // The map's places and the water's icon centre above the silhouette and the chips
+      // rather than behind them.
+      let aboveProfile =
+        hasOutline
+        ? coveredBottom + Self.silhouetteGap + Self.silhouetteHeight
+        : content.chips.isEmpty ? coveredBottom : coveredBottom + Self.chipsHeight
+      ZStack(alignment: .bottom) {
+        UnplacedBackdropView(icon: .tabDive, coveredBottom: aboveProfile)
+        if !content.points.isEmpty || !content.fixes.isEmpty {
+          MapBackdropView(
+            points: content.points, fixes: content.fixes, coveredBottom: aboveProfile)
+        }
+        if hasOutline {
+          DiveSilhouetteView(depths: content.outline)
+            .frame(height: Self.silhouetteHeight)
+            .padding(.horizontal, 12)
+            .padding(.bottom, coveredBottom + Self.silhouetteGap)
+        }
+      }
+    } details: {
+      VStack(alignment: .leading, spacing: 6) {
+        TitleLine(title: content.title, isCourse: content.isCourse, rating: content.rating)
+        FactsLine(facts: content.facts)
+        FiguresRow(figures: content.figures)
+          .padding(.top, 2)
+      }
+      // Over the foot of the band rather than above the title in the flow, so a dive with
+      // chips is as tall as one without.
+      .overlay(alignment: .topLeading) {
+        ChipsRow(chips: content.chips)
+          .alignmentGuide(.top) { $0[.bottom] + 4 }
       }
     }
-    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
-    .accessibilityElement(children: .combine)
   }
+
+  private var hasOutline: Bool { content.outline.count > 1 }
 }
 
 #Preview {
@@ -51,7 +71,8 @@ struct DiveCardView: View {
             Figure(label: "Dive time", value: "48 min"), Figure(label: "Max depth", value: "31 m"),
             Figure(label: "Water temp", value: "24 °C"),
           ],
-          outline: [0, 0.4, 0.9, 1, 0.7, 0.5, 0.15, 0.15, 0]))
+          outline: [0, 0.4, 0.9, 1, 0.7, 0.5, 0.15, 0.15, 0],
+          points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)]))
       DiveCardView(
         content: DiveCardContent(
           title: "Dive #3",
@@ -63,4 +84,5 @@ struct DiveCardView: View {
     .padding()
   }
   .background(Color(.systemGroupedBackground))
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
 }
