@@ -64,6 +64,9 @@ public final class Session {
   /// The account's units; metric until the account is known.
   public var units: UnitSystem { user?.units ?? .metric }
 
+  /// Every client this session builds sends through it.
+  @ObservationIgnored public let requests = RequestActivity()
+
   @ObservationIgnored private let transport: any HTTPTransport
   @ObservationIgnored private let secrets: any SecretStore
   @ObservationIgnored private let activeOrigin: any ActiveOriginStore
@@ -112,7 +115,7 @@ public final class Session {
     accessToken: String? = nil,
     now: @escaping () -> Date = { Date() }
   ) {
-    self.transport = transport
+    self.transport = CountingTransport(base: transport, activity: requests)
     self.secrets = secrets
     self.activeOrigin = activeOrigin
     self.background = background
