@@ -2,19 +2,25 @@ import OpenDivingKit
 import SwiftUI
 
 /// The head of a dive's, a trip's or a site's page: a map of its places, fading into the
-/// page, under its chips, title, facts and figures. A record with nowhere to put on a map
-/// gets the band without one.
+/// page, under its chips, title, facts and figures, and the map's credit after them. A record
+/// with nowhere to put on a map, or on an instance with no map to draw, gets the band without
+/// one.
 struct HeroView: View {
   let content: HeroContent
 
+  @State private var detailsHeight: CGFloat = 0
+  @State private var credit: String?
+
   var body: some View {
     ZStack(alignment: .bottomLeading) {
-      if content.points.isEmpty && content.fixes.isEmpty {
-        Color(.secondarySystemBackground)
-      } else {
-        PlacesMapView(points: content.points, fixes: content.fixes)
-          .allowsHitTesting(false)
-          .accessibilityHidden(true)
+      Color(.secondarySystemBackground)
+      if !content.points.isEmpty || !content.fixes.isEmpty {
+        MapBackdropView(
+          points: content.points, fixes: content.fixes, coveredBottom: detailsHeight,
+          credit: $credit
+        )
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
         LinearGradient(
           colors: [.clear, Color(.systemBackground)], startPoint: .center, endPoint: .bottom)
       }
@@ -26,8 +32,17 @@ struct HeroView: View {
         FactsLine(facts: content.facts)
         FiguresRow(figures: content.figures)
           .padding(.top, 4)
+        if let credit {
+          AttributionLine(credits: [credit])
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
       }
       .padding()
+      .onGeometryChange(for: CGFloat.self) {
+        $0.size.height
+      } action: {
+        detailsHeight = $0
+      }
     }
     .frame(minHeight: 280)
   }
@@ -48,4 +63,5 @@ struct HeroView: View {
         points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)],
         fixes: [MapPoint(name: "Exit", latitude: 28.5735, longitude: 34.5361)]))
   }
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

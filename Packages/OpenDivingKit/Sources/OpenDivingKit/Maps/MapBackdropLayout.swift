@@ -116,7 +116,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// also the answer when there is no room at all.
   private static func fitZoom(_ box: LatLonBounds, width: Double, height: Double) -> Double {
     guard width >= 0, height >= 0 else { return Double(maxZoom) }
-    let spanX = (WebMercator.x(longitude: box.east) - WebMercator.x(longitude: box.west))
+    let spanX =
+      (WebMercator.x(longitude: box.east) - WebMercator.x(longitude: box.west))
       * WebMercator.tileSize
     let spanY =
       (WebMercator.y(latitude: WebMercator.clamp(latitude: box.south))

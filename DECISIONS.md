@@ -331,3 +331,13 @@ and the same `flatten` and `png` options. At 512 px that recipe reproduces the w
 home screen and this app, so a change to the mark is made there and re-rendered here, never
 redrawn. A single 1024 px image is the whole set: iOS scales it, and derives the dark and tinted
 appearances from it.
+
+## A page head's map is the instance's tiles, drawn only with the credit it names
+
+A dive's, a trip's or a site's head draws `GET /map-tiles` as the web composes them —
+`MapBackdropLayout` is the web's fit, and its tests hold the web's numbers — so both show the same
+square of the same map. Tiles are asked for only where `/config` says `map_tiles` and names
+`map_attribution`; anywhere else the band shows without a map. Rejected: MapKit as the fallback,
+a second look with Apple's credit; a shipped OpenFreeMap credit, which is false for an operator's
+own style. Tiles shown and the last credit are kept in the server's directory, so a head draws
+offline. The forms' maps stay MapKit: the tiles stop at zoom 9, too coarse to place a pin.

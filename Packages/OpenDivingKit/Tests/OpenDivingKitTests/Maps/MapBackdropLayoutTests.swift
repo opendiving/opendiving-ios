@@ -36,7 +36,8 @@ struct MapBackdropLayoutTests {
       fixes: [MapPoint(name: "Exit", latitude: 28.5735, longitude: 34.5361)],
       width: 393, height: 280, coveredBottom: 150)
     #expect(tiles(layout) == [[9, 304, 213, -376, -225], [9, 305, 213, 136, -225]])
-    expectPins(layout, [(197.22154666666756, 65.21723197239044), (196.42055111110676, 64.13932187619503)])
+    expectPins(
+      layout, [(197.22154666666756, 65.21723197239044), (196.42055111110676, 64.13932187619503)])
     #expect(layout.pins.map(\.isFix) == [false, true])
   }
 
@@ -47,7 +48,8 @@ struct MapBackdropLayoutTests {
         MapPoint(name: "Samoa", latitude: -13.8, longitude: -172.1),
       ], width: 393, height: 280, coveredBottom: 150)
     #expect(tiles(layout) == [[3, 7, 4, -349, -117], [3, 0, 4, 163, -117]])
-    expectPins(layout, [(140.24444444444453, 87.66844914814374), (252.8844444444445, 41.55382024545679)])
+    expectPins(
+      layout, [(140.24444444444453, 87.66844914814374), (252.8844444444445, 41.55382024545679)])
   }
 
   @Test func aPlaceWithAFootprintIsFittedByIt() throws {

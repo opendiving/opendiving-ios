@@ -36,7 +36,8 @@ struct MapBackdropModelTests {
 
   /// Answers `/config`, `/health` and every tile, a tile's bytes being its path.
   private static func transport(
-    config: StubTransport.Response, tile: @escaping @Sendable (URLRequest) -> StubTransport.Response =
+    config: StubTransport.Response,
+    tile: @escaping @Sendable (URLRequest) -> StubTransport.Response =
       { request in
         StubTransport.Response(
           headers: ["Content-Type": "image/webp", "ETag": #""v1""#],
@@ -120,7 +121,8 @@ struct MapBackdropModelTests {
     let relaunched = MapBackdropModel(session: session(online))
     await relaunched.show(layout)
     #expect(relaunched.shown != nil)
-    #expect(tileRequests(online).allSatisfy { $0.value(forHTTPHeaderField: "If-None-Match") == #""v1""# })
+    #expect(
+      tileRequests(online).allSatisfy { $0.value(forHTTPHeaderField: "If-None-Match") == #""v1""# })
     #expect(tileRequests(online).count == layout.tiles.count)
   }
 
@@ -128,7 +130,8 @@ struct MapBackdropModelTests {
     let first = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
     await MapBackdropModel(session: session(first)).show(layout)
 
-    let model = MapBackdropModel(session: session(Self.transport(config: Self.config(tiles: false, credit: nil))))
+    let model = MapBackdropModel(
+      session: session(Self.transport(config: Self.config(tiles: false, credit: nil))))
     await model.show(layout)
     #expect(model.shown == nil)
   }

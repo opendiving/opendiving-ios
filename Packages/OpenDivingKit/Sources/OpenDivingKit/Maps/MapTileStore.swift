@@ -92,7 +92,9 @@ public actor MapTileStore {
 
   private func name(_ address: MapTileAddress) -> String {
     // A tag is letters, digits and hyphens; anything else is not a file name's business.
-    let tag = (language ?? "none").filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+    let tag = (language ?? "none").filter {
+      $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-")
+    }
     return "\(address.theme.rawValue)-\(tag)-\(address.z)-\(address.x)-\(address.y)"
   }
 
