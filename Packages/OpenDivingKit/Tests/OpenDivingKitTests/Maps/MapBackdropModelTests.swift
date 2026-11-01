@@ -18,14 +18,20 @@ struct MapBackdropModelTests {
   private let support = FileManager.default.temporaryDirectory
     .appendingPathComponent("MapBackdropModelTests-\(UUID().uuidString)", isDirectory: true)
 
-  private func session(_ transport: any HTTPTransport) -> Session {
+  private func session(
+    _ transport: any HTTPTransport, now: @escaping @Sendable () -> Date = { Date() }
+  ) -> Session {
     Session(
       transport: transport,
       secrets: InMemorySecretStore([Self.origin.description: "refresh"]),
       activeOrigin: InMemoryActiveOriginStore(Self.origin), background: NoBackgroundExecution(),
       applicationSupport: support,
       userAgent: UserAgent(appVersion: "0", systemVersion: "0", model: "iPhone"),
-      accessToken: "access")
+      accessToken: "access", now: now)
+  }
+
+  private func configRequests(_ transport: StubTransport) -> Int {
+    transport.requests.filter { StubTransport.routeKey($0) == "GET config" }.count
   }
 
   private static func config(tiles: Bool, credit: String?) -> StubTransport.Response {
@@ -86,16 +92,30 @@ struct MapBackdropModelTests {
     #expect(tileRequests(transport).isEmpty)
   }
 
-  @Test func tilesWithNoCreditYetAreNotAskedForAndTheConfigOnceAMinute() async {
+  @Test func tilesWithNoCreditYetAreNotAskedForAndTheConfigAgainOnlyOnceStale() async {
     let transport = Self.transport(config: Self.config(tiles: true, credit: nil))
-    let session = session(transport)
+    let clock = Mutex(Date(timeIntervalSince1970: 0))
+    let session = session(transport, now: { clock.withLock { $0 } })
     let model = MapBackdropModel(session: session)
     await model.show(layout)
+    clock.withLock { $0 += Session.serverInfoFreshness - 1 }
     await MapBackdropModel(session: session).show(layout)
     #expect(model.shown == nil)
     #expect(model.credit == nil)
     #expect(tileRequests(transport).isEmpty)
-    #expect(transport.requests.filter { StubTransport.routeKey($0) == "GET config" }.count == 1)
+    #expect(configRequests(transport) == 1)
+
+    clock.withLock { $0 += 1 }
+    await MapBackdropModel(session: session).show(layout)
+    #expect(configRequests(transport) == 2)
+  }
+
+  @Test func theServersAnswerToAScreenServesAPageHead() async {
+    let transport = Self.transport(config: Self.config(tiles: true, credit: nil))
+    let session = session(transport)
+    await session.loadServerInfo()
+    await MapBackdropModel(session: session).show(layout)
+    #expect(configRequests(transport) == 1)
   }
 
   @Test func oneTileThatCannotBeHadLeavesNoMapButKeepsTheCredit() async {
@@ -143,6 +163,18 @@ struct MapBackdropModelTests {
     #expect(model.credit == nil)
   }
 
+  #if canImport(Darwin)
+    @Test func theTilesAreLeftOutOfBackups() async throws {
+      let transport = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
+      let session = session(transport)
+      await MapBackdropModel(session: session).show(layout)
+      let directory = session.store.directory(for: Self.origin)
+        .appendingPathComponent("MapTiles", isDirectory: true)
+      let values = try directory.resourceValues(forKeys: [.isExcludedFromBackupKey])
+      #expect(values.isExcludedFromBackup == true)
+    }
+  #endif
+
   @Test func aTileAskedForOnceIsNotAskedAgainThisLaunch() async {
     let transport = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
     let session = session(transport)
@@ -163,7 +195,7 @@ struct MapBackdropModelTests {
     await gate.open()
     await showing.value
     #expect(next.shown != nil)
-    #expect(inner.requests.filter { StubTransport.routeKey($0) == "GET config" }.count == 1)
+    #expect(configRequests(inner) == 1)
   }
 
   @Test func aConfigThatCouldNotBeHadIsAskedAgainByTheNextHead() async {

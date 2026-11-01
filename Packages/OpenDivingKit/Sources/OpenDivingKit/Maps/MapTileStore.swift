@@ -2,7 +2,8 @@ import Foundation
 
 /// The instance's map tiles the phone has shown, and the credit they owe, kept in the server's
 /// directory so a page head draws at once and offline, and `forget` removes them with the rest
-/// of the server's. Nobody's data: one tile serves every account.
+/// of the server's. Nobody's data: one tile serves every account, and a phone restored from a
+/// backup asks for it again, so the directory is left out of backups.
 ///
 /// A held tile is shown as it is and asked for again once per launch with its `ETag`, which is
 /// how a redeployed renderer's tiles reach the phone. The newest ``keptTiles`` stay, counted
@@ -72,11 +73,20 @@ public actor MapTileStore {
 
   public func remember(credit: String) {
     guard credit != self.credit() else { return }
-    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    makeDirectory()
     try? Data(credit.utf8).write(to: creditFile, options: .atomic)
   }
 
   // MARK: - Files
+
+  private func makeDirectory() {
+    var directory = directory
+    guard (try? directory.checkResourceIsReachable()) != true else { return }
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    var values = URLResourceValues()
+    values.isExcludedFromBackup = true
+    try? directory.setResourceValues(values)
+  }
 
   private var creditFile: URL {
     directory.appendingPathComponent("credit.txt", isDirectory: false)
@@ -100,7 +110,7 @@ public actor MapTileStore {
 
   private func write(_ data: Data, etag: String?, for address: MapTileAddress) {
     let manager = FileManager.default
-    try? manager.createDirectory(at: directory, withIntermediateDirectories: true)
+    makeDirectory()
     if !pruned {
       prune()
       pruned = true

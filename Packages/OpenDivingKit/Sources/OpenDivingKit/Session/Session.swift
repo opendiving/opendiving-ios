@@ -78,12 +78,10 @@ public final class Session {
   /// Bumped on every change of ``state``, so a load that began before one cannot land after it.
   @ObservationIgnored private var stateGeneration = 0
   @ObservationIgnored private var mapTiles: MapTileStore?
-  /// The `/config` request page heads are waiting on, which none of them cancels by leaving.
-  @ObservationIgnored private var mapConfigAsk:
-    (origin: ServerOrigin, task: Task<InstanceConfigRead?, Never>)?
-  /// When the active server last answered `/config` for a page head.
-  @ObservationIgnored private var mapConfigAnswered:
-    (origin: ServerOrigin, at: ContinuousClock.Instant)?
+  /// The active server's ``validate(_:)`` that screens and page heads are waiting on, which
+  /// none of them cancels by leaving.
+  @ObservationIgnored private var serverInfoAsk:
+    (origin: ServerOrigin, task: Task<ServerInfo?, Never>)?
 
   /// The device's session. `configuration` is the app target's, carrying what Linux's
   /// Foundation cannot express; `applicationSupport` is where per-server state is kept.
@@ -208,13 +206,25 @@ public final class Session {
   /// Asks the active server again what it runs, unless it answered within
   /// ``serverInfoFreshness``; a failure leaves the build it last reported.
   public func loadServerInfo() async {
-    guard let origin = state.origin, !validating.contains(origin) else { return }
-    if server != nil, let answeredAt = serverAnsweredAt,
-      now().timeIntervalSince(answeredAt) < Self.serverInfoFreshness
-    {
-      return
-    }
-    _ = try? await validate(origin)
+    guard let origin = state.origin, !isFresh(origin) else { return }
+    _ = await askServerInfo(origin)
+  }
+
+  private func isFresh(_ origin: ServerOrigin) -> Bool {
+    guard server?.origin == origin, let answeredAt = serverAnsweredAt else { return false }
+    return now().timeIntervalSince(answeredAt) < Self.serverInfoFreshness
+  }
+
+  /// The active server's answer, joining an ask already on its way. Nil when it cannot be had,
+  /// or when a ``validate(_:)`` of somebody else's is already asking.
+  private func askServerInfo(_ origin: ServerOrigin) async -> ServerInfo? {
+    if let ask = serverInfoAsk, ask.origin == origin { return await ask.task.value }
+    guard !validating.contains(origin) else { return nil }
+    let task = Task { try? await self.validate(origin) }
+    serverInfoAsk = (origin, task)
+    let info = await task.value
+    if serverInfoAsk?.origin == origin { serverInfoAsk = nil }
+    return info
   }
 
   /// Whether the phone holds anything for `origin` that ``forget(_:)`` would remove.
@@ -346,28 +356,15 @@ public final class Session {
 
   /// The active server's config, asked for when it has not answered since launch — or when it
   /// draws tiles but had no credit for them yet, which it learns from its renderer after it
-  /// starts. Asked again at most once a minute after an answer, the time `/config` is
-  /// cacheable for, and once for every page head waiting at the same time. Nil when it cannot
-  /// be had.
+  /// starts. Asked again no sooner than ``serverInfoFreshness`` after an answer, and once for
+  /// every page head and screen waiting at the same time. Nil when it cannot be had.
   public func mapConfig() async -> InstanceConfigRead? {
     if let config = server?.config, config.mapTiles != true || config.mapAttribution != nil {
       return config
     }
     guard let origin = state.origin else { return nil }
-    if let answered = mapConfigAnswered, answered.origin == origin,
-      ContinuousClock.now - answered.at < .seconds(60), let server, server.origin == origin
-    {
-      return server.config
-    }
-    if let ask = mapConfigAsk, ask.origin == origin {
-      return await ask.task.value
-    }
-    let task = Task { try? await self.validate(origin).config }
-    mapConfigAsk = (origin, task)
-    let config = await task.value
-    if mapConfigAsk?.origin == origin { mapConfigAsk = nil }
-    if config != nil { mapConfigAnswered = (origin, .now) }
-    return config
+    if isFresh(origin) { return server?.config }
+    return await askServerInfo(origin)?.config
   }
 
   // MARK: - Internals
