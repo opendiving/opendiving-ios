@@ -12,7 +12,7 @@ public actor MapTileStore {
   /// A tile not drawn yet holds its request open for the draw, and the rest of the app needs
   /// connections to the same host; the web keeps the same four.
   static let concurrentRequests = 4
-  /// About seventy page heads at six tiles each.
+  /// About seventy page heads at six tiles each, or a long list's cards, which share theirs.
   static let keptTiles = 400
 
   public nonisolated let client: APIClient
@@ -52,6 +52,8 @@ public actor MapTileStore {
       try Task.checkCancellation()
       try await acquire()
       defer { release() }
+      // A list's cards share their tiles; whichever asked first has answered for the rest.
+      if asked.contains(address) { return (try? Data(contentsOf: tileFile(address))) ?? held }
       let answer = try await client.mapTile(address, language: language, etag: etag)
       asked.insert(address)
       switch answer {
