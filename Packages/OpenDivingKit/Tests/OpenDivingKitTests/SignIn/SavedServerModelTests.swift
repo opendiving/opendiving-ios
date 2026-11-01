@@ -93,6 +93,25 @@ struct SavedServerModelTests {
     #expect(session.serverCard?.updateFailure != nil)
   }
 
+  @Test func anAnswerStandsForAMinuteAndIsThenAskedAgain() async throws {
+    var clock = Date(timeIntervalSince1970: 1_798_000_000)
+    let transport = StubTransport(routes: [
+      "GET config": .json(try KitFixture.text("config")),
+      "GET health": .json(try KitFixture.text("health")),
+    ])
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent, now: { clock })
+    await session.loadServerInfo()
+    clock += Session.serverInfoFreshness - 1
+    await session.loadServerInfo()
+    #expect(transport.requests.count == 2)
+    clock += 1
+    await session.loadServerInfo()
+    #expect(transport.requests.count == 4)
+  }
+
   // MARK: - The account and when it was used
 
   @Test func theActiveServerIsUsedNowAndAnotherWhenItWasLeft() {

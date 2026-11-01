@@ -49,6 +49,8 @@ public final class Session {
   public private(set) var people: [UUID: PersonRead] = [:]
   /// The active server as it last answered ``validate(_:)``.
   public private(set) var server: ServerInfo? = nil
+  /// When ``server`` was answered.
+  @ObservationIgnored private var serverAnsweredAt: Date?
   /// The servers ``validate(_:)`` is asking, for a card that shows it is updating.
   public private(set) var validating: Set<ServerOrigin> = []
   /// Why ``validate(_:)`` last failed for a server, until it next answers.
@@ -146,7 +148,10 @@ public final class Session {
       validationFailures[origin] = ServerProblem(APIError(error), origin: origin).message
       throw error
     }
-    if state.origin == origin { server = info }
+    if state.origin == origin {
+      server = info
+      serverAnsweredAt = now()
+    }
     // Only a saved server's build is kept: a typed one may never be chosen.
     if let health = info.health, store.savedServers().contains(origin) {
       try? store.rememberHealth(health, for: origin)
@@ -169,6 +174,7 @@ public final class Session {
     savedServers = store.savedServers()
     client = makeClient(origin)
     server = info
+    serverAnsweredAt = info.map { _ in now() }
     user = nil
     people = [:]
     enter(origin)
@@ -188,9 +194,19 @@ public final class Session {
       isUpdating: validating.contains(origin), updateFailure: validationFailures[origin])
   }
 
-  /// Asks the active server again what it runs; a failure leaves the build it last reported.
+  /// How long the active server's answer stands before ``loadServerInfo()`` asks again: long
+  /// enough that the screen a *Continue* lands on does not repeat what it just asked.
+  public static let serverInfoFreshness: TimeInterval = 60
+
+  /// Asks the active server again what it runs, unless it answered within
+  /// ``serverInfoFreshness``; a failure leaves the build it last reported.
   public func loadServerInfo() async {
     guard let origin = state.origin, !validating.contains(origin) else { return }
+    if server != nil, let answeredAt = serverAnsweredAt,
+      now().timeIntervalSince(answeredAt) < Self.serverInfoFreshness
+    {
+      return
+    }
     _ = try? await validate(origin)
   }
 

@@ -121,6 +121,9 @@ struct SignInFlowTests {
     #expect(session.savedServers == [origin])
     #expect(flow.serverText.isEmpty)
     #expect(flow.serverProblem == nil)
+    // The sign-in screen it lands on does not ask again what the server just answered.
+    await session.loadServerInfo()
+    #expect(transport.requests.count == 2)
   }
 
   @Test func theThreeServerErrorsAreDistinct() async throws {
