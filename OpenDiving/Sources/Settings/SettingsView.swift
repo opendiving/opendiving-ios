@@ -29,9 +29,10 @@ private struct SettingsList: View {
       if let card = model.card {
         ServerCard(content: card) {
           NavigationLink("Change server") {
-            // A notice from an earlier visit is not this one's.
+            // A notice from an earlier visit is not this one's; one set while here, by a page
+            // pushed over the list, is.
             ServerScreen(flow: model.signIn)
-              .onAppear { model.signIn.dismissNotice() }
+              .onFirstAppear { model.signIn.dismissNotice() }
           }
           .disabled(model.isWorking)
           Button("Sign out") { Task { await model.signOut() } }

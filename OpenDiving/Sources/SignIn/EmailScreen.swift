@@ -56,10 +56,11 @@ struct EmailScreen: View {
       }
       ServerCard(content: flow.session.card(for: origin)) {
         NavigationLink("Change server") {
-          // A notice from an earlier visit is not this one's, and one the list showed is not
-          // the sign-in's, unless the server it is about has changed under it.
+          // A notice from an earlier visit is not this one's, though one set while here, by a
+          // page pushed over the list, is. One the list showed is not the sign-in's, unless the
+          // server it is about has changed under it.
           ServerScreen(flow: flow)
-            .onAppear { flow.dismissNotice() }
+            .onFirstAppear { flow.dismissNotice() }
             .onDisappear { if flow.origin == origin { flow.dismissNotice() } }
         }
       }
