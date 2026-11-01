@@ -54,7 +54,8 @@ private struct TripList: View {
               NavigationLink {
                 TripDetailView(tripUUID: trip.uuid)
               } label: {
-                RecordCardView(content: TripSummary.card(trip, units: session.units))
+                RecordCardView(
+                  content: TripSummary.card(trip, units: session.units), icon: .tabLuggage)
               }
               .buttonStyle(.plain)
               .onAppear { Task { await list.loadMore(after: trip) } }

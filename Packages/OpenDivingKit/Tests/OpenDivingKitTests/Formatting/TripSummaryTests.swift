@@ -69,6 +69,13 @@ struct TripSummaryTests {
       ])
   }
 
+  @Test func theCardMapsThePlacesOrTheWorld() throws {
+    let trip = try Self.trip()
+    let card = TripSummary.card(trip, units: .metric)
+    #expect(card.points == TripSummary.points(trip))
+    #expect(card.mapsTheWorldWhenEmpty)
+  }
+
   @Test func noSpeciesShowsTheDepthAndAnUndatedPlacelessTripHasNoFacts() throws {
     let trip = try Self.trip([
       "parts": [["candidate_count": 0]], "dive_count": 0, "dive_site_count": 0, "max_depth": 10,

@@ -75,20 +75,12 @@ extension DiveDetailContent {
     }
     figures += readings
 
-    let points = dive.diveSites.compactMap { site -> MapPoint? in
-      guard let latitude = site.latitude, let longitude = site.longitude else { return nil }
-      return MapPoint(name: site.name, latitude: latitude, longitude: longitude)
-    }
-    var fixes: [MapPoint] = []
-    if let latitude = dive.entryLatitude, let longitude = dive.entryLongitude {
-      fixes.append(MapPoint(name: "Entry", latitude: latitude, longitude: longitude))
-    }
-    if let latitude = dive.exitLatitude, let longitude = dive.exitLongitude {
-      fixes.append(MapPoint(name: "Exit", latitude: latitude, longitude: longitude))
-    }
+    let places = DiveCardContent.mapPlaces(
+      sites: dive.diveSites, entry: (dive.entryLatitude, dive.entryLongitude),
+      exit: (dive.exitLatitude, dive.exitLongitude))
     return HeroContent(
       title: card.title, isCourse: card.isCourse, rating: card.rating, chips: card.chips,
-      facts: card.facts, figures: figures, points: points, fixes: fixes)
+      facts: card.facts, figures: figures, points: places.points, fixes: places.fixes)
   }
 
   // MARK: - Main column

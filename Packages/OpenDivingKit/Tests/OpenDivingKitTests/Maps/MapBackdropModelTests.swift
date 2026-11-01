@@ -183,6 +183,19 @@ struct MapBackdropModelTests {
     #expect(tileRequests(transport).count == layout.tiles.count)
   }
 
+  @Test func cardsShowingTheSameTilesAtOnceShareTheirRequests() async {
+    let transport = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
+    let session = session(transport)
+    let cards = (0..<10).map { _ in MapBackdropModel(session: session) }
+    await withTaskGroup(of: Void.self) { group in
+      for card in cards { group.addTask { await card.show(layout) } }
+    }
+    #expect(cards.allSatisfy { $0.shown != nil })
+    // A tile is asked for again only while no answer for it is in: at most the four requests
+    // that can be out at once, against one a card without the others.
+    #expect(tileRequests(transport).count <= 4 * layout.tiles.count)
+  }
+
   @Test func aHeadThatLeavesWhileTheConfigIsAskedLeavesItToTheNextHead() async {
     let gate = Gate()
     let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))

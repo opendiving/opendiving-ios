@@ -18,6 +18,9 @@ extension DiveCardContent {
       avgDepth: item.avgDepth,
       waterTemperature: item.bottomTemperature,
       outline: item.depthOutline?.values ?? [],
+      places: mapPlaces(
+        sites: item.diveSites, entry: (item.entryLatitude, item.entryLongitude),
+        exit: (item.exitLatitude, item.exitLongitude)),
       units: units)
   }
 }

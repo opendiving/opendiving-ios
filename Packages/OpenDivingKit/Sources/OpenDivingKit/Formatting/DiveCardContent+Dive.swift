@@ -11,6 +11,7 @@ extension DiveCardContent {
   ///   only while fewer than three figures show.
   /// - The outline: each depth as a fraction of the deepest, empty for a dive that never
   ///   left the surface.
+  /// - The map: its sites and fixes, as ``mapPlaces(sites:entry:exit:)`` has them.
   public static func dive(
     number: Int,
     siteNames: [String],
@@ -28,6 +29,7 @@ extension DiveCardContent {
     avgDepth: Double?,
     waterTemperature: Double?,
     outline: [Int],
+    places: (points: [MapPoint], fixes: [MapPoint]) = ([], []),
     units: UnitSystem
   ) -> DiveCardContent {
     var chips: [Chip] = []
@@ -76,7 +78,29 @@ extension DiveCardContent {
       chips: chips,
       facts: facts,
       figures: figures,
-      outline: normalizedOutline(outline))
+      outline: normalizedOutline(outline),
+      points: places.points,
+      fixes: places.fixes)
+  }
+
+  /// Where a dive is on a map, as the web has it: its sites where they are pinned, and where
+  /// the dive computer put the diver — a different claim, drawn apart. A fix at latitude or
+  /// longitude 0 is a position, not an absence.
+  public static func mapPlaces(
+    sites: [DiveSiteInfo], entry: (Double?, Double?), exit: (Double?, Double?)
+  ) -> (points: [MapPoint], fixes: [MapPoint]) {
+    let points = sites.compactMap { site -> MapPoint? in
+      guard let latitude = site.latitude, let longitude = site.longitude else { return nil }
+      return MapPoint(name: site.name, latitude: latitude, longitude: longitude)
+    }
+    var fixes: [MapPoint] = []
+    if case (let latitude?, let longitude?) = entry {
+      fixes.append(MapPoint(name: "Entry", latitude: latitude, longitude: longitude))
+    }
+    if case (let latitude?, let longitude?) = exit {
+      fixes.append(MapPoint(name: "Exit", latitude: latitude, longitude: longitude))
+    }
+    return (points, fixes)
   }
 
   /// Each depth as a fraction of the deepest, or nothing for a dive that never left the
