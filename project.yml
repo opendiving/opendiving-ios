@@ -45,8 +45,6 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
-        # The brand coral, #FF7F50 as on the web, in both appearances.
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # The Kit's `Icon` names the symbols; Xcode's generated `ImageResource` names would
         # make `Image(.fish)` ambiguous.
         ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: NO
