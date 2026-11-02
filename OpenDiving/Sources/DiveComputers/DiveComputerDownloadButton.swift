@@ -42,7 +42,7 @@ struct DiveComputerDownloadButtonLabel: View {
 
   /// #FF7F50, the brand's coral.
   private static let coral = Color(red: 1, green: 127 / 255, blue: 80 / 255)
-  private static let ringWidth: CGFloat = 1.5
+  private static let ringWidth: CGFloat = 2.5
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
 
