@@ -25,7 +25,8 @@ struct DiveComputerGlyph: View {
     Canvas { context, size in
       let scale = min(size.width, size.height) / 24
       context.scaleBy(x: scale, y: scale)
-      let style = StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+      // Lighter than the asset's 2-unit stroke, which reads heavy at the button's size.
+      let style = StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
       let shading = GraphicsContext.Shading.foreground
       context.stroke(Self.body, with: shading, style: style)
       for (bar, state) in zip(Self.bars, frame) where state.opacity > 0 {
