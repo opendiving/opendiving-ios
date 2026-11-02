@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The Dives tab's dive-computer button, which opens the *Dive computer* screen. Over a download
-/// the diver left running, the icon's bars rise in a loop inside a ring of its progress.
+/// The Dives tab's dive-computer button, which opens the *Dive computers* screen. Over a
+/// download the diver left running, the icon's bars rise in a loop inside a ring of its progress.
 struct DiveComputerToolbarItem: ToolbarContent {
   let action: () -> Void
 

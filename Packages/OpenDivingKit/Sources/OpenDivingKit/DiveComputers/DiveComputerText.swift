@@ -1,6 +1,6 @@
 import Foundation
 
-/// The words of the *Dive computer* screen, the Settings list and the inbox's download rows.
+/// The words of the *Dive computers* screen, the Settings list and the inbox's download rows.
 public enum DiveComputerText {
   public static let connect = "Connect a dive computer"
   public static let screenTitle = "Dive computers"

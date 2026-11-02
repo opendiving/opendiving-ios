@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The *Dive computer* screen's model, over the link, the account's remembered computers and
+/// The *Dive computers* screen's model, over the link, the account's remembered computers and
 /// the inbox: idle → scanning → connecting → downloading → the time-zone question, only where it
 /// is needed → finished, with an outcome.
 ///
