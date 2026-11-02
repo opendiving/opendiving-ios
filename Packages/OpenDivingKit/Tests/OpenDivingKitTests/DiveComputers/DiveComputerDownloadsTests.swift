@@ -75,7 +75,7 @@ struct DiveComputerDownloadsTests {
     link.release()
     await model.settled()
     #expect(inbox.files.count == 1)
-    // The end came while away: the button stays, green, until the screen shows it.
+    // The end came while away: the button stays, finished, until the screen shows it.
     #expect(downloads.button?.state == .succeeded)
     #expect(downloads.button?.ring == .fraction(1))
     #expect(downloads.screenAppeared()?.kind == .handedOver)

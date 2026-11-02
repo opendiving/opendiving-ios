@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The round button: the dive-computer icon inside a ring of the download's progress, coral
-/// while it runs, green once it ends well, red when it does not.
+/// while it runs, teal once it ends well, red when it does not.
 struct DiveComputerDownloadButton: View {
   let content: DiveComputerButtonContent
   let action: () -> Void
@@ -39,7 +39,7 @@ struct DiveComputerDownloadButton: View {
   private var ringColor: Color {
     switch content.state {
     case .working, .waiting: Self.coral
-    case .succeeded: .green
+    case .succeeded: .teal
     case .failed: .red
     }
   }
