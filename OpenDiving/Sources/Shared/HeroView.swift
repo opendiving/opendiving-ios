@@ -14,9 +14,12 @@ struct HeroView: View {
   private static let pullReach: CGFloat = 400
 
   @Environment(\.heroTopInset) private var topInset
+  @Environment(\.refresh) private var refresh
   @State private var height: CGFloat = 0
   @State private var detailsHeight: CGFloat = 0
   @State private var credit: String?
+  /// How far the page is pulled down past its top, which a refresh holds open while it runs.
+  @State private var pull: CGFloat = 0
 
   private var hasMap: Bool { !content.points.isEmpty || !content.fixes.isEmpty }
 
@@ -67,6 +70,27 @@ struct HeroView: View {
       }
       .frame(height: height + Self.pullReach)
     }
+    .overlay(alignment: .top) {
+      if refresh != nil {
+        refreshIndicator
+      }
+    }
+    .onGeometryChange(for: CGFloat.self) {
+      max($0.frame(in: .scrollView).minY, 0)
+    } action: {
+      pull = $0
+    }
+  }
+
+  /// The system's refresh spinner sits behind the page, where the map drawn above the head
+  /// hides it, so the head draws its own just under the top bar, held still as the page moves.
+  private var refreshIndicator: some View {
+    ProgressView()
+      .frame(width: 32, height: 32)
+      .background(Color(.systemBackground).opacity(0.8), in: Circle())
+      .opacity(min(max((pull - 8) / 40, 0), 1))
+      .offset(y: topInset + 8 - pull)
+      .accessibilityHidden(true)
   }
 }
 
