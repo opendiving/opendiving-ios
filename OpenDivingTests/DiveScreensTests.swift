@@ -16,9 +16,16 @@ struct DiveScreensTests {
       let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
     else { return nil }
     let window = UIWindow(windowScene: scene)
+    let inbox = InboxModel(session: session)
+    let downloads = DiveComputerDownloads {
+      DiveComputerModel(
+        session: session, inbox: inbox,
+        link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+        generator: DiveComputerView.generator)
+    }
     window.rootViewController = UIHostingController(
       rootView: view.environment(session).environment(OutboxModel(session: session))
-        .environment(InboxModel(session: session)))
+        .environment(inbox).environment(downloads))
     window.makeKeyAndVisible()
     window.layoutIfNeeded()
     return window

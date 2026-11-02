@@ -23,18 +23,39 @@ struct DiveComputerScreensTests {
     family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
     firmware: "93", familyNumber: 0, modelNumber: 14)
 
-  @Test func theScreenDraws() async throws {
+  @Test func theScreenDrawsWithAPairedComputer() async throws {
     let session = try await loaded()
+    let origin = try #require(session.state.origin)
+    let account = try #require(session.user?.uuid)
+    try DiveComputerStore(store: session.store, origin: origin, account: account)
+      .save(DiveComputerRecord(identity: perdix, lastDownloaded: Date()))
     let inbox = InboxModel(session: session)
+    inbox.sessionChanged()
     let window = F.window(
       NavigationStack {
         DiveComputerScreen(
-          model: DiveComputerModel(
-            session: session, inbox: inbox,
-            link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-            generator: DiveComputerView.generator))
+          downloads: DiveComputerDownloads {
+            DiveComputerModel(
+              session: session, inbox: inbox,
+              link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+              generator: DiveComputerView.generator)
+          })
       }
       .environment(session).environment(inbox))
+    defer { window?.isHidden = true }
+    #expect(window != nil)
+  }
+
+  @Test func theDownloadButtonDrawsEachState() {
+    let states: [DiveComputerButtonContent?] = [
+      nil,
+      .init(ring: .indeterminate, state: .working, accessibilityValue: "Connecting"),
+      .init(ring: .fraction(0.4), state: .working, accessibilityValue: "Downloading dive 2"),
+      .init(ring: .fraction(1), state: .succeeded, accessibilityValue: "2 dives downloaded."),
+      .init(ring: .fraction(1), state: .failed, accessibilityValue: "The download failed."),
+    ]
+    let window = F.window(
+      VStack { ForEach(states, id: \.self) { DiveComputerDownloadButtonLabel(content: $0) {} } })
     defer { window?.isHidden = true }
     #expect(window != nil)
   }

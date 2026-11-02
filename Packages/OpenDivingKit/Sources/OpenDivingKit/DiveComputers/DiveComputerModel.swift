@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The *Dive Computer* screen's model, over the link, the account's remembered computers and
+/// The *Dive Computers* screen's model, over the link, the account's remembered computers and
 /// the inbox: idle → scanning → connecting → downloading → the time-zone question, only where it
 /// is needed → finished, with an outcome.
 ///
@@ -44,8 +44,21 @@ public final class DiveComputerModel {
     /// *Serial D9772626 · Last downloaded 12 October*, once the phone remembers it; the serial
     /// alone where the advertised name carries one.
     public let subtitle: String?
+    /// The record of the paired computer this is, where the phone remembers it.
+    public let recordID: String?
 
     public var id: UUID { computer.id }
+  }
+
+  /// One computer the account has downloaded from, as *Paired computers* shows it.
+  public struct Paired: Hashable, Sendable, Identifiable {
+    public let record: DiveComputerRecord
+    public let title: String
+    public let subtitle: String?
+    /// The scan's row while the computer is advertising, which connects to it.
+    public let row: Row?
+
+    public var id: String { record.id }
   }
 
   /// How the screen's download ended.
@@ -73,6 +86,8 @@ public final class DiveComputerModel {
   public private(set) var phase = Phase.idle
   /// The computers found, newest-seen first.
   public private(set) var rows: [Row] = []
+  /// The account's paired computers, by title.
+  public private(set) var paired: [Paired] = []
   /// Why nothing may start, other than Bluetooth: the account is loading, or a shared archive
   /// waits in the inbox.
   public private(set) var refusal: String?
@@ -85,6 +100,9 @@ public final class DiveComputerModel {
   /// The zone the time-zone question offers first: the phone's.
   public let suggestedZone: TimeZone
 
+  /// The computers found that are not paired.
+  public var unpairedRows: [Row] { rows.filter { $0.recordID == nil } }
+
   /// What the screen shows above everything: Bluetooth's sentence, else ``refusal``.
   public var blocker: String? {
     switch availability {
@@ -92,6 +110,11 @@ public final class DiveComputerModel {
     case .refused: DiveComputerText.bluetoothRefused
     case .on, .unknown: refusal
     }
+  }
+
+  /// A download is in flight: from connecting to the time-zone question's answer.
+  public var isBusy: Bool {
+    phase == .connecting || phase == .downloading || phase == .askingTimeZone
   }
 
   /// *Downloading dive 3*, while downloading.
@@ -135,6 +158,7 @@ public final class DiveComputerModel {
   /// Follows Bluetooth's state until cancelled: scans while it is on and nothing else is going
   /// on, and stops when it goes.
   public func watch() async {
+    rebuildRows()
     for await state in link.availability() {
       availability = state
       if state == .on {
@@ -169,6 +193,12 @@ public final class DiveComputerModel {
   private func found(_ computer: FoundComputer) {
     seen.removeAll { $0.id == computer.id }
     seen.insert(computer, at: 0)
+    rebuildRows()
+  }
+
+  /// The found rows over what the phone remembers, and the paired computers over what the scan
+  /// sees.
+  private func rebuildRows() {
     let store = computers()
     rows = seen.map { computer in
       let record = store.flatMap { store in
@@ -180,7 +210,15 @@ public final class DiveComputerModel {
         computer: computer, title: record?.title ?? computer.title,
         subtitle: DiveComputerText.subtitle(
           serial: record?.serial ?? computer.advertisedSerial,
-          lastDownloaded: record?.lastDownloaded, in: suggestedZone))
+          lastDownloaded: record?.lastDownloaded, in: suggestedZone),
+        recordID: record?.id)
+    }
+    paired = (store?.records() ?? []).map { record in
+      Paired(
+        record: record, title: record.title,
+        subtitle: DiveComputerText.subtitle(
+          serial: record.serial, lastDownloaded: record.lastDownloaded, in: suggestedZone),
+        row: rows.first { $0.recordID == record.id })
     }
   }
 
@@ -216,7 +254,7 @@ public final class DiveComputerModel {
     zoneAnswer = nil
   }
 
-  /// Leaves the screen: stops scanning and the download in flight.
+  /// Done with the model: stops scanning and the download in flight.
   public func close() {
     stopScanning()
     cancel()
@@ -241,6 +279,7 @@ public final class DiveComputerModel {
     let store = DiveComputerStore(store: session.store, origin: origin, account: keeping.account)
     downloadTask = Task {
       await walk(computer, all: all, store: store)
+      rebuildRows()
       downloadTask = nil
     }
   }

@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The *Dives* tab: the logbook, newest first as the server orders it, a page at a time — the
-/// pages the phone has shown first, from its copy — what is waiting to sync above it, and the
-/// `+` that logs a dive or imports files.
+/// pages the phone has shown first, from its copy — what is waiting to sync above it, the `+`
+/// that logs a dive or imports files, and the dive-computer button on the left.
 struct DivesView: View {
   @Environment(Session.self) private var session
   @State private var list: PagedList<DiveListItem>?
@@ -20,6 +20,7 @@ struct DivesView: View {
       }
       .navigationTitle("Dives")
       .toolbar {
+        DiveComputerToolbarItem { route = .diveComputer }
         ToolbarItem(placement: .primaryAction) {
           Menu("Add", systemImage: "plus") {
             Button {
@@ -31,11 +32,6 @@ struct DivesView: View {
               route = .importFiles
             } label: {
               Label("Import files", icon: .upload)
-            }
-            Button {
-              route = .diveComputer
-            } label: {
-              Label(DiveComputerText.connectMenuItem, icon: .diveComputer)
             }
           }
         }
@@ -66,7 +62,7 @@ extension DivesView {
   }
 }
 
-/// Where the `+` leads, mirroring the web's Dives header.
+/// Where the `+` and the dive-computer button lead.
 private enum DivesRoute: Hashable {
   case logDive, importFiles, diveComputer
 }
@@ -98,8 +94,8 @@ private struct DivesList: View {
           status: .empty(
             icon: .dive, title: "No dives logged yet",
             message:
-              "No dives yet. Log one, import your dive computer's files, or connect your dive "
-              + "computer, with +."
+              "No dives yet. Log one or import your dive computer's files with +, or download "
+              + "them from the dive computer with the button on the left."
           )
         )
       }
@@ -140,4 +136,11 @@ private struct DivesList: View {
     .environment(DivePreviewData.session)
     .environment(InboxModel(session: DivePreviewData.session))
     .environment(OutboxModel(session: DivePreviewData.session))
+    .environment(
+      DiveComputerDownloads {
+        DiveComputerModel(
+          session: DivePreviewData.session, inbox: InboxModel(session: DivePreviewData.session),
+          link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+          generator: DiveComputerView.generator)
+      })
 }

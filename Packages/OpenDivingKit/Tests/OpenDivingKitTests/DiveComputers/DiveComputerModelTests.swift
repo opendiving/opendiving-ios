@@ -71,6 +71,8 @@ struct DiveComputerModelTests {
     let row = try await scanned(model)
     #expect(row.title == "Shearwater Perdix 3")
     #expect(row.subtitle == nil)
+    #expect(model.paired.isEmpty)
+    #expect(model.unpairedRows == [row])
     model.connect(row)
     await model.settled()
 
@@ -99,6 +101,14 @@ struct DiveComputerModelTests {
     model.startScanning()
     for _ in 0..<1000 where model.rows.first?.subtitle == nil { await Task.yield() }
     #expect(model.rows.first?.subtitle == "Serial D9772626 · Last downloaded 25 October")
+    // It is paired now: listed among the paired computers, connectable while seen, and no
+    // longer among the others found.
+    let paired = try #require(model.paired.first)
+    #expect(model.paired.count == 1)
+    #expect(paired.title == "Shearwater Perdix 3")
+    #expect(paired.subtitle == "Serial D9772626 · Last downloaded 25 October")
+    #expect(paired.row?.computer == F.perdixFound)
+    #expect(model.unpairedRows.isEmpty)
   }
 
   @Test func nothingNewOffersDownloadAllWhichSetsNoFingerprint() async throws {
