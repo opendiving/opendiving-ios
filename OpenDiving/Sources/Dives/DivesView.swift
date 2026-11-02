@@ -20,9 +20,7 @@ struct DivesView: View {
       }
       .navigationTitle("Dives")
       .toolbar {
-        ToolbarItem(placement: .topBarLeading) {
-          DiveComputerDownloadButton { route = .diveComputer }
-        }
+        DiveComputerToolbarItem { route = .diveComputer }
         ToolbarItem(placement: .primaryAction) {
           Menu("Add", systemImage: "plus") {
             Button {
