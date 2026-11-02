@@ -38,7 +38,7 @@ private struct HeroUnderTopBar: ViewModifier {
             .frame(width: 32, height: 32)
             .background(Color(.systemBackground).opacity(0.8), in: Circle())
             .padding(.top, 8)
-            .opacity(isRefreshing ? 1 : min(max((pull - 8) / 40, 0), 1))
+            .opacity(isRefreshing ? 1 : pulledFar)
             .animation(.easeOut(duration: 0.2), value: isRefreshing)
             .accessibilityHidden(true)
         }
@@ -48,6 +48,11 @@ private struct HeroUnderTopBar: ViewModifier {
       } action: {
         inset = $0
       }
+  }
+
+  /// How far into a pull the spinner has faded in, from none to whole.
+  private var pulledFar: Double {
+    min(max(Double(pull - 8) / 40, 0), 1)
   }
 
   @ViewBuilder
