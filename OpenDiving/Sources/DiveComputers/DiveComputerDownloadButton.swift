@@ -58,8 +58,9 @@ struct DiveComputerDownloadButtonLabel: View {
           // On the circle's edge, its stroke inside it.
           .padding(Self.ringWidth / 2)
         }
+        // The size of the bar's own symbols: the `+` stands as tall.
         DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
-          .frame(width: 28, height: 28)
+          .frame(width: 22, height: 22)
       }
       .frame(width: Self.size, height: Self.size)
       .contentShape(Circle())
