@@ -51,12 +51,12 @@ struct SignInViewTests {
   @Test func theEmailScreen() async throws {
     let session = Session.signedOutStub(transport: StubTransport(routes: [:]))
     #expect(
-      try await Self.title(of: SignInView(), session, SignInFlow(session: session)) == "Sign in")
+      try await Self.title(of: SignInView(), session, SignInFlow(session: session)) == "Sign In")
   }
 
   @Test func theCodeScreen() async throws {
     let (session, flow) = await Self.atTheCode(Self.onboarding)
-    #expect(try await Self.title(of: SignInView(), session, flow) == "Check your email")
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Check Your Email")
   }
 
   @Test func theUnfinishedAccountScreen() async throws {
@@ -64,7 +64,7 @@ struct SignInViewTests {
     flow.setCode("123456")
     await flow.submitCode()
     #expect(flow.step == .onboardingRequired(email: "sam@example.com", name: "Sam"))
-    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign in")
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
   }
 
   @Test func theDeletionPendingScreen() async throws {
@@ -75,7 +75,7 @@ struct SignInViewTests {
       Issue.record("Expected deletion pending, got \(flow.step)")
       return
     }
-    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign in")
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
   }
 
   @Test func theUninvitedSentenceStaysOnTheCodeScreen() async throws {
@@ -85,7 +85,7 @@ struct SignInViewTests {
     flow.setCode("123456")
     await flow.submitCode()
     #expect(flow.codeError == sentence)
-    #expect(try await Self.title(of: SignInView(), session, flow) == "Check your email")
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Check Your Email")
   }
 
   @Test func settings() async throws {

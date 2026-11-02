@@ -36,20 +36,20 @@ public struct VolumePresetGroup: Hashable, Sendable {
 public enum VolumePresets {
   public static let groups: [VolumePresetGroup] = [
     VolumePresetGroup(
-      title: "Metric singles", units: .metric,
+      title: "Metric Singles", units: .metric,
       presets: [
         VolumePreset(3, "3 L"), VolumePreset(5, "5 L"), VolumePreset(7, "7 L"),
         VolumePreset(10, "10 L"), VolumePreset(12, "12 L"), VolumePreset(15, "15 L"),
         VolumePreset(18, "18 L"), VolumePreset(20, "20 L"),
       ]),
     VolumePresetGroup(
-      title: "Twin sets", units: nil,
+      title: "Twin Sets", units: nil,
       presets: [
         VolumePreset(14, "14 L (2x7 L)"), VolumePreset(22.2, "22.2 L (2x AL80)", "2x AL80"),
         VolumePreset(24, "24 L (2x12 L)"), VolumePreset(30, "30 L (2x15 L)"),
       ]),
     VolumePresetGroup(
-      title: "US aluminium", units: .imperial,
+      title: "US Aluminium", units: .imperial,
       presets: [
         VolumePreset(5.7, "5.7 L (AL40)", "AL40"), VolumePreset(7.1, "7.1 L (AL50)", "AL50"),
         VolumePreset(9, "9 L (AL63)", "AL63"), VolumePreset(10, "10 L (AL72)", "AL72"),
@@ -57,7 +57,7 @@ public enum VolumePresets {
         VolumePreset(13.2, "13.2 L (AL100)", "AL100"),
       ]),
     VolumePresetGroup(
-      title: "US steel", units: .imperial,
+      title: "US Steel", units: .imperial,
       presets: [
         VolumePreset(10.2, "10.2 L (HP80)", "HP80"), VolumePreset(12.9, "12.9 L (HP100)", "HP100"),
         VolumePreset(15, "15 L (HP117)", "HP117"), VolumePreset(15.3, "15.3 L (HP120)", "HP120"),
@@ -67,7 +67,7 @@ public enum VolumePresets {
       ]),
   ]
 
-  /// The groups in the order a diver reading in `units` sees them, after a *Recently used*
+  /// The groups in the order a diver reading in `units` sees them, after a *Recently Used*
   /// group of the diver's own volumes (`GET /dives/recent-volumes`) when there are any.
   public static func groups(for units: UnitSystem, recent: [Double] = []) -> [VolumePresetGroup] {
     let families = groups.filter { $0.units != nil }
@@ -76,7 +76,7 @@ public enum VolumePresets {
       ? []
       : [
         VolumePresetGroup(
-          title: "Recently used", units: nil,
+          title: "Recently Used", units: nil,
           presets: recent.map { VolumePreset($0, "\(NumberText.plain($0)) L") })
       ]
     return recentGroup + families.filter { $0.units == units }

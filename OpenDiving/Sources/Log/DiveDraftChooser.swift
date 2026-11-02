@@ -8,7 +8,7 @@ struct DiveDraftChooser: View {
   let onPick: (RecordRef) -> Void
 
   var body: some View {
-    Section("Continue a draft") {
+    Section("Continue a Draft") {
       ForEach(rows) { row in
         Button {
           onPick(row.ref)

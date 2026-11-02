@@ -83,7 +83,7 @@ struct EmailScreen: View {
         Text(KeptText.signedOutFooter(origin))
       }
     }
-    .navigationTitle("Sign in")
+    .navigationTitle("Sign In")
     .task { await flow.session.loadServerInfo() }
     .forgetServerConfirmation(origin: $forgetting) { origin in
       Task { await flow.forget(origin) }

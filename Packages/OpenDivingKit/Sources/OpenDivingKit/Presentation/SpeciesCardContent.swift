@@ -1,6 +1,6 @@
 import Foundation
 
-/// One species, on a dive's *Species spotted* or a site's species card.
+/// One species, on a dive's *Species Spotted* or a site's species card.
 public struct SpeciesCardContent: Hashable, Sendable {
   /// The photo's bytes, already fetched through the Kit's client; nil draws the
   /// no-photo backdrop.

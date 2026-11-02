@@ -70,7 +70,7 @@ struct AddServerScreen: View {
         }
       }
     }
-    .navigationTitle("Add server")
+    .navigationTitle("Add Server")
     .forgetServerConfirmation(origin: $forgetting) { origin in
       Task { await flow.forget(origin) }
     }

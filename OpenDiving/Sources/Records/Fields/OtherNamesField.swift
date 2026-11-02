@@ -5,7 +5,7 @@ struct OtherNamesField: View {
   @Binding var names: [String]
 
   var body: some View {
-    Section("Other names") {
+    Section("Other Names") {
       ForEach(names.indices, id: \.self) { index in
         TextField("Other name \(index + 1)", text: name(index), prompt: Text("e.g. Sunabe Seawall"))
       }

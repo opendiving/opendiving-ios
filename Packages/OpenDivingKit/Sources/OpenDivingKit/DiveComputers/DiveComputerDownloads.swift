@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The *Dive computers* screen's model for the signed-in shell's whole life, so a download
+/// The *Dive Computers* screen's model for the signed-in shell's whole life, so a download
 /// keeps going when the diver leaves the screen, and the Dives tab's button that leads back to it.
 ///
 /// The screen reads ``model`` and reports its appearing and disappearing. Left mid-download,

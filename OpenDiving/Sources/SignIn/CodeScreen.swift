@@ -45,7 +45,7 @@ struct CodeScreen: View {
         Button("Use a different email") { flow.useDifferentEmail() }
       }
     }
-    .navigationTitle("Check your email")
+    .navigationTitle("Check Your Email")
     .onChange(of: flow.code) {
       if flow.isCodeComplete {
         Task { await flow.submitCode() }

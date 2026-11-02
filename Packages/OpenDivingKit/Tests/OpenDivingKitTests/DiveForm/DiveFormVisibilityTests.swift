@@ -89,7 +89,7 @@ struct DiveFormVisibilityTests {
         .boatName, in: DiveFormValues(entryType: "boat")))
   }
 
-  /// A section renders when one of its fields shows; *Dive info* always; *Tanks* with `mixtures`.
+  /// A section renders when one of its fields shows; *Dive Info* always; *Tanks* with `mixtures`.
   @Test func sectionsFollowTheirFields() {
     let values = DiveFormValues()
     let basic = DiveFormVisibility(hiddenKeys: [

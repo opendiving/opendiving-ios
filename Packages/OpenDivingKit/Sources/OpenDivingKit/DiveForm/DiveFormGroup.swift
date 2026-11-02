@@ -4,11 +4,11 @@ public enum DiveFormGroup: String, CaseIterable, Sendable, Hashable {
   case training = "Training"
   case location = "Location"
   case people = "People"
-  case diveInfo = "Dive info"
+  case diveInfo = "Dive Info"
   case environment = "Environment"
   case tanks = "Tanks"
   case gear = "Gear"
-  case marineLife = "Marine life"
+  case marineLife = "Marine Life"
   case notes = "Notes"
 
   /// The section's heading.
@@ -19,7 +19,7 @@ public enum DiveFormGroup: String, CaseIterable, Sendable, Hashable {
     DiveFormField.allCases.filter { $0.group == self }
   }
 
-  /// Whether the web's form renders the section: *Dive info* always, for its start, number and
+  /// Whether the web's form renders the section: *Dive Info* always, for its start, number and
   /// time; *Tanks* while `mixtures` is visible, the per-tank columns being columns of its cards;
   /// any other while one of its fields is shown.
   public func isShown(_ visibility: DiveFormVisibility, values: DiveFormValues) -> Bool {

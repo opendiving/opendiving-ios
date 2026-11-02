@@ -86,8 +86,8 @@ struct DiveFormViewTests {
     #expect(
       model.sections.map(\.title)
         == [
-          "Training", "Location", "People", "Dive info", "Environment", "Tanks", "Gear",
-          "Marine life", "Notes",
+          "Training", "Location", "People", "Dive Info", "Environment", "Tanks", "Gear",
+          "Marine Life", "Notes",
         ])
     // The form draws one section per title, then its actions.
     #expect(await Self.renderedSections(in: window) == model.sections.count + 1)
@@ -104,7 +104,7 @@ struct DiveFormViewTests {
     let window = try host(DiveFormScreen(model: model), session: session)
     defer { window.isHidden = true }
 
-    #expect(model.sections.map(\.title) == ["Location", "Dive info", "Tanks", "Gear", "Notes"])
+    #expect(model.sections.map(\.title) == ["Location", "Dive Info", "Tanks", "Gear", "Notes"])
     #expect(await Self.renderedSections(in: window) == model.sections.count + 1)
   }
 

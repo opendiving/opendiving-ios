@@ -15,9 +15,9 @@ struct DiveFormFieldTests {
     ("entry_type", "Entry type", "Location"),
     ("boat_name", "Boat name", "Location"),
     ("people", "People", "People"),
-    ("type", "Dive type", "Dive info"),
-    ("max_depth", "Maximum depth", "Dive info"),
-    ("avg_depth", "Average depth", "Dive info"),
+    ("type", "Dive type", "Dive Info"),
+    ("max_depth", "Maximum depth", "Dive Info"),
+    ("avg_depth", "Average depth", "Dive Info"),
     ("bottom_temperature", "Bottom temperature", "Environment"),
     ("visibility", "Visibility", "Environment"),
     ("water_type", "Water type", "Environment"),
@@ -29,7 +29,7 @@ struct DiveFormFieldTests {
     ("mixtures", "Tanks", "Tanks"),
     ("gear_item_uuids", "Gear", "Gear"),
     ("weight", "Weight", "Gear"),
-    ("sightings", "Species spotted", "Marine life"),
+    ("sightings", "Species spotted", "Marine Life"),
     ("rating", "Rating", "Notes"),
     ("tags", "Tags", "Notes"),
     ("notes", "Notes", "Notes"),
@@ -56,8 +56,8 @@ struct DiveFormFieldTests {
   @Test func theSectionsAreTheWebsInItsOrder() {
     #expect(
       DiveFormGroup.allCases.map(\.title) == [
-        "Import", "Training", "Location", "People", "Dive info", "Environment", "Tanks", "Gear",
-        "Marine life", "Notes",
+        "Import", "Training", "Location", "People", "Dive Info", "Environment", "Tanks", "Gear",
+        "Marine Life", "Notes",
       ])
   }
 

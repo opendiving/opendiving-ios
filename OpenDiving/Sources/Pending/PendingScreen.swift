@@ -132,7 +132,7 @@ struct PendingScreen: View {
 
   @ViewBuilder private var waiting: some View {
     if !outbox.items.isEmpty {
-      Section("Waiting to sync") {
+      Section("Waiting to Sync") {
         ForEach(outbox.items) { item in
           PendingItemRow(
             item: item, title: title(of: item),

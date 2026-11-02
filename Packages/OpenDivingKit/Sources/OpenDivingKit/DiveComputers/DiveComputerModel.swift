@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The *Dive computers* screen's model, over the link, the account's remembered computers and
+/// The *Dive Computers* screen's model, over the link, the account's remembered computers and
 /// the inbox: idle → scanning → connecting → downloading → the time-zone question, only where it
 /// is needed → finished, with an outcome.
 ///
@@ -50,7 +50,7 @@ public final class DiveComputerModel {
     public var id: UUID { computer.id }
   }
 
-  /// One computer the account has downloaded from, as *Paired computers* shows it.
+  /// One computer the account has downloaded from, as *Paired Computers* shows it.
   public struct Paired: Hashable, Sendable, Identifiable {
     public let record: DiveComputerRecord
     public let title: String

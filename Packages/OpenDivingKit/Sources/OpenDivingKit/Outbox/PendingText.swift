@@ -4,7 +4,7 @@ import Foundation
 /// does not have yet, said in plain words. The server's own sentences are shown as it wrote
 /// them, never through here.
 public enum PendingText {
-  public static let title = "Waiting to sync"
+  public static let title = "Waiting to Sync"
   public static let syncNow = "Sync now"
   public static let signInToSync = "Sign in to sync"
   public static let signInToSyncDetail =
@@ -51,7 +51,7 @@ public enum PendingText {
     count == 1 ? "1 file waiting" : "\(count) files waiting"
   }
 
-  public static let filesHeader = "Files to import"
+  public static let filesHeader = "Files to Import"
   public static let openImport = "Go to Import"
   public static let filesReady = "Read and ready to import on the Import screen."
 

@@ -92,7 +92,7 @@ private struct LocationSearchForm: View {
             credit: credit, onPick: place)
         }
       }
-      .navigationTitle("Search location")
+      .navigationTitle("Search Location")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
