@@ -3,8 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// The download that outlives its screen, the floating button's content, its corners and the
-/// icon's bars.
+/// The download that outlives its screen, the button's content and the icon's bars.
 @MainActor
 struct DiveComputerDownloadsTests {
   private typealias F = DiveComputerFixtures
@@ -124,20 +123,6 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== model)
     link.release()
     await model.settled()
-  }
-
-  @Test func theNearestCornerWins() {
-    let places: [ScreenCorner: CGPoint] = [
-      .topLeading: CGPoint(x: 40, y: 100), .topTrailing: CGPoint(x: 360, y: 100),
-      .bottomLeading: CGPoint(x: 40, y: 700), .bottomTrailing: CGPoint(x: 360, y: 700),
-    ]
-    func nearest(_ x: CGFloat, _ y: CGFloat) -> ScreenCorner {
-      ScreenCorner.nearest(to: CGPoint(x: x, y: y)) { places[$0]! }
-    }
-    #expect(nearest(10, 10) == .topLeading)
-    #expect(nearest(250, 350) == .topTrailing)
-    #expect(nearest(150, 450) == .bottomLeading)
-    #expect(nearest(500, 900) == .bottomTrailing)
   }
 
   @Test func theBarsRiseInTurnThenFadeTogether() {

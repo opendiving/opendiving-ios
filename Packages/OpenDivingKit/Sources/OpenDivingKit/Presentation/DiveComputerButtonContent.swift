@@ -1,7 +1,7 @@
 import Foundation
 
-/// What the floating button over a download left running draws: a ring of its progress around
-/// the dive-computer icon, in a colour for how the download stands.
+/// What the Dives tab's dive-computer button draws over a download left running: a ring of its
+/// progress around the icon, in a colour for how the download stands.
 public struct DiveComputerButtonContent: Hashable, Sendable {
   public enum Ring: Hashable, Sendable {
     /// Connecting, or a family that reports no progress.
@@ -25,9 +25,6 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
   public let state: State
   /// What VoiceOver reads after the button's name: *Downloading dive 3, 25 percent*.
   public let accessibilityValue: String
-
-  public static let accessibilityLabel = "Dive computer download"
-  public static let accessibilityHint = "Opens the download."
 
   public init(ring: Ring, state: State, accessibilityValue: String) {
     self.ring = ring

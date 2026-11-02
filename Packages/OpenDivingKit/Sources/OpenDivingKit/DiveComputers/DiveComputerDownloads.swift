@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// The *Dive computer* screen's model for the signed-in shell's whole life, so a download keeps
-/// going when the diver leaves the screen, and the floating button that leads back to it.
+/// going when the diver leaves the screen, and the Dives tab's button that leads back to it.
 ///
 /// The screen reads ``model`` and reports its appearing and disappearing. Left mid-download,
 /// the model is kept and ``button`` shows until the screen is seen again — through the end of
@@ -11,9 +11,6 @@ import Observation
 @MainActor
 @Observable
 public final class DiveComputerDownloads {
-  /// Where the button rests, which the diver drags it between.
-  public var corner = ScreenCorner.bottomLeading
-
   @ObservationIgnored private var current: DiveComputerModel?
   /// Counts replacements of ``current``, which is kept out of observation so that making it
   /// lazily, while a view reads it, is no change a view has to answer.
@@ -38,7 +35,8 @@ public final class DiveComputerDownloads {
     return fresh
   }
 
-  /// What the floating button draws, while the screen was left mid-download and is not shown.
+  /// The download the Dives tab's button draws, while the screen was left mid-download and is
+  /// not shown.
   public var button: DiveComputerButtonContent? {
     _ = generation
     guard screens == 0, leftBusy, let current else { return nil }

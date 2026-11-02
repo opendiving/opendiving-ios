@@ -48,23 +48,18 @@ struct MainTabView: View {
     TabView(selection: $selection) {
       Tab("Dives", image: Icon.tabDive.rawValue, value: AppTab.dives) {
         DivesView()
-          .diveComputerDownloadButton()
       }
       Tab("Trips", image: Icon.tabLuggage.rawValue, value: AppTab.trips) {
         TripsView()
-          .diveComputerDownloadButton()
       }
       Tab("Sites", image: Icon.tabDiveSite.rawValue, value: AppTab.sites) {
         SitesView()
-          .diveComputerDownloadButton()
       }
       Tab("Cards", image: Icon.tabIdCard.rawValue, value: AppTab.cards) {
         CardsView()
-          .diveComputerDownloadButton()
       }
       Tab("Settings", image: Icon.tabSettings.rawValue, value: AppTab.settings) {
         SettingsView()
-          .diveComputerDownloadButton()
       }
     }
   }

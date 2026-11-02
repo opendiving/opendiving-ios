@@ -4,7 +4,7 @@ import UIKit
 
 /// The *Dive computer* screen: the computers found nearby, a download from the one the diver
 /// picks, and the import screen once its dives are in the inbox. Reached from the Dives tab's
-/// `+` and from the button over a download left running, which only the signed-in shell shows.
+/// dive-computer button, which only the signed-in shell shows.
 struct DiveComputerView: View {
   @Environment(DiveComputerDownloads.self) private var downloads
 
