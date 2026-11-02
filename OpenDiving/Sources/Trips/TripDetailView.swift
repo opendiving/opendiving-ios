@@ -45,8 +45,7 @@ private struct TripDetailContent: View {
           }
           .padding(.bottom)
         }
-        .refreshable { await model.refresh() }
-        .heroUnderTopBar()
+        .heroUnderTopBar { await model.refresh() }
       }
     }
     .background(Color(.systemGroupedBackground))
