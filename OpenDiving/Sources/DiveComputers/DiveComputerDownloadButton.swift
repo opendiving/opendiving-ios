@@ -42,7 +42,7 @@ struct DiveComputerDownloadButtonLabel: View {
 
   /// #FF7F50, the brand's coral.
   private static let coral = Color(red: 1, green: 127 / 255, blue: 80 / 255)
-  private static let ringWidth: CGFloat = 2.5
+  private static let ringWidth: CGFloat = 1.5
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
 
@@ -55,12 +55,11 @@ struct DiveComputerDownloadButtonLabel: View {
               .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
             ring(content)
           }
-          .padding(4)
+          // On the circle's edge, its stroke inside it.
+          .padding(Self.ringWidth / 2)
         }
-        // Smaller inside the ring, so the bars clear it.
-        let glyph: CGFloat = content == nil ? 28 : 22
         DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
-          .frame(width: glyph, height: glyph)
+          .frame(width: 28, height: 28)
       }
       .frame(width: Self.size, height: Self.size)
       .contentShape(Circle())
