@@ -50,7 +50,7 @@ public final class DiveComputerModel {
     public var id: UUID { computer.id }
   }
 
-  /// One computer the account has downloaded from, as *Paired computers* shows it.
+  /// One computer the account has downloaded from, as *Paired Computers* shows it.
   public struct Paired: Hashable, Sendable, Identifiable {
     public let record: DiveComputerRecord
     public let title: String
