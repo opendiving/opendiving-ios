@@ -99,7 +99,8 @@ struct DiveComputerStoreTests {
     list.forget(list.computers[0])
     #expect(list.computers.isEmpty)
     #expect(
-      DiveComputerText.emptyList == "No dive computers yet. Connect one with + on the Dives tab.")
+      DiveComputerText.emptyList
+        == "No dive computers yet. Connect one with the dive-computer button on the Dives tab.")
   }
 
   // MARK: - The family's rules

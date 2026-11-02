@@ -1,9 +1,10 @@
 import Foundation
 
-/// The words of the *Dive computer* screen, the Settings list and the inbox's download rows.
+/// The words of the *Dive computers* screen, the Settings list and the inbox's download rows.
 public enum DiveComputerText {
-  public static let connectMenuItem = "Connect a dive computer"
-  public static let screenTitle = "Dive computer"
+  public static let connect = "Connect a dive computer"
+  public static let screenTitle = "Dive computers"
+  public static let pairedHeading = "Paired computers"
   public static let scanningHeading = "Looking for dive computers"
   public static let scanningInstruction =
     "Wake your dive computer and turn on its Bluetooth, then keep it next to the phone."
@@ -30,7 +31,8 @@ public enum DiveComputerText {
   public static let forget = "Forget this dive computer"
   public static let forgetMessage = "The next download from it takes every dive again."
   public static let downloadAllNextTime = "Download all dives next time"
-  public static let emptyList = "No dive computers yet. Connect one with + on the Dives tab."
+  public static let emptyList =
+    "No dive computers yet. Connect one with the dive-computer button on the Dives tab."
 
   /// *Forget Perdix 3?*
   public static func forgetTitle(_ record: DiveComputerRecord) -> String {

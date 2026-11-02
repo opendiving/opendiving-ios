@@ -2,18 +2,14 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The *Dive computer* screen: the computers found nearby, a download from the one the diver
-/// picks, and the import screen once its dives are in the inbox. Reached from the Dives tab's
-/// `+`, which only the signed-in shell shows.
+/// The *Dive computers* screen: the account's paired computers, the others found nearby, a
+/// download from the one the diver picks, and the import screen once its dives are in the inbox.
+/// Reached from the Dives tab's dive-computer button, which only the signed-in shell shows.
 struct DiveComputerView: View {
-  @Environment(Session.self) private var session
-  @Environment(InboxModel.self) private var inbox
+  @Environment(DiveComputerDownloads.self) private var downloads
 
   var body: some View {
-    DiveComputerScreen(
-      model: DiveComputerModel(
-        session: session, inbox: inbox, link: LibDCDiveComputerLink(),
-        generator: Self.generator))
+    DiveComputerScreen(downloads: downloads)
   }
 
   /// What the archive's document names as its writer.
@@ -23,19 +19,20 @@ struct DiveComputerView: View {
   }
 }
 
-/// The screen over a model, which a preview or a test gives a fake link.
+/// The screen over the shell's download model, which a preview or a test gives a fake link.
+/// Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
-  @State private var model: DiveComputerModel
-  @State private var zone: TimeZone
+  let downloads: DiveComputerDownloads
+  @State private var zone: TimeZone = .current
   @State private var showsImport = false
 
-  init(model: @autoclosure @escaping () -> DiveComputerModel) {
-    _model = State(wrappedValue: model())
-    _zone = State(initialValue: .current)
-  }
+  private var model: DiveComputerModel { downloads.model }
 
   var body: some View {
     List {
+      if model.phase == .idle || model.phase == .scanning || model.phase == .finished {
+        paired
+      }
       if let blocker = model.blocker {
         Section {
           Text(blocker)
@@ -55,8 +52,12 @@ struct DiveComputerScreen: View {
     }
     .navigationTitle(DiveComputerText.screenTitle)
     .navigationBarTitleDisplayMode(.inline)
-    .task { await model.watch() }
-    .onDisappear { model.close() }
+    .task(id: ObjectIdentifier(model)) { await model.watch() }
+    .onAppear {
+      // A download that handed its dives over while the screen was away goes on to the import.
+      if downloads.screenAppeared()?.kind == .handedOver { showsImport = true }
+    }
+    .onDisappear { downloads.screenDisappeared() }
     .onChange(of: model.phase) { _, phase in
       if phase == .askingTimeZone { zone = model.suggestedZone }
     }
@@ -119,22 +120,45 @@ struct DiveComputerScreen: View {
     }
   }
 
+  /// Each paired computer, which connects while the scan sees it.
+  @ViewBuilder private var paired: some View {
+    if !model.paired.isEmpty {
+      Section(DiveComputerText.pairedHeading) {
+        ForEach(model.paired) { paired in
+          let connects = paired.row != nil && model.blocker == nil
+          Button {
+            if let row = paired.row { model.connect(row) }
+          } label: {
+            label(paired.title, paired.subtitle, connects: connects)
+          }
+          .disabled(!connects)
+        }
+      }
+    }
+  }
+
   @ViewBuilder private var found: some View {
-    if !model.rows.isEmpty {
+    if !model.unpairedRows.isEmpty {
       Section {
-        ForEach(model.rows) { row in
+        ForEach(model.unpairedRows) { row in
           Button {
             model.connect(row)
           } label: {
-            VStack(alignment: .leading, spacing: 2) {
-              Text(row.title).foregroundStyle(.primary)
-              if let subtitle = row.subtitle {
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-              }
-            }
+            label(row.title, row.subtitle, connects: model.blocker == nil)
           }
           .disabled(model.blocker != nil)
         }
+      }
+    }
+  }
+
+  /// A computer's row, its title dimmed where it does not connect — a paired computer the scan
+  /// does not see.
+  private func label(_ title: String, _ subtitle: String?, connects: Bool) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(title).foregroundStyle(connects ? .primary : .secondary)
+      if let subtitle {
+        Text(subtitle).font(.caption).foregroundStyle(.secondary)
       }
     }
   }
@@ -145,10 +169,12 @@ struct DiveComputerScreen: View {
   let inbox = InboxModel(session: session)
   NavigationStack {
     DiveComputerScreen(
-      model: DiveComputerModel(
-        session: session, inbox: inbox,
-        link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-        generator: DiveComputerView.generator))
+      downloads: DiveComputerDownloads {
+        DiveComputerModel(
+          session: session, inbox: inbox,
+          link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+          generator: DiveComputerView.generator)
+      })
   }
   .environment(session)
   .environment(inbox)

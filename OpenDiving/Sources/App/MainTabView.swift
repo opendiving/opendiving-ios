@@ -72,4 +72,11 @@ struct MainTabView: View {
     .environment(SignInFlow(session: session))
     .environment(OutboxModel(session: session))
     .environment(InboxModel(session: session))
+    .environment(
+      DiveComputerDownloads {
+        DiveComputerModel(
+          session: session, inbox: InboxModel(session: session),
+          link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+          generator: DiveComputerView.generator)
+      })
 }
