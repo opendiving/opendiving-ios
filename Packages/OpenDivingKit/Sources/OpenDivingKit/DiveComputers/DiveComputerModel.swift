@@ -94,6 +94,11 @@ public final class DiveComputerModel {
     }
   }
 
+  /// A download is in flight: from connecting to the time-zone question's answer.
+  public var isBusy: Bool {
+    phase == .connecting || phase == .downloading || phase == .askingTimeZone
+  }
+
   /// *Downloading dive 3*, while downloading.
   public var downloadingText: String? {
     phase == .downloading ? DiveComputerText.downloading(max(1, divesDownloaded + 1)) : nil
@@ -216,7 +221,7 @@ public final class DiveComputerModel {
     zoneAnswer = nil
   }
 
-  /// Leaves the screen: stops scanning and the download in flight.
+  /// Done with the model: stops scanning and the download in flight.
   public func close() {
     stopScanning()
     cancel()

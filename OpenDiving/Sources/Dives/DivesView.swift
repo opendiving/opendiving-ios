@@ -140,4 +140,11 @@ private struct DivesList: View {
     .environment(DivePreviewData.session)
     .environment(InboxModel(session: DivePreviewData.session))
     .environment(OutboxModel(session: DivePreviewData.session))
+    .environment(
+      DiveComputerDownloads {
+        DiveComputerModel(
+          session: DivePreviewData.session, inbox: InboxModel(session: DivePreviewData.session),
+          link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+          generator: DiveComputerView.generator)
+      })
 }

@@ -4,16 +4,12 @@ import UIKit
 
 /// The *Dive computer* screen: the computers found nearby, a download from the one the diver
 /// picks, and the import screen once its dives are in the inbox. Reached from the Dives tab's
-/// `+`, which only the signed-in shell shows.
+/// `+` and from the button over a download left running, which only the signed-in shell shows.
 struct DiveComputerView: View {
-  @Environment(Session.self) private var session
-  @Environment(InboxModel.self) private var inbox
+  @Environment(DiveComputerDownloads.self) private var downloads
 
   var body: some View {
-    DiveComputerScreen(
-      model: DiveComputerModel(
-        session: session, inbox: inbox, link: LibDCDiveComputerLink(),
-        generator: Self.generator))
+    DiveComputerScreen(downloads: downloads)
   }
 
   /// What the archive's document names as its writer.
@@ -23,16 +19,14 @@ struct DiveComputerView: View {
   }
 }
 
-/// The screen over a model, which a preview or a test gives a fake link.
+/// The screen over the shell's download model, which a preview or a test gives a fake link.
+/// Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
-  @State private var model: DiveComputerModel
-  @State private var zone: TimeZone
+  let downloads: DiveComputerDownloads
+  @State private var zone: TimeZone = .current
   @State private var showsImport = false
 
-  init(model: @autoclosure @escaping () -> DiveComputerModel) {
-    _model = State(wrappedValue: model())
-    _zone = State(initialValue: .current)
-  }
+  private var model: DiveComputerModel { downloads.model }
 
   var body: some View {
     List {
@@ -55,8 +49,12 @@ struct DiveComputerScreen: View {
     }
     .navigationTitle(DiveComputerText.screenTitle)
     .navigationBarTitleDisplayMode(.inline)
-    .task { await model.watch() }
-    .onDisappear { model.close() }
+    .task(id: ObjectIdentifier(model)) { await model.watch() }
+    .onAppear {
+      // A download that handed its dives over while the screen was away goes on to the import.
+      if downloads.screenAppeared()?.kind == .handedOver { showsImport = true }
+    }
+    .onDisappear { downloads.screenDisappeared() }
     .onChange(of: model.phase) { _, phase in
       if phase == .askingTimeZone { zone = model.suggestedZone }
     }
@@ -145,10 +143,12 @@ struct DiveComputerScreen: View {
   let inbox = InboxModel(session: session)
   NavigationStack {
     DiveComputerScreen(
-      model: DiveComputerModel(
-        session: session, inbox: inbox,
-        link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-        generator: DiveComputerView.generator))
+      downloads: DiveComputerDownloads {
+        DiveComputerModel(
+          session: session, inbox: inbox,
+          link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
+          generator: DiveComputerView.generator)
+      })
   }
   .environment(session)
   .environment(inbox)
