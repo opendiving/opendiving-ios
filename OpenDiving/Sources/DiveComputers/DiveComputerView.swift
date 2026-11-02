@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The *Dive computer* screen: the computers found nearby, a download from the one the diver
-/// picks, and the import screen once its dives are in the inbox. Reached from the Dives tab's
+/// The *Dive computers* screen: the account's paired computers, the others found nearby, a
+/// download from the one the diver picks, and the import screen once its dives are in the inbox. Reached from the Dives tab's
 /// dive-computer button, which only the signed-in shell shows.
 struct DiveComputerView: View {
   @Environment(DiveComputerDownloads.self) private var downloads
@@ -30,6 +30,9 @@ struct DiveComputerScreen: View {
 
   var body: some View {
     List {
+      if model.phase == .idle || model.phase == .scanning || model.phase == .finished {
+        paired
+      }
       if let blocker = model.blocker {
         Section {
           Text(blocker)
@@ -117,22 +120,45 @@ struct DiveComputerScreen: View {
     }
   }
 
+  /// Each paired computer, which connects while the scan sees it.
+  @ViewBuilder private var paired: some View {
+    if !model.paired.isEmpty {
+      Section(DiveComputerText.pairedHeading) {
+        ForEach(model.paired) { paired in
+          let connects = paired.row != nil && model.blocker == nil
+          Button {
+            if let row = paired.row { model.connect(row) }
+          } label: {
+            label(paired.title, paired.subtitle, connects: connects)
+          }
+          .disabled(!connects)
+        }
+      }
+    }
+  }
+
   @ViewBuilder private var found: some View {
-    if !model.rows.isEmpty {
+    if !model.unpairedRows.isEmpty {
       Section {
-        ForEach(model.rows) { row in
+        ForEach(model.unpairedRows) { row in
           Button {
             model.connect(row)
           } label: {
-            VStack(alignment: .leading, spacing: 2) {
-              Text(row.title).foregroundStyle(.primary)
-              if let subtitle = row.subtitle {
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-              }
-            }
+            label(row.title, row.subtitle, connects: model.blocker == nil)
           }
           .disabled(model.blocker != nil)
         }
+      }
+    }
+  }
+
+  /// A computer's row, its title dimmed where it does not connect — a paired computer the scan
+  /// does not see.
+  private func label(_ title: String, _ subtitle: String?, connects: Bool) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(title).foregroundStyle(connects ? .primary : .secondary)
+      if let subtitle {
+        Text(subtitle).font(.caption).foregroundStyle(.secondary)
       }
     }
   }

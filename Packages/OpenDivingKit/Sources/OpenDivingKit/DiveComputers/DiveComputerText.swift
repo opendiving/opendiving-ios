@@ -3,7 +3,8 @@ import Foundation
 /// The words of the *Dive computer* screen, the Settings list and the inbox's download rows.
 public enum DiveComputerText {
   public static let connect = "Connect a dive computer"
-  public static let screenTitle = "Dive computer"
+  public static let screenTitle = "Dive computers"
+  public static let pairedHeading = "Paired computers"
   public static let scanningHeading = "Looking for dive computers"
   public static let scanningInstruction =
     "Wake your dive computer and turn on its Bluetooth, then keep it next to the phone."

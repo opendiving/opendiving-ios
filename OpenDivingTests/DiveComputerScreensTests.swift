@@ -23,9 +23,14 @@ struct DiveComputerScreensTests {
     family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
     firmware: "93", familyNumber: 0, modelNumber: 14)
 
-  @Test func theScreenDraws() async throws {
+  @Test func theScreenDrawsWithAPairedComputer() async throws {
     let session = try await loaded()
+    let origin = try #require(session.state.origin)
+    let account = try #require(session.user?.uuid)
+    try DiveComputerStore(store: session.store, origin: origin, account: account)
+      .save(DiveComputerRecord(identity: perdix, lastDownloaded: Date()))
     let inbox = InboxModel(session: session)
+    inbox.sessionChanged()
     let window = F.window(
       NavigationStack {
         DiveComputerScreen(
