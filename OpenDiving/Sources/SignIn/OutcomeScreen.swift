@@ -23,7 +23,7 @@ struct OutcomeScreen: View {
       Button("Back", action: back)
         .buttonStyle(.bordered)
     }
-    .navigationTitle("Sign in")
+    .navigationTitle("Sign In")
   }
 }
 

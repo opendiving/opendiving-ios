@@ -92,7 +92,7 @@ private struct DiveSiteSheetForm: View {
           onPick: place)
       }
       if !model.values.externalIds.isEmpty {
-        Section("In other registries") {
+        Section("In Other Registries") {
           ForEach(model.values.externalIds, id: \.self) { entry in
             Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
           }
@@ -121,7 +121,7 @@ private struct DiveSiteSheetForm: View {
           message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
           allowsNegative: true)
       }
-      Section("Entry types") {
+      Section("Entry Types") {
         ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
           Toggle(
             VocabularyLabels.entryType(entry),

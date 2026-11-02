@@ -39,7 +39,7 @@ struct RootViewTests {
     defer { window.isHidden = true }
 
     #expect(Self.tabBarController(in: window.rootViewController) == nil)
-    #expect(await Self.title(in: window) == "Sign in")
+    #expect(await Self.title(in: window) == "Sign In")
   }
 
   private static func window(_ root: some View) throws -> UIWindow {

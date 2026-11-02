@@ -1,10 +1,10 @@
 import Foundation
 
-/// The words of the *Dive computer* screen, the Settings list and the inbox's download rows.
+/// The words of the *Dive Computer* screen, the Settings list and the inbox's download rows.
 public enum DiveComputerText {
   public static let connectMenuItem = "Connect a dive computer"
-  public static let screenTitle = "Dive computer"
-  public static let scanningHeading = "Looking for dive computers"
+  public static let screenTitle = "Dive Computer"
+  public static let scanningHeading = "Looking for Dive Computers"
   public static let scanningInstruction =
     "Wake your dive computer and turn on its Bluetooth, then keep it next to the phone."
   public static let bluetoothOff = "Bluetooth is off. Turn it on to find your dive computer."
@@ -26,7 +26,7 @@ public enum DiveComputerText {
 
   // MARK: - Settings
 
-  public static let settingsRow = "Dive computers"
+  public static let settingsRow = "Dive Computers"
   public static let forget = "Forget this dive computer"
   public static let forgetMessage = "The next download from it takes every dive again."
   public static let downloadAllNextTime = "Download all dives next time"

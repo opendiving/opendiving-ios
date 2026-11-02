@@ -55,7 +55,7 @@ struct SpeciesPickerSheet: View {
         guard !Task.isCancelled else { return }
         found = await model.searchSpecies(text)
       }
-      .navigationTitle("Species spotted")
+      .navigationTitle("Species Spotted")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {

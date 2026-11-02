@@ -139,7 +139,7 @@ public final class DiveFormModel: AccountStoresObserver {
   /// The save button's label, the web's.
   public var submitLabel: String { purpose == .edit ? "Save changes" : "Log dive" }
 
-  /// The sections the form renders, in the web's order: *Dive info* always, any other while one
+  /// The sections the form renders, in the web's order: *Dive Info* always, any other while one
   /// of its fields is shown.
   public var sections: [DiveFormGroup] {
     DiveFormGroup.allCases.filter { $0.isShown(visibility, values: values) }

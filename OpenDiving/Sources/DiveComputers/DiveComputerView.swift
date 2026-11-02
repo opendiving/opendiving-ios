@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The *Dive computer* screen: the computers found nearby, a download from the one the diver
+/// The *Dive Computer* screen: the computers found nearby, a download from the one the diver
 /// picks, and the import screen once its dives are in the inbox. Reached from the Dives tab's
 /// `+`, which only the signed-in shell shows.
 struct DiveComputerView: View {

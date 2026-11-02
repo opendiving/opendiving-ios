@@ -84,11 +84,11 @@ struct DiveFormInputsTests {
   @Test func theVolumePresets() {
     #expect(
       VolumePresets.groups(for: .metric).map(\.title) == [
-        "Metric singles", "US aluminium", "US steel", "Twin sets",
+        "Metric Singles", "US Aluminium", "US Steel", "Twin Sets",
       ])
     #expect(
       VolumePresets.groups(for: .imperial, recent: [11.1, 12]).map(\.title) == [
-        "Recently used", "US aluminium", "US steel", "Metric singles", "Twin sets",
+        "Recently Used", "US Aluminium", "US Steel", "Metric Singles", "Twin Sets",
       ])
     let al80 = VolumePresets.groups[2].presets[4]
     #expect(al80.label(.metric) == "11.1 L (AL80)")
