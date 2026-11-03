@@ -152,6 +152,8 @@ public final class Session {
     let info: ServerInfo
     do {
       info = try await checker.instance()
+    } catch let error as CancellationError {
+      throw error
     } catch {
       validationFailures[origin] = ServerProblem(APIError(error), origin: origin).message
       throw error
@@ -180,7 +182,7 @@ public final class Session {
     try? store.markUsed(origin, at: used)
     if let health = info?.health { try? store.rememberHealth(health, for: origin) }
     savedServers = store.savedServers()
-    client = makeClient(origin)
+    replaceClient(with: makeClient(origin))
     server = info
     serverAnsweredAt = info.map { _ in now() }
     user = nil
@@ -253,7 +255,7 @@ public final class Session {
     defer { savedServers = store.savedServers() }
     try store.forget(origin)
     guard state.origin == origin else { return }
-    client = nil
+    replaceClient(with: nil)
     server = nil
     user = nil
     people = [:]
@@ -395,6 +397,12 @@ public final class Session {
     state = new
     stateGeneration += 1
     accountLoaded = false
+  }
+
+  /// Every client the session lets go of goes through here, and has its requests cut off.
+  private func replaceClient(with new: APIClient?) {
+    client?.cancelAll()
+    client = new
   }
 
   private func makeClient(_ origin: ServerOrigin, accessToken: String? = nil) -> APIClient {

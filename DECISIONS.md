@@ -286,6 +286,11 @@ may stay open on the server. Rejected: signing out before the server screen, whi
 cancelled change signed out and blocks on a server that cannot answer; signing out of the
 server left after switching.
 
+Leaving a server cancels every request still out to it, a refresh's included, so a server that
+does not answer never reports its timeout under the next one. A refresh cut off after the server
+spent its token costs the session there; only a switch inside its round trip meets that. Rejected:
+letting a refresh finish, which keeps a silent server's minute of retries running.
+
 ## A typed number takes either decimal separator
 
 The decimal keypad types the region's separator, a comma across much of Europe, and the web reads

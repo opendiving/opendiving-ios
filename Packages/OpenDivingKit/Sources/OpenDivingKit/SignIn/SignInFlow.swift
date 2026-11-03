@@ -316,6 +316,8 @@ public final class SignInFlow {
       resendMessage = nil
       codeSentAt = now()
       chosenStep = .code(email: address, requestID: requestID)
+    } catch is CancellationError {
+      // The server was left while it was asked; its screen has started over.
     } catch {
       emailError = APIError(error).message
     }
@@ -350,6 +352,7 @@ public final class SignInFlow {
       case .deletionPending(let email, let purgeAfter):
         chosenStep = .deletionPending(email: email, purgeAfter: purgeAfter.map(Self.day))
       }
+    } catch is CancellationError {
     } catch {
       codeError = Self.codeErrorMessage(APIError(error))
     }
@@ -384,6 +387,7 @@ public final class SignInFlow {
       codeSentAt = now()
       chosenStep = .code(email: address, requestID: requestID)
       resendMessage = "Code resent — check your email."
+    } catch is CancellationError {
     } catch {
       codeError = APIError(error).message
     }

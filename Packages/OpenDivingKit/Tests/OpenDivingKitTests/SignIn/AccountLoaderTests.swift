@@ -10,10 +10,14 @@ import Testing
 struct AccountLoaderTests {
   private let origin = ClientHarness.origin
 
-  private func session(refreshToken: String?, transport: StubTransport) -> Session {
+  private func session(
+    refreshToken: String?, transport: any HTTPTransport,
+    secrets: [String: String] = [:]
+  ) -> Session {
     Session(
       transport: transport,
-      secrets: InMemorySecretStore(refreshToken.map { [origin.description: $0] } ?? [:]),
+      secrets: InMemorySecretStore(
+        secrets.merging(refreshToken.map { [origin.description: $0] } ?? [:]) { $1 }),
       activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
       applicationSupport: FileManager.default.temporaryDirectory
         .appendingPathComponent("AccountLoaderTests-\(UUID().uuidString)", isDirectory: true),
@@ -69,6 +73,25 @@ struct AccountLoaderTests {
     #expect(loader.failure == nil)
   }
 
+  @Test func aColdStartOnAServerThatNeverAnswersReportsNothingOnceLeft() async throws {
+    let other = ServerOrigin("https://other.example.org")!
+    let silent = SilentTransport()
+    defer { silent.release() }
+    let answering = StubTransport(routes: try Self.accountRoutes())
+    let session = session(
+      refreshToken: "refresh-0",
+      transport: OneSilentServer(silentHost: origin.host, silent: silent, answering: answering),
+      secrets: [other.description: "other-0"])
+    let loader = AccountLoader(session: session)
+    let launch = Task { await loader.launch() }
+    while silent.requests.isEmpty { await Task.yield() }
+    session.select(other)
+    await launch.value
+    await loader.sessionChanged(from: .signedIn(origin), to: session.state)
+    #expect(session.user?.username == "testdiver")
+    #expect(loader.failure == nil)
+  }
+
   @Test func becomingSignedInLoadsTheAccount() async throws {
     let transport = StubTransport(routes: try Self.accountRoutes())
     let session = session(refreshToken: "refresh-0", transport: transport)
@@ -80,5 +103,24 @@ struct AccountLoaderTests {
     let before = transport.requests.count
     await loader.sessionChanged(from: .signedIn(origin), to: .signingIn(origin))
     #expect(transport.requests.count == before)
+  }
+}
+
+/// `silentHost` never answers; every other server answers from `answering`.
+private struct OneSilentServer: HTTPTransport {
+  let silentHost: String
+  let silent: SilentTransport
+  let answering: StubTransport
+
+  func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    try await server(for: request).send(request)
+  }
+
+  func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
+    try await server(for: request).upload(request, fromFile: file)
+  }
+
+  private func server(for request: URLRequest) -> any HTTPTransport {
+    request.url?.host == silentHost ? silent : answering
   }
 }

@@ -71,6 +71,8 @@ public final class AccountLoader {
     do {
       try await load()
       failure = nil
+    } catch is CancellationError {
+      // The session left the server this load was asking; the next one's load reports.
     } catch {
       let error = APIError(error)
       failure = error == .signedOut ? nil : error.message

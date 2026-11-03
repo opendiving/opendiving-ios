@@ -28,6 +28,7 @@ public actor APIClient {
   private let refreshRetryPause: Duration
   private var accessToken: String?
   private var refreshTask: Task<String, any Error>?
+  private let inFlight = InFlightRequests()
 
   /// `onSessionEnded` runs when the server refuses the session, after the refresh token has
   /// been removed from `secrets`. `refreshRetryPause` is how long a refresh whose reply was
@@ -53,6 +54,13 @@ public actor APIClient {
   }
 
   private var account: String { origin.description }
+
+  /// Cuts off every request on the wire, a refresh's included, and refuses every call after:
+  /// each throws `CancellationError`. For a client the session has stopped pointing at, so that
+  /// a server that does not answer is not waited on, nor its timeout reported, after leaving it.
+  public nonisolated func cancelAll() {
+    inFlight.cancelAll()
+  }
 
   // MARK: - The server
 
@@ -407,10 +415,12 @@ public actor APIClient {
       if let bodyFile { try? FileManager.default.removeItem(at: bodyFile) }
     }
     do {
-      if let bodyFile {
-        return try await transport.upload(request, fromFile: bodyFile)
+      return try await inFlight.run { [transport] in
+        if let bodyFile {
+          return try await transport.upload(request, fromFile: bodyFile)
+        }
+        return try await transport.send(request)
       }
-      return try await transport.send(request)
     } catch let error as URLError {
       throw APIError.unreachable(
         TransportFailure(code: error.code.rawValue, message: error.localizedDescription))
