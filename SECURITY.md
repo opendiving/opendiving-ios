@@ -42,8 +42,9 @@ copies of the logbook, the drafts, the queue of writes waiting to sync, the file
 read and the dive computers it remembers on the phone, how it talks to a server — which origins
 it trusts, what it sends where — and how it handles what a server sends back. So is how it handles
 what a dive computer sends over Bluetooth, which libdivecomputer parses inside the app through
-[libdc-swift](https://github.com/deepsealabs/libdc-swift); a flaw in either library belongs
-upstream, and if you are not sure which side it is on, send it here.
+[libdc-swift](https://github.com/deepsealabs/libdc-swift) and
+[libdivejson](https://github.com/divejson/divejson-c) reads into a dive; a flaw in any of those
+libraries belongs upstream, and if you are not sure which side it is on, send it here.
 
 Out of scope here is the server itself. Authentication, authorization and stored data are enforced
 by [opendiving-api](https://github.com/opendiving/opendiving-api), and a flaw on that side belongs
