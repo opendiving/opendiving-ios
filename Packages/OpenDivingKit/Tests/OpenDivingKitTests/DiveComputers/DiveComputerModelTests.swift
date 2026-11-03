@@ -432,16 +432,22 @@ struct DiveComputerModelTests {
     let model = model(session, InboxModel(session: session), link)
     try await download(model)
 
-    // Identified, not yet listed: still connecting, the computer named.
-    link.holdBefore = 1
+    // Not yet identified: connecting.
+    link.holdBefore = 0
     model.connect(try #require(model.rows.first))
     await held(link)
-    await until { model.identity != nil }
+    #expect(model.phase == .connecting)
+    #expect(model.connectingText == "Connecting")
+    #expect(DiveComputerButtonContent(model).accessibilityValue == "Connecting")
+
+    // Identified, not yet listed: still connecting, the computer named, reading.
+    await next(link, holding: 1) { model.identity != nil }
     #expect(model.phase == .connecting)
     #expect(model.identity == F.perdix)
+    #expect(model.connectingText == "Reading")
     #expect(model.downloadingText == nil)
     #expect(model.countsText == nil)
-    #expect(DiveComputerButtonContent(model).accessibilityValue == "Connecting")
+    #expect(DiveComputerButtonContent(model).accessibilityValue == "Reading")
 
     await next(link, holding: 2) { model.listing != nil }
     #expect(model.phase == .downloading)
@@ -550,6 +556,7 @@ struct DiveComputerModelTests {
     await until { (model.progress ?? 0) > 0 }
     #expect(model.listing?.newDives == 0)
     #expect(model.phase == .connecting)
+    #expect(model.connectingText == "Reading")
     #expect(model.downloadingText == nil)
     #expect(model.countsText == nil)
     await next(link, holding: nil)
@@ -566,13 +573,143 @@ struct DiveComputerModelTests {
     #expect(ocean()?.nauticSports == after)
     #expect(ocean()?.fingerprint == F.fingerprint(0x13))
 
-    // A cancelled walk writes none of what it learned.
+    // A walk cancelled past its listing keeps what it learned, and moves no fingerprint.
     var record = try #require(ocean())
     record.nauticSports = before
     try computers(session).save(record)
     try await download(model)
-    #expect(ocean()?.nauticSports == before)
+    #expect(model.outcome?.kind == .cancelled)
+    #expect(ocean()?.nauticSports == after)
+    #expect(ocean()?.fingerprint == F.fingerprint(0x13))
     #expect(link.sportsRemembered == [nil, nil, before, before])
+  }
+
+  /// A walk that listed pairs the computer however it ends, and moves no fingerprint unless it
+  /// completed; one that ends before its listing saves nothing.
+  @Test func aWalkCancelledOrFailedPastItsListingPairsTheComputer() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let first: [NauticEntrySport] = [
+      NauticEntrySport(id: 0x13, sport: 3), NauticEntrySport(id: 0x12, sport: 51),
+    ]
+    let second: [NauticEntrySport] = [NauticEntrySport(id: 0x14, sport: 51)] + first
+    link.scripts = [
+      [
+        .identified(F.ocean), .watchZone(F.helsinki),
+        .listing(.init(dives: 1, newDives: 1, newEntries: 2, sports: first)),
+        .finished(.init(.cancelled)),
+      ],
+      [
+        .identified(F.ocean),
+        .listing(.init(dives: 2, newDives: 2, newEntries: 3, sports: second)),
+        .finished(.init(.failed(status: "DC_STATUS_IO"))),
+      ],
+      [.identified(F.ocean), .finished(.init(.cancelled))],
+    ]
+    let model = model(session, InboxModel(session: session), link)
+    let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
+
+    try await download(model)
+    #expect(model.outcome?.kind == .cancelled)
+    let paired = try #require(ocean())
+    #expect(paired.fingerprint == nil)
+    #expect(paired.lastDownloaded == nil)
+    #expect(paired.nauticSports == first)
+    #expect(paired.watchZone == F.helsinki)
+    #expect(paired.peripheral == F.oceanFound.id)
+    #expect(model.paired.map(\.title) == ["Suunto Ocean"])
+
+    try await download(model)
+    #expect(model.outcome?.kind == .failed)
+    #expect(ocean()?.nauticSports == second)
+    #expect(ocean()?.fingerprint == nil)
+    #expect(link.sportsRemembered == [nil, first])
+    #expect(link.fingerprintsSet == [nil, nil])
+
+    computers(session).forget(try #require(ocean()))
+    try await download(model)
+    #expect(model.outcome?.kind == .cancelled)
+    #expect(ocean() == nil)
+  }
+
+  @Test func aCancelledTimeZoneQuestionStillPairsTheComputer() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let sports: [NauticEntrySport] = [
+      NauticEntrySport(id: 0x12, sport: 51), NauticEntrySport(id: 0x11, sport: 51),
+    ]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.ocean, listing: .init(dives: 2, newDives: 2, newEntries: 2, sports: sports),
+        F.oceanDownload)
+    ]
+    let model = model(session, inbox, link)
+    model.connect(try await scanned(model))
+    await until { model.phase == .askingTimeZone }
+    #expect(model.phase == .askingTimeZone)
+    model.cancel()
+    await model.settled()
+
+    #expect(model.outcome?.kind == .cancelled)
+    #expect(inbox.files.isEmpty)
+    let record = try #require(
+      computers(session).record(family: .suuntoNautic, serial: "253810000400"))
+    #expect(record.fingerprint == nil)
+    #expect(record.lastDownloaded == nil)
+    #expect(record.diverZone == nil)
+    #expect(record.nauticSports == sports)
+  }
+
+  /// The record's sports reach the walk whether or not it has a fingerprint to set, and under
+  /// *Download all dives*; no fingerprint is set in either case.
+  @Test func rememberedSportsReachTheWalkWithNoFingerprintToSet() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let sports: [NauticEntrySport] = [
+      NauticEntrySport(id: 0x14, sport: 3), NauticEntrySport(id: 0x13, sport: 51),
+    ]
+    let skipsTheRun: [DiveComputerDownloadEvent] = [
+      .identified(F.ocean),
+      .listing(.init(dives: 1, newDives: 0, newEntries: 1, sports: sports)),
+      .skipped(fingerprint: F.fingerprint(0x14)), .finished(.init(.complete)),
+    ]
+    let nothingNew: [DiveComputerDownloadEvent] = [
+      .identified(F.ocean),
+      .listing(.init(dives: 1, newDives: 0, newEntries: 0, sports: sports)),
+      .finished(.init(.complete)),
+    ]
+    link.scripts = [skipsTheRun, skipsTheRun, nothingNew]
+    var record = DiveComputerRecord(identity: F.ocean)
+    record.nauticSports = sports
+    try computers(session).save(record)
+    let model = model(session, InboxModel(session: session), link)
+    let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
+
+    // Sports and no fingerprint.
+    try await download(model)
+    #expect(ocean()?.fingerprint == F.fingerprint(0x14))
+
+    // *Download all dives next time* set.
+    var all = try #require(ocean())
+    all.downloadAllNextTime = true
+    try computers(session).save(all)
+    try await download(model)
+    #expect(ocean()?.downloadAllNextTime == false)
+
+    // A fingerprint to set, then *Download all dives*.
+    try await download(model)
+    #expect(model.outcome?.kind == .nothingNew)
+    model.downloadAll()
+    await model.settled()
+
+    let set: [Data?] = [nil, nil, F.fingerprint(0x14), nil]
+    #expect(link.fingerprintsSet == set)
+    let remembered: [[NauticEntrySport]?] = [sports, sports, sports, sports]
+    #expect(link.sportsRemembered == remembered)
   }
 
   @Test func aBusyComputerIsWaitedForUntilItSaysItIsFree() async throws {
@@ -600,7 +737,8 @@ struct DiveComputerModelTests {
     await next(link, holding: 4) { !model.computerBusy }
     #expect(model.phase == .connecting)
     #expect(model.waitingText == nil)
-    #expect(DiveComputerButtonContent(model).accessibilityValue == "Connecting")
+    #expect(model.connectingText == "Reading")
+    #expect(DiveComputerButtonContent(model).accessibilityValue == "Reading")
     await next(link, holding: nil)
     await model.settled()
     #expect(model.outcome?.sentence == "2 dives downloaded.")

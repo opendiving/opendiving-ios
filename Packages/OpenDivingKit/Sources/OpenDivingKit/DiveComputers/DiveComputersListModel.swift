@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Settings' *Dive Computers* list: the computers the account has downloaded from, each with
+/// Settings' *Dive Computers* list: the account's paired computers, each with
 /// *Forget this dive computer*, *Download all dives next time* and, for a family that logs
 /// instants, the zone its dives are written in. Forgetting removes the phone's record and
 /// nothing on the server.

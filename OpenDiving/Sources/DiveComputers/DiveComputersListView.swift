@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Settings' *Dive Computers*: the computers this account has downloaded from, each with what
+/// Settings' *Dive Computers*: the account's paired computers, each with what
 /// the phone remembers of it, *Download all dives next time*, *Forget this dive computer*, and,
 /// for a computer that logs instants, the zone its dives are written in.
 struct DiveComputersListView: View {

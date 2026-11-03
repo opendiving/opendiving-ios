@@ -86,7 +86,7 @@ struct DiveComputerScreen: View {
         }
         HStack(spacing: 8) {
           ProgressView()
-          Text(DiveComputerText.connecting)
+          Text(model.connectingText ?? DiveComputerText.connecting)
         }
         if let waiting = model.waitingText {
           Text(waiting).foregroundStyle(.secondary)

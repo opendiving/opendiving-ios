@@ -152,6 +152,8 @@ struct DiveComputerStoreTests {
     #expect(DiveComputerText.onComputer(11) == "11 dives on this computer")
     #expect(DiveComputerText.onComputer(1) == "1 dive on this computer")
     #expect(DiveComputerText.busy == "This computer is busy. The download starts when it is free.")
+    #expect(DiveComputerText.connecting == "Connecting")
+    #expect(DiveComputerText.reading == "Reading")
     #expect(DiveComputerText.subtitle(serial: nil, lastDownloaded: nil) == nil)
     #expect(
       DiveComputerText.downloaded(1, refused: 2) == "1 dive downloaded. 2 dives could not be read.")
