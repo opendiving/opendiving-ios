@@ -29,7 +29,7 @@ jobs:
   # DECISIONS.md, "CI pins the Linux toolchain to a patch release".
   kit-linux:
     runs-on: ubuntu-latest
-    container: swift:6.4.0-noble
+    container: swift:6.4.2-noble
     timeout-minutes: 20
 
     steps:
