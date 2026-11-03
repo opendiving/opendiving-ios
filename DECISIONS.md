@@ -162,13 +162,28 @@ never carried.
 
 ## The Ocean's logbook holds every sport, and a download skips what is not a dive
 
-The Ocean is a sports watch, and the Nautic backend lists its whole logbook, so a run arrives as
-a depthless dive. The walk reads each entry's sport from its activity record and skips one whose
-id is not a diving sport's (51, 61, 62); the parser's own read rejects a one-digit sport's record
-as malformed, so it cannot carry the sport. A skipped entry moves the fingerprint as a dive does,
-or every later download reads it again. An entry naming no sport is kept: a dive skipped is never
-walked again, an activity kept can be deleted. Rejected: a denylist of known non-dives, which
-lets a sport Suunto adds later through as a dive.
+The Nautic backend lists the Ocean's whole logbook, runs beside dives. Before any profile is read,
+the walk learns each listed entry's sport from its `/Summary`, found against the entry's
+`/Descriptors` by the field's path, `Header.ActivityType`, and skips one whose id is not a diving
+sport's (51, 61, 62) unread. The record keeps each entry's sport, so a later walk reads only the
+summaries it has not met. Where the summary names no sport or cannot be read, the entry is
+downloaded and its profile's activity record decides, which the app reads itself. A skipped entry
+moves the fingerprint as a dive does. An entry naming no sport is kept: a dive skipped is never
+walked again, an activity kept can be deleted. Rejected: a denylist of known non-dives, which lets a
+later Suunto sport through; the sport at fixed summary offsets, which differ between models.
+
+## The app walks the Perdix and the Ocean itself
+
+A download names the computer's dives and the new ones before the first is read.
+`dc_device_foreach` gives no total before its first dive and downloads an Ocean entry before its
+sport is known, and a Perdix 3 answers a second manifest read on one connection with zeros, so no
+list of the app's can precede it. Both families are walked by the app on one connection: the
+Ocean through the fork's public by-id calls, the Perdix through `shearwater_common_rdbi` and
+`shearwater_common_download`, libdivecomputer internals declared in `ShearwaterCommon.swift`.
+Those are safe only while `project.yml` pins libdc-swift exactly; re-read their prototypes at
+every pin move. Every live manifest record is taken, where libdivecomputer's per-page slice drops
+live dives that deleted ones sit among. Rejected: a list read on a second connection, which rests
+on the Perdix surviving libdivecomputer's shutdown write.
 
 ## A download's dives carry derived uuids, and waiting downloads are one union
 

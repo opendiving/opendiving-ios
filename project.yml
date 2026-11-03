@@ -42,6 +42,9 @@ targets:
     settings:
       base:
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        # `@_extern(c)`, for the two Shearwater transfers libdivecomputer keeps internal; see
+        # Device/ShearwaterCommon.swift.
+        OTHER_SWIFT_FLAGS: -enable-experimental-feature Extern
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         ENABLE_PREVIEWS: YES
