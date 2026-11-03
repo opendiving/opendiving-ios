@@ -85,7 +85,7 @@ struct DiveComputerScreen: View {
           Text(identity.title).font(.headline)
         }
         HStack(spacing: 8) {
-          ProgressView()
+          DiveComputerSpinner()
           Text(model.connectingText ?? DiveComputerText.connecting)
         }
         if let waiting = model.waitingText {
@@ -104,7 +104,7 @@ struct DiveComputerScreen: View {
         // While the computer says it is busy, the waiting line stands in for the counter.
         if let text = model.waitingText ?? model.downloadingText {
           HStack(spacing: 8) {
-            ProgressView()
+            DiveComputerSpinner()
             Text(text)
           }
         }

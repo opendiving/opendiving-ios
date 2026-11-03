@@ -177,25 +177,35 @@ parser lacks.
 The Suunto app can hold the watch over the same link, and the watch then refuses or starves
 transfers. So any failed transfer but a cancel or a lost link reads `/Sync/BusyState`; while the
 watch says busy, the walk shows the waiting line, waits for it to say free and tries the same
-transfer again, uncounted. While it is free a counted dive is tried three times: a stall
-(`DC_STATUS_TIMEOUT`), which a later connection can cure, then stops the walk short of moving
-the fingerprint past it; any other failure repeats, so the entry is left out, the outcome says
-how many, and *Download all dives* tries it again. No outcome asks the diver to unpair the watch.
-Rejected: stopping at every failure, which blocks every older dive behind a broken entry;
-skipping every failure, which lets the fingerprint pass a stalled dive.
+transfer again, uncounted. While it is free a timeout reopens the link, as the next entry says;
+past that, a counted dive is tried three times: a timeout, which a later connection can cure,
+then stops the walk short of moving the fingerprint past it; any other failure repeats, so the
+entry is left out, the outcome says how many, and *Download all dives* tries it again. No outcome
+asks the diver to unpair the watch. Rejected: stopping at every failure, which blocks every older
+dive behind a broken entry; skipping every failure, which lets the fingerprint pass a stalled
+dive.
+
+## An Ocean transfer that times out reopens the link and resumes
+
+A timeout while the watch says free is a lost link, as libdc-swift's own sync treats it: the walk
+closes the device, waits four seconds, opens it again and carries on from that transfer, with the
+identity, the record and the listing it already has. It reopens at most three times in a walk,
+and past that a timeout is handled as the entry above says. Every device the walk opens shares
+one resume buffer, so a dive carries on from the bytes already received. Rejected: stopping at
+the first timeout; streaming the dive again from its start at each reopen.
 
 ## The app walks the Perdix and the Ocean itself
 
 A download names the computer's dives and the new ones before the first is read.
 `dc_device_foreach` gives no total before its first dive and downloads an Ocean entry before its
 sport is known, and a Perdix 3 answers a second manifest read on one connection with zeros, so no
-list of the app's can precede it. Both families are walked by the app on one connection: the
-Ocean through the fork's public by-id calls, the Perdix through `shearwater_common_rdbi` and
-`shearwater_common_download`, libdivecomputer internals declared in `ShearwaterCommon.swift`.
-Those are safe only while `project.yml` pins libdc-swift exactly; re-read their prototypes at
-every pin move. Every live manifest record is taken, where libdivecomputer's per-page slice drops
-live dives that deleted ones sit among. Rejected: a list read on a second connection, which rests
-on the Perdix surviving libdivecomputer's shutdown write.
+list of the app's can precede it. Both families are walked by the app on one connection, an Ocean's
+reopened only after a timeout: the Ocean through the fork's public by-id calls, the Perdix through
+`shearwater_common_rdbi` and `shearwater_common_download`, libdivecomputer internals declared in
+`ShearwaterCommon.swift`. Those are safe only while `project.yml` pins libdc-swift exactly; re-read
+their prototypes at every pin move. Every live manifest record is taken, where libdivecomputer's
+per-page slice drops live dives that deleted ones sit among. Rejected: a list read on a second
+connection, which rests on the Perdix surviving libdivecomputer's shutdown write.
 
 ## A download's dives carry derived uuids, and waiting downloads are one union
 

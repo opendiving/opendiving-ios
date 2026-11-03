@@ -126,6 +126,16 @@ profile, and launch again.
 launches. Rebuild and reinstall with the same two commands; installing over the existing app keeps
 its data, while deleting it first does not.
 
+The last download from a dive computer leaves a log in the app's container — each transfer with
+its status and how long it took, timestamped, and libdivecomputer's warnings — which nothing in the
+app shows. Copy it to the Mac, with your own bundle identifier if you set one:
+
+```bash
+xcrun devicectl device copy from --device <UDID> --domain-type appDataContainer \
+  --domain-identifier app.opendiving.ios \
+  --source "Library/Application Support/dive-computer.log" --destination dive-computer.log
+```
+
 ## Pull requests
 
 - Branch from `main`, and keep a pull request to one change.
