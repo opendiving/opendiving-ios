@@ -12,7 +12,8 @@ import Observation
 /// route: the files wait for the moment one appears. A change to a covered inbox marks its read
 /// stale and the next read is the diver's tap, which tries with or without a route. One read
 /// runs at a time; a file arriving during one is covered by one more when it is answered, and a
-/// read that never reached the server leaves nothing and starts nothing.
+/// read that never reached the server leaves nothing and starts nothing, and says so only
+/// when the diver tapped it.
 @MainActor
 @Observable
 public final class InboxModel {
@@ -40,6 +41,8 @@ public final class InboxModel {
   public private(set) var resultNumbering: String?
   /// Why the last apply failed.
   public private(set) var applyError: String?
+  /// Why the read the diver last tapped never reached the server, until the next read starts.
+  public private(set) var readError: String?
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private var readTask: Task<Void, Never>?
@@ -435,6 +438,7 @@ public final class InboxModel {
       result = nil
       resultNumbering = nil
       applyError = nil
+      readError = nil
     }
     let contents = store?.load() ?? InboxStore.Contents()
     files = contents.files
@@ -465,6 +469,7 @@ public final class InboxModel {
     guard tapped || session.connectivity.isRouteAvailable else { return }
     phase = .reading
     applyError = nil
+    readError = nil
     readTask = Task {
       defer {
         phase = .idle
@@ -472,19 +477,38 @@ public final class InboxModel {
       }
       repeat {
         followUp = false
-        guard await readOnce(store, client) else { break }
+        switch await readOnce(store, client) {
+        case .answered:
+          continue
+        case .nothingSent:
+          return
+        case .notSent(let error):
+          // Only the diver's tap says so: a read the app started on its own is tried again at
+          // the next moment, and an ended session shows as the signed-out app.
+          guard tapped else { return }
+          switch error {
+          case .unreachable: readError = ImportText.unreachable
+          case .secretStore: readError = error.message
+          default: break
+          }
+          return
+        }
       } while followUp
     }
   }
 
-  /// One read over every sendable file; false when it never reached the server or there was
-  /// nothing to send.
-  private func readOnce(_ store: InboxStore, _ client: APIClient) async -> Bool {
+  private enum ReadEnd {
+    case answered, nothingSent
+    case notSent(APIError)
+  }
+
+  /// One read over every sendable file.
+  private func readOnce(_ store: InboxStore, _ client: APIClient) async -> ReadEnd {
     var contents = store.load()
     let sent = contents.files.filter { refusal(for: $0) == nil }
     guard !sent.isEmpty,
       ImportBounds.selectionRefusal(byteSizes: sent.map(\.byteSize)) == nil
-    else { return false }
+    else { return .nothingSent }
     // A new read supersedes the one on screen before it is sent, so a file arriving while it
     // is in flight finds the inbox uncovered.
     contents.read = nil
@@ -501,7 +525,7 @@ public final class InboxModel {
     } catch let error as APIError {
       switch error {
       case .unreachable, .signedOut, .secretStore:
-        return false
+        return .notSent(error)
       case .http(let status, let message):
         answer = InboxRead(
           files: ids,
@@ -513,12 +537,12 @@ public final class InboxModel {
       answer = InboxRead(files: ids, refusal: ImportText.readFailed)
     }
     var now = store.load()
-    guard !now.files.isEmpty else { return true }
+    guard !now.files.isEmpty else { return .answered }
     answer.stale = !Set(ids).isSubset(of: now.files.map(\.id))
     now.read = answer
     try? store.save(now)
     reload()
-    return true
+    return .answered
   }
 
   /// The two 422s that ask for the files to be previewed again: the token expired, or names

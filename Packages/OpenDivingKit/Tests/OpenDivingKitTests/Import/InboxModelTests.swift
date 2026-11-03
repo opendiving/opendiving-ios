@@ -109,6 +109,44 @@ struct InboxModelTests {
     #expect(server.previews == [["a.fit"], ["a.fit", "b.fit"]])
   }
 
+  @Test func aReadTheAppStartsThatNeverReachedTheServerSaysNothing() async throws {
+    let server = try ImportServer()
+    server.answerPreviews { _ in throw URLError(.notConnectedToInternet) }
+    let model = try await loaded(server)
+
+    try arrive(model, "a.fit")
+    await model.settled()
+    model.handle(.routeAppeared)
+    await model.settled()
+    #expect(server.previews.count == 2)
+    #expect(model.readError == nil)
+  }
+
+  @Test func aTappedReadThatNeverReachedTheServerSaysSoUntilTheNextReadStarts() async throws {
+    let server = try ImportServer()
+    let preview = try KitFixture.text("import-preview")
+    let gate = Gate()
+    server.answerPreviews { index in
+      guard index > 1 else { throw URLError(.notConnectedToInternet) }
+      await gate.pass()
+      return .json(preview)
+    }
+    let model = try await loaded(server)
+    try arrive(model, "a.fit")
+    await model.settled()
+
+    model.readAgain()
+    await model.settled()
+    #expect(model.readError == "The server could not be reached, so the files were not read.")
+
+    model.readAgain()
+    await gate.untilArrived()
+    #expect(model.readError == nil)
+    await gate.open()
+    await model.settled()
+    #expect(model.importable != nil)
+  }
+
   @Test func aMomentOverAnEmptyInboxReadsNothing() async throws {
     let server = try ImportServer()
     let model = try await loaded(server)
