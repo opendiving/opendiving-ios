@@ -1,0 +1,79 @@
+{
+  // Read by the Mend-hosted Renovate GitHub App on the `opendiving` org, which reports through
+  // the Dependency Dashboard issue it opens here. The installation names its repositories one
+  // at a time, so this file does nothing until this repository is on that list. The policy is
+  // opendiving-web's and opendiving-api's; what differs below is only what has to.
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  "extends": [
+    "config:recommended",
+
+    // Routine bumps are `chore(deps): ...`, which `pr-title.yml` accepts; vulnerability fixes
+    // below are `fix`.
+    ":semanticCommitTypeAll(chore)",
+  ],
+
+  // Where the held-back updates below show up.
+  "dependencyDashboard": true,
+
+  "labels": ["dependencies"],
+
+  "schedule": ["before 9am on monday"],
+
+  // The window in which a hijacked maintainer's release is usually spotted and pulled.
+  "minimumReleaseAge": "3 days",
+
+  // A Monday batch merges one PR at a time; rebasing the rest after each merge reruns the macOS
+  // job across the batch for nothing.
+  "rebaseWhen": "conflicted",
+
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "minimumReleaseAge": null,
+    "semanticCommitType": "fix",
+    "labels": ["dependencies", "security"],
+  },
+
+  // Needs nothing switched on in repository settings, unlike GitHub's own alerts.
+  "osvVulnerabilityAlerts": true,
+
+  // No built-in manager reads XcodeGen's `project.yml`, where the app's one package is pinned.
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Swift packages pinned in project.yml",
+      "managerFilePatterns": ["/^project\\.yml$/"],
+      "matchStrings": [
+        "url: https://github\\.com/(?<depName>[^/\\s]+/[^/\\s]+?)(?:\\.git)?\\s+exactVersion: (?<currentValue>\\S+)",
+      ],
+      "datasourceTemplate": "github-tags",
+    },
+  ],
+
+  "packageRules": [
+    {
+      // A move is more than the pin: `THIRD-PARTY-NOTICES.md` names the release's commit and its
+      // libdivecomputer submodule's, and the internals `ShearwaterCommon.swift` declares are
+      // re-read against the new prototypes (DECISIONS.md, "A download names the computer's dives
+      // and the new ones before the first is read"). A green build checks neither, so the
+      // dashboard asks and a person makes the change.
+      "matchPackageNames": ["deepsealabs/libdc-swift"],
+      "dependencyDashboardApproval": true,
+    },
+    {
+      // Moves with the maintainers' Xcode, not with Swift's releases: DECISIONS.md, "CI pins the
+      // Linux toolchain to a patch release".
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["swift"],
+      "dependencyDashboardApproval": true,
+    },
+    {
+      // `macos-26` is not offered to this organization, and the job's Xcode moves with the label:
+      // DECISIONS.md, "CI builds the app on macos-15 with Xcode 26.3".
+      "matchDatasources": ["github-runners"],
+      "matchPackageNames": ["macos"],
+      "enabled": false,
+    },
+  ],
+}
