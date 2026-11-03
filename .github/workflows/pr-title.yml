@@ -13,6 +13,10 @@ on:
     # reach the same verdict. Which checks `main` requires is the repository's
     # rulesets' to say, not this file's.
     types: [opened, edited, reopened, synchronize]
+  # The merge queue tests each entry squashed onto `main` under this event,
+  # and a required check that never reports there holds the entry until the
+  # queue times it out.
+  merge_group:
 
 # The one list of types. CONTRIBUTING.md spells the same list out in prose -
 # keep the two in step.
@@ -21,6 +25,10 @@ env:
 
 jobs:
   semantic-title:
+    # Only a pull request carries a title to check. An entry in the merge queue
+    # had to pass this on its pull request to be queued, and a job skipped by
+    # `if` reports success, which is what lets the queue go on without one.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     # Nothing is checked out and no API call is made - the title arrives in the
