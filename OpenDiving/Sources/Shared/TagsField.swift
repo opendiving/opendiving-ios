@@ -26,7 +26,8 @@ struct TagsField: View {
               .font(.subheadline)
               .padding(.horizontal, 10)
               .padding(.vertical, 4)
-              .background(Capsule().fill(Color(.secondarySystemFill)))
+              .foregroundStyle(Color.white)
+              .background(RoundedRectangle(cornerRadius: 6).fill(Color.teal))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(tag)")
