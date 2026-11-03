@@ -98,9 +98,10 @@ enum OfflineFixtures {
     return window
   }
 
-  /// Waits up to `seconds` for `condition`.
+  /// Waits up to `seconds` for `condition`. The limit only turns a hang into a failure: the first
+  /// window a cold simulator puts up can hold the main actor for well over ten seconds.
   @MainActor
-  static func eventually(_ seconds: Double = 5, _ condition: () -> Bool) async -> Bool {
+  static func eventually(_ seconds: Double = 60, _ condition: () -> Bool) async -> Bool {
     let deadline = Date().addingTimeInterval(seconds)
     while Date() < deadline {
       if condition() { return true }
