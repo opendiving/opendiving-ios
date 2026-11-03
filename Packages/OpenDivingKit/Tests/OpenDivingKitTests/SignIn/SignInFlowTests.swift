@@ -417,8 +417,13 @@ struct SignInFlowTests {
       transport: transport, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
       activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
       applicationSupport: root, userAgent: ClientHarness.userAgent)
-    let flow = SignInFlow(session: session, signOutWait: .seconds(1))
-    #expect(await flow.signOut(of: origin) == .timedOut)
+    // Stopped rather than timed out, so that no limit can end the Forget's wait: only its own
+    // answer can, or the one left behind.
+    let flow = SignInFlow(session: session, signOutWait: .seconds(3600))
+    let signOut = Task { await flow.signOut(of: origin) }
+    await transport.refresh.untilArrived()
+    flow.stopWaiting()
+    #expect(await signOut.value == .stopped)
     // The refresh that sign-out started is still out, and the Forget waits on the same one.
     let forget = Task { await flow.forget(origin) }
     while flow.signingOut == nil { await Task.yield() }
