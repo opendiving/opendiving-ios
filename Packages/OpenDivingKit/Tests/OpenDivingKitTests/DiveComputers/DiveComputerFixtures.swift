@@ -2,7 +2,8 @@ import Foundation
 import OpenDivingKit
 
 /// The downloads the writer's goldens and the model's tests are made from: dives written by hand
-/// in the shape the shared libdivecomputer reader returns them.
+/// in the shape the shared libdivecomputer reader returns them. Each is parsed once: the model's
+/// tests read them inside wait loops that run many thousands of times.
 enum DiveComputerFixtures {
   static let perdix = DiveComputerIdentity(
     family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
@@ -46,7 +47,7 @@ enum DiveComputerFixtures {
   }
 
   /// The Perdix 3's newest dive, with something on every channel the reader writes.
-  static var perdixDive: ComputerDive {
+  static let perdixDive: ComputerDive = {
     dive(
       #"{"avg_depth":14.21,"cylinders":[{"end_pressure":60.2,"gas_number":0,"helium":0,"oxygen":21,"#
         + #""start_pressure":200.5,"volume":11.1},{"gas_number":1,"helium":0,"oxygen":50,"#
@@ -62,17 +63,17 @@ enum DiveComputerFixtures {
         + #""values":[2640,2512]},"tts":{"times":[10000],"values":[240]}},"salinity":"en13319","#
         + #""surface_pressure":1.013}],"started_at":"2026-10-25T09:14:07","submerged_time":3730,"#
         + #""uuid":"0b5bd8d1-4c1e-5d0e-9a4f-2f6f3b1c7e01"}"#)
-  }
+  }()
 
   /// A Teric-style log that reports its zone, and nothing else but its depth.
-  static var tericStyleDive: ComputerDive {
+  static let tericStyleDive: ComputerDive = {
     dive(
       #"{"max_depth":12,"recordings":[{"profile":{"depth":{"times":[0,10000],"#
         + #""values":[50,1200]},"duration":10000}}],"started_at":"2026-10-24T15:02:00+03:00","#
         + #""submerged_time":1800,"uuid":"0b5bd8d1-4c1e-5d0e-9a4f-2f6f3b1c7e02"}"#)
-  }
+  }()
 
-  static var perdixDownload: [DownloadedDive] {
+  static let perdixDownload: [DownloadedDive] = {
     [
       DownloadedDive(
         identity: perdix, fingerprint: fingerprint(3), bytes: Data("perdix dive 3".utf8),
@@ -84,11 +85,11 @@ enum DiveComputerFixtures {
         identity: perdix, fingerprint: fingerprint(1), bytes: Data("perdix dive 1".utf8),
         reading: .refused(start: nil)),
     ]
-  }
+  }()
 
   /// Two Ocean dives either side of the night Helsinki leaves summer time, as the reader spells
   /// a Nautic start, in UTC; the first with the fallback start the walk passes the family.
-  static var oceanDownload: [DownloadedDive] {
+  static let oceanDownload: [DownloadedDive] = {
     let after = dive(
       #"{"entry_position":{"latitude":60.15,"longitude":24.95},"max_depth":21.3,"#
         + #""recordings":[{"deco_model":{"algorithm":"rgbm","conservatism":-1},"#
@@ -109,7 +110,7 @@ enum DiveComputerFixtures {
         identity: ocean, fingerprint: fingerprint(0x11), bytes: Data("ocean before".utf8),
         reading: .dive(before)),
     ]
-  }
+  }()
 
   static let generator = ComputerArchiveWriter.Generator(
     name: "OpenDiving for iOS", version: "0.3.0")
