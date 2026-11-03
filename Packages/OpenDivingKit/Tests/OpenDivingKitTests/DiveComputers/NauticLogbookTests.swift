@@ -77,13 +77,20 @@ struct NauticLogbookTests {
 
   @Test func everyEntryIsSummarisedUnlessTheRecordRemembersIt() {
     #expect(NauticSelection.summariesNeeded(ids: ids, remembered: nil) == ids)
-    let remembered = ids.prefix(4).map { NauticEntrySport(id: $0, sport: $0 == run ? 3 : 51) }
+    let remembered: [NauticEntrySport] = ids.prefix(4).map(sport)
     #expect(
       NauticSelection.summariesNeeded(ids: ids, remembered: remembered) == Array(ids.dropFirst(4)))
   }
 
+  /// The probe's sport for an entry: the run's 3, scuba's 51 for every other.
+  private func sport(_ id: UInt32) -> NauticEntrySport {
+    NauticEntrySport(id: id, sport: id == run ? 3 : 51)
+  }
+
   private func learned(_ ids: some Sequence<UInt32>) -> [UInt32: NauticSelection.Summary] {
-    Dictionary(uniqueKeysWithValues: ids.map { ($0, .read(sport: $0 == run ? 3 : 51)) })
+    var learned: [UInt32: NauticSelection.Summary] = [:]
+    for id in ids { learned[id] = .read(sport: sport(id).sport) }
+    return learned
   }
 
   @Test func withoutAFingerprintEveryEntryIsNewAndTheRunIsSkipped() {
@@ -100,19 +107,16 @@ struct NauticLogbookTests {
 
   @Test func aFingerprintMidListTakesTheEntriesBeforeIt() {
     // Remembered from a previous walk, and an entry the record still names that is gone.
-    let remembered =
-      ids.dropFirst(2).map { NauticEntrySport(id: $0, sport: $0 == run ? 3 : 51) }
-      + [NauticEntrySport(id: 1_700_000_000, sport: 51)]
+    var remembered: [NauticEntrySport] = ids.dropFirst(2).map(sport)
+    remembered.append(NauticEntrySport(id: 1_700_000_000, sport: 51))
     let selection = NauticSelection(
       ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: remembered,
       learned: learned(ids.prefix(2)))
     #expect(selection.entries.map(\.id) == Array(ids.prefix(4)))
     #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
-    #expect(
-      selection.listing
-        == DiveComputerListing(
-          dives: 15, newDives: 3, newEntries: 4,
-          sports: ids.map { NauticEntrySport(id: $0, sport: $0 == run ? 3 : 51) }))
+    let sports: [NauticEntrySport] = ids.map(sport)
+    let expected = DiveComputerListing(dives: 15, newDives: 3, newEntries: 4, sports: sports)
+    #expect(selection.listing == expected)
   }
 
   @Test func aFingerprintEqualToNoIdTakesEveryEntry() {

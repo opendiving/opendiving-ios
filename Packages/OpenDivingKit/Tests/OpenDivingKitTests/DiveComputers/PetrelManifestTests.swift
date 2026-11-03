@@ -76,11 +76,12 @@ struct PetrelManifestTests {
   }
 
   @Test func aFullPageIsFollowedByTheNext() {
-    let first = PetrelManifest.Page(
-      page(
-        (0..<PetrelManifest.recordsPerPage).map { index in
-          record(deleted: index % 7 == 3, start: UInt32(1000 - index), address: UInt32(index))
-        }))
+    var full: [Data] = []
+    for index in 0..<PetrelManifest.recordsPerPage {
+      let value = UInt32(index)
+      full.append(record(deleted: index % 7 == 3, start: 1000 - value, address: value))
+    }
+    let first = PetrelManifest.Page(page(full))
     #expect(first.continues)
     let second = PetrelManifest.Page(page([record(start: 900, address: 99)]))
     #expect(!second.continues)
