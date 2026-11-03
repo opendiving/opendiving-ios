@@ -11,29 +11,41 @@ import OpenDivingKit
 ///
 /// Every transfer that fails, but on a cancel or a lost link, asks the watch whether it is busy
 /// with another app — the Suunto app shares the link — and while it is, waits and tries the same
-/// transfer again (``nauticNext(_:status:busy:freeFailures:)``).
+/// transfer again (``nauticNext(_:status:busy:freeFailures:reconnects:)``). One that times out
+/// while the watch says free closes the device, opens it again and carries on from that transfer
+/// (``reconnect()``), the dive's received bytes kept in the resume buffer; each transfer is a line
+/// in the download's log.
 nonisolated extension LibDCWalk {
-  func walkNautic(_ handle: OpaquePointer, serial: String) -> DiveComputerDownloadEnd {
-    var firmware = nauticFirmware(handle)
+  func walkNautic(serial: String) -> DiveComputerDownloadEnd {
+    var firmware = nauticFirmware()
     let identity = identify(serial: serial, firmware: firmware)
     let record = lookup(family, serial)
     let fingerprint = record?.fingerprintToSet
     let zoneRead = readWatchZone()
 
-    // A busy watch can refuse the firmware or the zone; once it is free they are read again.
-    switch busyWait(handle) {
-    case .stop(let status): return nauticEnd(status)
-    case .free: break
-    case .waited:
+    // A busy watch can refuse the firmware or the zone, and a reopened link may answer what the
+    // first did not; once the watch is free they are read again.
+    var readAgain = false
+    asking: while true {
+      switch busyWait() {
+      case .stop(let status): return nauticEnd(status)
+      case .free: break asking
+      case .waited:
+        readAgain = true
+        break asking
+      case .reconnected: readAgain = true
+      }
+    }
+    if readAgain {
       if firmware == nil {
-        firmware = nauticFirmware(handle)
+        firmware = nauticFirmware()
         identify(serial: serial, firmware: firmware)
       }
       if !zoneRead { readWatchZone() }
     }
 
     let list: Data
-    switch fetchWhileBusy(handle, .listing, { suunto_nautic_device_list(handle, $0) }) {
+    switch fetchWhileBusy(.listing, "listing", { suunto_nautic_device_list($0, $1) }) {
     case .answered(let bytes): list = bytes
     case .failed(let status), .stop(let status): return nauticEnd(status)
     }
@@ -43,8 +55,8 @@ nonisolated extension LibDCWalk {
     var descriptors: NauticDescriptors?
     var descriptorsRead = false
     for id in NauticSelection.summariesNeeded(ids: ids, remembered: record?.nauticSports) {
-      let fetched = fetchWhileBusy(handle, .summary) {
-        suunto_nautic_device_download_summary(handle, String(id), $0)
+      let fetched = fetchWhileBusy(.summary, "summary \(Self.entryLabel(id))") {
+        suunto_nautic_device_download_summary($0, String(id), $1)
       }
       switch fetched {
       case .stop(let stopped): return nauticEnd(stopped)
@@ -55,8 +67,8 @@ nonisolated extension LibDCWalk {
         // fit them and decodes to no sport.
         if !descriptorsRead {
           descriptorsRead = true
-          let fetched = fetchWhileBusy(handle, .summary) {
-            suunto_nautic_device_fetch_paged(handle, NauticDescriptors.path(id), $0)
+          let fetched = fetchWhileBusy(.summary, "descriptors \(Self.entryLabel(id))") {
+            suunto_nautic_device_fetch_paged($0, NauticDescriptors.path(id), $1)
           }
           switch fetched {
           case .stop(let stopped): return nauticEnd(stopped)
@@ -86,9 +98,9 @@ nonisolated extension LibDCWalk {
         continue
       case .download: break
       }
-      let fetched = fetchWhileBusy(handle, .download(counted: entry.counted)) {
-        suunto_nautic_device_download(handle, String(entry.id), $0)
-      }
+      let fetched = fetchWhileBusy(
+        .download(counted: entry.counted), "download \(Self.entryLabel(entry.id))"
+      ) { suunto_nautic_device_download($0, String(entry.id), $1) }
       switch fetched {
       case .stop(let stopped): return nauticEnd(stopped)
       case .failed:
@@ -106,7 +118,8 @@ nonisolated extension LibDCWalk {
   }
 
   /// `/Info`'s firmware, spelled as the family's exports spell it; nil where it did not read.
-  private func nauticFirmware(_ handle: OpaquePointer) -> String? {
+  private func nauticFirmware() -> String? {
+    guard let handle = device?.pointee.device else { return nil }
     let (_, info) = Self.buffered { suunto_nautic_device_fetch(handle, NauticInfo.path, $0) }
     return NauticInfo.firmware(info).flatMap { LibDCNames.firmware($0, family: family) }
   }
@@ -127,6 +140,11 @@ nonisolated extension LibDCWalk {
     return ids
   }
 
+  /// An entry's id, which is its start as a Unix time, and that start, for the log.
+  static func entryLabel(_ id: UInt32) -> String {
+    "\(id) (\(Date(timeIntervalSince1970: TimeInterval(id)).ISO8601Format()))"
+  }
+
   /// A transfer the walk makes, which decides what its failure costs.
   enum NauticFetch: Equatable {
     case listing
@@ -144,6 +162,8 @@ nonisolated extension LibDCWalk {
     case readBusy
     /// Try the same transfer again.
     case retry
+    /// Close the device, open it again and try the same transfer on it.
+    case reconnect
     /// Give it up and go on: a summary reads as unread, a download leaves its entry out.
     case passOver
     /// The walk ends on this status.
@@ -154,16 +174,18 @@ nonisolated extension LibDCWalk {
   static let nauticDownloadAttempts = 3
 
   /// After one attempt that answered `status`: `busy` is nil until the watch was asked, then
-  /// whether it said busy, and `freeFailures` counts the attempts, this one included, that failed
-  /// while it said free. A cancel or a lost link stops the walk at once. A failure while busy is
-  /// waited out and tried again without counting. While free, the listing stops the walk, and a
+  /// whether it said busy, `freeFailures` counts the attempts, this one included, that failed
+  /// while it said free, across reopens, and `reconnects` the reopens the walk has made. A cancel
+  /// or a lost link stops the walk at once. A failure while busy is waited out and tried again
+  /// without counting. While free, a timeout reopens the device, at once, while the walk has
+  /// reopens left (``reconnects(after:made:)``). Otherwise the listing stops the walk, and a
   /// summary or the descriptors read as unread; a counted download is tried until
-  /// ``nauticDownloadAttempts`` have failed, an uncounted one once, and then a stall
-  /// (`DC_STATUS_TIMEOUT`), which a later connection can cure, stops the walk without moving the
-  /// fingerprint past it, while any other failure, which repeats, leaves the entry out.
-  static func nauticNext(_ fetch: NauticFetch, status: dc_status_t, busy: Bool?, freeFailures: Int)
-    -> NauticNext
-  {
+  /// ``nauticDownloadAttempts`` have failed, an uncounted one once, and then a timeout, which a
+  /// later connection can cure, stops the walk without moving the fingerprint past it, while any
+  /// other failure, which repeats, leaves the entry out.
+  static func nauticNext(
+    _ fetch: NauticFetch, status: dc_status_t, busy: Bool?, freeFailures: Int, reconnects: Int
+  ) -> NauticNext {
     switch status {
     case DC_STATUS_SUCCESS: return .take
     case DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE: return .stop(status)
@@ -171,6 +193,7 @@ nonisolated extension LibDCWalk {
     }
     guard let busy else { return .readBusy }
     if busy { return .retry }
+    if Self.reconnects(after: status, made: reconnects) { return .reconnect }
     switch fetch {
     case .listing: return .stop(status)
     case .summary: return .passOver
@@ -187,29 +210,43 @@ nonisolated extension LibDCWalk {
     case stop(dc_status_t)
   }
 
-  /// One transfer, tried again as ``nauticNext(_:status:busy:freeFailures:)`` says.
+  /// One transfer over the open device's handle and a fresh buffer, tried again as
+  /// ``nauticNext(_:status:busy:freeFailures:reconnects:)`` says, each attempt logged under
+  /// `label`.
   private func fetchWhileBusy(
-    _ handle: OpaquePointer, _ fetch: NauticFetch, _ call: (OpaquePointer) -> dc_status_t
+    _ fetch: NauticFetch, _ label: String,
+    _ call: (_ handle: OpaquePointer, _ buffer: OpaquePointer) -> dc_status_t
   ) -> NauticFetched {
     var freeFailures = 0
     while true {
       if cancel.isSet { return .stop(DC_STATUS_CANCELLED) }
-      let (status, bytes) = Self.buffered(call)
-      var next = Self.nauticNext(fetch, status: status, busy: nil, freeFailures: freeFailures)
+      guard let handle = device?.pointee.device else { return .stop(DC_STATUS_NODEVICE) }
+      let began = Date.now
+      let (status, bytes) = Self.buffered { call(handle, $0) }
+      log(
+        "\(label) \(LibDCNames.status(status)) \(bytes.count) bytes "
+          + "\(LibDCDeviceSession.milliseconds(since: began)) ms")
+      var next = Self.nauticNext(
+        fetch, status: status, busy: nil, freeFailures: freeFailures, reconnects: reconnects)
       if next == .readBusy {
         let busy: Bool
-        switch busyWait(handle) {
+        switch busyWait() {
         case .stop(let stopped): return .stop(stopped)
+        // The busy read reopened the device: the transfer is tried on it, uncounted.
+        case .reconnected: continue
         case .waited: busy = true
         case .free:
           busy = false
           freeFailures += 1
         }
-        next = Self.nauticNext(fetch, status: status, busy: busy, freeFailures: freeFailures)
+        next = Self.nauticNext(
+          fetch, status: status, busy: busy, freeFailures: freeFailures, reconnects: reconnects)
       }
       switch next {
       case .take: return .answered(bytes)
       case .retry: continue
+      case .reconnect:
+        if let stopped = reconnect() { return .stop(stopped) }
       case .passOver: return .failed(status)
       case .stop(let stopped): return .stop(stopped)
       case .readBusy: return .stop(status)
@@ -222,29 +259,54 @@ nonisolated extension LibDCWalk {
     case free
     /// It said it was busy, and has since said it is free.
     case waited
+    /// Its subscribe or unsubscribe timed out, and the device was opened again.
+    case reconnected
     case stop(dc_status_t)
   }
 
   /// Asks the watch whether it is busy with another app and, while it is, waits in waits of a
   /// second so a cancel ends it at the next. A watch with no such resource, or that refuses it,
   /// is not waited for. Subscribed and unsubscribed between transfers, since a subscription is
-  /// not valid while a download runs; an unsubscribe that fails ends the walk.
-  private func busyWait(_ handle: OpaquePointer) -> BusyWait {
-    guard
-      let subscription = try? SuuntoNauticExplorer.subscribe(
-        dcDevice: handle, path: Self.busyStatePath)
-    else { return .free }
+  /// not valid while a download runs; an unsubscribe that fails ends the walk. Either that times
+  /// out reopens the device while the walk has reopens left.
+  private func busyWait() -> BusyWait {
+    guard let handle = device?.pointee.device else { return .stop(DC_STATUS_NODEVICE) }
+    let began = Date.now
+    let subscription: SuuntoNauticExplorer.Subscription
+    do {
+      subscription = try SuuntoNauticExplorer.subscribe(dcDevice: handle, path: Self.busyStatePath)
+    } catch {
+      let status = Self.explorerStatus(error)
+      log(
+        "busy read \(LibDCNames.status(status)) \(LibDCDeviceSession.milliseconds(since: began)) ms"
+      )
+      guard Self.reconnects(after: status, made: reconnects) else { return .free }
+      return reconnect().map { .stop($0) } ?? .reconnected
+    }
     let busy = Self.isBusy(subscription.initialValue)
+    log(
+      "busy read \(busy ? "busy" : "free") \(LibDCDeviceSession.milliseconds(since: began)) ms")
     let stopped = busy ? waitForFree(handle, subscription) : nil
+    if busy, stopped == nil {
+      log("busy wait free after \(LibDCDeviceSession.milliseconds(since: began)) ms")
+    }
     do {
       try SuuntoNauticExplorer.unsubscribe(dcDevice: handle, subscription)
-    } catch SuuntoNauticExplorer.ExplorerError.requestFailed(let status) {
-      return .stop(stopped ?? status)
     } catch {
-      return .stop(stopped ?? DC_STATUS_IO)
+      let status = Self.explorerStatus(error)
+      log("busy unsubscribe \(LibDCNames.status(status))")
+      if let stopped { return .stop(stopped) }
+      guard Self.reconnects(after: status, made: reconnects) else { return .stop(status) }
+      return reconnect().map { .stop($0) } ?? .reconnected
     }
     if let stopped { return .stop(stopped) }
     return busy ? .waited : .free
+  }
+
+  /// The status an explorer call failed on; a failure that names none reads as a lost link.
+  private static func explorerStatus(_ error: any Error) -> dc_status_t {
+    if case SuuntoNauticExplorer.ExplorerError.requestFailed(let status) = error { return status }
+    return DC_STATUS_IO
   }
 
   /// Yields the busy event, waits for the watch to push free and yields it; nil once free, or

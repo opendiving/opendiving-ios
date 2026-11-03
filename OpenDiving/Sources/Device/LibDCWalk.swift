@@ -4,10 +4,12 @@ import Foundation
 @preconcurrency import LibDCSwift
 import OpenDivingKit
 
-/// One walk over an open device: the identity, the stored fingerprint, the watch's zone for a
+/// One walk over an opened device: the identity, the stored fingerprint, the watch's zone for a
 /// family that logs instants, then each dive's bytes parsed as they arrive, and the outcome. Its
 /// instance is the userdata of libdivecomputer's callbacks, all of which run on the session's queue
-/// but the progress poll's.
+/// but the progress poll's. An Ocean walk may close the device and open it again
+/// (``reconnect()``); ``device`` is whichever is open, and nil once the walk closed one it could
+/// not reopen.
 ///
 /// A Shearwater Petrel-family computer and a Suunto Nautic-family watch are walked by the app
 /// itself — listed, counted, then downloaded dive by dive (`LibDCWalk+Petrel.swift`,
@@ -16,7 +18,11 @@ import OpenDivingKit
 /// `dc_device_foreach`.
 nonisolated final class LibDCWalk: @unchecked Sendable {
   let computer: FoundComputer
-  let device: UnsafeMutablePointer<device_data_t>
+  private(set) var device: UnsafeMutablePointer<device_data_t>?
+  let session: LibDCDeviceSession
+  /// libdivecomputer's resume buffer, which carries an Ocean dive's received bytes over a failed
+  /// attempt; the session frees it after the last device is closed.
+  let resume: OpaquePointer?
   let cancel: CancelFlag
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
   /// Whether a dive already waits in the import screen, which a walk that lists leaves out.
@@ -38,15 +44,20 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   var waitingSkipped = 0
   /// Entries left out because their download kept failing.
   var notDownloaded = 0
+  /// The reopens made after a transfer that timed out.
+  private(set) var reconnects = 0
 
   init(
-    computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>, cancel: CancelFlag,
+    computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>,
+    session: LibDCDeviceSession, resume: OpaquePointer?, cancel: CancelFlag,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
     self.computer = computer
     self.device = device
+    self.session = session
+    self.resume = resume
     self.cancel = cancel
     self.lookup = lookup
     self.waiting = waiting
@@ -66,22 +77,82 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   }
 
   func run() -> DiveComputerDownloadEnd {
-    guard let handle = device.pointee.device else {
+    guard let device, let handle = device.pointee.device else {
       return .init(.failed(status: LibDCNames.status(DC_STATUS_NODEVICE)))
     }
-    dc_device_set_cancel(handle, cancelCallback, Unmanaged.passUnretained(self).toOpaque())
-    defer { dc_device_set_cancel(handle, nil, nil) }
+    adopt(handle)
+    defer { if let handle = self.device?.pointee.device { release(handle) } }
     // By the open device's own family, which decides what its handle is.
     switch dc_device_get_type(handle) {
     case DC_FAMILY_SHEARWATER_PETREL:
       return walkPetrel(handle)
     case DC_FAMILY_SUUNTO_NAUTIC:
       // A watch whose name carries no serial has no identity before the library's walk gives one.
-      guard let serial = computer.advertisedSerial else { return walkLibrary(handle) }
-      return walkNautic(handle, serial: serial)
+      guard let serial = computer.advertisedSerial else { return walkLibrary(device, handle) }
+      return walkNautic(serial: serial)
     default:
-      return walkLibrary(handle)
+      return walkLibrary(device, handle)
     }
+  }
+
+  /// Hooks the walk's cancel into a device it opened, before the device's first transfer, and
+  /// hands a Nautic one the resume buffer.
+  private func adopt(_ handle: OpaquePointer) {
+    dc_device_set_cancel(handle, cancelCallback, Unmanaged.passUnretained(self).toOpaque())
+    if dc_device_get_type(handle) == DC_FAMILY_SUUNTO_NAUTIC, let resume {
+      suunto_nautic_device_set_resume(handle, resume)
+    }
+  }
+
+  /// Unhooks the walk from a device about to be closed.
+  private func release(_ handle: OpaquePointer) {
+    dc_device_set_cancel(handle, nil, nil)
+    if dc_device_get_type(handle) == DC_FAMILY_SUUNTO_NAUTIC {
+      suunto_nautic_device_set_resume(handle, nil)
+    }
+  }
+
+  /// The reopens a walk may make, as libdc-swift's own sync reconnects after a lost link.
+  static let reconnectLimit = 3
+
+  /// Whether a transfer that answered `status` closes and reopens the device, `made` reopens
+  /// having been made: a timeout, while the walk has reopens left.
+  static func reconnects(after status: dc_status_t, made: Int) -> Bool {
+    status == DC_STATUS_TIMEOUT && made < reconnectLimit
+  }
+
+  /// Closes the device, waits about four seconds and opens it again through the session, until it
+  /// opens or the walk's reopens are spent: nil once open, else the status the walk ends on. The
+  /// identity, the record and the listing are the walk's and carry over. A cancel ends the wait at
+  /// once, and the open, which cannot be interrupted, once it returns.
+  func reconnect() -> dc_status_t? {
+    var status = DC_STATUS_NODEVICE
+    while reconnects < Self.reconnectLimit {
+      reconnects += 1
+      if let device {
+        if let handle = device.pointee.device { release(handle) }
+        session.close(device)
+        self.device = nil
+      }
+      for _ in 0..<40 {
+        if cancel.isSet { return DC_STATUS_CANCELLED }
+        usleep(100_000)
+      }
+      log("reopen \(reconnects) of \(Self.reconnectLimit)")
+      let (opened, reopened) = session.open(computer)
+      status = opened
+      guard let reopened else { continue }
+      device = reopened
+      guard let handle = reopened.pointee.device else { continue }
+      adopt(handle)
+      return cancel.isSet ? DC_STATUS_CANCELLED : nil
+    }
+    return status
+  }
+
+  /// A line in the download's log.
+  func log(_ line: String) {
+    session.log.write(line)
   }
 
   /// How a walk ended. A walk stopped at a set fingerprint ends in plain success; one that
@@ -118,7 +189,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// `dc_device_foreach`, with the fingerprint set on the device: from the advertised name for a
   /// family that carries the serial there, else through the bridge's lookup hook once the device
   /// info arrives.
-  private func walkLibrary(_ handle: OpaquePointer) -> DiveComputerDownloadEnd {
+  private func walkLibrary(_ device: UnsafeMutablePointer<device_data_t>, _ handle: OpaquePointer)
+    -> DiveComputerDownloadEnd
+  {
     let userdata = Unmanaged.passUnretained(self).toOpaque()
     if family.advertisesSerial, let serial = computer.advertisedSerial {
       // The device info's 32-bit serial overflows this family's, so the advertised name is the
@@ -142,7 +215,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
 
     if family.logsInstants { readWatchZone() }
 
-    let poll = progressPoll()
+    let poll = progressPoll(device)
     let status = dc_device_foreach(handle, diveCallback, userdata)
     poll.cancel()
     return Self.end(
@@ -170,8 +243,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
 
   /// The firmware the device info reported, once it has.
   private var deviceInfoFirmware: String? {
-    device.pointee.have_devinfo != 0
-      ? LibDCNames.firmware(device.pointee.devinfo.firmware, family: family) : nil
+    guard let device, device.pointee.have_devinfo != 0 else { return nil }
+    return LibDCNames.firmware(device.pointee.devinfo.firmware, family: family)
   }
 
   // MARK: - Every walk's
@@ -181,7 +254,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// an empty or aborted session, ``skipsUnframed(_:family:)`` or ``skipsEmpty(_:)`` — is yielded
   /// as skipped, as a run is, so the fingerprint moves past it.
   func dive(_ bytes: Data, fingerprint: Data) -> Bool {
-    if cancel.isSet { return false }
+    guard !cancel.isSet, let device else { return false }
     if identity == nil || identity?.firmware == nil, device.pointee.have_devinfo != 0 {
       identify(
         serial: identity?.serial ?? family.serial(deviceInfo: device.pointee.devinfo.serial),
@@ -257,6 +330,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// The watch's zone, from the settings resources it is decoded from; one the watch refuses is
   /// left out, and the decode reads the rest. Whether a zone was read.
   @discardableResult func readWatchZone() -> Bool {
+    guard let device else { return false }
     var resources: [String: Data] = [:]
     for path in NauticWatchZone.paths {
       resources[path] = try? SuuntoNauticExplorer.fetch(device: device, path: path)
@@ -280,7 +354,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// libdivecomputer's progress, which the bridge caches on the device record rather than
   /// forwarding: its event callback is the one the device allows, and it is also the hook that
   /// sets a Shearwater's fingerprint.
-  private func progressPoll() -> any DispatchSourceTimer {
+  private func progressPoll(_ device: UnsafeMutablePointer<device_data_t>)
+    -> any DispatchSourceTimer
+  {
     nonisolated(unsafe) let device = device
     let events = events
     nonisolated(unsafe) var last: (UInt32, UInt32)?
