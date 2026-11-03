@@ -36,8 +36,10 @@ dive-profile charts. The phone is where an app can do what a browser can't:
 ## Stack
 
 SwiftUI on iOS 18 and later, over `OpenDivingKit`, a Swift package holding everything that is not
-a view, and [libdc-swift](https://github.com/deepsealabs/libdc-swift), which brings
-[libdivecomputer](https://www.libdivecomputer.org/) and the Bluetooth link to dive computers. It
+a view, [libdc-swift](https://github.com/deepsealabs/libdc-swift), which brings
+[libdivecomputer](https://www.libdivecomputer.org/) and the Bluetooth link to dive computers, and
+[libdivejson](https://github.com/divejson/divejson-c), which reads each downloaded dive into
+DiveJSON exactly as the server reads the same original. It
 talks to the [opendiving-api](https://github.com/opendiving/opendiving-api) REST API
 with the same passwordless sign-in as the web app, by email code.
 
@@ -61,4 +63,5 @@ AGPL-licensed; the data stays yours.
 
 The app links libdc-swift and libdivecomputer, both under the
 [GNU LGPL 2.1](LICENSE-LGPL-2.1); [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) names them
-and the exact versions built, along with the Lucide icons the app's symbols draw on.
+and the exact versions built, along with libdivejson, under the MIT licence, and the Lucide
+icons the app's symbols draw on.

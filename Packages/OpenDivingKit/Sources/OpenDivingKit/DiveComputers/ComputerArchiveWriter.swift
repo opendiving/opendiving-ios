@@ -7,8 +7,9 @@ import Foundation
 /// A dive is named `{make-model}_{serial}_{YYYY-MM-DDThhmm}.bin` after its start, or after its
 /// fingerprint's hex where nothing gave it one; the archive after the download's moment, with a
 /// `.zip` suffix, or `dive-computers_{YYYY-MM-DDThhmm}.zip` where it holds more than one
-/// computer's dives. The name is what carries the computer to the server beside the device
-/// block, since the api keeps a stored file's name and none of its extensions.
+/// computer's dives. Each stored original is tagged, under the api's producer key, with what
+/// reads it again on the server: the reader's key, libdivecomputer's descriptor and any fallback
+/// start the reader was given.
 public struct ComputerArchiveWriter: Sendable {
   /// What the document's `generator` names.
   public struct Generator: Hashable, Sendable {
@@ -91,6 +92,8 @@ public struct ComputerArchiveWriter: Sendable {
         "byte_size": .integer(downloaded.bytes.count),
         "sha256": .string(SHA256Digest.hex(downloaded.bytes)),
         "archive_path": .string(path),
+        "extensions": .object([DiveComputerArchive.producerKey: Self.tag(dive, downloaded.identity)]
+        ),
       ])
       dives.append(
         ComputerDiveDocument.dive(
@@ -203,6 +206,23 @@ public struct ComputerArchiveWriter: Sendable {
   }
 
   // MARK: - Internals
+
+  /// What the server reads the original with: libdivecomputer's descriptor, which resolves the
+  /// parser in whichever build reads it, and the fallback start the reader was given, so a dive
+  /// whose bytes state no start reads to the same one there.
+  private static func tag(_ dive: ComputerDive, _ identity: DiveComputerIdentity) -> ArchiveJSON {
+    var tag: [String: ArchiveJSON] = [
+      "parser_key": .string(DiveComputerArchive.parserKey),
+      "descriptor": .object([
+        "vendor": .string(identity.vendor), "product": .string(identity.product),
+        "model": .integer(Int(identity.modelNumber)),
+      ]),
+    ]
+    if let fallback = dive.fallbackStart {
+      tag["fallback_start"] = .string(ComputerDive.instantText(fallback))
+    }
+    return .object(tag)
+  }
 
   private struct Member {
     enum Source {

@@ -38,7 +38,7 @@
   // Needs nothing switched on in repository settings, unlike GitHub's own alerts.
   "osvVulnerabilityAlerts": true,
 
-  // No built-in manager reads XcodeGen's `project.yml`, where the app's one package is pinned.
+  // No built-in manager reads XcodeGen's `project.yml`, where the app's packages are pinned.
   "customManagers": [
     {
       "customType": "regex",
@@ -59,6 +59,15 @@
       // and the new ones before the first is read"). A green build checks neither, so the
       // dashboard asks and a person makes the change.
       "matchPackageNames": ["deepsealabs/libdc-swift"],
+      "dependencyDashboardApproval": true,
+    },
+    {
+      // Moves with libdc-swift, onto the release built for its libdivecomputer commit
+      // (CONTRIBUTING.md, "The two pins move together"), and `THIRD-PARTY-NOTICES.md` names the
+      // release's commit. A bump on its own fails the pins job, so the dashboard asks and a
+      // person moves both. Its tags carry a `v` that `project.yml`'s version does not.
+      "matchPackageNames": ["divejson/divejson-c"],
+      "extractVersion": "^v(?<version>.+)$",
       "dependencyDashboardApproval": true,
     },
     {

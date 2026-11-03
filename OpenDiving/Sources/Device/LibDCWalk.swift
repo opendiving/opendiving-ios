@@ -271,10 +271,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
     let fallback = family == .suuntoNautic ? LibDCDiveParser.fingerprintStart(fingerprint) : nil
     let reading: DownloadedDive.Reading
-    switch LibDCDiveParser.parse(
-      bytes, context: device.pointee.context, family: dcFamily, model: model,
-      logsInstants: family.logsInstants, fallbackStart: fallback)
-    {
+    switch LibDCDiveParser.parse(bytes, identity: identity, fallbackStart: fallback) {
     case .empty:
       if Self.skipsEmpty(family) {
         events.yield(.skipped(fingerprint: fingerprint))
@@ -282,8 +279,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
         emptyReads += 1
       }
       return true
-    case .refused(let start):
+    case .refused(let start, let reason):
       refused += 1
+      log("refused \(fingerprint.map { String(format: "%02x", $0) }.joined()): \(reason)")
       reading = .refused(start: start)
     case .dive(let dive):
       reading = .dive(dive)

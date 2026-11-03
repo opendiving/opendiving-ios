@@ -65,6 +65,20 @@ jobs:
       - name: Validate the goldens
         run: divejson validate Packages/OpenDivingKit/Tests/OpenDivingKitTests/Fixtures/DiveComputers/*.divejson
 
+  # The dive reader and libdc-swift name one libdivecomputer commit: the app links the reader
+  # against libdc-swift's copy, so the two pins in project.yml move together.
+  libdivecomputer-pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Compare the libdivecomputer commits
+        run: scripts/libdivecomputer-pins.sh
+
   # The app and both test bundles, on a simulator. The image and the Xcode on it are named
   # rather than left to defaults; see DECISIONS.md, "CI builds the app on macos-15 with
   # Xcode 26.3". The project has to build under the maintainers' newer Xcode as well, which

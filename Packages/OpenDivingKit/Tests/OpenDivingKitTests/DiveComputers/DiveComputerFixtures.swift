@@ -1,8 +1,9 @@
 import Foundation
 import OpenDivingKit
 
-/// The downloads the writer's goldens and the model's tests are made from, written by hand from
-/// what libdivecomputer's Shearwater and Suunto Nautic parsers report.
+/// The downloads the writer's goldens and the model's tests are made from: dives written by hand
+/// in the shape the shared libdivecomputer reader returns them. Each is parsed once: the model's
+/// tests read them inside wait loops that run many thousands of times.
 enum DiveComputerFixtures {
   static let perdix = DiveComputerIdentity(
     family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
@@ -34,67 +35,45 @@ enum DiveComputerFixtures {
 
   static func fingerprint(_ byte: UInt8) -> Data { Data([byte, 0xA0, 0x0B, 0xCD]) }
 
-  /// The Perdix 3's newest dive, with something on every channel the writer maps.
-  static var perdixDive: ComputerDive {
-    var dive = ComputerDive(
-      start: .wallClock(clock("2026-10-25T09:14:07"), utcOffsetSeconds: nil))
-    dive.diveTime = 3730
-    dive.maxDepth = 30.52
-    dive.averageDepth = 14.213
-    dive.surfaceTemperature = 26
-    dive.minimumTemperature = 24.5
-    dive.maximumTemperature = 27.1
-    dive.gasMixes = [
-      .init(oxygen: 0.21, helium: 0), .init(oxygen: 0.5, helium: 0, usage: .oxygen),
-    ]
-    dive.tanks = [
-      .init(
-        gasMix: 0, volumeType: .metric, volume: 11.1, workingPressure: 232, beginPressure: 200.5,
-        endPressure: 60.2)
-    ]
-    dive.mode = .openCircuit
-    dive.decoModel = .init(kind: .buhlmann, gradientFactors: .init(low: 40, high: 85))
-    dive.salinity = .init(water: .salt, density: 1020)
-    dive.atmosphericPressure = 1.013
-
-    var first = ComputerDive.Sample(time: 0, depth: 0.4, temperature: 26.4)
-    first.pressures = [.init(tank: 0, bar: 200.5)]
-    first.gasMix = 0
-    first.deco = .init(kind: .ndl, time: 5940, depth: 0)
-    first.ppo2 = [.init(sensor: nil, bar: 0.22)]
-    first.cns = 0.02
-    var second = ComputerDive.Sample(time: 10_000, depth: 18.25, temperature: 25.12)
-    second.pressures = [.init(tank: 0, bar: 190.1)]
-    second.deco = .init(kind: .decoStop, time: 60, depth: 3, timeToSurface: 240)
-    second.ppo2 = [
-      .init(sensor: nil, bar: 0.6), .init(sensor: 0, bar: 0.61), .init(sensor: 1, bar: 0.59),
-    ]
-    second.setpoint = 1.3
-    second.heartRate = 92
-    second.bearing = 270
-    second.remainingBottomTime = 41
-    second.events = [.init(type: 8), .init(type: 16, time: 3, flags: 1, value: 7)]
-    var third = ComputerDive.Sample(time: 20_000, depth: 5.01)
-    third.gasMix = 1
-    third.deco = .init(kind: .safetyStop, time: 180, depth: 5)
-    third.events = [.init(type: 12, flags: 1)]
-    var repeated = ComputerDive.Sample(time: 20_000, depth: 4.9)
-    repeated.location = .init(latitude: 28.5, longitude: 34.52, altitude: 2)
-    dive.samples = [first, second, third, repeated]
+  /// A dive as the reader returns it, from its JSON.
+  static func dive(_ json: String, logsInstants: Bool = false, fallbackStart: Date? = nil)
+    -> ComputerDive
+  {
+    guard
+      let dive = ComputerDive(
+        json: Data(json.utf8), logsInstants: logsInstants, fallbackStart: fallbackStart)
+    else { fatalError("not a reader's dive: \(json)") }
     return dive
   }
+
+  /// The Perdix 3's newest dive, with something on every channel the reader writes.
+  static let perdixDive: ComputerDive = {
+    dive(
+      #"{"avg_depth":14.21,"cylinders":[{"end_pressure":60.2,"gas_number":0,"helium":0,"oxygen":21,"#
+        + #""start_pressure":200.5,"volume":11.1},{"gas_number":1,"helium":0,"oxygen":50,"#
+        + #""role":"oxygen"}],"max_depth":30.52,"recordings":[{"deco_model":{"algorithm":"buhlmann","#
+        + #""gf_high":85,"gf_low":40},"mode":"open_circuit","profile":{"ceiling":{"times":[10000],"#
+        + #""values":[300]},"cns":{"times":[0],"values":[20]},"depth":{"times":[0,10000,20000],"#
+        + #""values":[40,1825,501]},"duration":20000,"events":[{"gas_number":0,"time":0,"#
+        + #""type":"gas_switch"},{"time":10000,"type":"bookmark"},{"label":"floor","time":10000},"#
+        + #"{"gas_number":1,"time":20000,"type":"gas_switch"},{"time":20000,"type":"safety_stop"}],"#
+        + #""heart_rate":{"times":[10000],"values":[92]},"ndl":{"times":[0],"values":[5940]},"#
+        + #""ppo2":{"times":[0,10000],"values":[22,60]},"pressures":[{"gas_number":0,"#
+        + #""times":[0,10000],"values":[2005,1901]}],"temperature":{"times":[0,10000],"#
+        + #""values":[2640,2512]},"tts":{"times":[10000],"values":[240]}},"salinity":"en13319","#
+        + #""surface_pressure":1.013}],"started_at":"2026-10-25T09:14:07","submerged_time":3730,"#
+        + #""uuid":"0b5bd8d1-4c1e-5d0e-9a4f-2f6f3b1c7e01"}"#)
+  }()
 
   /// A Teric-style log that reports its zone, and nothing else but its depth.
-  static var tericStyleDive: ComputerDive {
-    var dive = ComputerDive(
-      start: .wallClock(clock("2026-10-24T15:02:00"), utcOffsetSeconds: 3 * 3600))
-    dive.diveTime = 1800
-    dive.maxDepth = 12
-    dive.samples = [.init(time: 0, depth: 0.5), .init(time: 10_000, depth: 12)]
-    return dive
-  }
+  static let tericStyleDive: ComputerDive = {
+    dive(
+      #"{"max_depth":12,"recordings":[{"profile":{"depth":{"times":[0,10000],"#
+        + #""values":[50,1200]},"duration":10000}}],"started_at":"2026-10-24T15:02:00+03:00","#
+        + #""submerged_time":1800,"uuid":"0b5bd8d1-4c1e-5d0e-9a4f-2f6f3b1c7e02"}"#)
+  }()
 
-  static var perdixDownload: [DownloadedDive] {
+  static let perdixDownload: [DownloadedDive] = {
     [
       DownloadedDive(
         identity: perdix, fingerprint: fingerprint(3), bytes: Data("perdix dive 3".utf8),
@@ -106,24 +85,23 @@ enum DiveComputerFixtures {
         identity: perdix, fingerprint: fingerprint(1), bytes: Data("perdix dive 1".utf8),
         reading: .refused(start: nil)),
     ]
-  }
+  }()
 
-  /// Two Ocean dives either side of the night Helsinki leaves summer time, as instants.
-  static var oceanDownload: [DownloadedDive] {
-    var after = ComputerDive(start: .instant(Date(timeIntervalSince1970: 1_793_008_800)))
-    after.diveTime = 2400
-    after.maxDepth = 21.3
-    after.mode = .openCircuit
-    after.decoModel = .init(kind: .rgbm, conservatism: -1)
-    after.salinity = .init(water: .salt, density: 1025)
-    after.location = .init(latitude: 60.15, longitude: 24.95)
-    after.samples = [
-      .init(time: 0, depth: 0.3, temperature: 9.5), .init(time: 1000, depth: 1.2),
-    ]
-    var before = ComputerDive(start: .instant(Date(timeIntervalSince1970: 1_792_836_000)))
-    before.diveTime = 3000
-    before.maxDepth = 18
-    before.decoModel = .init(kind: .vpm, conservatism: 2)
+  /// Two Ocean dives either side of the night Helsinki leaves summer time, as the reader spells
+  /// a Nautic start, in UTC; the first with the fallback start the walk passes the family.
+  static let oceanDownload: [DownloadedDive] = {
+    let after = dive(
+      #"{"entry_position":{"latitude":60.15,"longitude":24.95},"max_depth":21.3,"#
+        + #""recordings":[{"deco_model":{"algorithm":"rgbm","conservatism":-1},"#
+        + #""mode":"open_circuit","profile":{"depth":{"times":[0,1000],"values":[30,120]},"#
+        + #""duration":1000,"temperature":{"times":[0],"values":[950]}},"salinity":"salt"}],"#
+        + #""started_at":"2026-10-26T10:00:00+00:00","submerged_time":2400,"#
+        + #""uuid":"0b5bd8d1-4c1e-5d0e-9a4f-2f6f3b1c7e03"}"#,
+      logsInstants: true, fallbackStart: Date(timeIntervalSince1970: 1_793_008_800))
+    let before = dive(
+      #"{"max_depth":18,"recordings":[{}],"started_at":"2026-10-24T10:00:00+00:00","#
+        + #""submerged_time":3000,"uuid":"0b5bd8d1-4c1e-5d0e-9a4f-2f6f3b1c7e04"}"#,
+      logsInstants: true, fallbackStart: Date(timeIntervalSince1970: 1_792_836_000))
     return [
       DownloadedDive(
         identity: ocean, fingerprint: fingerprint(0x12), bytes: Data("ocean after".utf8),
@@ -132,7 +110,7 @@ enum DiveComputerFixtures {
         identity: ocean, fingerprint: fingerprint(0x11), bytes: Data("ocean before".utf8),
         reading: .dive(before)),
     ]
-  }
+  }()
 
   static let generator = ComputerArchiveWriter.Generator(
     name: "OpenDiving for iOS", version: "0.3.0")
