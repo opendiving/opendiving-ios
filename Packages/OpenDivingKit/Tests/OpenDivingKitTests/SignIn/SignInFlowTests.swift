@@ -182,6 +182,24 @@ struct SignInFlowTests {
     #expect(transport.requests.isEmpty)
   }
 
+  @Test func askingTheActiveServerSaysNothingOnceTheAppLeavesIt() async {
+    let other = ServerOrigin("https://other.example.org")!
+    let transport = SilentTransport()
+    defer { transport.release() }
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session)
+    flow.setServerText(origin.description)
+    let asking = Task { await flow.continueToServer() }
+    while transport.requests.isEmpty { await Task.yield() }
+    flow.switchTo(other)
+    #expect(await asking.value == false)
+    #expect(flow.serverProblem == nil)
+    #expect(session.state == .signingIn(other))
+  }
+
   @Test func aServerWithStateIsForgettableWhenItCannotBeReached() async throws {
     let gone = ServerOrigin("https://gone.example.org")!
     let flow = SignInFlow(

@@ -162,6 +162,9 @@ public final class SignInFlow {
       restart(at: .email)
       refreshForgettable()
       return true
+    } catch is CancellationError {
+      // The app left the server being asked; nothing about it is worth a line.
+      return false
     } catch {
       serverProblem = ServerProblem(APIError(error), origin: origin)
       refreshForgettable()

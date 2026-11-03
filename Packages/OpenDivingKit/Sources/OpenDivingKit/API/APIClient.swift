@@ -72,7 +72,15 @@ public actor APIClient {
     guard (200..<300).contains(response.statusCode),
       let config = try? APICoding.decoder().decode(InstanceConfigRead.self, from: data)
     else { throw APIError.notAnInstance }
-    let health = try? await decoded(HealthRead.self, Call(path: "health"))
+    let health: HealthRead?
+    do {
+      health = try await decoded(HealthRead.self, Call(path: "health"))
+    } catch let error as CancellationError {
+      // Cut off, the answer is no instance at all: half of one would still be acted on.
+      throw error
+    } catch {
+      health = nil
+    }
     return ServerInfo(origin: origin, config: config, health: health)
   }
 
