@@ -110,6 +110,17 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     Int((Date.now.timeIntervalSince(began) * 1000).rounded())
   }
 
+  /// Runs one libdivecomputer call on the queue: what it returned, and whether the library logged,
+  /// during it, another app's handshake on a Nautic link (``NauticLinkLog``). The log sink calls
+  /// back inline on the calling thread, so the lines counted between the reset and the read are
+  /// this call's.
+  func watchingOtherApp<Result>(_ call: () -> Result) -> (result: Result, otherApp: Bool) {
+    dispatchPrecondition(condition: .onQueue(queue))
+    otherAppLines.store(0, ordering: .relaxed)
+    let result = call()
+    return (result, otherAppLines.load(ordering: .relaxed) > 0)
+  }
+
   /// libdivecomputer's ERROR and WARN lines, from every context the bridge's open creates, go to
   /// the device's log. The sink is global to the bridge, so it is set once.
   private static let libraryLogRouted: Void = set_libdc_log_sink(libraryLogSink)
@@ -123,10 +134,15 @@ extension DiveComputerLog {
     file: URL.applicationSupportDirectory.appendingPathComponent("dive-computer.log"))
 }
 
+/// The lines showing another app on the link since ``LibDCDeviceSession/watchingOtherApp(_:)``
+/// last reset it; global, as the sink that counts them is.
+private nonisolated let otherAppLines = Atomic(0)
+
 private nonisolated let libraryLogSink:
   @convention(c) (UnsafePointer<CChar>?, UnsafePointer<CChar>?) -> Void = { level, message in
     let level = level.map { String(cString: $0) } ?? "?"
     let message = message.map { String(cString: $0) } ?? ""
+    if NauticLinkLog.showsOtherApp(message) { otherAppLines.add(1, ordering: .relaxed) }
     DiveComputerLog.device.write("libdc \(level) \(message)")
   }
 

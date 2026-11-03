@@ -721,7 +721,7 @@ struct DiveComputerModelTests {
     link.found = [F.oceanFound]
     link.scripts = [
       [
-        .identified(F.ocean), .watchZone(F.helsinki), .busy(true), .busy(false),
+        .identified(F.ocean), .watchZone(F.helsinki), .busy(.reported), .busy(.free),
         .listing(.init(dives: 2, newDives: 2, newEntries: 2)),
       ] + F.oceanDownload.map { .dive($0) } + [.finished(.init(.complete))]
     ]
@@ -808,8 +808,8 @@ struct DiveComputerModelTests {
     link.scripts = [
       [
         .identified(F.ocean), .watchZone(F.helsinki),
-        .listing(.init(dives: 2, newDives: 2, newEntries: 2)), .busy(true), .busy(false),
-        .dive(dives[0]), .busy(true), .busy(false), .dive(dives[1]),
+        .listing(.init(dives: 2, newDives: 2, newEntries: 2)), .busy(.reported), .busy(.free),
+        .dive(dives[0]), .busy(.reported), .busy(.free), .dive(dives[1]),
         .finished(.init(.complete)),
       ]
     ]
@@ -834,6 +834,48 @@ struct DiveComputerModelTests {
     await next(link, holding: 8) { !model.computerBusy }
     #expect(model.waitingText == nil)
     #expect(model.downloadingText == "Downloading 2 of 2 new dives")
+    await next(link, holding: nil)
+    await model.settled()
+    #expect(model.outcome?.sentence == "2 dives downloaded.")
+  }
+
+  /// Once another app's handshake broke a transfer, connecting or downloading, the waiting line
+  /// names what frees the computer, in place of the counter, and stays through the retries and
+  /// the listing until a dive arrives.
+  @Test func anotherAppsHandshakeShowsItsLineUntilADiveArrives() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let dives = F.oceanDownload
+    link.scripts = [
+      [
+        .identified(F.ocean), .watchZone(F.helsinki), .busy(.otherApp),
+        .listing(.init(dives: 2, newDives: 2, newEntries: 2)), .busy(.otherApp),
+        .dive(dives[0]), .busy(.otherApp), .dive(dives[1]), .finished(.init(.complete)),
+      ]
+    ]
+    let line = "This computer is busy. Closing other apps that use it lets the download go on."
+    link.holdBefore = 3
+    let model = model(session, InboxModel(session: session), link)
+    model.connect(try await scanned(model))
+    await held(link)
+    await until { model.otherAppHandshaking }
+    #expect(model.phase == .connecting)
+    #expect(model.waitingText == line)
+    #expect(DiveComputerButtonContent(model).accessibilityValue == line)
+
+    await next(link, holding: 5) { model.listing != nil }
+    #expect(model.phase == .downloading)
+    #expect(model.waitingText == line)
+    #expect(DiveComputerButtonContent(model).accessibilityValue == line)
+
+    await next(link, holding: 6) { model.divesDownloaded == 1 }
+    #expect(!model.otherAppHandshaking)
+    #expect(model.waitingText == nil)
+    #expect(model.downloadingText == "Downloading 2 of 2 new dives")
+
+    await next(link, holding: 7) { model.otherAppHandshaking }
+    #expect(model.waitingText == line)
     await next(link, holding: nil)
     await model.settled()
     #expect(model.outcome?.sentence == "2 dives downloaded.")
