@@ -6,6 +6,8 @@ import Foundation
 public enum ImportText {
   /// A preview that failed with no sentence of the API's, and any 5xx.
   public static let readFailed = "The files could not be read. Please check them and try again."
+  /// A read the diver tapped that never reached the server.
+  public static let unreachable = "The server could not be reached, so the files were not read."
   /// An apply that failed with no sentence of the API's.
   public static let applyFailed = "The import could not be completed. Nothing has been changed."
   public static let staleSentence =

@@ -81,6 +81,9 @@ struct ImportView: View {
           Text("The files are read once your account has loaded.")
             .foregroundStyle(.secondary)
         }
+        if let error = inbox.readError {
+          Text(error).foregroundStyle(.red)
+        }
         if let waiting = inbox.waitingForRoute {
           Text(waiting).foregroundStyle(.secondary)
         }
