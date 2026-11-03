@@ -59,10 +59,29 @@ public enum DiveComputerText {
   /// *Downloading dive 3*.
   public static func downloading(_ dive: Int) -> String { "Downloading dive \(dive)" }
 
+  /// *Downloading dive 2 of 3*.
+  public static func downloading(_ dive: Int, of total: Int) -> String {
+    "Downloading dive \(dive) of \(total)"
+  }
+
   /// *No new dives since 12 October.*
   public static func nothingNew(since: Date, in zone: TimeZone = .current) -> String {
     "No new dives since \(day(since, in: zone))."
   }
+
+  /// *11 dives on this computer*: the count, where the download sets no fingerprint.
+  public static func onComputer(_ dives: Int) -> String {
+    "\(count(dives)) on this computer"
+  }
+
+  /// *3 new dives out of 11 on this computer*: the count, where the download took up from a
+  /// fingerprint.
+  public static func newOnComputer(_ new: Int, of dives: Int) -> String {
+    (new == 1 ? "1 new dive" : "\(new) new dives") + " out of \(dives) on this computer"
+  }
+
+  /// While the computer says it is busy with another app, which the phone cannot see.
+  public static let busy = "This computer is busy. The download starts when it is free."
 
   /// A found or remembered computer's line beneath its name:
   /// *Serial D9772626 · Last downloaded 12 October*.

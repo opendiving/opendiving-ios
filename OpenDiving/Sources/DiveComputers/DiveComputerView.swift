@@ -81,9 +81,15 @@ struct DiveComputerScreen: View {
       }
     case .connecting:
       Section {
+        if let identity = model.identity {
+          Text(identity.title).font(.headline)
+        }
         HStack(spacing: 8) {
           ProgressView()
           Text(DiveComputerText.connecting)
+        }
+        if let waiting = model.waitingText {
+          Text(waiting).foregroundStyle(.secondary)
         }
         Button("Cancel", role: .cancel) { model.cancel() }
       }
@@ -91,6 +97,9 @@ struct DiveComputerScreen: View {
       Section {
         if let identity = model.identity {
           Text(identity.title).font(.headline)
+        }
+        if let counts = model.countsText {
+          Text(counts)
         }
         if let text = model.downloadingText {
           Text(text)

@@ -50,7 +50,9 @@ struct DiveComputerScreensTests {
     let states: [DiveComputerButtonContent?] = [
       nil,
       .init(ring: .indeterminate, state: .working, accessibilityValue: "Connecting"),
-      .init(ring: .fraction(0.4), state: .working, accessibilityValue: "Downloading dive 2"),
+      .init(ring: .indeterminate, state: .working, accessibilityValue: DiveComputerText.busy),
+      .init(
+        ring: .fraction(0.4), state: .working, accessibilityValue: "Downloading dive 2 of 5"),
       .init(ring: .fraction(1), state: .succeeded, accessibilityValue: "2 dives downloaded."),
       .init(ring: .fraction(1), state: .failed, accessibilityValue: "The download failed."),
     ]

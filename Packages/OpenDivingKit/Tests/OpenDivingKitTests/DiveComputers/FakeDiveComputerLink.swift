@@ -12,8 +12,13 @@ final class FakeDiveComputerLink: DiveComputerLink {
   var scripts: [[DiveComputerDownloadEvent]] = []
   /// Held before the script's last event until ``release()``.
   var holdBeforeEnd = false
+  /// Held before the script's event at this index until ``release()``; may be moved on while
+  /// held.
+  var holdBefore: Int?
   private(set) var downloads = 0
   private(set) var fingerprintsSet: [Data?] = []
+  /// The entries' sports the record `lookup` returned remembered, for each download.
+  private(set) var sportsRemembered: [[NauticEntrySport]?] = []
   private(set) var cancelled = false
   private var held: CheckedContinuation<Void, Never>?
 
@@ -42,9 +47,11 @@ final class FakeDiveComputerLink: DiveComputerLink {
     Task {
       for (index, event) in script.enumerated() {
         if case .identified(let identity) = event {
-          fingerprintsSet.append(lookup(identity.family, identity.serial.lowercased())?.fingerprint)
+          let record = lookup(identity.family, identity.serial.lowercased())
+          fingerprintsSet.append(record?.fingerprint)
+          sportsRemembered.append(record?.nauticSports)
         }
-        if index == script.count - 1, holdBeforeEnd {
+        if index == script.count - 1 && holdBeforeEnd || index == holdBefore {
           await withCheckedContinuation { held = $0 }
         }
         if case .finished = event, cancelled {
@@ -67,6 +74,15 @@ final class FakeDiveComputerLink: DiveComputerLink {
   var isHeld: Bool { held != nil }
 
   func cancelDownload() { cancelled = true }
+
+  /// A download that lists first: the identity, the listing, the dives, the end, with no
+  /// progress from the backend.
+  static func script(
+    _ identity: DiveComputerIdentity, listing: DiveComputerListing, _ dives: [DownloadedDive],
+    end: DiveComputerDownloadEnd = .init(.complete)
+  ) -> [DiveComputerDownloadEvent] {
+    [.identified(identity), .listing(listing)] + dives.map { .dive($0) } + [.finished(end)]
+  }
 
   /// A whole download: the identity, the dives, the end.
   static func script(

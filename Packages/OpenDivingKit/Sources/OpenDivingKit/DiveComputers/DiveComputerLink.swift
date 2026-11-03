@@ -21,9 +21,12 @@ public protocol DiveComputerLink: AnyObject {
   /// the firmware.
   /// It sets the fingerprint of the record `lookup` returns on the open device before any dive
   /// is read, and sets none when `lookup` returns nil. Then the watch's zone where the family
-  /// logs instants and the watch reports one, progress where the family reports it, each dive
-  /// as it is read — or ``DiveComputerDownloadEvent/skipped(fingerprint:)`` for an entry that
-  /// is no dive — and last ``DiveComputerDownloadEvent/finished(_:)``.
+  /// logs instants and the watch reports one; ``DiveComputerDownloadEvent/busy(_:)`` where the
+  /// computer says it is busy, and again once it says it is free; once, where the family lists
+  /// its entries before reading them, ``DiveComputerDownloadEvent/listing(_:)`` with the walk's
+  /// count; progress where the family reports it, each dive as it is read — or
+  /// ``DiveComputerDownloadEvent/skipped(fingerprint:)`` for an entry that is no dive — and last
+  /// ``DiveComputerDownloadEvent/finished(_:)``.
   func download(
     _ computer: FoundComputer,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?

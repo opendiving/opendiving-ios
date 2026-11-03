@@ -94,8 +94,15 @@ public final class DiveComputerModel {
   /// The computer being downloaded, once it identified itself.
   public private(set) var identity: DiveComputerIdentity?
   public private(set) var divesDownloaded = 0
-  /// libdivecomputer's progress from 0 to 1, where the family reports it.
+  /// libdivecomputer's progress from 0 to 1, where the family reports it; else, after a
+  /// listing, the entries walked over the new entries the listing named.
   public private(set) var progress: Double?
+  /// The walk's count, once the computer listed its entries.
+  public private(set) var listing: DiveComputerListing?
+  /// The computer last said it was busy with another app.
+  public private(set) var computerBusy = false
+  /// The listing counts from the stored fingerprint, rather than the whole computer.
+  public private(set) var listedFromFingerprint = false
   public private(set) var outcome: Outcome?
   /// The zone the time-zone question offers first: the phone's.
   public let suggestedZone: TimeZone
@@ -117,9 +124,27 @@ public final class DiveComputerModel {
     phase == .connecting || phase == .downloading || phase == .askingTimeZone
   }
 
-  /// *Downloading dive 3*, while downloading.
+  /// *Downloading dive 2 of 3* while downloading after a listing, *Downloading dive 3* without
+  /// one.
   public var downloadingText: String? {
-    phase == .downloading ? DiveComputerText.downloading(max(1, divesDownloaded + 1)) : nil
+    guard phase == .downloading else { return nil }
+    guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
+    return DiveComputerText.downloading(
+      min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
+  }
+
+  /// *3 new dives out of 11 on this computer*, or *11 dives on this computer* where the download
+  /// set no fingerprint: while downloading after a listing.
+  public var countsText: String? {
+    guard phase == .downloading, let listing else { return nil }
+    return listedFromFingerprint
+      ? DiveComputerText.newOnComputer(listing.newDives, of: listing.dives)
+      : DiveComputerText.onComputer(listing.dives)
+  }
+
+  /// *This computer is busy…*, while connecting to a computer that says it is.
+  public var waitingText: String? {
+    phase == .connecting && computerBusy ? DiveComputerText.busy : nil
   }
 
   @ObservationIgnored private let session: Session
@@ -275,6 +300,9 @@ public final class DiveComputerModel {
     identity = nil
     divesDownloaded = 0
     progress = nil
+    listing = nil
+    computerBusy = false
+    listedFromFingerprint = false
     outcome = nil
     let store = DiveComputerStore(store: session.store, origin: origin, account: keeping.account)
     downloadTask = Task {
@@ -315,35 +343,75 @@ public final class DiveComputerModel {
     // The walk is newest first, so the first fingerprint is the one the record advances to.
     var newest: Data?
     var end = DiveComputerDownloadEnd(.failed(status: "DC_STATUS_IO"))
+    // Dives and skips, for the bar of a walk that listed and whose backend reports no progress.
+    var walked = 0
+    var reportsProgress = false
+    // Nothing reads *Downloading* before anything downloads: the phase moves at the listing, or
+    // without one at the first progress, dive or skip.
+    func walkedOne() {
+      walked += 1
+      guard let listing else {
+        phase = .downloading
+        return
+      }
+      if !reportsProgress, listing.newEntries > 0 {
+        progress = min(1, Double(walked) / Double(listing.newEntries))
+      }
+    }
     for await event in link.download(computer, lookup: lookup) {
       switch event {
       case .identified(let found):
         identity = found
-        phase = .downloading
       case .watchZone(let zone):
         watchZone = zone
+      case .busy(let busy):
+        computerBusy = busy
+      case .listing(let found):
+        listing = found
+        computerBusy = false
+        listedFromFingerprint =
+          !all
+          && identity.flatMap { store.record(family: $0.family, serial: $0.serial) }?
+            .fingerprintToSet != nil
+        if !reportsProgress, found.newEntries > 0 { progress = 0 }
+        if found.newDives > 0 { phase = .downloading }
       case .progress(let current, let maximum):
+        reportsProgress = true
         progress = maximum > 0 ? min(1, max(0, Double(current) / Double(maximum))) : nil
+        if listing == nil { phase = .downloading }
       case .dive(let dive):
         newest = newest ?? dive.fingerprint
         dives.append(dive)
         identity = identity ?? dive.identity
         divesDownloaded = dives.count
-        phase = .downloading
+        walkedOne()
       case .skipped(let fingerprint):
         newest = newest ?? fingerprint
+        walkedOne()
       case .finished(let finished):
         end = finished
+        if let listing, !reportsProgress, listing.newEntries > 0 { progress = 1 }
       }
     }
     let family = identity?.family ?? computer.family
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
     let advances = end.kind == .complete && end.emptyReads == 0
+    // What the listing learned of the entries' sports, kept only from a completed walk.
+    let sports = end.kind == .complete ? listing?.sports : nil
     guard let identity, !dives.isEmpty else {
-      if let identity, advances, let newest, inbox.keeping?.account == store.account {
-        var kept = remembered(record, identity: identity, computer: computer, watchZone: watchZone)
-        kept.fingerprint = newest
-        kept.downloadAllNextTime = false
+      // A remembered computer keeps an entry's sport learned even when nothing new was walked,
+      // or every connection until a new dive would read that summary again.
+      let held = Set((record?.nauticSports ?? []).map(\.id))
+      let learns = record != nil && (sports ?? []).contains { !held.contains($0.id) }
+      if let identity, (advances && newest != nil) || learns,
+        inbox.keeping?.account == store.account
+      {
+        var kept = remembered(
+          record, identity: identity, computer: computer, watchZone: watchZone, sports: sports)
+        if advances, let newest {
+          kept.fingerprint = newest
+          kept.downloadAllNextTime = false
+        }
         try? store.save(kept)
       }
       finish(emptyHanded: end, family: family, record: all ? nil : record)
@@ -390,7 +458,8 @@ public final class DiveComputerModel {
     let parsed = dives.count - refused
     switch intake {
     case .kept(let account, _) where account == store.account:
-      var kept = remembered(record, identity: identity, computer: computer, watchZone: watchZone)
+      var kept = remembered(
+        record, identity: identity, computer: computer, watchZone: watchZone, sports: sports)
       kept.diverZone = diverZone
       if advances, let newest {
         kept.fingerprint = newest
@@ -410,10 +479,10 @@ public final class DiveComputerModel {
   }
 
   /// The record as this walk leaves it, before the fingerprint moves: the identity as the
-  /// computer gave it, where the phone saw it, the watch's zone.
+  /// computer gave it, where the phone saw it, the watch's zone, the entries' sports.
   private func remembered(
     _ record: DiveComputerRecord?, identity: DiveComputerIdentity, computer: FoundComputer,
-    watchZone: TimeZone?
+    watchZone: TimeZone?, sports: [NauticEntrySport]?
   ) -> DiveComputerRecord {
     var kept = record ?? DiveComputerRecord(identity: identity)
     kept.vendor = identity.vendor
@@ -421,6 +490,7 @@ public final class DiveComputerModel {
     kept.firmware = identity.firmware ?? kept.firmware
     kept.peripheral = computer.id
     if let watchZone { kept.watchZone = watchZone }
+    if let sports { kept.nauticSports = sports }
     kept.receivedBeforeAccountKnown = inbox.keeping?.marked ?? false
     return kept
   }
@@ -474,10 +544,10 @@ public final class DiveComputerModel {
     switch end.kind {
     case .complete:
       if let record, record.fingerprintToSet != nil {
-        outcome = Outcome(
-          kind: .nothingNew,
-          sentence: DiveComputerText.nothingNew(
-            since: record.lastDownloaded ?? now(), in: suggestedZone))
+        var sentence = DiveComputerText.nothingNew(
+          since: record.lastDownloaded ?? now(), in: suggestedZone)
+        if let listing { sentence += " " + DiveComputerText.onComputer(listing.dives) + "." }
+        outcome = Outcome(kind: .nothingNew, sentence: sentence)
       } else {
         outcome = Outcome(kind: .noDives, sentence: DiveComputerText.noDives)
       }

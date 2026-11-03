@@ -21,6 +21,10 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   public var lastDownloaded: Date?
   /// *Download all dives next time*: the next download sets no fingerprint.
   public var downloadAllNextTime: Bool
+  /// For the Nautic family: the sport each logbook entry's summary named when it was last listed,
+  /// so a walk reads a summary only for an entry it has not met. Optional so that a record
+  /// written before it existed still decodes.
+  public var nauticSports: [NauticEntrySport]?
   /// Written while signed in before the account had loaded, into the last account's
   /// directory: removed if the load names another account.
   public var receivedBeforeAccountKnown: Bool

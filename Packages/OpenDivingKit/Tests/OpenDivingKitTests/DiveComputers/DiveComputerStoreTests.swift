@@ -145,6 +145,13 @@ struct DiveComputerStoreTests {
       DiveComputerText.nothingNew(since: F.moment, in: F.helsinki)
         == "No new dives since 25 October.")
     #expect(DiveComputerText.downloading(3) == "Downloading dive 3")
+    #expect(DiveComputerText.downloading(2, of: 3) == "Downloading dive 2 of 3")
+    #expect(
+      DiveComputerText.newOnComputer(3, of: 11) == "3 new dives out of 11 on this computer")
+    #expect(DiveComputerText.newOnComputer(1, of: 11) == "1 new dive out of 11 on this computer")
+    #expect(DiveComputerText.onComputer(11) == "11 dives on this computer")
+    #expect(DiveComputerText.onComputer(1) == "1 dive on this computer")
+    #expect(DiveComputerText.busy == "This computer is busy. The download starts when it is free.")
     #expect(DiveComputerText.subtitle(serial: nil, lastDownloaded: nil) == nil)
     #expect(
       DiveComputerText.downloaded(1, refused: 2) == "1 dive downloaded. 2 dives could not be read.")
