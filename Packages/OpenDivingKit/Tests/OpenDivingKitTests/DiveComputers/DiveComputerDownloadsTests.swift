@@ -35,13 +35,21 @@ struct DiveComputerDownloadsTests {
     return (downloads, inbox)
   }
 
-  /// Starts a download the link holds before its end, until ``FakeDiveComputerLink/release()``.
+  /// Starts a download the link holds before its end, until ``FakeDiveComputerLink/release()``,
+  /// and waits until the model has taken in every dive before the hold.
   private func start(_ model: DiveComputerModel, _ link: FakeDiveComputerLink) async throws {
     await model.watch()
-    for _ in 0..<1000 where model.rows.isEmpty { await Task.yield() }
+    await until { !model.rows.isEmpty }
     model.connect(try #require(model.rows.first))
-    for _ in 0..<1000 where !link.isHeld { await Task.yield() }
-    try #require(link.isHeld)
+    let atTheHold = { link.isHeld && model.divesDownloaded == F.perdixDownload.count }
+    await until(atTheHold)
+    try #require(atTheHold())
+  }
+
+  /// Waits for what the model reads on its own task, however busy the main actor is with other
+  /// suites.
+  private func until(_ condition: () -> Bool) async {
+    for _ in 0..<100_000 where !condition() { await Task.yield() }
   }
 
   @Test func leavingIdleClosesTheModelAndTheNextVisitIsFresh() async throws {
