@@ -80,21 +80,17 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// ends in `DC_STATUS_PROTOCOL` with nothing new and a fingerprint set on the device is complete
   /// too, but for the Nautic family, whose backend returns that status only for a real failure. A
   /// walk that delivered nothing fails, naming `DC_STATUS_DATAFORMAT` where the walk itself
-  /// succeeded, when every record it parsed was empty, or when every dive it downloaded by id came
-  /// back with no bytes (`downloads` and `emptyDownloads` count only the entries a walk counted
-  /// as dives).
+  /// succeeded, when every record it parsed was empty.
   static func end(
     status: dc_status_t, cancelled: Bool, family: DiveComputerFamily, delivered: Int,
-    emptyReads: Int, refused: Int, fingerprintSet: Bool, downloads: Int = 0,
-    emptyDownloads: Int = 0
+    emptyReads: Int, refused: Int, fingerprintSet: Bool
   ) -> DiveComputerDownloadEnd {
     let kind: DiveComputerDownloadEnd.Kind
-    let onlyEmpty = emptyReads > 0 || (downloads > 0 && emptyDownloads == downloads)
     if cancelled || status == DC_STATUS_CANCELLED {
       kind = .cancelled
     } else if status == DC_STATUS_SUCCESS || status == DC_STATUS_DONE {
       kind =
-        delivered == 0 && onlyEmpty
+        delivered == 0 && emptyReads > 0
         ? .failed(status: LibDCNames.status(DC_STATUS_DATAFORMAT)) : .complete
     } else if status == DC_STATUS_PROTOCOL, delivered == 0, emptyReads == 0, fingerprintSet,
       family != .suuntoNautic
@@ -170,7 +166,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   // MARK: - Every walk's
 
   /// One dive's bytes, parsed and handed on; false once the walk is cancelled. An entry of the
-  /// Nautic family whose profile names a sport that is not a dive is yielded as skipped.
+  /// Nautic family whose profile names a sport that is not a dive, or that holds no dive at all —
+  /// an empty or aborted session — is yielded as skipped, as a run is, so the fingerprint moves
+  /// past it.
   func dive(_ bytes: Data, fingerprint: Data) -> Bool {
     if cancel.isSet { return false }
     if identity == nil || identity?.firmware == nil, device.pointee.have_devinfo != 0 {
@@ -192,7 +190,11 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       logsInstants: family.logsInstants, fallbackStart: fallback)
     {
     case .empty:
-      emptyReads += 1
+      if Self.skipsEmpty(family) {
+        events.yield(.skipped(fingerprint: fingerprint))
+      } else {
+        emptyReads += 1
+      }
       return true
     case .refused(let start):
       refused += 1
@@ -206,6 +208,13 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
         DownloadedDive(
           identity: identity, fingerprint: fingerprint, bytes: bytes, reading: reading)))
     return true
+  }
+
+  /// Whether a reading with no samples and no duration is skipped as no dive rather than counted
+  /// as an empty read: on the Nautic family it is an empty or aborted session, which the backend
+  /// delivers as bytes since it leaves the content to the parser.
+  static func skipsEmpty(_ family: DiveComputerFamily) -> Bool {
+    family == .suuntoNautic
   }
 
   fileprivate var isCancelled: Bool { cancel.isSet }

@@ -9,7 +9,7 @@ Kit, `OpenDivingKit`, depends on none of them.
 ## libdc-swift
 
 [deepsealabs/libdc-swift](https://github.com/deepsealabs/libdc-swift), LGPL-2.1, at release
-`1.18.0` (commit `dc1d5e2394646aee58d70c8fee1bddfb5c2a7bc4`): the Core Bluetooth transport, the
+`1.20.0` (commit `5736ed816bb6bfdd2386019bd9ada95b9c923d22`): the Core Bluetooth transport, the
 bridge that opens a device, and the Swift package that builds the library below. `project.yml`
 pins this exact release.
 
@@ -18,7 +18,7 @@ pins this exact release.
 [libdivecomputer](https://www.libdivecomputer.org/), LGPL-2.1, copyright Jef Driesen and
 contributors, compiled from deepsealabs' fork
 ([deepsealabs/libdivecomputer](https://github.com/deepsealabs/libdivecomputer)) at commit
-`1f7c4ff1cab0368a1ee1a6edbd61e30667d339c0`, the submodule libdc-swift `1.18.0` pins. It talks
+`1b201bb63b2870a4a0804a92b9ba1b7b003aadea`, the submodule libdc-swift `1.20.0` pins. It talks
 to the dive computer and parses what it sends.
 
 Both are linked statically, as the package builds them. This repository's complete source and

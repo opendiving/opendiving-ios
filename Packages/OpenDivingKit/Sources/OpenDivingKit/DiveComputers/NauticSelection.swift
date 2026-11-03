@@ -8,7 +8,7 @@ import Foundation
 /// descriptors or could not be fetched — a dive wrongly skipped is never walked again once the
 /// fingerprint moves past it. An entry whose summary answered with no bytes is not counted, most
 /// such entries holding nothing, but is still downloaded, since the backend delivers a profile
-/// whose summary is missing.
+/// whose summary answered empty.
 public struct NauticSelection: Hashable, Sendable {
   /// What a walk learned of one entry's summary.
   public enum Summary: Hashable, Sendable {
