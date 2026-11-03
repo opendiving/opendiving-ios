@@ -3,7 +3,7 @@
 This repository is the iPhone app: a client of an OpenDiving server, holding on the phone what it
 needs to stay signed in, to show your check-in sheet and the logbook pages it has shown without
 signal, to keep the drafts, the dives waiting to sync and the files waiting to be read until the
-server has them, and to remember the dive computers it has downloaded from. A flaw in this code affects everyone who runs the app, and we would much
+server has them, and to remember the dive computers it has paired with. A flaw in this code affects everyone who runs the app, and we would much
 rather hear about one privately than read about it in a public issue.
 
 **No running instance is a target for testing, and the one this project operates,

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Where one account keeps the dive computers it has downloaded from: `DiveComputers/` in the
+/// Where one account keeps the dive computers paired with it: `DiveComputers/` in the
 /// account's directory, one file per computer named by family and serial. A fingerprint is
 /// knowledge about one account's logbook — another account on the same server has not imported
 /// those dives — so it is the account's, not the server's or the phone's; sign-out leaves the

@@ -48,7 +48,7 @@ final class FakeDiveComputerLink: DiveComputerLink {
       for (index, event) in script.enumerated() {
         if case .identified(let identity) = event {
           let record = lookup(identity.family, identity.serial.lowercased())
-          fingerprintsSet.append(record?.fingerprint)
+          fingerprintsSet.append(record?.fingerprintToSet)
           sportsRemembered.append(record?.nauticSports)
         }
         if index == script.count - 1 && holdBeforeEnd || index == holdBefore {

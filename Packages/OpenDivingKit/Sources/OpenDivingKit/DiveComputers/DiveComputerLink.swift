@@ -20,10 +20,12 @@ public protocol DiveComputerLink: AnyObject {
   /// before connecting, and from the computer's own answers otherwise — and calls `lookup` at
   /// that moment, folding the serial's case. It yields the identity again where a later answer
   /// adds the firmware.
-  /// It takes only the entries newer than the one holding the fingerprint of the record `lookup`
-  /// returns, and every entry when `lookup` returns nil. Then the watch's zone where the family
-  /// logs instants and the watch reports one; ``DiveComputerDownloadEvent/busy(_:)`` where the
-  /// computer says it is busy, and again once it says it is free; once, where the family lists
+  /// It takes only the entries newer than the one holding the
+  /// ``DiveComputerRecord/fingerprintToSet`` of the record `lookup` returns, and every entry where
+  /// `lookup` returns no record or one with no fingerprint to set. Then the watch's zone where
+  /// the family logs instants and the watch reports one;
+  /// ``DiveComputerDownloadEvent/busy(_:)`` where the computer says it is busy, and again once
+  /// it says it is free; once, where the family lists
   /// its entries before reading them, ``DiveComputerDownloadEvent/listing(_:)`` with the walk's
   /// count; progress where the family reports it, each dive as it is read — or
   /// ``DiveComputerDownloadEvent/skipped(fingerprint:)`` for an entry that is no dive — and last

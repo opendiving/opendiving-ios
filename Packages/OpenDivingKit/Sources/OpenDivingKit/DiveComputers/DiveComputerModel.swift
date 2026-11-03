@@ -16,9 +16,13 @@ import Observation
 /// the walk's end, never while the time-zone question is open, so an archive not kept, or an app
 /// killed at the question, leaves the record as it was and the next download walks those dives
 /// again — the import's gates make the re-delivered dives links. The record is written to the
-/// account the walk began from, and only when the inbox kept the archive for that same account;
-/// a walk that skipped entries and delivered no dive has no archive, and advances at its end
-/// while the inbox still keeps for that account.
+/// account the walk began from, and the fingerprint moves only when the inbox kept the archive
+/// for that same account; a walk that skipped entries and delivered no dive has no archive, and
+/// advances at its end while the inbox still keeps for that account.
+///
+/// **A walk that listed the computer's entries saves its record however it ends**, completed,
+/// cancelled or failed, the fingerprint aside: the computer is paired from then on, and the next
+/// walk reads no summary this one read. A walk that ends before its listing saves nothing new.
 ///
 /// **One download is one archive and one inbox file.** Download archives of the same mark
 /// already waiting are replaced by the union, so the inbox never holds two that one import
@@ -50,7 +54,7 @@ public final class DiveComputerModel {
     public var id: UUID { computer.id }
   }
 
-  /// One computer the account has downloaded from, as *Paired Computers* shows it.
+  /// One computer the account remembers, as *Paired Computers* shows it.
   public struct Paired: Hashable, Sendable, Identifiable {
     public let record: DiveComputerRecord
     public let title: String
@@ -140,6 +144,13 @@ public final class DiveComputerModel {
     return listedFromFingerprint
       ? DiveComputerText.newOnComputer(listing.newDives, of: listing.dives)
       : DiveComputerText.onComputer(listing.dives)
+  }
+
+  /// While connecting: *Connecting* until the computer is identified, then *Reading* until the
+  /// download starts.
+  public var connectingText: String? {
+    guard phase == .connecting else { return nil }
+    return identity == nil ? DiveComputerText.connecting : DiveComputerText.reading
   }
 
   /// *This computer is busy…*, while connecting to a computer that says it is.
@@ -332,10 +343,11 @@ public final class DiveComputerModel {
   }
 
   private func walk(_ computer: FoundComputer, all: Bool, store: DiveComputerStore) async {
+    // The record reaches the walk whatever its fingerprint, for the entries' sports it
+    // remembers; under *Download all dives*, with no fingerprint to set.
     let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord? = { family, serial in
-      guard !all, let record = store.record(family: family, serial: serial),
-        record.fingerprintToSet != nil
-      else { return nil }
+      guard var record = store.record(family: family, serial: serial) else { return nil }
+      if all { record.downloadAllNextTime = true }
       return record
     }
     var watchZone: TimeZone?
@@ -396,14 +408,18 @@ public final class DiveComputerModel {
     let family = identity?.family ?? computer.family
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
     let advances = end.kind == .complete && end.emptyReads == 0
-    // What the listing learned of the entries' sports, kept only from a completed walk.
-    let sports = end.kind == .complete ? listing?.sports : nil
+    let sports = listing?.sports
+    // Where the dives are not kept for this account — the time-zone question cancelled, the
+    // archive not written or kept elsewhere — a walk that listed still saves the record, its
+    // fingerprint unmoved.
+    func rememberListed(_ identity: DiveComputerIdentity) {
+      guard listing != nil, inbox.keeping?.account == store.account else { return }
+      try? store.save(
+        remembered(
+          record, identity: identity, computer: computer, watchZone: watchZone, sports: sports))
+    }
     guard let identity, !dives.isEmpty else {
-      // A remembered computer keeps an entry's sport learned even when nothing new was walked,
-      // or every connection until a new dive would read that summary again.
-      let held = Set((record?.nauticSports ?? []).map(\.id))
-      let learns = record != nil && (sports ?? []).contains { !held.contains($0.id) }
-      if let identity, (advances && newest != nil) || learns,
+      if let identity, (advances && newest != nil) || listing != nil,
         inbox.keeping?.account == store.account
       {
         var kept = remembered(
@@ -429,6 +445,7 @@ public final class DiveComputerModel {
       phase = .askingTimeZone
       let answer = await withCheckedContinuation { zoneAnswer = $0 }
       guard let answer else {
+        rememberListed(identity)
         outcome = Outcome(kind: .cancelled, sentence: DiveComputerText.cancelled)
         phase = .finished
         return
@@ -448,6 +465,7 @@ public final class DiveComputerModel {
     do {
       written = try await Task.detached { try writer.write(download, into: folder) }.value
     } catch {
+      rememberListed(identity)
       outcome = Outcome(kind: .notKept, sentence: DiveComputerText.notWritten(error))
       await session.background.end(token)
       return
@@ -470,9 +488,11 @@ public final class DiveComputerModel {
       outcome = Outcome(
         kind: .handedOver, sentence: handedOverSentence(parsed, refused, end))
     case .kept:
+      rememberListed(identity)
       outcome = Outcome(
         kind: .handedOver, sentence: handedOverSentence(parsed, refused, end))
     case .notKept(let sentence):
+      rememberListed(identity)
       outcome = Outcome(kind: .notKept, sentence: sentence)
     }
     await session.background.end(token)

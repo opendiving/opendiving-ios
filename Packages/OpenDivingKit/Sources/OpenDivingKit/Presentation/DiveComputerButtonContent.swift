@@ -37,7 +37,8 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
     case .idle, .scanning, .connecting:
       self.init(
         ring: .indeterminate, state: .working,
-        accessibilityValue: model.waitingText ?? DiveComputerText.connecting)
+        accessibilityValue: model.waitingText ?? model.connectingText
+          ?? DiveComputerText.connecting)
     case .downloading:
       let text = model.downloadingText ?? DiveComputerText.connecting
       if let progress = model.progress {

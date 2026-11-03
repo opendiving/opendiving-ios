@@ -24,6 +24,8 @@ public enum DiveComputerText {
     "The Suunto app is still connected to this computer. Unpair it there, then connect again."
   public static let timeZoneQuestion = "Which time zone were these dives in?"
   public static let connecting = "Connecting"
+  /// Once the computer is identified, until the download starts.
+  public static let reading = "Reading"
 
   // MARK: - Settings
 
