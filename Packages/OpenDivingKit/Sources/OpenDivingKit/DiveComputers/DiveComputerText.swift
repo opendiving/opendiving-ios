@@ -20,8 +20,6 @@ public enum DiveComputerText {
   public static let lockHint = "You can lock the phone. The download keeps going."
   public static let downloadAll = "Download all dives"
   public static let noDives = "No dives on this computer."
-  public static let suuntoAppConnected =
-    "The Suunto app is still connected to this computer. Unpair it there, then connect again."
   public static let timeZoneQuestion = "Which time zone were these dives in?"
   public static let connecting = "Connecting"
   /// Once the computer is identified, until the download starts.
@@ -61,9 +59,9 @@ public enum DiveComputerText {
   /// *Downloading dive 3*.
   public static func downloading(_ dive: Int) -> String { "Downloading dive \(dive)" }
 
-  /// *Downloading dive 2 of 3*.
+  /// *Downloading 2 of 3 new dives*.
   public static func downloading(_ dive: Int, of total: Int) -> String {
-    "Downloading dive \(dive) of \(total)"
+    "Downloading \(dive) of \(total) new " + (total == 1 ? "dive" : "dives")
   }
 
   /// *No new dives since 12 October.*
@@ -82,8 +80,26 @@ public enum DiveComputerText {
     (new == 1 ? "1 new dive" : "\(new) new dives") + " out of \(dives) on this computer"
   }
 
-  /// While the computer says it is busy with another app, which the phone cannot see.
+  /// While the computer says it is busy with another app, which the phone cannot see, before any
+  /// dive has downloaded.
   public static let busy = "This computer is busy. The download starts when it is free."
+
+  /// While the computer says it is busy, once a dive has downloaded.
+  public static let busyContinues =
+    "This computer is busy. The download continues when it is free."
+
+  /// *The new dives are already waiting in the import screen.*: every new dive was downloaded
+  /// before and waits there unimported.
+  public static func alreadyWaiting(_ dives: Int) -> String {
+    dives == 1
+      ? "The new dive is already waiting in the import screen."
+      : "The new dives are already waiting in the import screen."
+  }
+
+  /// *1 dive couldn't be downloaded.*: entries whose download failed the same way each time.
+  public static func couldNotDownload(_ dives: Int) -> String {
+    "\(count(dives)) couldn't be downloaded."
+  }
 
   /// A found or remembered computer's line beneath its name:
   /// *Serial D9772626 · Last downloaded 12 October*.

@@ -23,7 +23,7 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
 
   public let ring: Ring
   public let state: State
-  /// What VoiceOver reads after the button's name: *Downloading dive 3, 25 percent*.
+  /// What VoiceOver reads after the button's name: *Downloading 1 of 4 new dives, 25 percent*.
   public let accessibilityValue: String
 
   public init(ring: Ring, state: State, accessibilityValue: String) {
@@ -40,6 +40,12 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
         accessibilityValue: model.waitingText ?? model.connectingText
           ?? DiveComputerText.connecting)
     case .downloading:
+      if let waiting = model.waitingText {
+        self.init(
+          ring: model.progress.map(Ring.fraction) ?? .indeterminate, state: .working,
+          accessibilityValue: waiting)
+        return
+      }
       let text = model.downloadingText ?? DiveComputerText.connecting
       if let progress = model.progress {
         self.init(

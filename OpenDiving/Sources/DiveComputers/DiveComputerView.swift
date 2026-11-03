@@ -101,8 +101,12 @@ struct DiveComputerScreen: View {
         if let counts = model.countsText {
           Text(counts)
         }
-        if let text = model.downloadingText {
-          Text(text)
+        // While the computer says it is busy, the waiting line stands in for the counter.
+        if let text = model.waitingText ?? model.downloadingText {
+          HStack(spacing: 8) {
+            ProgressView()
+            Text(text)
+          }
         }
         if let progress = model.progress {
           ProgressView(value: progress)

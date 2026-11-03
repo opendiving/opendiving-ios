@@ -19,6 +19,8 @@ final class FakeDiveComputerLink: DiveComputerLink {
   private(set) var fingerprintsSet: [Data?] = []
   /// The entries' sports the record `lookup` returned remembered, for each download.
   private(set) var sportsRemembered: [[NauticEntrySport]?] = []
+  /// The test of a dive waiting in the import screen each download was handed.
+  private(set) var waitingTests: [@Sendable (DiveComputerIdentity, Data) -> Bool] = []
   private(set) var cancelled = false
   private var held: CheckedContinuation<Void, Never>?
 
@@ -39,10 +41,12 @@ final class FakeDiveComputerLink: DiveComputerLink {
 
   func download(
     _ computer: FoundComputer,
-    lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
+    lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
+    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool
   ) -> AsyncStream<DiveComputerDownloadEvent> {
     let script = scripts.isEmpty ? [] : scripts[min(downloads, scripts.count - 1)]
     downloads += 1
+    waitingTests.append(waiting)
     let (stream, continuation) = AsyncStream.makeStream(of: DiveComputerDownloadEvent.self)
     Task {
       for (index, event) in script.enumerated() {

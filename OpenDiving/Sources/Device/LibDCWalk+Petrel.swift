@@ -4,16 +4,18 @@ import OpenDivingKit
 
 /// A Shearwater Petrel-family computer, walked as `shearwater_petrel_device_foreach` walks it but
 /// with the whole manifest read first, so the count comes before the first dive: the identity by
-/// identifier, every manifest page, then each new dive. One connection, since a Perdix 3 answers a
-/// second manifest read on it with an all-zero index.
+/// identifier, every manifest page, then each new record's dive but those already waiting in the
+/// import screen. One connection, since a Perdix 3 answers a second manifest read on it with an
+/// all-zero index.
 nonisolated extension LibDCWalk {
   func walkPetrel(_ handle: OpaquePointer) -> DiveComputerDownloadEnd {
     let fingerprint: Data?
     let base: UInt32
+    let identity: DiveComputerIdentity
     switch petrelIdentity(handle) {
     case .failure(let failure): return petrelEnd(failure.status)
     case .success(let found):
-      identify(serial: found.serial, firmware: found.firmware)
+      identity = identify(serial: found.serial, firmware: found.firmware)
       fingerprint = lookup(family, found.serial)?.fingerprintToSet
       base = found.logBase
     }
@@ -30,10 +32,17 @@ nonisolated extension LibDCWalk {
       if !page.continues { break }
     }
 
-    let selection = PetrelManifest.select(records, fingerprint: fingerprint)
+    let selection = PetrelManifest.select(records, fingerprint: fingerprint) {
+      waiting(identity, $0)
+    }
     events.yield(.listing(selection.listing))
     for record in selection.new {
       if cancel.isSet { break }
+      if selection.waiting.contains(record.start) {
+        waitingSkipped += 1
+        events.yield(.skipped(fingerprint: record.start))
+        continue
+      }
       let (status, bytes) = Self.buffered {
         shearwaterCommonDownload(handle, $0, base &+ record.address, Self.petrelDiveSize, 1, nil)
       }
@@ -89,7 +98,7 @@ nonisolated extension LibDCWalk {
   private func petrelEnd(_ status: dc_status_t) -> DiveComputerDownloadEnd {
     Self.end(
       status: status, cancelled: cancel.isSet, family: family, delivered: delivered,
-      emptyReads: emptyReads, refused: refused, fingerprintSet: false)
+      emptyReads: emptyReads, refused: refused, fingerprintSet: false, waiting: waitingSkipped)
   }
 }
 

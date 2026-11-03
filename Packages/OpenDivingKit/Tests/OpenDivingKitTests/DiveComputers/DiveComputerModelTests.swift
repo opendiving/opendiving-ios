@@ -230,10 +230,13 @@ struct DiveComputerModelTests {
     let model = model(session, InboxModel(session: session), link)
     try await download(model)
     #expect(model.outcome?.kind == .noDives)
-    #expect(computers(session).record(family: .suuntoNautic, serial: "253810000400") == nil)
+    // Paired at the connection, its fingerprint unmoved.
+    let record = computers(session).record(family: .suuntoNautic, serial: "253810000400")
+    #expect(record != nil)
+    #expect(record?.fingerprint == nil)
   }
 
-  @Test func aNauticWalkThatFailsBeforeAnyDiveNamesTheSuuntoApp() async throws {
+  @Test func aNauticWalkThatFailsBeforeAnyDiveSaysWhereItStopped() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
@@ -247,10 +250,7 @@ struct DiveComputerModelTests {
     model.connect(row)
     await model.settled()
     #expect(model.outcome?.kind == .failed)
-    #expect(
-      model.outcome?.sentence
-        == "The Suunto app is still connected to this computer. Unpair it there, then connect"
-        + " again. The download stopped: DC_STATUS_PROTOCOL.")
+    #expect(model.outcome?.sentence == "The download stopped: DC_STATUS_PROTOCOL.")
   }
 
   @Test func aComputerThatDoesNotAnswerSaysToWakeIt() async throws {
@@ -452,15 +452,15 @@ struct DiveComputerModelTests {
     await next(link, holding: 2) { model.listing != nil }
     #expect(model.phase == .downloading)
     #expect(model.countsText == "3 new dives out of 11 on this computer")
-    #expect(model.downloadingText == "Downloading dive 1 of 3")
+    #expect(model.downloadingText == "Downloading 1 of 3 new dives")
     #expect(model.progress == 0)
 
     await next(link, holding: 4) { model.divesDownloaded == 2 }
-    #expect(model.downloadingText == "Downloading dive 3 of 3")
+    #expect(model.downloadingText == "Downloading 3 of 3 new dives")
     #expect(model.progress == 2.0 / 3)
     #expect(
       DiveComputerButtonContent(model).accessibilityValue
-        == "Downloading dive 3 of 3, 67 percent")
+        == "Downloading 3 of 3 new dives, 67 percent")
 
     await next(link, holding: nil)
     await model.settled()
@@ -484,7 +484,7 @@ struct DiveComputerModelTests {
     await held(link)
     await until { model.divesDownloaded == 3 }
     #expect(model.countsText == "1 dive on this computer")
-    #expect(model.downloadingText == "Downloading dive 1 of 1")
+    #expect(model.downloadingText == "Downloading 1 of 1 new dive")
     #expect(model.progress == 1)
     link.release()
     await model.settled()
@@ -512,7 +512,7 @@ struct DiveComputerModelTests {
     await held(link)
     await until { (model.progress ?? 0) > 0 }
     #expect(model.progress == 1.0 / 3)
-    #expect(model.downloadingText == "Downloading dive 1 of 2")
+    #expect(model.downloadingText == "Downloading 1 of 2 new dives")
     #expect(model.countsText == "2 dives on this computer")
     await next(link, holding: nil)
     await model.settled()
@@ -584,8 +584,9 @@ struct DiveComputerModelTests {
     #expect(link.sportsRemembered == [nil, nil, before, before])
   }
 
-  /// A walk that listed pairs the computer however it ends, and moves no fingerprint unless it
-  /// completed; one that ends before its listing saves nothing.
+  /// A walk that listed pairs the computer however it ends, with what it learned, and moves no
+  /// fingerprint unless it completed; one that ends before its listing has paired it at the
+  /// connection.
   @Test func aWalkCancelledOrFailedPastItsListingPairsTheComputer() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
@@ -630,7 +631,9 @@ struct DiveComputerModelTests {
     computers(session).forget(try #require(ocean()))
     try await download(model)
     #expect(model.outcome?.kind == .cancelled)
-    #expect(ocean() == nil)
+    #expect(ocean() != nil)
+    #expect(ocean()?.fingerprint == nil)
+    #expect(ocean()?.nauticSports == nil)
   }
 
   @Test func aCancelledTimeZoneQuestionStillPairsTheComputer() async throws {
@@ -763,6 +766,171 @@ struct DiveComputerModelTests {
     await next(link, holding: nil)
     await model.settled()
     #expect(model.outcome?.kind == .handedOver)
+  }
+
+  /// The record is saved once the computer is identified, so Settings lists it while the first
+  /// download runs.
+  @Test func aConnectionPairsTheComputerWhileTheFirstDownloadRuns() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.perdix, listing: .init(dives: 3, newDives: 3, newEntries: 3), F.perdixDownload)
+    ]
+    link.holdBefore = 1
+    let model = model(session, InboxModel(session: session), link)
+    model.connect(try await scanned(model))
+    await held(link)
+    await until { model.identity != nil }
+    let record = computers(session).record(family: .shearwaterPetrel, serial: "D9772626")
+    #expect(record != nil)
+    #expect(record?.fingerprint == nil)
+    #expect(record?.peripheral == F.perdixFound.id)
+    #expect(model.paired.map(\.title) == ["Shearwater Perdix 3"])
+    #expect(
+      DiveComputersListModel(session: session).computers.map(\.title) == ["Shearwater Perdix 3"])
+
+    await next(link, holding: nil)
+    await model.settled()
+    #expect(model.outcome?.kind == .handedOver)
+    let kept = computers(session).record(family: .shearwaterPetrel, serial: "D9772626")
+    #expect(kept?.fingerprint == F.fingerprint(3))
+  }
+
+  /// A computer that says it is busy while the download runs shows the waiting line in place of
+  /// the counter, which says the download continues once a dive has downloaded.
+  @Test func aBusyWatchDuringTheDownloadShowsTheWaitingLineInPlaceOfTheCounter() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let dives = F.oceanDownload
+    link.scripts = [
+      [
+        .identified(F.ocean), .watchZone(F.helsinki),
+        .listing(.init(dives: 2, newDives: 2, newEntries: 2)), .busy(true), .busy(false),
+        .dive(dives[0]), .busy(true), .busy(false), .dive(dives[1]),
+        .finished(.init(.complete)),
+      ]
+    ]
+    link.holdBefore = 4
+    let model = model(session, InboxModel(session: session), link)
+    model.connect(try await scanned(model))
+    await held(link)
+    await until { model.computerBusy }
+    #expect(model.phase == .downloading)
+    #expect(model.waitingText == "This computer is busy. The download starts when it is free.")
+    #expect(model.progress == 0)
+    let before = DiveComputerButtonContent(model)
+    #expect(before.ring == .fraction(0))
+    #expect(before.accessibilityValue == model.waitingText)
+
+    await next(link, holding: 7) { model.divesDownloaded == 1 && model.computerBusy }
+    #expect(
+      model.waitingText == "This computer is busy. The download continues when it is free.")
+    #expect(model.progress == 0.5)
+    #expect(DiveComputerButtonContent(model).accessibilityValue == model.waitingText)
+
+    await next(link, holding: 8) { !model.computerBusy }
+    #expect(model.waitingText == nil)
+    #expect(model.downloadingText == "Downloading 2 of 2 new dives")
+    await next(link, holding: nil)
+    await model.settled()
+    #expect(model.outcome?.sentence == "2 dives downloaded.")
+  }
+
+  /// The walk is handed the dives of the download archives waiting under its own mark; a refused
+  /// reading carries no uuid there, so it is downloaded again.
+  @Test func aDiveWaitingUnderTheWalksMarkReachesTheWalkAsWaiting() async throws {
+    let server = try ImportServer()
+    let first = try await session(server)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    let model = model(first, InboxModel(session: first), link)
+    try await download(model)
+    try await download(model)
+    #expect(!link.waitingTests[0](F.perdix, F.fingerprint(3)))
+    let waiting = link.waitingTests[1]
+    #expect(waiting(F.perdix, F.fingerprint(3)))
+    #expect(waiting(F.perdix, F.fingerprint(2)))
+    #expect(!waiting(F.perdix, F.fingerprint(1)))
+    #expect(!waiting(F.ocean, F.fingerprint(3)))
+
+    // Signed in again before the account loads: the marked inbox's walk is not told them.
+    let later = try await session(server, loaded: false)
+    try await download(self.model(later, InboxModel(session: later), link))
+    #expect(!link.waitingTests[2](F.perdix, F.fingerprint(3)))
+  }
+
+  /// A completed walk whose every new dive already waits says so, offers *Download all dives*,
+  /// and moves the fingerprint past them.
+  @Test func aWalkWhoseEveryNewDiveIsWaitingSaysSo() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let one: [DiveComputerDownloadEvent] = [
+      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0, newEntries: 1)),
+      .skipped(fingerprint: F.fingerprint(4)), .finished(.init(.complete, waiting: 1)),
+    ]
+    let two: [DiveComputerDownloadEvent] = [
+      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0, newEntries: 2)),
+      .skipped(fingerprint: F.fingerprint(5)), .skipped(fingerprint: F.fingerprint(4)),
+      .finished(.init(.complete, waiting: 2)),
+    ]
+    link.scripts = [one, two]
+    let model = model(session, InboxModel(session: session), link)
+
+    // Without a fingerprint.
+    try await download(model)
+    #expect(model.outcome?.kind == .alreadyWaiting)
+    #expect(
+      model.outcome?.sentence
+        == "The new dive is already waiting in the import screen. 11 dives on this computer.")
+    #expect(model.outcome?.offersDownloadAll == true)
+    let perdix = { computers(session).record(family: .shearwaterPetrel, serial: "D9772626") }
+    #expect(perdix()?.fingerprint == F.fingerprint(4))
+
+    // With one.
+    try await download(model)
+    #expect(model.outcome?.kind == .alreadyWaiting)
+    #expect(
+      model.outcome?.sentence
+        == "The new dives are already waiting in the import screen. 11 dives on this computer.")
+    #expect(perdix()?.fingerprint == F.fingerprint(5))
+
+    // Under *Download all dives*.
+    model.downloadAll()
+    await model.settled()
+    #expect(model.outcome?.kind == .alreadyWaiting)
+    let set: [Data?] = [nil, F.fingerprint(4), nil]
+    #expect(link.fingerprintsSet == set)
+  }
+
+  @Test func entriesThatCouldNotBeDownloadedAreNamedInTheOutcome() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let dives = F.perdixDownload
+    link.scripts = [
+      [
+        .identified(F.perdix), .listing(.init(dives: 3, newDives: 3, newEntries: 3)),
+        .dive(dives[0]), .skipped(fingerprint: F.fingerprint(7)), .dive(dives[1]),
+        .finished(.init(.complete, notDownloaded: 1)),
+      ],
+      [
+        .identified(F.perdix), .listing(.init(dives: 5, newDives: 2, newEntries: 2)),
+        .skipped(fingerprint: F.fingerprint(9)), .skipped(fingerprint: F.fingerprint(8)),
+        .finished(.init(.failed(status: "DC_STATUS_TIMEOUT"), notDownloaded: 2)),
+      ],
+    ]
+    let model = model(session, InboxModel(session: session), link)
+    try await download(model)
+    #expect(model.outcome?.sentence == "2 dives downloaded. 1 dive couldn't be downloaded.")
+    try await download(model)
+    #expect(
+      model.outcome?.sentence
+        == "The download stopped: DC_STATUS_TIMEOUT. 2 dives couldn't be downloaded.")
   }
 
   private func startedAt(_ inbox: InboxModel, _ file: InboxFile) throws -> [String?] {

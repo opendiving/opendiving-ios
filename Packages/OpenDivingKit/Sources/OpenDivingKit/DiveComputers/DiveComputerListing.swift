@@ -3,10 +3,11 @@
 public struct DiveComputerListing: Hashable, Sendable {
   /// The dives on the computer.
   public let dives: Int
-  /// The dives this download takes: those newer than the stored fingerprint, or every one where
-  /// none was set.
+  /// The dives this download takes: those walked before the stored fingerprint's entry, or every
+  /// one where none was set, less those already waiting in the import screen.
   public let newDives: Int
-  /// The new entries the walk will walk, a watch's runs among them: the bar's denominator.
+  /// The new entries the walk will walk, a watch's runs and the dives already waiting among
+  /// them: the bar's denominator.
   public let newEntries: Int
   /// For the Nautic family, what each listed entry's summary said of its sport, for the record
   /// to keep (``DiveComputerRecord/nauticSports``); nil for a family whose entries are all dives.
