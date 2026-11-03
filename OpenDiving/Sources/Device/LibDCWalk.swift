@@ -19,6 +19,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   let device: UnsafeMutablePointer<device_data_t>
   let cancel: CancelFlag
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
+  /// Whether a dive already waits in the import screen, which a walk that lists leaves out.
+  let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool
   let events: AsyncStream<DiveComputerDownloadEvent>.Continuation
 
   let family: DiveComputerFamily
@@ -32,16 +34,22 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   private(set) var delivered = 0
   private(set) var emptyReads = 0
   private(set) var refused = 0
+  /// New entries left out as waiting in the import screen.
+  var waitingSkipped = 0
+  /// Entries left out because their download kept failing.
+  var notDownloaded = 0
 
   init(
     computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>, cancel: CancelFlag,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
+    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
     self.computer = computer
     self.device = device
     self.cancel = cancel
     self.lookup = lookup
+    self.waiting = waiting
     self.events = events
     let descriptor = device.pointee.descriptor
     dcFamily = descriptor.map(dc_descriptor_get_type) ?? DC_FAMILY_NULL
@@ -80,10 +88,11 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// ends in `DC_STATUS_PROTOCOL` with nothing new and a fingerprint set on the device is complete
   /// too, but for the Nautic family, whose backend returns that status only for a real failure. A
   /// walk that delivered nothing fails, naming `DC_STATUS_DATAFORMAT` where the walk itself
-  /// succeeded, when every record it parsed was empty.
+  /// succeeded, when every record it parsed was empty. The entries left out as waiting or as not
+  /// downloaded are carried to the outcome.
   static func end(
     status: dc_status_t, cancelled: Bool, family: DiveComputerFamily, delivered: Int,
-    emptyReads: Int, refused: Int, fingerprintSet: Bool
+    emptyReads: Int, refused: Int, fingerprintSet: Bool, waiting: Int = 0, notDownloaded: Int = 0
   ) -> DiveComputerDownloadEnd {
     let kind: DiveComputerDownloadEnd.Kind
     if cancelled || status == DC_STATUS_CANCELLED {
@@ -99,7 +108,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     } else {
       kind = .failed(status: LibDCNames.status(status))
     }
-    return DiveComputerDownloadEnd(kind, emptyReads: emptyReads, refused: refused)
+    return DiveComputerDownloadEnd(
+      kind, emptyReads: emptyReads, refused: refused, waiting: waiting,
+      notDownloaded: notDownloaded)
   }
 
   // MARK: - libdivecomputer's walk
@@ -232,24 +243,27 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   fileprivate var isCancelled: Bool { cancel.isSet }
 
   /// Yields the identity once known, and again where a later answer adds the firmware.
-  func identify(serial: String, firmware: String?) {
+  @discardableResult func identify(serial: String, firmware: String?) -> DiveComputerIdentity {
     let next = DiveComputerIdentity(
       family: family, vendor: vendor, product: product, serial: serial,
       firmware: firmware ?? identity?.firmware, familyNumber: dcFamily.rawValue,
       modelNumber: model)
-    guard next != identity else { return }
+    guard next != identity else { return next }
     identity = next
     events.yield(.identified(next))
+    return next
   }
 
   /// The watch's zone, from the settings resources it is decoded from; one the watch refuses is
-  /// left out, and the decode reads the rest.
-  func readWatchZone() {
+  /// left out, and the decode reads the rest. Whether a zone was read.
+  @discardableResult func readWatchZone() -> Bool {
     var resources: [String: Data] = [:]
     for path in NauticWatchZone.paths {
       resources[path] = try? SuuntoNauticExplorer.fetch(device: device, path: path)
     }
-    if let zone = NauticWatchZone.decode(resources) { events.yield(.watchZone(zone)) }
+    guard let zone = NauticWatchZone.decode(resources) else { return false }
+    events.yield(.watchZone(zone))
+    return true
   }
 
   /// Runs `call` over a fresh libdivecomputer buffer: its status, and the bytes the buffer then

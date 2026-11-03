@@ -103,7 +103,8 @@ final class LibDCDiveComputerLink: DiveComputerLink {
 
   func download(
     _ computer: FoundComputer,
-    lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
+    lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
+    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool
   ) -> AsyncStream<DiveComputerDownloadEvent> {
     let (stream, continuation) = AsyncStream.makeStream(of: DiveComputerDownloadEvent.self)
     stopScan()
@@ -111,7 +112,8 @@ final class LibDCDiveComputerLink: DiveComputerLink {
     self.cancel = cancel
     let session = session
     session.queue.async {
-      session.download(computer, cancel: cancel, lookup: lookup, into: continuation)
+      session.download(
+        computer, cancel: cancel, lookup: lookup, waiting: waiting, into: continuation)
     }
     return stream
   }

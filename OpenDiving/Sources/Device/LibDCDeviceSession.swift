@@ -28,6 +28,7 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
   func download(
     _ computer: FoundComputer, cancel: CancelFlag,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
+    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     into events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
     dispatchPrecondition(condition: .onQueue(queue))
@@ -43,7 +44,8 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     }
 
     let walk = LibDCWalk(
-      computer: computer, device: device, cancel: cancel, lookup: lookup, events: events)
+      computer: computer, device: device, cancel: cancel, lookup: lookup, waiting: waiting,
+      events: events)
     events.yield(.finished(walk.run()))
     // Closed after every walk, not kept for the next: a Perdix 3 answers a second dive-index
     // read in one session with an all-zero index, so a walk over a device left open finds no

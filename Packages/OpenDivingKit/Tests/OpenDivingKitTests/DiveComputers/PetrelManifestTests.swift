@@ -59,6 +59,23 @@ struct PetrelManifestTests {
     #expect(PetrelManifest.select(records, fingerprint: start(0x1234_5678)).listing.newDives == 11)
   }
 
+  /// A new dive already waiting in the import screen is walked, not downloaded, and not counted
+  /// new; one behind the fingerprint is no new entry at all.
+  @Test func aDiveWaitingInTheImportScreenIsWalkedButNotCountedNew() throws {
+    let records = PetrelManifest.Page(try probePage()).records
+    let waits: Set<Data> = [start(0x6ADF_6BBB), start(0x6AA0_2732)]
+    let selection = PetrelManifest.select(records, fingerprint: start(0x6AB1_0B71)) {
+      waits.contains($0)
+    }
+    #expect(selection.listing == DiveComputerListing(dives: 11, newDives: 2, newEntries: 3))
+    #expect(selection.new.count == 3)
+    #expect(selection.waiting == [start(0x6ADF_6BBB)])
+
+    let all = PetrelManifest.select(records, fingerprint: nil) { waits.contains($0) }
+    #expect(all.listing == DiveComputerListing(dives: 11, newDives: 9, newEntries: 11))
+    #expect(all.waiting == waits)
+  }
+
   @Test func deletedDivesAreSkippedWhereverTheySit() {
     let records = PetrelManifest.Page(
       page([

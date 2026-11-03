@@ -145,13 +145,24 @@ struct DiveComputerStoreTests {
       DiveComputerText.nothingNew(since: F.moment, in: F.helsinki)
         == "No new dives since 25 October.")
     #expect(DiveComputerText.downloading(3) == "Downloading dive 3")
-    #expect(DiveComputerText.downloading(2, of: 3) == "Downloading dive 2 of 3")
+    #expect(DiveComputerText.downloading(2, of: 3) == "Downloading 2 of 3 new dives")
+    #expect(DiveComputerText.downloading(1, of: 1) == "Downloading 1 of 1 new dive")
     #expect(
       DiveComputerText.newOnComputer(3, of: 11) == "3 new dives out of 11 on this computer")
     #expect(DiveComputerText.newOnComputer(1, of: 11) == "1 new dive out of 11 on this computer")
     #expect(DiveComputerText.onComputer(11) == "11 dives on this computer")
     #expect(DiveComputerText.onComputer(1) == "1 dive on this computer")
     #expect(DiveComputerText.busy == "This computer is busy. The download starts when it is free.")
+    #expect(
+      DiveComputerText.busyContinues
+        == "This computer is busy. The download continues when it is free.")
+    #expect(
+      DiveComputerText.alreadyWaiting(2)
+        == "The new dives are already waiting in the import screen.")
+    #expect(
+      DiveComputerText.alreadyWaiting(1) == "The new dive is already waiting in the import screen.")
+    #expect(DiveComputerText.couldNotDownload(1) == "1 dive couldn't be downloaded.")
+    #expect(DiveComputerText.couldNotDownload(2) == "2 dives couldn't be downloaded.")
     #expect(DiveComputerText.connecting == "Connecting")
     #expect(DiveComputerText.reading == "Reading")
     #expect(DiveComputerText.subtitle(serial: nil, lastDownloaded: nil) == nil)

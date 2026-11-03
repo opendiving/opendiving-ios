@@ -56,22 +56,32 @@ public enum PetrelManifest {
 
   /// What a walk over these records, every page's in order, takes with `fingerprint` set.
   public struct Selection: Hashable, Sendable {
-    /// The live records the walk downloads, newest first.
+    /// The live records the walk takes, newest first: each downloaded, but those in
+    /// ``waiting``.
     public let new: [Record]
+    /// The starts of the new records whose dive already waits in the import screen: walked as
+    /// skipped, not downloaded again.
+    public let waiting: Set<Data>
     public let listing: DiveComputerListing
   }
 
   /// The live records before the one whose start is `fingerprint`, or every live one where none
   /// is, as libdivecomputer's walk compares — deleted records skipped wherever they sit. Unlike
   /// libdivecomputer, which keeps a page's first records by count and so can drop live ones
-  /// where deleted ones sit among them, every live record is kept.
-  public static func select(_ records: [Record], fingerprint: Data?) -> Selection {
+  /// where deleted ones sit among them, every live record is kept. `waiting` says whether a
+  /// start's dive already waits in the import screen.
+  public static func select(
+    _ records: [Record], fingerprint: Data?, waiting: (Data) -> Bool = { _ in false }
+  ) -> Selection {
     let live = records.filter { !$0.isDeleted }
     let stop = fingerprint.flatMap { mark in live.firstIndex { $0.start == mark } }
     let new = Array(live[..<(stop ?? live.endIndex)])
+    let waits = Set(new.map(\.start).filter(waiting))
     return Selection(
-      new: new,
-      listing: DiveComputerListing(dives: live.count, newDives: new.count, newEntries: new.count))
+      new: new, waiting: waits,
+      listing: DiveComputerListing(
+        dives: live.count, newDives: new.count { !waits.contains($0.start) },
+        newEntries: new.count))
   }
 
   static let live: UInt16 = 0xA5C4

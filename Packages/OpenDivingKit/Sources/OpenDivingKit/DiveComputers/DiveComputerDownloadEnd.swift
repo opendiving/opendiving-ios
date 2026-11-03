@@ -17,10 +17,20 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
   public let emptyReads: Int
   /// Records the parser could not read, delivered as ``DownloadedDive/Reading/refused(start:)``.
   public let refused: Int
+  /// New entries left out because their dive already waits in the import screen, yielded as
+  /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``.
+  public let waiting: Int
+  /// Entries left out because their download failed the same way on every attempt, yielded as
+  /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``; *Download all dives* tries them again.
+  public let notDownloaded: Int
 
-  public init(_ kind: Kind, emptyReads: Int = 0, refused: Int = 0) {
+  public init(
+    _ kind: Kind, emptyReads: Int = 0, refused: Int = 0, waiting: Int = 0, notDownloaded: Int = 0
+  ) {
     self.kind = kind
     self.emptyReads = emptyReads
     self.refused = refused
+    self.waiting = waiting
+    self.notDownloaded = notDownloaded
   }
 }

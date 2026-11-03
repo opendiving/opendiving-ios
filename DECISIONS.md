@@ -141,14 +141,13 @@ dive; showing the cache only once a fetch has failed, a minute of spinner offlin
 The fingerprint of the newest dive downloaded says what one account's logbook holds, so each
 account keeps `DiveComputers/<family>_<SERIAL>.json` in its own directory: sign-out leaves it,
 `forget` removes it. It is found by family and serial, never by Core Bluetooth's identifier,
-which iOS rotates for some computers. It advances only after a completed walk with no empty read,
-and only once the inbox has kept the archive for the account the walk began from — or, for a
-walk that skipped entries as no dive and delivered none, at its end, there being no archive; a
-cancel, a failure, an archive not kept or an app killed at the time-zone question leaves it, and
-the import's gates make the re-walked dives links. A record written before the load is removed,
-not moved, when the load names another account. Rejected: libdc-swift's `UserDefaults` stores,
-keyed by device alone; advancing at import, which needs the inbox to report back across a
-sign-out.
+which iOS rotates. It advances only after a completed walk with no empty read, once the inbox
+has kept the archive for the account the walk began from — or, for a walk that skipped entries
+and delivered none, at its end; a cancel, a failure, an archive not kept or an app killed at the
+time-zone question leaves it, and the import's gates make dives walked again links. A record
+written before the load is removed, not moved, when the load names another account. Rejected:
+libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import, which needs the
+inbox to report back across a sign-out.
 
 ## A computer that logs instants keeps two zones, and the diver's wins
 
@@ -173,6 +172,18 @@ sport at fixed summary offsets, which differ between models; an empty session as
 which holds the fingerprint; skipping every refused reading, which loses a dive in a format the
 parser lacks.
 
+## An Ocean transfer that fails asks whether the watch is busy
+
+The Suunto app can hold the watch over the same link, and the watch then refuses or starves
+transfers. So any failed transfer but a cancel or a lost link reads `/Sync/BusyState`; while the
+watch says busy, the walk shows the waiting line, waits for it to say free and tries the same
+transfer again, uncounted. While it is free a counted dive is tried three times: a stall
+(`DC_STATUS_TIMEOUT`), which a later connection can cure, then stops the walk short of moving
+the fingerprint past it; any other failure repeats, so the entry is left out, the outcome says
+how many, and *Download all dives* tries it again. No outcome asks the diver to unpair the watch.
+Rejected: stopping at every failure, which blocks every older dive behind a broken entry;
+skipping every failure, which lets the fingerprint pass a stalled dive.
+
 ## The app walks the Perdix and the Ocean itself
 
 A download names the computer's dives and the new ones before the first is read.
@@ -192,8 +203,10 @@ A dive's uuid is version 5 over a fixed namespace, the family, the serial and th
 so a re-download is a dive the account already holds and links. One import restores one
 full-export archive, so a download arriving beside unimported downloads of the same mark
 replaces them with their union — each dive once by uuid, each unnamed member once by digest —
-in one inbox save, while the inbox is idle. Rejected: a random uuid, which leaves every dedupe
-to the recording gates; an archive per dive.
+in one inbox save, while the inbox is idle. A walk leaves out a new entry whose uuid is among
+the dives waiting under its mark, counting it neither new nor downloaded. Rejected: a random
+uuid, which leaves every dedupe to the recording gates; an archive per dive; downloading a
+waiting dive again for the union to drop.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 

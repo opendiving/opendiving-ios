@@ -20,9 +20,13 @@ import Observation
 /// for that same account; a walk that skipped entries and delivered no dive has no archive, and
 /// advances at its end while the inbox still keeps for that account.
 ///
-/// **A walk that listed the computer's entries saves its record however it ends**, completed,
-/// cancelled or failed, the fingerprint aside: the computer is paired from then on, and the next
-/// walk reads no summary this one read. A walk that ends before its listing saves nothing new.
+/// **A connection pairs the computer**: its record is saved once the computer is identified,
+/// the fingerprint aside, so it is listed while the first download runs. A walk that listed the
+/// computer's entries saves it again however it ends, completed, cancelled or failed, with what
+/// it learned, so the next walk reads no summary this one read.
+///
+/// **A dive waiting in the import screen is not downloaded again**: the walk is told the dives of
+/// the download archives of its mark, leaves them out and does not count them new.
 ///
 /// **One download is one archive and one inbox file.** Download archives of the same mark
 /// already waiting are replaced by the union, so the inbox never holds two that one import
@@ -72,6 +76,11 @@ public final class DiveComputerModel {
       case handedOver
       /// The walk stopped at the stored fingerprint with no dive delivered.
       case nothingNew
+      /// Every new dive was downloaded before and waits in the import screen.
+      case alreadyWaiting
+      /// The walk completed, delivering no dive, and left out entries whose download kept
+      /// failing.
+      case notDownloaded
       case noDives
       case cancelled
       case failed
@@ -83,7 +92,9 @@ public final class DiveComputerModel {
     public let sentence: String
 
     /// *Download all dives* is offered.
-    public var offersDownloadAll: Bool { kind == .nothingNew }
+    public var offersDownloadAll: Bool {
+      kind == .nothingNew || kind == .alreadyWaiting || kind == .notDownloaded
+    }
   }
 
   public private(set) var availability = DiveComputerAvailability.unknown
@@ -128,8 +139,8 @@ public final class DiveComputerModel {
     phase == .connecting || phase == .downloading || phase == .askingTimeZone
   }
 
-  /// *Downloading dive 2 of 3* while downloading after a listing, *Downloading dive 3* without
-  /// one.
+  /// *Downloading 2 of 3 new dives* while downloading after a listing, *Downloading dive 3*
+  /// without one.
   public var downloadingText: String? {
     guard phase == .downloading else { return nil }
     guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
@@ -153,9 +164,11 @@ public final class DiveComputerModel {
     return identity == nil ? DiveComputerText.connecting : DiveComputerText.reading
   }
 
-  /// *This computer is busy…*, while connecting to a computer that says it is.
+  /// *This computer is busy…*, while connecting or downloading from a computer that says it is:
+  /// the download starts when it is free, or once a dive has downloaded, continues.
   public var waitingText: String? {
-    phase == .connecting && computerBusy ? DiveComputerText.busy : nil
+    guard computerBusy, phase == .connecting || phase == .downloading else { return nil }
+    return divesDownloaded > 0 ? DiveComputerText.busyContinues : DiveComputerText.busy
   }
 
   @ObservationIgnored private let session: Session
@@ -169,6 +182,8 @@ public final class DiveComputerModel {
   @ObservationIgnored private var zoneAnswer: CheckedContinuation<TimeZone?, Never>?
   @ObservationIgnored private var seen: [FoundComputer] = []
   @ObservationIgnored private var lastComputer: FoundComputer?
+  /// The diver cancelled before the link's walk began.
+  @ObservationIgnored private var cancelRequested = false
 
   /// `workFolder` is where archives are written before the inbox takes them; `now` and `zone`
   /// are the clock and the phone's zone, which a test fixes.
@@ -275,7 +290,9 @@ public final class DiveComputerModel {
   /// time-zone question, nothing is written.
   public func cancel() {
     switch phase {
-    case .connecting, .downloading: link.cancelDownload()
+    case .connecting, .downloading:
+      cancelRequested = true
+      link.cancelDownload()
     case .askingTimeZone:
       zoneAnswer?.resume(returning: nil)
       zoneAnswer = nil
@@ -315,9 +332,11 @@ public final class DiveComputerModel {
     computerBusy = false
     listedFromFingerprint = false
     outcome = nil
+    cancelRequested = false
     let store = DiveComputerStore(store: session.store, origin: origin, account: keeping.account)
+    let archives = inbox.waitingDownloads(marked: keeping.marked).compactMap(inbox.url(for:))
     downloadTask = Task {
-      await walk(computer, all: all, store: store)
+      await walk(computer, all: all, store: store, waitingIn: archives)
       rebuildRows()
       downloadTask = nil
     }
@@ -342,13 +361,27 @@ public final class DiveComputerModel {
     return DiveComputerStore(store: session.store, origin: origin, account: account)
   }
 
-  private func walk(_ computer: FoundComputer, all: Bool, store: DiveComputerStore) async {
+  private func walk(
+    _ computer: FoundComputer, all: Bool, store: DiveComputerStore, waitingIn archives: [URL]
+  ) async {
     // The record reaches the walk whatever its fingerprint, for the entries' sports it
     // remembers; under *Download all dives*, with no fingerprint to set.
     let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord? = { family, serial in
       guard var record = store.record(family: family, serial: serial) else { return nil }
       if all { record.downloadAllNextTime = true }
       return record
+    }
+    let uuids = await Task.detached {
+      archives.reduce(into: Set<UUID>()) {
+        $0.formUnion(DiveComputerArchive.diveUUIDs(inArchive: $1))
+      }
+    }.value
+    let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool = { identity, fingerprint in
+      uuids.contains(DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint))
+    }
+    guard !cancelRequested else {
+      finish(emptyHanded: .init(.cancelled), record: nil)
+      return
     }
     var watchZone: TimeZone?
     var dives: [DownloadedDive] = []
@@ -370,10 +403,11 @@ public final class DiveComputerModel {
         progress = min(1, Double(walked) / Double(listing.newEntries))
       }
     }
-    for await event in link.download(computer, lookup: lookup) {
+    for await event in link.download(computer, lookup: lookup, waiting: waiting) {
       switch event {
       case .identified(let found):
         identity = found
+        pair(found, computer: computer, watchZone: watchZone, store: store)
       case .watchZone(let zone):
         watchZone = zone
       case .busy(let busy):
@@ -405,7 +439,6 @@ public final class DiveComputerModel {
         if let listing, !reportsProgress, listing.newEntries > 0 { progress = 1 }
       }
     }
-    let family = identity?.family ?? computer.family
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
     let advances = end.kind == .complete && end.emptyReads == 0
     let sports = listing?.sports
@@ -430,7 +463,7 @@ public final class DiveComputerModel {
         }
         try? store.save(kept)
       }
-      finish(emptyHanded: end, family: family, record: all ? nil : record)
+      finish(emptyHanded: end, record: all ? nil : record)
       return
     }
 
@@ -498,6 +531,19 @@ public final class DiveComputerModel {
     await session.background.end(token)
   }
 
+  /// Saves the record of the computer just identified, under the account rule every save keeps,
+  /// so it is paired while the download runs.
+  private func pair(
+    _ identity: DiveComputerIdentity, computer: FoundComputer, watchZone: TimeZone?,
+    store: DiveComputerStore
+  ) {
+    guard inbox.keeping?.account == store.account else { return }
+    let record = store.record(family: identity.family, serial: identity.serial)
+    try? store.save(
+      remembered(record, identity: identity, computer: computer, watchZone: watchZone, sports: nil))
+    rebuildRows()
+  }
+
   /// The record as this walk leaves it, before the fingerprint moves: the identity as the
   /// computer gave it, where the phone saw it, the watch's zone, the entries' sports.
   private func remembered(
@@ -557,11 +603,21 @@ public final class DiveComputerModel {
     }
   }
 
-  private func finish(
-    emptyHanded end: DiveComputerDownloadEnd, family: DiveComputerFamily?,
-    record: DiveComputerRecord?
-  ) {
+  private func finish(emptyHanded end: DiveComputerDownloadEnd, record: DiveComputerRecord?) {
+    let counts = listing.map { DiveComputerText.onComputer($0.dives) + "." }
     switch end.kind {
+    case .complete where end.notDownloaded > 0:
+      // Neither *No dives* nor *No new dives*: there were, and they could not be taken.
+      let sentences = [
+        end.waiting > 0 ? DiveComputerText.alreadyWaiting(end.waiting) : nil,
+        DiveComputerText.couldNotDownload(end.notDownloaded), counts,
+      ]
+      outcome = Outcome(
+        kind: .notDownloaded, sentence: sentences.compactMap { $0 }.joined(separator: " "))
+    case .complete where end.waiting > 0:
+      let sentences = [DiveComputerText.alreadyWaiting(end.waiting), counts]
+      outcome = Outcome(
+        kind: .alreadyWaiting, sentence: sentences.compactMap { $0 }.joined(separator: " "))
     case .complete:
       if let record, record.fingerprintToSet != nil {
         var sentence = DiveComputerText.nothingNew(
@@ -574,17 +630,16 @@ public final class DiveComputerModel {
     case .cancelled:
       outcome = Outcome(kind: .cancelled, sentence: DiveComputerText.cancelled)
     case .unreachable:
-      outcome = Outcome(
-        kind: .failed, sentence: failureSentence(DiveComputerText.unreachable, family: family))
+      outcome = Outcome(kind: .failed, sentence: DiveComputerText.unreachable)
     case .failed(let status):
-      outcome = Outcome(
-        kind: .failed, sentence: failureSentence(DiveComputerText.failed(status), family: family))
+      outcome = Outcome(kind: .failed, sentence: DiveComputerText.failed(status))
+    }
+    if let outcome, outcome.kind != .notDownloaded, end.notDownloaded > 0 {
+      self.outcome = Outcome(
+        kind: outcome.kind,
+        sentence: outcome.sentence + " " + DiveComputerText.couldNotDownload(end.notDownloaded))
     }
     phase = .finished
-  }
-
-  private func failureSentence(_ stopped: String, family: DiveComputerFamily?) -> String {
-    family == .suuntoNautic ? DiveComputerText.suuntoAppConnected + " " + stopped : stopped
   }
 
   private func handedOverSentence(_ parsed: Int, _ refused: Int, _ end: DiveComputerDownloadEnd)
@@ -596,6 +651,9 @@ public final class DiveComputerModel {
     case .cancelled: sentence = DiveComputerText.cancelled + " " + sentence
     case .unreachable: sentence = DiveComputerText.unreachable + " " + sentence
     case .failed(let status): sentence = DiveComputerText.failed(status) + " " + sentence
+    }
+    if end.notDownloaded > 0 {
+      sentence += " " + DiveComputerText.couldNotDownload(end.notDownloaded)
     }
     return sentence
   }

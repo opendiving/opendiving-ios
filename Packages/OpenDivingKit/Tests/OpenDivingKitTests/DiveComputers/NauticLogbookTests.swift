@@ -128,6 +128,21 @@ struct NauticLogbookTests {
     #expect(NauticSelection.fingerprint(0x6AE5_5893) == Data([0x93, 0x58, 0xE5, 0x6A]))
   }
 
+  /// A new entry whose dive already waits in the import screen is walked, not downloaded, and
+  /// not counted new; a run stays a run whatever the test says.
+  @Test func anEntryWaitingInTheImportScreenIsWalkedButNotCountedNew() {
+    let waits: Set<UInt32> = [ids[0], run, ids[6]]
+    let selection = NauticSelection(
+      ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: nil,
+      learned: learned(ids)
+    ) { waits.contains($0) }
+    #expect(selection.entries.map(\.fate) == [.waiting, .download, .download, .skip])
+    #expect(selection.entries.map(\.counted) == [true, true, true, false])
+    let expected = DiveComputerListing(
+      dives: 15, newDives: 2, newEntries: 4, sports: ids.map(sport))
+    #expect(selection.listing == expected)
+  }
+
   @Test func anEntryOfNoKnownSportIsADiveAndAnEmptySummaryIsNone() {
     var summaries = learned(ids)
     summaries[ids[0]] = .read(sport: nil)
@@ -138,6 +153,7 @@ struct NauticLogbookTests {
       ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: nil,
       learned: summaries)
     #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
+    #expect(selection.entries.map(\.counted) == [true, true, false, false])
     #expect(selection.listing.newDives == 2)
     #expect(selection.listing.dives == 13)
     #expect(selection.listing.newEntries == 4)

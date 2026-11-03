@@ -119,6 +119,15 @@ struct DiveComputerLinkTests {
     #expect(some.refused == 1)
   }
 
+  @Test func theEndCarriesTheEntriesLeftOut() {
+    let end = LibDCWalk.end(
+      status: DC_STATUS_SUCCESS, cancelled: false, family: .suuntoNautic, delivered: 0,
+      emptyReads: 0, refused: 0, fingerprintSet: false, waiting: 2, notDownloaded: 1)
+    #expect(end.kind == .complete)
+    #expect(end.waiting == 2)
+    #expect(end.notDownloaded == 1)
+  }
+
   @Test func aCancelIsACancelWhateverTheStatus() {
     for status in [DC_STATUS_SUCCESS, DC_STATUS_CANCELLED, DC_STATUS_IO] {
       let end = LibDCWalk.end(
@@ -128,21 +137,66 @@ struct DiveComputerLinkTests {
     }
   }
 
-  /// The by-id download: a success with bytes is handed on, one without — a size-0 entry's — is
-  /// passed over, and every failure stops the walk, a format error with bytes too.
-  @Test func aDownloadByIdIsDeliveredPassedOverOrStops() {
-    let bytes = Data([1, 2, 3])
-    let empty = Data()
-    #expect(LibDCWalk.nauticDownload(status: DC_STATUS_SUCCESS, bytes: bytes) == .deliver(bytes))
-    #expect(LibDCWalk.nauticDownload(status: DC_STATUS_SUCCESS, bytes: empty) == .passOver)
-    let failures: [dc_status_t] = [
-      DC_STATUS_DATAFORMAT, DC_STATUS_TIMEOUT, DC_STATUS_IO, DC_STATUS_NODEVICE,
-      DC_STATUS_PROTOCOL, DC_STATUS_CANCELLED,
+  /// A cancel or a lost link stops the walk at once; any other failure asks whether the watch is
+  /// busy first, and while it is the transfer is tried again whatever it is.
+  @Test func aFailedTransferAsksWhetherTheWatchIsBusyUnlessTheLinkIsGone() {
+    let fetches: [LibDCWalk.NauticFetch] = [
+      .listing, .summary, .download(counted: true), .download(counted: false),
     ]
-    for status in failures {
-      #expect(LibDCWalk.nauticDownload(status: status, bytes: empty) == .stop(status))
-      #expect(LibDCWalk.nauticDownload(status: status, bytes: bytes) == .stop(status))
+    for fetch in fetches {
+      let success = LibDCWalk.nauticNext(
+        fetch, status: DC_STATUS_SUCCESS, busy: nil, freeFailures: 0)
+      #expect(success == .take)
+      for status in [DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE] {
+        let next = LibDCWalk.nauticNext(fetch, status: status, busy: nil, freeFailures: 0)
+        #expect(next == .stop(status))
+      }
+      for status in [DC_STATUS_TIMEOUT, DC_STATUS_PROTOCOL, DC_STATUS_DATAFORMAT] {
+        let unasked = LibDCWalk.nauticNext(fetch, status: status, busy: nil, freeFailures: 0)
+        #expect(unasked == .readBusy)
+        let busy = LibDCWalk.nauticNext(fetch, status: status, busy: true, freeFailures: 5)
+        #expect(busy == .retry)
+      }
     }
+  }
+
+  /// While the watch says free, a failed listing stops the walk and a failed summary reads as
+  /// unread.
+  @Test func whileFreeAListingStopsAndASummaryIsUnread() {
+    let listing = LibDCWalk.nauticNext(
+      .listing, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 1)
+    #expect(listing == .stop(DC_STATUS_PROTOCOL))
+    let summary = LibDCWalk.nauticNext(
+      .summary, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 1)
+    #expect(summary == .passOver)
+  }
+
+  /// A counted download is tried three times while free, an uncounted one once; then a stall
+  /// stops the walk and any other failure leaves the entry out.
+  @Test func aDownloadIsRetriedThenStopsOnAStallOrPassesOver() {
+    let counted = LibDCWalk.NauticFetch.download(counted: true)
+    let uncounted = LibDCWalk.NauticFetch.download(counted: false)
+    for status in [DC_STATUS_TIMEOUT, DC_STATUS_PROTOCOL] {
+      let first = LibDCWalk.nauticNext(counted, status: status, busy: false, freeFailures: 1)
+      #expect(first == .retry)
+      let second = LibDCWalk.nauticNext(counted, status: status, busy: false, freeFailures: 2)
+      #expect(second == .retry)
+    }
+    let stalled = LibDCWalk.nauticNext(
+      counted, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 3)
+    #expect(stalled == .stop(DC_STATUS_TIMEOUT))
+    let refused = LibDCWalk.nauticNext(
+      counted, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 3)
+    #expect(refused == .passOver)
+    let malformed = LibDCWalk.nauticNext(
+      counted, status: DC_STATUS_DATAFORMAT, busy: false, freeFailures: 3)
+    #expect(malformed == .passOver)
+    let uncountedStall = LibDCWalk.nauticNext(
+      uncounted, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 1)
+    #expect(uncountedStall == .stop(DC_STATUS_TIMEOUT))
+    let uncountedRefused = LibDCWalk.nauticNext(
+      uncounted, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 1)
+    #expect(uncountedRefused == .passOver)
   }
 
   /// A Nautic reading that holds no dive is an empty or aborted session, skipped as a run is;
@@ -165,19 +219,6 @@ struct DiveComputerLinkTests {
     #expect(!LibDCWalk.skipsUnframed(newerVersion, family: .suuntoNautic))
     #expect(!LibDCWalk.skipsUnframed(current, family: .suuntoNautic))
     #expect(!LibDCWalk.skipsUnframed(unframed, family: .shearwaterPetrel))
-  }
-
-  /// A summary that cannot be read leaves the entry a dive; a cancel or a gone link stops the walk.
-  @Test func aSummaryIsBytesEmptyUnreadOrStops() {
-    let bytes = Data([1])
-    let empty = Data()
-    #expect(LibDCWalk.nauticSummary(status: DC_STATUS_SUCCESS, bytes: bytes) == .bytes)
-    #expect(LibDCWalk.nauticSummary(status: DC_STATUS_SUCCESS, bytes: empty) == .empty)
-    #expect(LibDCWalk.nauticSummary(status: DC_STATUS_PROTOCOL, bytes: empty) == .unread)
-    #expect(LibDCWalk.nauticSummary(status: DC_STATUS_TIMEOUT, bytes: empty) == .unread)
-    for status in [DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE] {
-      #expect(LibDCWalk.nauticSummary(status: status, bytes: empty) == .stop(status))
-    }
   }
 
   @Test func theListedIdsAreFourLittleEndianBytesEach() {
