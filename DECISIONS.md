@@ -141,15 +141,13 @@ dive; showing the cache only once a fetch has failed, a minute of spinner offlin
 The fingerprint of the newest dive downloaded says what one account's logbook holds, so each
 account keeps `DiveComputers/<family>_<SERIAL>.json` in its own directory: sign-out leaves it,
 `forget` removes it. It is found by family and serial, never by Core Bluetooth's identifier,
-which iOS rotates for some computers, and saved once the computer is identified, so a first
-download pairs it while it runs. It advances only after a completed walk with no empty read,
-and only once the inbox has kept the archive for the account the walk began from — or, for a
-walk that skipped entries and delivered none, at its end, there being no archive; a cancel, a
-failure, an archive not kept or an app killed at the time-zone question leaves it, and the
-import's gates make the dives walked again links. A record written before the load is removed,
-not moved, when the load names another account. Rejected: libdc-swift's `UserDefaults` stores,
-keyed by device alone; advancing at import, which needs the inbox to report back across a
-sign-out.
+which iOS rotates. It advances only after a completed walk with no empty read, once the inbox
+has kept the archive for the account the walk began from — or, for a walk that skipped entries
+and delivered none, at its end; a cancel, a failure, an archive not kept or an app killed at the
+time-zone question leaves it, and the import's gates make dives walked again links. A record
+written before the load is removed, not moved, when the load names another account. Rejected:
+libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import, which needs the
+inbox to report back across a sign-out.
 
 ## A computer that logs instants keeps two zones, and the diver's wins
 
