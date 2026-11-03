@@ -167,8 +167,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
 
   /// One dive's bytes, parsed and handed on; false once the walk is cancelled. An entry of the
   /// Nautic family whose profile names a sport that is not a dive, or that holds no dive at all —
-  /// an empty or aborted session — is yielded as skipped, as a run is, so the fingerprint moves
-  /// past it.
+  /// an empty or aborted session, ``skipsUnframed(_:family:)`` or ``skipsEmpty(_:)`` — is yielded
+  /// as skipped, as a run is, so the fingerprint moves past it.
   func dive(_ bytes: Data, fingerprint: Data) -> Bool {
     if cancel.isSet { return false }
     if identity == nil || identity?.firmware == nil, device.pointee.have_devinfo != 0 {
@@ -179,7 +179,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       identify(serial: computer.advertisedSerial ?? "", firmware: nil)
     }
     guard let identity else { return false }
-    if family == .suuntoNautic, !NauticSport.isDive(bytes) {
+    if Self.skipsUnframed(bytes, family: family)
+      || (family == .suuntoNautic && !NauticSport.isDive(bytes))
+    {
       events.yield(.skipped(fingerprint: fingerprint))
       return true
     }
@@ -216,6 +218,16 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   static func skipsEmpty(_ family: DiveComputerFamily) -> Bool {
     family == .suuntoNautic
   }
+
+  /// Whether bytes are skipped as no dive before they are parsed: on the Nautic family, bytes
+  /// that do not open with the SBEM container's header are an empty or aborted session. Bytes
+  /// that do, and that the parser refuses — a container version it does not know yet — are kept
+  /// as a refused reading, which may be a dive.
+  static func skipsUnframed(_ bytes: Data, family: DiveComputerFamily) -> Bool {
+    family == .suuntoNautic && !bytes.starts(with: sbemHeader)
+  }
+
+  private static let sbemHeader = Data("SBEM".utf8)
 
   fileprivate var isCancelled: Bool { cancel.isSet }
 

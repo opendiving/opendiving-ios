@@ -152,6 +152,21 @@ struct DiveComputerLinkTests {
     #expect(!LibDCWalk.skipsEmpty(.shearwaterPetrel))
   }
 
+  /// Nautic bytes without the SBEM container's header are a session that holds no dive, skipped
+  /// whatever the parser says; bytes with it go to the parser, which may refuse a newer version
+  /// and keep it; other families are always parsed.
+  @Test func onlyNauticBytesWithoutTheSBEMHeaderAreSkippedUnparsed() {
+    let unframed = Data([0x00, 0x01, 0x02, 0x03, 0x04])
+    let newerVersion = Data("SBEM0104".utf8)
+    let current = Data("SBEM0103".utf8)
+    let empty = Data()
+    #expect(LibDCWalk.skipsUnframed(unframed, family: .suuntoNautic))
+    #expect(LibDCWalk.skipsUnframed(empty, family: .suuntoNautic))
+    #expect(!LibDCWalk.skipsUnframed(newerVersion, family: .suuntoNautic))
+    #expect(!LibDCWalk.skipsUnframed(current, family: .suuntoNautic))
+    #expect(!LibDCWalk.skipsUnframed(unframed, family: .shearwaterPetrel))
+  }
+
   /// A summary that cannot be read leaves the entry a dive; a cancel or a gone link stops the walk.
   @Test func aSummaryIsBytesEmptyUnreadOrStops() {
     let bytes = Data([1])
