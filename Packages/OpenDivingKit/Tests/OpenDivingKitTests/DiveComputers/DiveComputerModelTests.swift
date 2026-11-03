@@ -182,8 +182,8 @@ struct DiveComputerModelTests {
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint == nil)
   }
 
-  /// A watch's run is no dive, but the walk read it: the fingerprint moves past it as past a dive,
-  /// or every later download would read it again.
+  /// A watch's run is no dive, but the walk met it: the fingerprint moves past it as past a dive,
+  /// or every later download would meet it again.
   @Test func anEntrySkippedAsNoDiveAdvancesTheFingerprintPastIt() async throws {
     let session = try await session(try ImportServer())
     let inbox = InboxModel(session: session)

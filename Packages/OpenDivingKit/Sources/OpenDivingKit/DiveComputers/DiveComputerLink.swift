@@ -12,15 +12,16 @@ public protocol DiveComputerLink: AnyObject {
   /// caller stops listening.
   func scan() -> AsyncStream<FoundComputer>
 
-  /// Connects to `computer`, walks its dives newest first, and disconnects.
+  /// Connects to `computer`, takes its dives newest first down to the stored fingerprint, and
+  /// disconnects.
   ///
   /// The stream yields ``DiveComputerDownloadEvent/identified(_:)`` once the identity is known
   /// — once the device is open for a family that advertises its serial, whose name gave it
-  /// before connecting, and from the device info otherwise — and calls `lookup` at that moment,
-  /// folding the serial's case. It yields the identity again where the device info later adds
-  /// the firmware.
-  /// It sets the fingerprint of the record `lookup` returns on the open device before any dive
-  /// is read, and sets none when `lookup` returns nil. Then the watch's zone where the family
+  /// before connecting, and from the computer's own answers otherwise — and calls `lookup` at
+  /// that moment, folding the serial's case. It yields the identity again where a later answer
+  /// adds the firmware.
+  /// It takes only the entries newer than the one holding the fingerprint of the record `lookup`
+  /// returns, and every entry when `lookup` returns nil. Then the watch's zone where the family
   /// logs instants and the watch reports one; ``DiveComputerDownloadEvent/busy(_:)`` where the
   /// computer says it is busy, and again once it says it is free; once, where the family lists
   /// its entries before reading them, ``DiveComputerDownloadEvent/listing(_:)`` with the walk's

@@ -4,28 +4,34 @@ import Foundation
 @preconcurrency import LibDCSwift
 import OpenDivingKit
 
-/// One walk over an open device: the identity, the fingerprint set before any dive is read,
-/// the watch's zone for a family that logs instants, then each dive's bytes parsed as they
-/// arrive, and the outcome. Its instance is the userdata of libdivecomputer's callbacks, all of
-/// which run on the session's queue but the progress poll's.
+/// One walk over an open device: the identity, the stored fingerprint, the watch's zone for a
+/// family that logs instants, then each dive's bytes parsed as they arrive, and the outcome. Its
+/// instance is the userdata of libdivecomputer's callbacks, all of which run on the session's queue
+/// but the progress poll's.
+///
+/// A Shearwater Petrel-family computer and a Suunto Nautic-family watch are walked by the app
+/// itself — listed, counted, then downloaded dive by dive (`LibDCWalk+Petrel.swift`,
+/// `LibDCWalk+Nautic.swift`) — since `dc_device_foreach` gives no count before its first dive and
+/// downloads a watch's run before its sport can be read. Every other family is walked by
+/// `dc_device_foreach`.
 nonisolated final class LibDCWalk: @unchecked Sendable {
-  private let computer: FoundComputer
-  private let device: UnsafeMutablePointer<device_data_t>
-  private let cancel: CancelFlag
-  private let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
-  private let events: AsyncStream<DiveComputerDownloadEvent>.Continuation
+  let computer: FoundComputer
+  let device: UnsafeMutablePointer<device_data_t>
+  let cancel: CancelFlag
+  let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
+  let events: AsyncStream<DiveComputerDownloadEvent>.Continuation
 
-  private let family: DiveComputerFamily
-  private let dcFamily: dc_family_t
-  private let model: UInt32
-  private let vendor: String
-  private let product: String
+  let family: DiveComputerFamily
+  let dcFamily: dc_family_t
+  let model: UInt32
+  let vendor: String
+  let product: String
 
-  private var identity: DiveComputerIdentity?
+  private(set) var identity: DiveComputerIdentity?
   private var fingerprintSet = false
-  private var delivered = 0
-  private var emptyReads = 0
-  private var refused = 0
+  private(set) var delivered = 0
+  private(set) var emptyReads = 0
+  private(set) var refused = 0
 
   init(
     computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>, cancel: CancelFlag,
@@ -55,12 +61,62 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     guard let handle = device.pointee.device else {
       return .init(.failed(status: LibDCNames.status(DC_STATUS_NODEVICE)))
     }
-    let userdata = Unmanaged.passUnretained(self).toOpaque()
+    dc_device_set_cancel(handle, cancelCallback, Unmanaged.passUnretained(self).toOpaque())
+    defer { dc_device_set_cancel(handle, nil, nil) }
+    // By the open device's own family, which decides what its handle is.
+    switch dc_device_get_type(handle) {
+    case DC_FAMILY_SHEARWATER_PETREL:
+      return walkPetrel(handle)
+    case DC_FAMILY_SUUNTO_NAUTIC:
+      // A watch whose name carries no serial has no identity before the library's walk gives one.
+      guard let serial = computer.advertisedSerial else { return walkLibrary(handle) }
+      return walkNautic(handle, serial: serial)
+    default:
+      return walkLibrary(handle)
+    }
+  }
 
+  /// How a walk ended. A walk stopped at a set fingerprint ends in plain success; one that
+  /// ends in `DC_STATUS_PROTOCOL` with nothing new and a fingerprint set on the device is complete
+  /// too, but for the Nautic family, whose backend returns that status only for a real failure. A
+  /// walk that delivered nothing fails, naming `DC_STATUS_DATAFORMAT` where the walk itself
+  /// succeeded, when every record it parsed was empty, or when every dive it downloaded by id came
+  /// back with no bytes (`downloads` and `emptyDownloads` count only the entries a walk counted
+  /// as dives).
+  static func end(
+    status: dc_status_t, cancelled: Bool, family: DiveComputerFamily, delivered: Int,
+    emptyReads: Int, refused: Int, fingerprintSet: Bool, downloads: Int = 0,
+    emptyDownloads: Int = 0
+  ) -> DiveComputerDownloadEnd {
+    let kind: DiveComputerDownloadEnd.Kind
+    let onlyEmpty = emptyReads > 0 || (downloads > 0 && emptyDownloads == downloads)
+    if cancelled || status == DC_STATUS_CANCELLED {
+      kind = .cancelled
+    } else if status == DC_STATUS_SUCCESS || status == DC_STATUS_DONE {
+      kind =
+        delivered == 0 && onlyEmpty
+        ? .failed(status: LibDCNames.status(DC_STATUS_DATAFORMAT)) : .complete
+    } else if status == DC_STATUS_PROTOCOL, delivered == 0, emptyReads == 0, fingerprintSet,
+      family != .suuntoNautic
+    {
+      kind = .complete
+    } else {
+      kind = .failed(status: LibDCNames.status(status))
+    }
+    return DiveComputerDownloadEnd(kind, emptyReads: emptyReads, refused: refused)
+  }
+
+  // MARK: - libdivecomputer's walk
+
+  /// `dc_device_foreach`, with the fingerprint set on the device: from the advertised name for a
+  /// family that carries the serial there, else through the bridge's lookup hook once the device
+  /// info arrives.
+  private func walkLibrary(_ handle: OpaquePointer) -> DiveComputerDownloadEnd {
+    let userdata = Unmanaged.passUnretained(self).toOpaque()
     if family.advertisesSerial, let serial = computer.advertisedSerial {
       // The device info's 32-bit serial overflows this family's, so the advertised name is the
       // identity and the bridge's lookup hook, which hands over that field, is not used.
-      identify(serial: serial)
+      identify(serial: serial, firmware: deviceInfoFirmware)
       if let fingerprint = lookup(family, serial)?.fingerprintToSet {
         fingerprintSet =
           fingerprint.withUnsafeBytes {
@@ -75,14 +131,10 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     defer {
       device.pointee.fingerprint_context = nil
       device.pointee.lookup_fingerprint = nil
-      dc_device_set_cancel(handle, nil, nil)
     }
 
-    if family.logsInstants {
-      if let zone = NauticWatchZone.decode(watchSettings()) { events.yield(.watchZone(zone)) }
-    }
+    if family.logsInstants { readWatchZone() }
 
-    dc_device_set_cancel(handle, cancelCallback, userdata)
     let poll = progressPoll()
     let status = dc_device_foreach(handle, diveCallback, userdata)
     poll.cancel()
@@ -90,34 +142,6 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       status: status, cancelled: cancel.isSet, family: family, delivered: delivered,
       emptyReads: emptyReads, refused: refused, fingerprintSet: fingerprintSet)
   }
-
-  /// How a walk ended. A walk stopped at a set fingerprint ends in plain success; one that
-  /// ends in `DC_STATUS_PROTOCOL` with nothing new and a fingerprint set is complete too, but
-  /// for the Nautic family, whose backend returns that status only for a real failure. A walk
-  /// whose every record was empty failed, naming `DC_STATUS_DATAFORMAT` where the walk itself
-  /// succeeded.
-  static func end(
-    status: dc_status_t, cancelled: Bool, family: DiveComputerFamily, delivered: Int,
-    emptyReads: Int, refused: Int, fingerprintSet: Bool
-  ) -> DiveComputerDownloadEnd {
-    let kind: DiveComputerDownloadEnd.Kind
-    if cancelled || status == DC_STATUS_CANCELLED {
-      kind = .cancelled
-    } else if status == DC_STATUS_SUCCESS || status == DC_STATUS_DONE {
-      kind =
-        delivered == 0 && emptyReads > 0
-        ? .failed(status: LibDCNames.status(DC_STATUS_DATAFORMAT)) : .complete
-    } else if status == DC_STATUS_PROTOCOL, delivered == 0, emptyReads == 0, fingerprintSet,
-      family != .suuntoNautic
-    {
-      kind = .complete
-    } else {
-      kind = .failed(status: LibDCNames.status(status))
-    }
-    return DiveComputerDownloadEnd(kind, emptyReads: emptyReads, refused: refused)
-  }
-
-  // MARK: - The callbacks' work
 
   /// The device info arrived: the identity, and the record's fingerprint to set, as a buffer
   /// the device record keeps until the session closes it.
@@ -127,7 +151,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     size?.pointee = 0
     guard let number = UInt32(hex, radix: 16) else { return nil }
     let serial = family.serial(deviceInfo: number)
-    identify(serial: serial)
+    identify(serial: serial, firmware: deviceInfoFirmware)
     guard let fingerprint = lookup(family, serial)?.fingerprintToSet, !fingerprint.isEmpty,
       let buffer = malloc(fingerprint.count)?.assumingMemoryBound(to: UInt8.self)
     else { return nil }
@@ -137,12 +161,24 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     return buffer
   }
 
-  fileprivate func dive(_ bytes: Data, fingerprint: Data) -> Bool {
+  /// The firmware the device info reported, once it has.
+  private var deviceInfoFirmware: String? {
+    device.pointee.have_devinfo != 0
+      ? LibDCNames.firmware(device.pointee.devinfo.firmware, family: family) : nil
+  }
+
+  // MARK: - Every walk's
+
+  /// One dive's bytes, parsed and handed on; false once the walk is cancelled. An entry of the
+  /// Nautic family whose profile names a sport that is not a dive is yielded as skipped.
+  func dive(_ bytes: Data, fingerprint: Data) -> Bool {
     if cancel.isSet { return false }
     if identity == nil || identity?.firmware == nil, device.pointee.have_devinfo != 0 {
-      identify(serial: identity?.serial ?? family.serial(deviceInfo: device.pointee.devinfo.serial))
+      identify(
+        serial: identity?.serial ?? family.serial(deviceInfo: device.pointee.devinfo.serial),
+        firmware: deviceInfoFirmware)
     } else if identity == nil {
-      identify(serial: computer.advertisedSerial ?? "")
+      identify(serial: computer.advertisedSerial ?? "", firmware: nil)
     }
     guard let identity else { return false }
     if family == .suuntoNautic, !NauticSport.isDive(bytes) {
@@ -174,13 +210,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
 
   fileprivate var isCancelled: Bool { cancel.isSet }
 
-  // MARK: - Pieces
-
-  /// Yields the identity once known, and again where the device info later adds the firmware.
-  private func identify(serial: String) {
-    let firmware =
-      device.pointee.have_devinfo != 0
-      ? LibDCNames.firmware(device.pointee.devinfo.firmware, family: family) : nil
+  /// Yields the identity once known, and again where a later answer adds the firmware.
+  func identify(serial: String, firmware: String?) {
     let next = DiveComputerIdentity(
       family: family, vendor: vendor, product: product, serial: serial,
       firmware: firmware ?? identity?.firmware, familyNumber: dcFamily.rawValue,
@@ -190,14 +221,25 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     events.yield(.identified(next))
   }
 
-  /// The watch's settings resources its zone is decoded from; one the watch refuses is left
-  /// out, and the decode reads the rest.
-  private func watchSettings() -> [String: Data] {
+  /// The watch's zone, from the settings resources it is decoded from; one the watch refuses is
+  /// left out, and the decode reads the rest.
+  func readWatchZone() {
     var resources: [String: Data] = [:]
     for path in NauticWatchZone.paths {
       resources[path] = try? SuuntoNauticExplorer.fetch(device: device, path: path)
     }
-    return resources
+    if let zone = NauticWatchZone.decode(resources) { events.yield(.watchZone(zone)) }
+  }
+
+  /// Runs `call` over a fresh libdivecomputer buffer: its status, and the bytes the buffer then
+  /// holds.
+  static func buffered(_ call: (OpaquePointer) -> dc_status_t) -> (dc_status_t, Data) {
+    guard let buffer = dc_buffer_new(0) else { return (DC_STATUS_NOMEMORY, Data()) }
+    defer { dc_buffer_free(buffer) }
+    let status = call(buffer)
+    let size = dc_buffer_get_size(buffer)
+    guard size > 0, let data = dc_buffer_get_data(buffer) else { return (status, Data()) }
+    return (status, Data(bytes: data, count: size))
   }
 
   /// libdivecomputer's progress, which the bridge caches on the device record rather than

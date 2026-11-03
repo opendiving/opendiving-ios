@@ -10,9 +10,8 @@ import Synchronization
 /// callbacks run on the thread that called it.
 ///
 /// The device is opened through the bridge's C entry, not libdc-swift's `openBLEDevice`, which
-/// records every device it opens in `UserDefaults`; and the dives are walked with
-/// `dc_device_foreach` and a callback of this class's, not libdc-swift's retriever, which keeps
-/// no dive's bytes.
+/// records every device it opens in `UserDefaults`; and the dives are walked by ``LibDCWalk``, not
+/// libdc-swift's retriever, which keeps no dive's bytes.
 nonisolated final class LibDCDeviceSession: @unchecked Sendable {
   /// What libdc-swift writes to `UserDefaults` under its own keys, removed after every session
   /// so nothing the package keeps about a computer outlives one.
@@ -84,7 +83,8 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
   }
 }
 
-/// The cancellation the model asks for, read by libdivecomputer between dives.
+/// The cancellation the model asks for, read by the walk between its steps and by libdivecomputer
+/// before each transfer.
 nonisolated final class CancelFlag: Sendable {
   private let value = Atomic(false)
 
