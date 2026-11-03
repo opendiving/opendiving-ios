@@ -5,10 +5,14 @@ on:
   push:
     branches:
       - main
+  # The merge queue tests each entry squashed onto `main` under this event, and a required
+  # check that never reports there holds the entry until the queue times it out.
+  merge_group:
 
 # A new push to a PR cancels the run still going for the previous one: the macOS job is
-# the expensive one, and only the newest head's result can count. Runs on `main` are
-# never cancelled, so every commit there keeps its own result.
+# the expensive one, and only the newest head's result can count. Runs on `main` and for
+# the merge queue are never cancelled: every commit on `main` keeps its own result, and
+# no queue entry waits on a run that stopped.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

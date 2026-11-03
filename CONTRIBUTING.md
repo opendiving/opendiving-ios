@@ -129,6 +129,9 @@ its data, while deleting it first does not.
 ## Pull requests
 
 - Branch from `main`, and keep a pull request to one change.
+- **Your branch never needs to be current with `main`.** Once a PR is green and reviewed, a
+  maintainer adds it to the merge queue, which squashes it onto `main` as it then stands, runs the
+  required checks on that result and lands it. Rebase only to resolve a conflict.
 - Title it as a conventional commit — `<type>[(scope)][!]: <description>`, e.g.
   `feat: the dive list and the dive detail`. Types: `feat`, `fix`, `refactor`, `docs`, `test`,
   `chore`, `perf`, `ci`, `build`, `revert`. A CI check enforces this, and re-runs when you edit the
