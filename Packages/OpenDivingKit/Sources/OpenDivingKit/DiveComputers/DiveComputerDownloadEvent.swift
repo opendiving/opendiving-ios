@@ -5,9 +5,11 @@ public enum DiveComputerDownloadEvent: Hashable, Sendable {
   case identified(DiveComputerIdentity)
   /// The zone the watch's own settings report, for a family that logs instants.
   case watchZone(TimeZone)
-  /// Whether the computer says it is busy with another app: `true` while it does, `false` once
-  /// it says it is free. At any point of the walk, from a family that can tell.
-  case busy(Bool)
+  /// Another app holding the computer: ``DiveComputerBusy/reported`` while the computer says it is
+  /// busy and ``DiveComputerBusy/free`` once it says it is free, or
+  /// ``DiveComputerBusy/otherApp`` each time another app's handshake broke a transfer. At any
+  /// point of the walk, from a family that can tell.
+  case busy(DiveComputerBusy)
   /// The walk's count, once, after ``identified(_:)`` and before the first dive or skip, from a
   /// family the app lists before it downloads.
   case listing(DiveComputerListing)

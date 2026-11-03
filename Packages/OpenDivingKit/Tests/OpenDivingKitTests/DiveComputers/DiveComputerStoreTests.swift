@@ -157,6 +157,9 @@ struct DiveComputerStoreTests {
       DiveComputerText.busyContinues
         == "This computer is busy. The download continues when it is free.")
     #expect(
+      DiveComputerText.busyOtherApp
+        == "This computer is busy. Closing other apps that use it lets the download go on.")
+    #expect(
       DiveComputerText.alreadyWaiting(2)
         == "The new dives are already waiting in the import screen.")
     #expect(

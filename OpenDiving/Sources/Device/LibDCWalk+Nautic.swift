@@ -9,10 +9,13 @@ import OpenDivingKit
 /// unless its summary names a sport that is no dive or its dive already waits in the import
 /// screen. Which entries are summarised, counted and downloaded is ``NauticSelection``'s.
 ///
-/// Every transfer that fails, but on a cancel or a lost link, asks the watch whether it is busy
-/// with another app — the Suunto app shares the link — and while it is, waits and tries the same
-/// transfer again (``nauticNext(_:status:busy:freeFailures:reconnects:)``). One that times out
-/// while the watch says free closes the device, opens it again and carries on from that transfer
+/// Another app, such as the Suunto app, can share the link. A summary, the descriptors or a
+/// download that another app's handshake broke, which the watch's busy state does not show, is
+/// waited out and tried again on the same connection for as long as it takes. Every other transfer
+/// that fails, but on a cancel or a lost link, asks the watch whether it is busy, and while it is,
+/// waits and tries the same transfer again
+/// (``nauticNext(_:status:otherApp:busy:freeFailures:reconnects:)``). One that times out while the
+/// watch says free closes the device, opens it again and carries on from that transfer
 /// (``reconnect()``), the dive's received bytes kept in the resume buffer; each transfer is a line
 /// in the download's log.
 nonisolated extension LibDCWalk {
@@ -158,6 +161,9 @@ nonisolated extension LibDCWalk {
   enum NauticNext: Equatable {
     /// It answered: the bytes are the transfer's.
     case take
+    /// Another app's handshake broke it: wait ``otherAppWait`` and try it again on the same
+    /// connection.
+    case awaitOtherApp
     /// It failed in a way a busy watch may explain: ask whether it is busy, waiting while it is.
     case readBusy
     /// Try the same transfer again.
@@ -173,24 +179,31 @@ nonisolated extension LibDCWalk {
   /// The attempts a counted entry's download gets while the watch says it is free.
   static let nauticDownloadAttempts = 3
 
-  /// After one attempt that answered `status`: `busy` is nil until the watch was asked, then
-  /// whether it said busy, `freeFailures` counts the attempts, this one included, that failed
-  /// while it said free, across reopens, and `reconnects` the reopens the walk has made. A cancel
-  /// or a lost link stops the walk at once. A failure while busy is waited out and tried again
-  /// without counting. While free, a timeout reopens the device, at once, while the walk has
-  /// reopens left (``reconnects(after:made:)``). Otherwise the listing stops the walk, and a
-  /// summary or the descriptors read as unread; a counted download is tried until
-  /// ``nauticDownloadAttempts`` have failed, an uncounted one once, and then a timeout, which a
-  /// later connection can cure, stops the walk without moving the fingerprint past it, while any
+  /// The seconds a transfer another app's handshake broke is waited out before it is tried again.
+  static let otherAppWait = 10
+
+  /// After one attempt that answered `status`: `otherApp` is whether another app's handshake broke
+  /// it, `busy` is nil until the watch was asked, then whether it said busy, `freeFailures` counts
+  /// the attempts, this one included, that failed while it said free, across reopens, and
+  /// `reconnects` the reopens the walk has made. A cancel or a lost link stops the walk at once. A
+  /// summary, the descriptors or a download another app broke is waited out and tried again without
+  /// asking or counting, however often: the walk cannot tell when that app lets go. A failure while
+  /// busy is waited out and tried again without counting. While free, a timeout reopens the device,
+  /// at once, while the walk has reopens left (``reconnects(after:made:)``). Otherwise the listing
+  /// stops the walk, and a summary or the descriptors read as unread; a counted download is tried
+  /// until ``nauticDownloadAttempts`` have failed, an uncounted one once, and then a timeout, which
+  /// a later connection can cure, stops the walk without moving the fingerprint past it, while any
   /// other failure, which repeats, leaves the entry out.
   static func nauticNext(
-    _ fetch: NauticFetch, status: dc_status_t, busy: Bool?, freeFailures: Int, reconnects: Int
+    _ fetch: NauticFetch, status: dc_status_t, otherApp: Bool, busy: Bool?, freeFailures: Int,
+    reconnects: Int
   ) -> NauticNext {
     switch status {
     case DC_STATUS_SUCCESS: return .take
     case DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE: return .stop(status)
     default: break
     }
+    if otherApp, fetch != .listing { return .awaitOtherApp }
     guard let busy else { return .readBusy }
     if busy { return .retry }
     if Self.reconnects(after: status, made: reconnects) { return .reconnect }
@@ -211,8 +224,8 @@ nonisolated extension LibDCWalk {
   }
 
   /// One transfer over the open device's handle and a fresh buffer, tried again as
-  /// ``nauticNext(_:status:busy:freeFailures:reconnects:)`` says, each attempt logged under
-  /// `label`.
+  /// ``nauticNext(_:status:otherApp:busy:freeFailures:reconnects:)`` says, each attempt logged
+  /// under `label`.
   private func fetchWhileBusy(
     _ fetch: NauticFetch, _ label: String,
     _ call: (_ handle: OpaquePointer, _ buffer: OpaquePointer) -> dc_status_t
@@ -222,12 +235,15 @@ nonisolated extension LibDCWalk {
       if cancel.isSet { return .stop(DC_STATUS_CANCELLED) }
       guard let handle = device?.pointee.device else { return .stop(DC_STATUS_NODEVICE) }
       let began = Date.now
-      let (status, bytes) = Self.buffered { call(handle, $0) }
+      let ((status, bytes), otherApp) = session.watchingOtherApp {
+        Self.buffered { call(handle, $0) }
+      }
       log(
         "\(label) \(LibDCNames.status(status)) \(bytes.count) bytes "
           + "\(LibDCDeviceSession.milliseconds(since: began)) ms")
       var next = Self.nauticNext(
-        fetch, status: status, busy: nil, freeFailures: freeFailures, reconnects: reconnects)
+        fetch, status: status, otherApp: otherApp, busy: nil, freeFailures: freeFailures,
+        reconnects: reconnects)
       if next == .readBusy {
         let busy: Bool
         switch busyWait() {
@@ -240,10 +256,18 @@ nonisolated extension LibDCWalk {
           freeFailures += 1
         }
         next = Self.nauticNext(
-          fetch, status: status, busy: busy, freeFailures: freeFailures, reconnects: reconnects)
+          fetch, status: status, otherApp: otherApp, busy: busy, freeFailures: freeFailures,
+          reconnects: reconnects)
       }
       switch next {
       case .take: return .answered(bytes)
+      case .awaitOtherApp:
+        events.yield(.busy(.otherApp))
+        log("\(label) broken by another app, waiting \(Self.otherAppWait) s")
+        for _ in 0..<(Self.otherAppWait * 10) {
+          if cancel.isSet { return .stop(DC_STATUS_CANCELLED) }
+          usleep(100_000)
+        }
       case .retry: continue
       case .reconnect:
         if let stopped = reconnect() { return .stop(stopped) }
@@ -314,7 +338,7 @@ nonisolated extension LibDCWalk {
   private func waitForFree(
     _ handle: OpaquePointer, _ subscription: SuuntoNauticExplorer.Subscription
   ) -> dc_status_t? {
-    events.yield(.busy(true))
+    events.yield(.busy(.reported))
     while true {
       if cancel.isSet { return DC_STATUS_CANCELLED }
       let pushed: SuuntoNauticExplorer.Notification?
@@ -327,7 +351,7 @@ nonisolated extension LibDCWalk {
       }
       if let pushed, subscription.matches(pushed.handle), !Self.isBusy(pushed.value) { break }
     }
-    events.yield(.busy(false))
+    events.yield(.busy(.free))
     return nil
   }
 

@@ -88,6 +88,11 @@ public enum DiveComputerText {
   public static let busyContinues =
     "This computer is busy. The download continues when it is free."
 
+  /// Once another app's handshake broke a transfer, until a dive arrives: the computer never says
+  /// it is free of such an app, so the line names what frees it instead.
+  public static let busyOtherApp =
+    "This computer is busy. Closing other apps that use it lets the download go on."
+
   /// *The new dives are already waiting in the import screen.*: every new dive was downloaded
   /// before and waits there unimported.
   public static func alreadyWaiting(_ dives: Int) -> String {

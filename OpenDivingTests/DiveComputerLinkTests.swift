@@ -137,30 +137,65 @@ struct DiveComputerLinkTests {
     }
   }
 
-  /// A cancel or a lost link stops the walk at once; any other failure asks whether the watch is
-  /// busy first, and while it is the transfer is tried again whatever it is.
+  /// A cancel or a lost link stops the walk at once; any other failure no other app's handshake
+  /// broke asks whether the watch is busy first, and while it is the transfer is tried again
+  /// whatever it is.
   @Test func aFailedTransferAsksWhetherTheWatchIsBusyUnlessTheLinkIsGone() {
     let fetches: [LibDCWalk.NauticFetch] = [
       .listing, .summary, .download(counted: true), .download(counted: false),
     ]
     for fetch in fetches {
       let success = LibDCWalk.nauticNext(
-        fetch, status: DC_STATUS_SUCCESS, busy: nil, freeFailures: 0, reconnects: 0)
+        fetch, status: DC_STATUS_SUCCESS, otherApp: false, busy: nil, freeFailures: 0, reconnects: 0
+      )
       #expect(success == .take)
       for status in [DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE] {
         let next = LibDCWalk.nauticNext(
-          fetch, status: status, busy: nil, freeFailures: 0, reconnects: 0)
+          fetch, status: status, otherApp: false, busy: nil, freeFailures: 0, reconnects: 0)
         #expect(next == .stop(status))
       }
       for status in [DC_STATUS_TIMEOUT, DC_STATUS_PROTOCOL, DC_STATUS_DATAFORMAT] {
         let unasked = LibDCWalk.nauticNext(
-          fetch, status: status, busy: nil, freeFailures: 0, reconnects: 0)
+          fetch, status: status, otherApp: false, busy: nil, freeFailures: 0, reconnects: 0)
         #expect(unasked == .readBusy)
         let busy = LibDCWalk.nauticNext(
-          fetch, status: status, busy: true, freeFailures: 5, reconnects: 0)
+          fetch, status: status, otherApp: false, busy: true, freeFailures: 5, reconnects: 0)
         #expect(busy == .retry)
       }
     }
+  }
+
+  /// A summary, the descriptors or a download another app's handshake broke is waited out and
+  /// tried again on the same connection, however often and whatever the failure, before the watch
+  /// is asked and without counting a retry or a reopen; a cancel or a lost link still stops the
+  /// walk, and the listing fails as any other failure does.
+  @Test func aTransferAnotherAppBrokeIsWaitedOutOnTheSameConnection() {
+    let fetches: [LibDCWalk.NauticFetch] = [
+      .summary, .download(counted: true), .download(counted: false),
+    ]
+    for fetch in fetches {
+      for status in [DC_STATUS_TIMEOUT, DC_STATUS_PROTOCOL, DC_STATUS_DATAFORMAT] {
+        let first = LibDCWalk.nauticNext(
+          fetch, status: status, otherApp: true, busy: nil, freeFailures: 0, reconnects: 0)
+        #expect(first == .awaitOtherApp)
+        let spent = LibDCWalk.nauticNext(
+          fetch, status: status, otherApp: true, busy: nil, freeFailures: 3, reconnects: 3)
+        #expect(spent == .awaitOtherApp)
+      }
+      let taken = LibDCWalk.nauticNext(
+        fetch, status: DC_STATUS_SUCCESS, otherApp: true, busy: nil, freeFailures: 0,
+        reconnects: 0)
+      #expect(taken == .take)
+      for status in [DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE] {
+        let next = LibDCWalk.nauticNext(
+          fetch, status: status, otherApp: true, busy: nil, freeFailures: 0, reconnects: 0)
+        #expect(next == .stop(status))
+      }
+    }
+    let listing = LibDCWalk.nauticNext(
+      .listing, status: DC_STATUS_TIMEOUT, otherApp: true, busy: nil, freeFailures: 0,
+      reconnects: 0)
+    #expect(listing == .readBusy)
   }
 
   /// A timeout while the watch says free reopens the device at once, whatever the transfer and
@@ -172,14 +207,17 @@ struct DiveComputerLinkTests {
     for fetch in fetches {
       for made in 0..<3 {
         let next = LibDCWalk.nauticNext(
-          fetch, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 1 + made, reconnects: made)
+          fetch, status: DC_STATUS_TIMEOUT, otherApp: false, busy: false, freeFailures: 1 + made,
+          reconnects: made)
         #expect(next == .reconnect)
       }
       let refused = LibDCWalk.nauticNext(
-        fetch, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 1, reconnects: 0)
+        fetch, status: DC_STATUS_PROTOCOL, otherApp: false, busy: false, freeFailures: 1,
+        reconnects: 0)
       #expect(refused != .reconnect)
       let spent = LibDCWalk.nauticNext(
-        fetch, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 4, reconnects: 3)
+        fetch, status: DC_STATUS_TIMEOUT, otherApp: false, busy: false, freeFailures: 4,
+        reconnects: 3)
       #expect(spent != .reconnect)
     }
     #expect(LibDCWalk.reconnects(after: DC_STATUS_TIMEOUT, made: 2))
@@ -191,10 +229,12 @@ struct DiveComputerLinkTests {
   /// reads as unread.
   @Test func whileFreeAListingStopsAndASummaryIsUnread() {
     let listing = LibDCWalk.nauticNext(
-      .listing, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 1, reconnects: 0)
+      .listing, status: DC_STATUS_PROTOCOL, otherApp: false, busy: false, freeFailures: 1,
+      reconnects: 0)
     #expect(listing == .stop(DC_STATUS_PROTOCOL))
     let summary = LibDCWalk.nauticNext(
-      .summary, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 1, reconnects: 3)
+      .summary, status: DC_STATUS_TIMEOUT, otherApp: false, busy: false, freeFailures: 1,
+      reconnects: 3)
     #expect(summary == .passOver)
   }
 
@@ -205,26 +245,31 @@ struct DiveComputerLinkTests {
     let uncounted = LibDCWalk.NauticFetch.download(counted: false)
     for status in [DC_STATUS_TIMEOUT, DC_STATUS_PROTOCOL] {
       let first = LibDCWalk.nauticNext(
-        counted, status: status, busy: false, freeFailures: 1, reconnects: 3)
+        counted, status: status, otherApp: false, busy: false, freeFailures: 1, reconnects: 3)
       #expect(first == .retry)
       let second = LibDCWalk.nauticNext(
-        counted, status: status, busy: false, freeFailures: 2, reconnects: 3)
+        counted, status: status, otherApp: false, busy: false, freeFailures: 2, reconnects: 3)
       #expect(second == .retry)
     }
     let stalled = LibDCWalk.nauticNext(
-      counted, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 3, reconnects: 3)
+      counted, status: DC_STATUS_TIMEOUT, otherApp: false, busy: false, freeFailures: 3,
+      reconnects: 3)
     #expect(stalled == .stop(DC_STATUS_TIMEOUT))
     let refused = LibDCWalk.nauticNext(
-      counted, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 3, reconnects: 0)
+      counted, status: DC_STATUS_PROTOCOL, otherApp: false, busy: false, freeFailures: 3,
+      reconnects: 0)
     #expect(refused == .passOver)
     let malformed = LibDCWalk.nauticNext(
-      counted, status: DC_STATUS_DATAFORMAT, busy: false, freeFailures: 3, reconnects: 0)
+      counted, status: DC_STATUS_DATAFORMAT, otherApp: false, busy: false, freeFailures: 3,
+      reconnects: 0)
     #expect(malformed == .passOver)
     let uncountedStall = LibDCWalk.nauticNext(
-      uncounted, status: DC_STATUS_TIMEOUT, busy: false, freeFailures: 1, reconnects: 3)
+      uncounted, status: DC_STATUS_TIMEOUT, otherApp: false, busy: false, freeFailures: 1,
+      reconnects: 3)
     #expect(uncountedStall == .stop(DC_STATUS_TIMEOUT))
     let uncountedRefused = LibDCWalk.nauticNext(
-      uncounted, status: DC_STATUS_PROTOCOL, busy: false, freeFailures: 1, reconnects: 0)
+      uncounted, status: DC_STATUS_PROTOCOL, otherApp: false, busy: false, freeFailures: 1,
+      reconnects: 0)
     #expect(uncountedRefused == .passOver)
   }
 

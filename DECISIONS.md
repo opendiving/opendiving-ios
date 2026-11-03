@@ -174,25 +174,37 @@ parser lacks.
 
 ## An Ocean transfer that fails asks whether the watch is busy
 
-The Suunto app can hold the watch over the same link, and the watch then refuses or starves
-transfers. So any failed transfer but a cancel or a lost link reads `/Sync/BusyState`; while the
-watch says busy, the walk shows the waiting line, waits for it to say free and tries the same
-transfer again, uncounted. While it is free a timeout reopens the link, as the next entry says;
-past that, a counted dive is tried three times: a timeout, which a later connection can cure,
-then stops the walk short of moving the fingerprint past it; any other failure repeats, so the
-entry is left out, the outcome says how many, and *Download all dives* tries it again. No outcome
-asks the diver to unpair the watch. Rejected: stopping at every failure, which blocks every older
-dive behind a broken entry; skipping every failure, which lets the fingerprint pass a stalled
-dive.
+The Suunto app can hold the watch, which may then say it is busy. So any failed transfer but a
+cancel, a lost link or one another app's handshake broke (below) reads `/Sync/BusyState`; while it
+says busy, the walk shows the waiting line, waits for free and tries the same transfer again,
+uncounted. While free, a timeout reopens the link, as the next entry says; past that, a counted dive
+is tried three times: a timeout, which a later connection can cure, then stops the walk short of
+moving the fingerprint past it; any other failure repeats, so the entry is left out, the outcome
+says how many, and *Download all dives* tries it again. No outcome asks the diver to unpair the
+watch. Rejected: stopping at every failure, which blocks every older dive behind a broken entry;
+skipping every failure, which lets the fingerprint pass a stalled dive.
 
 ## An Ocean transfer that times out reopens the link and resumes
 
-A timeout while the watch says free is a lost link, as libdc-swift's own sync treats it: the walk
-closes the device, waits four seconds, opens it again and carries on from that transfer, with the
-identity, the record and the listing it already has. It reopens at most three times in a walk,
-and past that a timeout is handled as the entry above says. Every device the walk opens shares
-one resume buffer, so a dive carries on from the bytes already received. Rejected: stopping at
-the first timeout; streaming the dive again from its start at each reopen.
+A timeout while the watch says free, and no other app's handshake broke it, is a lost link, as
+libdc-swift's own sync treats it: the walk closes the device, waits four seconds, opens it again and
+carries on from that transfer, with the identity, the record and the listing it already has. It
+reopens at most three times in a walk, and past that a timeout is handled as the entry above says.
+Every device the walk opens shares one resume buffer, so a dive carries on from the bytes already
+received. Rejected: stopping at the first timeout; streaming the dive again from its start at each
+reopen.
+
+## Another app's handshake on the Ocean reads as busy
+
+Another paired app, such as the Suunto app, may handshake with the watch every ten seconds, and the
+watch drops a stream at each: the stream's unsubscribe and a resume's page fetch answer 404 after
+one, the handle a resume reads its pages on void, and a handshake that garbles a frame fails the
+stream `DC_STATUS_PROTOCOL`, after which the fork drops the bytes it kept. The busy state stays
+free, so neither the busy read nor resume covers it. A summary, the descriptors or a download during
+which libdivecomputer logged an unasked-for hello reply, or that 404, is waited out ten seconds and
+tried again on the same connection, counting toward no retry or reopen, until it goes through or the
+diver cancels; the waiting line says closing other apps lets it go on. Rejected: naming the Suunto
+app, which the link does not show; patching the pinned fork.
 
 ## The app walks the Perdix and the Ocean itself
 

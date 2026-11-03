@@ -24,8 +24,9 @@ public protocol DiveComputerLink: AnyObject {
   /// ``DiveComputerRecord/fingerprintToSet`` of the record `lookup` returns, and every entry where
   /// `lookup` returns no record or one with no fingerprint to set. Then the watch's zone where
   /// the family logs instants and the watch reports one;
-  /// ``DiveComputerDownloadEvent/busy(_:)`` whenever the computer says it is busy, and again once
-  /// it says it is free; once, where the family lists
+  /// ``DiveComputerDownloadEvent/busy(_:)`` whenever the computer says it is busy, again once it
+  /// says it is free, and each time another app's handshake broke a transfer; once, where the
+  /// family lists
   /// its entries before reading them, ``DiveComputerDownloadEvent/listing(_:)`` with the walk's
   /// count; progress where the family reports it, each dive as it is read — or
   /// ``DiveComputerDownloadEvent/skipped(fingerprint:)`` for an entry left out — and last

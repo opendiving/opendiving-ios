@@ -101,7 +101,7 @@ struct DiveComputerScreen: View {
         if let counts = model.countsText {
           Text(counts)
         }
-        // While the computer says it is busy, the waiting line stands in for the counter.
+        // While the computer is busy with another app, the waiting line stands in for the counter.
         if let text = model.waitingText ?? model.downloadingText {
           HStack(spacing: 8) {
             DiveComputerSpinner()

@@ -116,6 +116,8 @@ public final class DiveComputerModel {
   public private(set) var listing: DiveComputerListing?
   /// The computer last said it was busy with another app.
   public private(set) var computerBusy = false
+  /// Another app's handshake broke a transfer since the walk started or last delivered a dive.
+  public private(set) var otherAppHandshaking = false
   /// The listing counts from the stored fingerprint, rather than the whole computer.
   public private(set) var listedFromFingerprint = false
   public private(set) var outcome: Outcome?
@@ -164,10 +166,14 @@ public final class DiveComputerModel {
     return identity == nil ? DiveComputerText.connecting : DiveComputerText.reading
   }
 
-  /// *This computer is busy…*, while connecting or downloading from a computer that says it is:
-  /// the download starts when it is free, or once a dive has downloaded, continues.
+  /// *This computer is busy…*, while connecting or downloading from a computer that is: closing
+  /// other apps lets the download go on, once another app's handshake broke a transfer and until
+  /// a dive arrives; else, while the computer says it is busy, the download starts when it is
+  /// free, or once a dive has downloaded, continues.
   public var waitingText: String? {
-    guard computerBusy, phase == .connecting || phase == .downloading else { return nil }
+    guard phase == .connecting || phase == .downloading else { return nil }
+    if otherAppHandshaking { return DiveComputerText.busyOtherApp }
+    guard computerBusy else { return nil }
     return divesDownloaded > 0 ? DiveComputerText.busyContinues : DiveComputerText.busy
   }
 
@@ -330,6 +336,7 @@ public final class DiveComputerModel {
     progress = nil
     listing = nil
     computerBusy = false
+    otherAppHandshaking = false
     listedFromFingerprint = false
     outcome = nil
     cancelRequested = false
@@ -410,8 +417,14 @@ public final class DiveComputerModel {
         pair(found, computer: computer, watchZone: watchZone, store: store)
       case .watchZone(let zone):
         watchZone = zone
-      case .busy(let busy):
-        computerBusy = busy
+      case .busy(.reported):
+        computerBusy = true
+      case .busy(.free):
+        computerBusy = false
+      // Held until a dive arrives, not cleared at each retry, which another app's handshakes
+      // break every ten seconds or so.
+      case .busy(.otherApp):
+        otherAppHandshaking = true
       case .listing(let found):
         listing = found
         computerBusy = false
@@ -430,6 +443,7 @@ public final class DiveComputerModel {
         dives.append(dive)
         identity = identity ?? dive.identity
         divesDownloaded = dives.count
+        otherAppHandshaking = false
         walkedOne()
       case .skipped(let fingerprint):
         newest = newest ?? fingerprint
