@@ -25,11 +25,9 @@ public struct NauticSelection: Hashable, Sendable {
   public enum Fate: Hashable, Sendable {
     /// A non-diving sport: yielded as skipped, its profile never read.
     case skip
-    /// Downloaded and handed on as a dive.
+    /// Downloaded and handed on as a dive — an entry whose summary answered empty too, which is
+    /// not counted.
     case download
-    /// Downloaded although not counted: its summary answered empty. An empty download from it is
-    /// passed over.
-    case downloadUncounted
   }
 
   public struct Entry: Hashable, Sendable {
@@ -94,7 +92,6 @@ public struct NauticSelection: Hashable, Sendable {
   private static func fate(_ summary: Summary) -> Fate {
     switch summary {
     case .read(let sport?) where !NauticSport.diving.contains(sport): .skip
-    case .empty: .downloadUncounted
     default: .download
     }
   }

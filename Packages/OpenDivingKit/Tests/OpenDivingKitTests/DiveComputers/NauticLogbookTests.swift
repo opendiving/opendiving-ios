@@ -137,7 +137,7 @@ struct NauticLogbookTests {
     let selection = NauticSelection(
       ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: nil,
       learned: summaries)
-    #expect(selection.entries.map(\.fate) == [.download, .download, .downloadUncounted, .skip])
+    #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
     #expect(selection.listing.newDives == 2)
     #expect(selection.listing.dives == 13)
     #expect(selection.listing.newEntries == 4)
