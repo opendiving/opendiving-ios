@@ -78,6 +78,9 @@ public final class DiveComputerModel {
       case nothingNew
       /// Every new dive was downloaded before and waits in the import screen.
       case alreadyWaiting
+      /// The walk completed, delivering no dive, and left out entries whose download kept
+      /// failing.
+      case notDownloaded
       case noDives
       case cancelled
       case failed
@@ -89,7 +92,9 @@ public final class DiveComputerModel {
     public let sentence: String
 
     /// *Download all dives* is offered.
-    public var offersDownloadAll: Bool { kind == .nothingNew || kind == .alreadyWaiting }
+    public var offersDownloadAll: Bool {
+      kind == .nothingNew || kind == .alreadyWaiting || kind == .notDownloaded
+    }
   }
 
   public private(set) var availability = DiveComputerAvailability.unknown
@@ -599,11 +604,20 @@ public final class DiveComputerModel {
   }
 
   private func finish(emptyHanded end: DiveComputerDownloadEnd, record: DiveComputerRecord?) {
+    let counts = listing.map { DiveComputerText.onComputer($0.dives) + "." }
     switch end.kind {
-    case .complete where end.waiting > 0 && end.notDownloaded == 0:
-      var sentence = DiveComputerText.alreadyWaiting(end.waiting)
-      if let listing { sentence += " " + DiveComputerText.onComputer(listing.dives) + "." }
-      outcome = Outcome(kind: .alreadyWaiting, sentence: sentence)
+    case .complete where end.notDownloaded > 0:
+      // Neither *No dives* nor *No new dives*: there were, and they could not be taken.
+      let sentences = [
+        end.waiting > 0 ? DiveComputerText.alreadyWaiting(end.waiting) : nil,
+        DiveComputerText.couldNotDownload(end.notDownloaded), counts,
+      ]
+      outcome = Outcome(
+        kind: .notDownloaded, sentence: sentences.compactMap { $0 }.joined(separator: " "))
+    case .complete where end.waiting > 0:
+      let sentences = [DiveComputerText.alreadyWaiting(end.waiting), counts]
+      outcome = Outcome(
+        kind: .alreadyWaiting, sentence: sentences.compactMap { $0 }.joined(separator: " "))
     case .complete:
       if let record, record.fingerprintToSet != nil {
         var sentence = DiveComputerText.nothingNew(
@@ -620,7 +634,7 @@ public final class DiveComputerModel {
     case .failed(let status):
       outcome = Outcome(kind: .failed, sentence: DiveComputerText.failed(status))
     }
-    if let outcome, end.notDownloaded > 0 {
+    if let outcome, outcome.kind != .notDownloaded, end.notDownloaded > 0 {
       self.outcome = Outcome(
         kind: outcome.kind,
         sentence: outcome.sentence + " " + DiveComputerText.couldNotDownload(end.notDownloaded))

@@ -927,10 +927,46 @@ struct DiveComputerModelTests {
     let model = model(session, InboxModel(session: session), link)
     try await download(model)
     #expect(model.outcome?.sentence == "2 dives downloaded. 1 dive couldn't be downloaded.")
+    #expect(model.outcome?.offersDownloadAll == false)
     try await download(model)
     #expect(
       model.outcome?.sentence
         == "The download stopped: DC_STATUS_TIMEOUT. 2 dives couldn't be downloaded.")
+  }
+
+  /// A completed walk that delivered nothing and left entries out says neither that there are no
+  /// dives nor that there are none new, and offers *Download all dives*, which tries them again.
+  @Test func aWalkThatOnlyLeftEntriesOutSaysSoAndOffersDownloadAll() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      [
+        .identified(F.perdix), .listing(.init(dives: 3, newDives: 1, newEntries: 1)),
+        .skipped(fingerprint: F.fingerprint(7)), .finished(.init(.complete, notDownloaded: 1)),
+      ],
+      [
+        .identified(F.perdix), .listing(.init(dives: 3, newDives: 1, newEntries: 2)),
+        .skipped(fingerprint: F.fingerprint(8)), .skipped(fingerprint: F.fingerprint(7)),
+        .finished(.init(.complete, waiting: 1, notDownloaded: 1)),
+      ],
+    ]
+    let model = model(session, InboxModel(session: session), link)
+    try await download(model)
+    #expect(model.outcome?.kind == .notDownloaded)
+    #expect(
+      model.outcome?.sentence == "1 dive couldn't be downloaded. 3 dives on this computer.")
+    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(DiveComputerButtonContent(model).state == .failed)
+
+    model.downloadAll()
+    await model.settled()
+    #expect(
+      model.outcome?.sentence
+        == "The new dive is already waiting in the import screen. 1 dive couldn't be downloaded."
+        + " 3 dives on this computer.")
+    let set: [Data?] = [nil, nil]
+    #expect(link.fingerprintsSet == set)
   }
 
   private func startedAt(_ inbox: InboxModel, _ file: InboxFile) throws -> [String?] {

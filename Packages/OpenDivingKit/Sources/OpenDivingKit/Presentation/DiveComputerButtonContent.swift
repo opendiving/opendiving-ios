@@ -59,7 +59,8 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
         ring: .fraction(1), state: .waiting, accessibilityValue: DiveComputerText.timeZoneQuestion)
     case .finished:
       let kind = model.outcome?.kind
-      let failed = kind == .failed || kind == .notKept || kind == .cancelled
+      let failed =
+        kind == .failed || kind == .notKept || kind == .cancelled || kind == .notDownloaded
       self.init(
         ring: .fraction(1), state: failed ? .failed : .succeeded,
         accessibilityValue: model.outcome?.sentence ?? "")
