@@ -405,6 +405,8 @@ public final class InboxModel {
       } else {
         applyError = error.message
       }
+    } catch is CancellationError {
+      // The app left this server mid-import; its inbox is as it was, to import again there.
     } catch {
       applyError = ImportText.applyFailed
     }
@@ -533,6 +535,9 @@ public final class InboxModel {
       case .notAnInstance, .unreadableResponse:
         answer = InboxRead(files: ids, refusal: ImportText.readFailed)
       }
+    } catch is CancellationError {
+      // The app left this server; its files wait unread for the next read there.
+      return .nothingSent
     } catch {
       answer = InboxRead(files: ids, refusal: ImportText.readFailed)
     }

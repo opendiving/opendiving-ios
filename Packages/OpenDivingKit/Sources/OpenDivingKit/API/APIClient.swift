@@ -28,6 +28,7 @@ public actor APIClient {
   private let refreshRetryPause: Duration
   private var accessToken: String?
   private var refreshTask: Task<String, any Error>?
+  private let inFlight = InFlightRequests()
 
   /// `onSessionEnded` runs when the server refuses the session, after the refresh token has
   /// been removed from `secrets`. `refreshRetryPause` is how long a refresh whose reply was
@@ -54,6 +55,13 @@ public actor APIClient {
 
   private var account: String { origin.description }
 
+  /// Cuts off every request on the wire, a refresh's included, and refuses every call after:
+  /// each throws `CancellationError`. For a client the session has stopped pointing at, so that
+  /// a server that does not answer is not waited on, nor its timeout reported, after leaving it.
+  public nonisolated func cancelAll() {
+    inFlight.cancelAll()
+  }
+
   // MARK: - The server
 
   /// `GET /config`, then `GET /health`. A config that is not JSON carrying
@@ -64,7 +72,15 @@ public actor APIClient {
     guard (200..<300).contains(response.statusCode),
       let config = try? APICoding.decoder().decode(InstanceConfigRead.self, from: data)
     else { throw APIError.notAnInstance }
-    let health = try? await decoded(HealthRead.self, Call(path: "health"))
+    let health: HealthRead?
+    do {
+      health = try await decoded(HealthRead.self, Call(path: "health"))
+    } catch let error as CancellationError {
+      // Cut off, the answer is no instance at all: half of one would still be acted on.
+      throw error
+    } catch {
+      health = nil
+    }
     return ServerInfo(origin: origin, config: config, health: health)
   }
 
@@ -407,10 +423,12 @@ public actor APIClient {
       if let bodyFile { try? FileManager.default.removeItem(at: bodyFile) }
     }
     do {
-      if let bodyFile {
-        return try await transport.upload(request, fromFile: bodyFile)
+      return try await inFlight.run { [transport] in
+        if let bodyFile {
+          return try await transport.upload(request, fromFile: bodyFile)
+        }
+        return try await transport.send(request)
       }
-      return try await transport.send(request)
     } catch let error as URLError {
       throw APIError.unreachable(
         TransportFailure(code: error.code.rawValue, message: error.localizedDescription))

@@ -14,7 +14,7 @@ struct SessionTests {
 
   private func session(
     pointer: ServerOrigin?, refreshToken: String?,
-    transport: StubTransport = StubTransport { _ in
+    transport: any HTTPTransport = StubTransport { _ in
       .unauthorized
     }
   ) -> (Session, InMemorySecretStore, InMemoryActiveOriginStore) {
@@ -188,6 +188,32 @@ struct SessionTests {
     #expect(try secrets.secret(for: origin.description) == "refresh-0")
     session.select(origin)
     #expect(session.state == .signedIn(origin))
+  }
+
+  @Test func leavingAServerCutsOffItsRequests() async throws {
+    let transport = SilentTransport()
+    defer { transport.release() }
+    let (session, secrets, _) = session(
+      pointer: origin, refreshToken: "refresh-0", transport: transport)
+    let left = try session.requireClient()
+    let resume = Task { try await session.resume() }
+    while transport.requests.isEmpty { await Task.yield() }
+    session.select(ServerOrigin("https://other.example.org")!)
+    await #expect(throws: CancellationError.self) { try await resume.value }
+    await #expect(throws: CancellationError.self) { try await left.currentUser() }
+    #expect(transport.requests.map(\.route) == ["POST auth/refresh"])
+    #expect(try secrets.secret(for: origin.description) == "refresh-0")
+  }
+
+  @Test func forgettingTheActiveServerCutsOffItsRequests() async throws {
+    let transport = SilentTransport()
+    defer { transport.release() }
+    let (session, _, _) = session(pointer: origin, refreshToken: nil, transport: transport)
+    let validate = Task { try await session.validate(origin) }
+    while transport.requests.isEmpty { await Task.yield() }
+    try session.forget(origin)
+    await #expect(throws: CancellationError.self) { try await validate.value }
+    #expect(session.validationFailures[origin] == nil)
   }
 
   @Test func signingOutOfAnotherServerUsesItsOwnSession() async throws {
