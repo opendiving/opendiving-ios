@@ -2,8 +2,8 @@
 
 The app's own source is licensed under the [Apache License 2.0](LICENSE). The app target
 links two libraries under the GNU Lesser General Public License, version 2.1, whose text is in
-[LICENSE-LGPL-2.1](LICENSE-LGPL-2.1), and one decoder under an ISC-style licence, reproduced
-below. Its symbols include icons from Lucide, under the ISC licence, reproduced below too. The
+[LICENSE-LGPL-2.1](LICENSE-LGPL-2.1), one under the MIT licence and one decoder under an
+ISC-style licence, both reproduced below. Its symbols include icons from Lucide, under the ISC licence, reproduced below too. The
 Kit, `OpenDivingKit`, depends on none of them.
 
 ## libdc-swift
@@ -19,11 +19,42 @@ pins this exact release.
 contributors, compiled from deepsealabs' fork
 ([deepsealabs/libdivecomputer](https://github.com/deepsealabs/libdivecomputer)) at commit
 `1b201bb63b2870a4a0804a92b9ba1b7b003aadea`, the submodule libdc-swift `1.20.0` pins. It talks
-to the dive computer and parses what it sends.
+to the dive computer, and its parsers read what it sends for libdivejson below.
 
 Both are linked statically, as the package builds them. This repository's complete source and
 that exact pin name the libraries' complete source, so whoever receives the app can modify
 either library and relink it.
+
+## libdivejson
+
+[divejson/divejson-c](https://github.com/divejson/divejson-c), MIT, at release `0.1.0` (commit
+`b51928a01adb8824b8fd35db14ce88bd93ede6eb`): the reader that turns a dive's bytes into a DiveJSON
+dive, through the libdivecomputer above, which it compiles against and does not bundle.
+`project.yml` pins this exact release.
+
+```
+MIT License
+
+Copyright (c) 2026 The DiveJSON Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## heatshrink
 

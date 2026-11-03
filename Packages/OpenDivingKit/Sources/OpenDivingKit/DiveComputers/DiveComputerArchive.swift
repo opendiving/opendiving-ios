@@ -2,9 +2,11 @@ import Foundation
 
 /// The names and identities a download archive is built from.
 enum DiveComputerArchive {
-  /// The api's own producer key, "stable by contract" there; the recording's extensions sit
-  /// under it.
+  /// The api's own producer key, "stable by contract" there; a stored file's tag sits under
+  /// it.
   static let producerKey = "opendiving"
+  /// The format id of the reader that reads a dive's original, on the phone and the server.
+  static let parserKey = "libdivecomputer"
   static let documentName = "logbook.divejson"
   static let filesFolder = "files/"
 

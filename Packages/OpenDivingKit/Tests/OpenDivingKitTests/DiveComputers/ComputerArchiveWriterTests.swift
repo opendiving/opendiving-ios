@@ -4,7 +4,7 @@ import Testing
 @testable import OpenDivingKit
 
 /// The archive writer against the goldens — which CI validates with `divejson validate` — and
-/// the invariants that keep a download importable and true to what the computer reported.
+/// the invariants that keep a download importable and true to what the reader returned.
 struct ComputerArchiveWriterTests {
   private typealias F = DiveComputerFixtures
 
@@ -99,7 +99,7 @@ struct ComputerArchiveWriterTests {
     #expect(try reader.read(reader.entries[3]) == Data("perdix dive 1".utf8))
   }
 
-  @Test func nothingIsInventedAndTheProducerKeySitsOnTheRecordingAlone() throws {
+  @Test func nothingIsInventedAndTheProducerKeySitsOnTheStoredFileAlone() throws {
     defer { try? FileManager.default.removeItem(at: folder) }
     for written in [try perdixArchive(), try oceanArchive()] {
       let json = try document(written.url).json
@@ -112,11 +112,61 @@ struct ComputerArchiveWriterTests {
         }
         let recording = try #require(dive["recordings"]?.arrayValue?.first)
         #expect(recording["device"]?["brand"] == nil)
+        #expect(recording["extensions"] == nil)
         for file in recording["source_files"]?.arrayValue ?? [] {
-          #expect(file["extensions"] == nil)
+          #expect(file["extensions"]?["opendiving"]?["parser_key"] == .string("libdivecomputer"))
         }
       }
     }
+  }
+
+  /// The tag is what `opendiving-api` reads the original again with: the descriptor, and the
+  /// fallback start the reader was given, as an instant in UTC.
+  @Test func theOriginalIsTaggedWithWhatReadsItAgain() throws {
+    defer { try? FileManager.default.removeItem(at: folder) }
+    func tags(_ written: ComputerArchiveWriter.Written) throws -> [ArchiveJSON?] {
+      try #require(try document(written.url).json["dives"]?.arrayValue).map {
+        $0["recordings"]?.arrayValue?.first?["source_files"]?.arrayValue?.first?["extensions"]?[
+          "opendiving"]
+      }
+    }
+    let descriptor: ArchiveJSON = .object([
+      "vendor": .string("Shearwater"), "product": .string("Perdix 3"), "model": .integer(14),
+    ])
+    #expect(
+      try tags(try perdixArchive())
+        == Array(
+          repeating: .object(["parser_key": .string("libdivecomputer"), "descriptor": descriptor]),
+          count: 2))
+    #expect(
+      try tags(try oceanArchive()).first
+        == .object([
+          "parser_key": .string("libdivecomputer"),
+          "descriptor": .object([
+            "vendor": .string("Suunto"), "product": .string("Ocean"), "model": .integer(1),
+          ]),
+          "fallback_start": .string("2026-10-26T10:00:00+00:00"),
+        ]))
+  }
+
+  /// The reader's dive is written as it returned it, but for the uuid and the start, which are
+  /// the host's, and the device and the stored file the recording gains.
+  @Test func theReadersMembersReachTheDocumentUnchanged() throws {
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let written = try document(try perdixArchive().url).json
+    guard case .object(var dive)? = written["dives"]?.arrayValue?.first,
+      case .object(var recording)? = dive["recordings"]?.arrayValue?.first
+    else { throw DiveComputerArchiveError.unreadableArchive }
+    recording["device"] = nil
+    recording["source_files"] = nil
+    dive["recordings"] = .array([.object(recording)])
+    var read = F.perdixDive.body
+    #expect(dive["uuid"] != read["uuid"])
+    for key in ["uuid", "started_at"] {
+      dive[key] = nil
+      read[key] = nil
+    }
+    #expect(dive == read)
   }
 
   @Test func theDeviceIsSpelledAsEachFamilysExportsSpellIt() throws {
@@ -165,67 +215,6 @@ struct ComputerArchiveWriterTests {
     let uuid = try #require(first["dives"]?.arrayValue?.first?["uuid"]?.stringValue)
     #expect(UUID(uuidString: uuid).map { $0.uuidString.lowercased() } == uuid)
     #expect(uuid.dropFirst(14).first == "5")
-  }
-
-  @Test func salinityIsTheSettingAndItsDensityTravelsBesideIt() throws {
-    defer { try? FileManager.default.removeItem(at: folder) }
-    let perdix = try document(try perdixArchive().url).json["dives"]?.arrayValue?.first
-    let recording = try #require(perdix?["recordings"]?.arrayValue?.first)
-    #expect(recording["salinity"]?.stringValue == "en13319")
-    #expect(recording["extensions"]?["opendiving"]?["salinity_density"] == .integer(1020))
-    let ocean = try document(try oceanArchive().url).json["dives"]?.arrayValue?.first
-    #expect(ocean?["recordings"]?.arrayValue?.first?["salinity"]?.stringValue == "salt")
-  }
-
-  /// Heart rate is a profile channel and rides nowhere else. A 0 is a sensor's absent-marker,
-  /// below the format's floor of 1, so it writes a gap rather than a reading.
-  @Test func heartRateRidesTheProfileAndAZeroWritesNothing() throws {
-    defer { try? FileManager.default.removeItem(at: folder) }
-    var dive = F.perdixDive
-    dive.samples[0].heartRate = 0
-    var download = F.perdixDownload
-    download[0] = DownloadedDive(
-      identity: F.perdix, fingerprint: F.fingerprint(3), bytes: Data("perdix dive 3".utf8),
-      reading: .dive(dive))
-    let written = try writer.write(
-      .init(
-        identity: F.perdix, dives: download, moment: F.moment, zone: F.helsinki,
-        instantZone: nil), into: folder)
-    let dives = try #require(try document(written.url).json["dives"]?.arrayValue)
-    let recording = try #require(dives[0]["recordings"]?.arrayValue?.first)
-    #expect(
-      recording["profile"]?["heart_rate"]
-        == .object(["times": .array([.integer(10_000)]), "values": .array([.integer(92)])]))
-    #expect(recording["extensions"]?["opendiving"]?["heart_rate"] == nil)
-    // The dive whose computer reported none writes the member nowhere.
-    #expect(!dives[1].text.contains("heart_rate"))
-  }
-
-  /// A sample before the start — a GPS fix the watch took before it — is written nowhere, and
-  /// the profile's duration is the last moment at or after it.
-  @Test func aSampleBeforeTheStartIsLeftOut() throws {
-    defer { try? FileManager.default.removeItem(at: folder) }
-    var dive = F.oceanDownload[0].dive!
-    var early = ComputerDive.Sample(time: -1834)
-    early.location = .init(latitude: 60.1, longitude: 24.9)
-    dive.samples = [
-      early, .init(time: -804, temperature: 11), .init(time: 0, depth: 0.3),
-      .init(time: 1000, depth: 1.2),
-    ]
-    var download = F.oceanDownload
-    download[0] = DownloadedDive(
-      identity: F.ocean, fingerprint: F.fingerprint(0x12), bytes: Data("ocean after".utf8),
-      reading: .dive(dive))
-    let written = try writer.write(
-      .init(
-        identity: F.ocean, dives: download, moment: F.moment, zone: F.helsinki,
-        instantZone: F.helsinki), into: folder)
-    let dives = try #require(try document(written.url).json["dives"]?.arrayValue)
-    let recording = try #require(dives[0]["recordings"]?.arrayValue?.first)
-    #expect(recording["profile"]?["duration"] == .integer(1000))
-    #expect(recording["profile"]?["temperature"] == nil)
-    #expect(!dives[0].text.contains("positions"))
-    #expect(!dives[0].text.contains("4294"))
   }
 
   // MARK: - The union

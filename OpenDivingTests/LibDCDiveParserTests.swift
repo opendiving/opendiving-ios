@@ -1,167 +1,89 @@
-import Clibdivecomputer
 import Foundation
 import OpenDivingKit
 import Testing
 
 @testable import OpenDiving
 
-/// The parser's pieces over values written by hand: samples as libdivecomputer's callback
-/// reports them, the start, and the absences a successful field reports.
+/// The reader as the app links it — `libdivejson` against libdc-swift's libdivecomputer — over
+/// two real originals: one deco dive recorded on a Perdix 3 and an Ocean worn together. Each
+/// `.divejson` beside its `.bin` is the document the reader's own suite expects, so a dive read
+/// here that differs from it is a link to a libdivecomputer the reader was not built for.
 struct LibDCDiveParserTests {
-  private func value(_ set: (inout dc_sample_value_t) -> Void) -> dc_sample_value_t {
-    var value = dc_sample_value_t()
-    set(&value)
-    return value
+  private final class Token {}
+
+  private static let perdix = DiveComputerIdentity(
+    family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
+    firmware: nil, familyNumber: 0, modelNumber: 14)
+  private static let ocean = DiveComputerIdentity(
+    family: .suuntoNautic, vendor: "Suunto", product: "Ocean", serial: "253810000400",
+    firmware: nil, familyNumber: 0, modelNumber: 1)
+
+  /// The Ocean fixture's fingerprint: its start, 2026-10-26T12:01:49Z, as the watch keys it.
+  private static let oceanFingerprint = Data([0x2D, 0x41, 0xDF, 0x6A])
+
+  private func fixture(_ name: String, _ ext: String) throws -> Data {
+    let url = try #require(Bundle(for: Token.self).url(forResource: name, withExtension: ext))
+    return try Data(contentsOf: url)
   }
 
-  @Test func eachValueLandsOnTheSampleItWasReportedIn() {
-    var accumulator = SampleAccumulator()
-    accumulator.add(DC_SAMPLE_TIME, value { $0.time = 0 })
-    accumulator.add(DC_SAMPLE_DEPTH, value { $0.depth = 1.5 })
-    accumulator.add(DC_SAMPLE_TEMPERATURE, value { $0.temperature = 27.25 })
-    accumulator.add(
-      DC_SAMPLE_PPO2,
-      value {
-        $0.ppo2.sensor = 0
-        $0.ppo2.value = 1.1
-      })
-    accumulator.add(
-      DC_SAMPLE_PPO2,
-      value {
-        $0.ppo2.sensor = DC_SENSOR_NONE
-        $0.ppo2.value = 1.2
-      })
-    accumulator.add(DC_SAMPLE_TIME, value { $0.time = 10_000 })
-    accumulator.add(DC_SAMPLE_DEPTH, value { $0.depth = 4 })
-    accumulator.add(
-      DC_SAMPLE_DECO,
-      value {
-        $0.deco.type = DC_DECO_DECOSTOP.rawValue
-        $0.deco.depth = 3
-        $0.deco.time = 60
-        $0.deco.tts = 120
-      })
-    accumulator.add(
-      DC_SAMPLE_PRESSURE,
-      value {
-        $0.pressure.tank = 1
-        $0.pressure.value = 180
-      })
-    let samples = accumulator.finish()
-
-    #expect(samples.count == 2)
-    #expect(samples[0].time == 0)
-    #expect(samples[0].depth == 1.5)
-    #expect(samples[0].temperature == 27.25)
-    #expect(samples[0].ppo2 == [.init(sensor: 0, bar: 1.1), .init(sensor: nil, bar: 1.2)])
-    #expect(samples[0].deco == nil)
-    #expect(samples[1].time == 10_000)
-    #expect(samples[1].temperature == nil, "nothing is carried forward")
-    #expect(samples[1].deco == .init(kind: .decoStop, time: 60, depth: 3, timeToSurface: 120))
-    #expect(samples[1].pressures == [.init(tank: 1, bar: 180)])
+  /// The dive the reader's own suite expects, as the Kit takes it.
+  private func expected(_ name: String, identity: DiveComputerIdentity, fallbackStart: Date?)
+    throws -> ComputerDive
+  {
+    let document = try JSONSerialization.jsonObject(with: try fixture(name, "divejson"))
+    let dive = try #require(((document as? [String: Any])?["dives"] as? [Any])?.first)
+    return try #require(
+      ComputerDive(
+        json: try JSONSerialization.data(withJSONObject: dive),
+        logsInstants: identity.family.logsInstants, fallbackStart: fallbackStart))
   }
 
-  @Test func eventsVendorRecordsAndPositionsAreKept() throws {
-    var accumulator = SampleAccumulator()
-    let bytes: [UInt8] = [1, 2, 3]
-    bytes.withUnsafeBufferPointer { buffer in
-      accumulator.add(DC_SAMPLE_TIME, value { $0.time = 2_000 })
-      accumulator.add(
-        DC_SAMPLE_EVENT,
-        value {
-          $0.event.type = SAMPLE_EVENT_BOOKMARK.rawValue
-          $0.event.flags = SAMPLE_FLAGS_BEGIN.rawValue
-          $0.event.value = 7
-        })
-      accumulator.add(
-        DC_SAMPLE_VENDOR,
-        value {
-          $0.vendor.type = 6
-          $0.vendor.size = 3
-          $0.vendor.data = UnsafeRawPointer(buffer.baseAddress)
-        })
-      accumulator.add(
-        DC_SAMPLE_LOCATION,
-        value {
-          $0.location.latitude = 27.9
-          $0.location.longitude = 34.3
-          $0.location.altitude = 0
-        })
-      accumulator.add(DC_SAMPLE_GASMIX, value { $0.gasmix = DC_GASMIX_UNKNOWN })
-    }
-    let samples = accumulator.finish()
-    #expect(samples.count == 1)
-    let sample = try #require(samples.first)
-    #expect(sample.events == [.init(type: 8, time: 0, flags: 1, value: 7)])
-    #expect(sample.vendor == [.init(type: 6, bytes: Data([1, 2, 3]))])
-    #expect(sample.location == .init(latitude: 27.9, longitude: 34.3, altitude: 0))
-    #expect(sample.gasMix == nil)
-  }
-
-  /// The Nautic parser casts a time before the start to unsigned; it reads back negative, for
-  /// the writer to leave out, never as a time 49 days into the dive.
-  @Test func aTimeBeforeTheStartIsNegative() {
-    var accumulator = SampleAccumulator()
-    accumulator.add(DC_SAMPLE_TIME, value { $0.time = UInt32(bitPattern: -1834) })
-    accumulator.add(DC_SAMPLE_TIME, value { $0.time = 0 })
-    accumulator.add(DC_SAMPLE_TIME, value { $0.time = 1000 })
-    #expect(accumulator.finish().map(\.time) == [-1834, 0, 1000])
-  }
-
-  @Test func aWallClockKeepsTheZoneTheParserReported() {
-    var datetime = dc_datetime_t(
-      year: 2026, month: 10, day: 25, hour: 9, minute: 14, second: 5, timezone: Int32.min)
-    let naive = LibDCDiveParser.start(datetime, logsInstants: false)
+  @Test func thePerdixOriginalReadsAsTheReaderExpects() throws {
+    let name = "shearwater-perdix-3_D9772626_2026-10-26T1503"
+    let parsed = LibDCDiveParser.parse(
+      try fixture(name, "bin"), identity: Self.perdix, fallbackStart: nil)
+    let expected = try expected(name, identity: Self.perdix, fallbackStart: nil)
+    #expect(parsed == .dive(expected))
     let clock = LocalDateTime(
-      date: CalendarDate(year: 2026, month: 10, day: 25)!, hour: 9, minute: 14, second: 5)!
-    #expect(naive == .wallClock(clock, utcOffsetSeconds: nil))
-    datetime.timezone = 7200
-    #expect(
-      LibDCDiveParser.start(datetime, logsInstants: false)
-        == .wallClock(clock, utcOffsetSeconds: 7200))
+      date: CalendarDate(year: 2026, month: 10, day: 26)!, hour: 15, minute: 3, second: 23)
+    #expect(expected.start == .wallClock(try #require(clock), utcOffsetSeconds: nil))
   }
 
-  @Test func anInstantIsTheMomentTheParserReported() {
-    let datetime = dc_datetime_t(
-      year: 2026, month: 10, day: 25, hour: 6, minute: 14, second: 0, timezone: 0)
-    #expect(
-      LibDCDiveParser.start(datetime, logsInstants: true)
-        == .instant(Date(timeIntervalSince1970: 1_792_908_840)))
+  /// The Ocean's log holds a GPS fix, so its start is the parser's — an instant, logged in UTC —
+  /// and the fallback the walk passes rides along for the stored file's tag.
+  @Test func theOceanOriginalReadsAsTheReaderExpects() throws {
+    let name = "suunto-ocean_253810000400_2026-10-26T1501"
+    let fallback = LibDCDiveParser.fingerprintStart(Self.oceanFingerprint)
+    let parsed = LibDCDiveParser.parse(
+      try fixture(name, "bin"), identity: Self.ocean, fallbackStart: fallback)
+    let expected = try expected(name, identity: Self.ocean, fallbackStart: fallback)
+    #expect(parsed == .dive(expected))
+    #expect(expected.start == .instant(Date(timeIntervalSince1970: 1_793_016_109)))
+    #expect(expected.fallbackStart == Date(timeIntervalSince1970: 1_793_016_109))
+  }
+
+  /// A refusal keeps the fingerprint's start, which names the original kept unread.
+  @Test func aComputerTheLinkedLibraryDoesNotKnowIsRefused() throws {
+    let unknown = DiveComputerIdentity(
+      family: .suuntoNautic, vendor: "Suunto", product: "Ocean 2", serial: "253810000400",
+      firmware: nil, familyNumber: 0, modelNumber: 1)
+    let fallback = Date(timeIntervalSince1970: 1_793_016_109)
+    let bytes = try fixture("suunto-ocean_253810000400_2026-10-26T1501", "bin")
+    guard
+      case .refused(let start, let reason) = LibDCDiveParser.parse(
+        bytes, identity: unknown, fallbackStart: fallback)
+    else {
+      Issue.record("an unknown product read as a dive")
+      return
+    }
+    #expect(start == .instant(fallback))
+    #expect(reason.contains("Ocean 2"))
   }
 
   @Test func aNauticFingerprintIsItsStart() {
-    let fingerprint = Data([0x28, 0x7B, 0xDD, 0x6A])
     #expect(
-      LibDCDiveParser.fingerprintStart(fingerprint)
-        == .instant(Date(timeIntervalSince1970: 0x6ADD_7B28)))
+      LibDCDiveParser.fingerprintStart(Data([0x28, 0x7B, 0xDD, 0x6A]))
+        == Date(timeIntervalSince1970: 0x6ADD_7B28))
     #expect(LibDCDiveParser.fingerprintStart(Data([1, 2])) == nil)
-  }
-
-  @Test func absencesInsideAFieldAreAbsent() {
-    var tank = dc_tank_t()
-    tank.gasmix = DC_GASMIX_UNKNOWN
-    tank.type = DC_TANKVOLUME_NONE
-    tank.beginpressure = 200
-    tank.endpressure = 50
-    let read = LibDCDiveParser.tank(tank)
-    #expect(read.gasMix == nil)
-    #expect(read.volume == nil)
-    #expect(read.workingPressure == nil)
-    #expect(read.beginPressure == 200)
-
-    var model = dc_decomodel_t()
-    model.type = DC_DECOMODEL_BUHLMANN
-    #expect(LibDCDiveParser.decoModel(model).gradientFactors == nil)
-    model.params.gf.low = 40
-    model.params.gf.high = 85
-    #expect(LibDCDiveParser.decoModel(model).gradientFactors == .init(low: 40, high: 85))
-  }
-
-  @Test func aBufferNoParserOpensIsRefusedWithTheFingerprintsStart() {
-    let start = ComputerDive.Start.instant(Date(timeIntervalSince1970: 1_792_908_840))
-    let parsed = LibDCDiveParser.parse(
-      Data([0, 1, 2]), context: nil, family: DC_FAMILY_NULL, model: 0, logsInstants: true,
-      fallbackStart: start)
-    #expect(parsed == .refused(start: start))
   }
 }

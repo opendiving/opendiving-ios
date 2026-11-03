@@ -11,9 +11,14 @@ options:
 packages:
   OpenDivingKit:
     path: Packages/OpenDivingKit
+  # The two pins move together: the reader links against libdc-swift's libdivecomputer, and
+  # its release names the libdivecomputer commit it was built for. See CONTRIBUTING.md.
   LibDCSwift:
     url: https://github.com/deepsealabs/libdc-swift
     exactVersion: 1.20.0
+  LibDiveJSON:
+    url: https://github.com/divejson/divejson-c
+    exactVersion: 0.1.0
 
 settings:
   base:
@@ -34,6 +39,8 @@ targets:
       - package: OpenDivingKit
       - package: LibDCSwift
         product: LibDCSwift
+      - package: LibDiveJSON
+        product: LibDiveJSON
     # Carries the bundle identifier and the optional, gitignored signing file. See
     # CONTRIBUTING.md, "Running on your iPhone".
     configFiles:

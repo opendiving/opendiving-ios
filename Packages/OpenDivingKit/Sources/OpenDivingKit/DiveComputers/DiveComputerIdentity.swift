@@ -10,7 +10,9 @@ public struct DiveComputerIdentity: Hashable, Sendable {
   public let serial: String
   public let firmware: String?
   /// libdivecomputer's `dc_family_t` and model numbers at the pinned library: what the open
-  /// used. Carried for the conformance, never written anywhere or kept.
+  /// used. The model number is the descriptor's third part, which a stored original's tag
+  /// carries beside the vendor and product; the family number is numbered per build, so it is
+  /// never written anywhere or kept.
   public let familyNumber: UInt32
   public let modelNumber: UInt32
 

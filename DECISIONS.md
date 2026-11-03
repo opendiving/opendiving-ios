@@ -236,14 +236,24 @@ Swift and tested against their published vectors, so the writer's goldens are th
 Linux and the simulator. Rejected: a digest seam the app conforms over CryptoKit, which would
 make the goldens a fake's output wherever the Kit's tests run.
 
-## What DiveJSON cannot hold rides the recording's extensions, and the server drops it
+## A dive's body is the shared reader's, and its identity the Kit's
+
+The app reads each dive's bytes through libdivejson, the reader `divejson/divejson-c` publishes and
+the server runs over the same original, so the phone's document and the server's re-read come from
+one mapping. The Kit adds only what the reader cannot know: the uuid from the family, serial and
+fingerprint, the start rendered in the diver's zone, the device block, and the stored file, tagged
+under `extensions.opendiving` with `parser_key` `libdivecomputer`, the descriptor and any fallback
+start, which is what the server reads the original with. Rejected: the Kit mapping libdivecomputer
+itself, a second mapping to keep in step with the server's.
+
+## What DiveJSON cannot hold stays in the original
 
 libdivecomputer reports more than DiveJSON 1.0 holds: each O₂ cell, setpoint, bearing, a stop's
-time, a tank's working pressure, the salinity density. The writer puts them under the recording's
-`extensions.opendiving`, its doc comment the shape, and nothing under that key on the document, a
-dive or a stored file, where the api reads members of its own. The api stores no extensions at
-import, so until the format takes these members over they survive on the server only inside the
-stored original. Rejected: dropping them; writing vendor records, which the original already holds.
+time, a tank's working pressure, the salinity density. The reader maps core members only, so the
+document carries none of them; the stored original, which the server reads again when its pin of
+the reader moves, is the lossless record, and a reader release writes a member once the format
+takes it over. Rejected: writing them under the recording's `extensions.opendiving`, which the api
+never read and which would be an app-side mapping beside the reader's.
 
 ## The import keeps a refused download, and a union never crosses a mark
 
@@ -331,10 +341,10 @@ A Bluetooth protocol stack for forty brands of dive computer is not this project
 libdivecomputer is the library every logbook builds on, and libdc-swift brings its Core Bluetooth
 transport and the Suunto Ocean backend upstream has not merged. The app target takes it pinned to
 an exact release in `project.yml`, the one place the version lives; the Kit stays dependency-free
-and tested on Linux. The app opens a device through the bridge's C entry and walks and parses the
-dives itself, since the package's retriever keeps no dive's bytes, its parser drops the zone and
-fills defaults, and its own open records devices in `UserDefaults`. Rejected: vendoring upstream
-libdivecomputer behind a bridge of our own, which reaches no Ocean.
+and tested on Linux. The app opens a device through the bridge's C entry and walks the dives
+itself, and libdivejson parses them, since the package's retriever keeps no dive's bytes, its
+parser drops the zone and fills defaults, and its own open records devices in `UserDefaults`.
+Rejected: vendoring upstream libdivecomputer behind a bridge of our own, which reaches no Ocean.
 
 ## libdivecomputer links statically, and the public source meets the LGPL
 
