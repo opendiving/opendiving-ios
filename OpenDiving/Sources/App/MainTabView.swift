@@ -23,12 +23,12 @@ struct MainTabView: View {
       : UIColor(red: 1.041, green: 0.531, blue: 0.349, alpha: 1)
   }
 
-  /// Semibold labels, and the selected tab in coral — the tab bar's alone, so the rest of the app
+  /// Bold labels, and the selected tab in coral — the tab bar's alone, so the rest of the app
   /// keeps the system tint. Set on the appearance proxy, before the bar exists, because the tab
   /// bar reads no SwiftUI font. The size is fixed, as the system's own labels are: the bar's height
   /// is, and Dynamic Type reaches it through the Large Content Viewer instead.
   static let styleTabBar: Void = {
-    let font = UIFont.systemFont(ofSize: 10, weight: .semibold)
+    let font = UIFont.systemFont(ofSize: 10, weight: .bold)
     let appearance = UITabBarAppearance()
     appearance.configureWithDefaultBackground()
     for layout in [
