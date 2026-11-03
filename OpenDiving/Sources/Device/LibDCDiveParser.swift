@@ -14,8 +14,8 @@ nonisolated enum LibDCDiveParser {
     case dive(ComputerDive)
     /// The parser could not open the buffer, or no start came from it or the fingerprint.
     case refused(start: ComputerDive.Start?)
-    /// No samples and no duration: not a dive. On the Nautic family, the Suunto app holding
-    /// the link.
+    /// No samples and no duration: not a dive. On the Nautic family, an empty or aborted
+    /// session.
     case empty
   }
 

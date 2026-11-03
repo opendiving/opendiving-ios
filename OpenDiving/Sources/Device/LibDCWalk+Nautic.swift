@@ -58,8 +58,6 @@ nonisolated extension LibDCWalk {
       ids: ids, fingerprint: fingerprint, remembered: record?.nauticSports, learned: learned)
     events.yield(.listing(selection.listing))
 
-    var downloads = 0
-    var emptyDownloads = 0
     for entry in selection.entries {
       if cancel.isSet { break }
       let mark = NauticSelection.fingerprint(entry.id)
@@ -67,24 +65,17 @@ nonisolated extension LibDCWalk {
         events.yield(.skipped(fingerprint: mark))
         continue
       }
-      let counted = entry.fate == .download
-      if counted { downloads += 1 }
       let (status, bytes) = Self.buffered {
         suunto_nautic_device_download(handle, String(entry.id), $0)
       }
       switch Self.nauticDownload(status: status, bytes: bytes) {
-      case .stop(let stopped):
-        return nauticEnd(stopped, downloads: downloads, emptyDownloads: emptyDownloads)
-      case .passOver:
-        if counted { emptyDownloads += 1 }
+      case .stop(let stopped): return nauticEnd(stopped)
+      case .passOver: break
       case .deliver(let dive):
-        guard self.dive(dive, fingerprint: mark) else {
-          return nauticEnd(
-            DC_STATUS_CANCELLED, downloads: downloads, emptyDownloads: emptyDownloads)
-        }
+        guard self.dive(dive, fingerprint: mark) else { return nauticEnd(DC_STATUS_CANCELLED) }
       }
     }
-    return nauticEnd(DC_STATUS_SUCCESS, downloads: downloads, emptyDownloads: emptyDownloads)
+    return nauticEnd(DC_STATUS_SUCCESS)
   }
 
   /// The ids `suunto_nautic_device_list` packs, four little-endian bytes each, newest first.
@@ -103,23 +94,24 @@ nonisolated extension LibDCWalk {
     return ids
   }
 
-  /// What a by-id download's answer means for the walk.
+  /// What a by-id download's answer means for the walk. The backend checks a download against
+  /// its listed size and leaves the content to the parser, so a session that holds no dive comes
+  /// back as bytes, and ``LibDCWalk/dive(_:fingerprint:)`` skips it. A failure carries no bytes
+  /// and is not retried by the backend: a stalled stream answers `DC_STATUS_TIMEOUT`, a dive
+  /// short of its listed size or one whose summary cannot be fetched fails too, and a link
+  /// dropped mid-transfer answers `DC_STATUS_NODEVICE`, nothing resuming it.
   enum NauticDownload: Equatable {
-    /// A profile, the summary appended: handed on as a dive — a dive shorter than its listed size
-    /// too, which comes back `DC_STATUS_DATAFORMAT` with its bytes.
+    /// A profile, the summary appended: handed on to be parsed.
     case deliver(Data)
-    /// No bytes: an entry listed with size 0, an empty or aborted session, or a dive whose stream
-    /// sent nothing on every attempt, which the answer cannot tell apart. Passed over, yielding
+    /// Success with no bytes, which an entry listed with size 0 gives. Passed over, yielding
     /// nothing, so the fingerprint is moved only by an entry delivered or skipped.
     case passOver
-    /// Any other status, a link that is gone among them: the walk ends on it.
+    /// Any failure: the walk ends on it.
     case stop(dc_status_t)
   }
 
   static func nauticDownload(status: dc_status_t, bytes: Data) -> NauticDownload {
-    guard status == DC_STATUS_SUCCESS || status == DC_STATUS_DATAFORMAT else {
-      return .stop(status)
-    }
+    guard status == DC_STATUS_SUCCESS else { return .stop(status) }
     return bytes.isEmpty ? .passOver : .deliver(bytes)
   }
 
@@ -177,12 +169,9 @@ nonisolated extension LibDCWalk {
     (value?.integerValue ?? 0) != 0
   }
 
-  private func nauticEnd(_ status: dc_status_t, downloads: Int = 0, emptyDownloads: Int = 0)
-    -> DiveComputerDownloadEnd
-  {
+  private func nauticEnd(_ status: dc_status_t) -> DiveComputerDownloadEnd {
     Self.end(
       status: status, cancelled: cancel.isSet, family: family, delivered: delivered,
-      emptyReads: emptyReads, refused: refused, fingerprintSet: false, downloads: downloads,
-      emptyDownloads: emptyDownloads)
+      emptyReads: emptyReads, refused: refused, fingerprintSet: false)
   }
 }

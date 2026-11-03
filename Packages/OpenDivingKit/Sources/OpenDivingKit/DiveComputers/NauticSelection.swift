@@ -8,7 +8,7 @@ import Foundation
 /// descriptors or could not be fetched — a dive wrongly skipped is never walked again once the
 /// fingerprint moves past it. An entry whose summary answered with no bytes is not counted, most
 /// such entries holding nothing, but is still downloaded, since the backend delivers a profile
-/// whose summary is missing.
+/// whose summary answered empty.
 public struct NauticSelection: Hashable, Sendable {
   /// What a walk learned of one entry's summary.
   public enum Summary: Hashable, Sendable {
@@ -25,11 +25,9 @@ public struct NauticSelection: Hashable, Sendable {
   public enum Fate: Hashable, Sendable {
     /// A non-diving sport: yielded as skipped, its profile never read.
     case skip
-    /// Downloaded and handed on as a dive.
+    /// Downloaded and handed on as a dive — an entry whose summary answered empty too, which is
+    /// not counted.
     case download
-    /// Downloaded although not counted: its summary answered empty. An empty download from it is
-    /// passed over.
-    case downloadUncounted
   }
 
   public struct Entry: Hashable, Sendable {
@@ -94,7 +92,6 @@ public struct NauticSelection: Hashable, Sendable {
   private static func fate(_ summary: Summary) -> Fate {
     switch summary {
     case .read(let sport?) where !NauticSport.diving.contains(sport): .skip
-    case .empty: .downloadUncounted
     default: .download
     }
   }

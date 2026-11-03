@@ -107,12 +107,12 @@ struct DiveComputerLinkTests {
 
   @Test func aWalkOfOnlyEmptyRecordsFails() {
     let end = LibDCWalk.end(
-      status: DC_STATUS_SUCCESS, cancelled: false, family: .suuntoNautic, delivered: 0,
+      status: DC_STATUS_SUCCESS, cancelled: false, family: .shearwaterPetrel, delivered: 0,
       emptyReads: 2, refused: 0, fingerprintSet: false)
     #expect(end.kind == .failed(status: "DC_STATUS_DATAFORMAT"))
     #expect(end.emptyReads == 2)
     let some = LibDCWalk.end(
-      status: DC_STATUS_SUCCESS, cancelled: false, family: .suuntoNautic, delivered: 3,
+      status: DC_STATUS_SUCCESS, cancelled: false, family: .shearwaterPetrel, delivered: 3,
       emptyReads: 1, refused: 1, fingerprintSet: false)
     #expect(some.kind == .complete)
     #expect(some.emptyReads == 1)
@@ -128,19 +128,43 @@ struct DiveComputerLinkTests {
     }
   }
 
-  /// The by-id download: bytes are a dive, a short one too; no bytes are passed over; any other
-  /// status stops the walk.
+  /// The by-id download: a success with bytes is handed on, one without — a size-0 entry's — is
+  /// passed over, and every failure stops the walk, a format error with bytes too.
   @Test func aDownloadByIdIsDeliveredPassedOverOrStops() {
     let bytes = Data([1, 2, 3])
     let empty = Data()
     #expect(LibDCWalk.nauticDownload(status: DC_STATUS_SUCCESS, bytes: bytes) == .deliver(bytes))
-    #expect(
-      LibDCWalk.nauticDownload(status: DC_STATUS_DATAFORMAT, bytes: bytes) == .deliver(bytes))
-    #expect(LibDCWalk.nauticDownload(status: DC_STATUS_DATAFORMAT, bytes: empty) == .passOver)
     #expect(LibDCWalk.nauticDownload(status: DC_STATUS_SUCCESS, bytes: empty) == .passOver)
-    for status in [DC_STATUS_TIMEOUT, DC_STATUS_IO, DC_STATUS_PROTOCOL, DC_STATUS_CANCELLED] {
+    let failures: [dc_status_t] = [
+      DC_STATUS_DATAFORMAT, DC_STATUS_TIMEOUT, DC_STATUS_IO, DC_STATUS_NODEVICE,
+      DC_STATUS_PROTOCOL, DC_STATUS_CANCELLED,
+    ]
+    for status in failures {
       #expect(LibDCWalk.nauticDownload(status: status, bytes: empty) == .stop(status))
+      #expect(LibDCWalk.nauticDownload(status: status, bytes: bytes) == .stop(status))
     }
+  }
+
+  /// A Nautic reading that holds no dive is an empty or aborted session, skipped as a run is;
+  /// every other family counts it as an empty read.
+  @Test func onlyTheNauticSkipsAReadingThatHoldsNoDive() {
+    #expect(LibDCWalk.skipsEmpty(.suuntoNautic))
+    #expect(!LibDCWalk.skipsEmpty(.shearwaterPetrel))
+  }
+
+  /// Nautic bytes without the SBEM container's header are a session that holds no dive, skipped
+  /// whatever the parser says; bytes with it go to the parser, which may refuse a newer version
+  /// and keep it; other families are always parsed.
+  @Test func onlyNauticBytesWithoutTheSBEMHeaderAreSkippedUnparsed() {
+    let unframed = Data([0x00, 0x01, 0x02, 0x03, 0x04])
+    let newerVersion = Data("SBEM0104".utf8)
+    let current = Data("SBEM0103".utf8)
+    let empty = Data()
+    #expect(LibDCWalk.skipsUnframed(unframed, family: .suuntoNautic))
+    #expect(LibDCWalk.skipsUnframed(empty, family: .suuntoNautic))
+    #expect(!LibDCWalk.skipsUnframed(newerVersion, family: .suuntoNautic))
+    #expect(!LibDCWalk.skipsUnframed(current, family: .suuntoNautic))
+    #expect(!LibDCWalk.skipsUnframed(unframed, family: .shearwaterPetrel))
   }
 
   /// A summary that cannot be read leaves the entry a dive; a cancel or a gone link stops the walk.
@@ -154,28 +178,6 @@ struct DiveComputerLinkTests {
     for status in [DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE] {
       #expect(LibDCWalk.nauticSummary(status: status, bytes: empty) == .stop(status))
     }
-  }
-
-  /// A walk whose every download of a counted entry came back empty delivered nothing and fails;
-  /// one that delivered a dive, met any download with bytes, or whose empty downloads were all of
-  /// uncounted entries, is complete.
-  @Test func aWalkOfOnlyEmptyDownloadsFails() {
-    func end(delivered: Int, downloads: Int, emptyDownloads: Int) -> DiveComputerDownloadEnd {
-      LibDCWalk.end(
-        status: DC_STATUS_SUCCESS, cancelled: false, family: .suuntoNautic, delivered: delivered,
-        emptyReads: 0, refused: 0, fingerprintSet: false, downloads: downloads,
-        emptyDownloads: emptyDownloads)
-    }
-    let failed = DiveComputerDownloadEnd.Kind.failed(status: "DC_STATUS_DATAFORMAT")
-    #expect(end(delivered: 0, downloads: 2, emptyDownloads: 2).kind == failed)
-    #expect(end(delivered: 0, downloads: 2, emptyDownloads: 2).emptyReads == 0)
-    #expect(end(delivered: 1, downloads: 3, emptyDownloads: 2).kind == .complete)
-    #expect(end(delivered: 0, downloads: 2, emptyDownloads: 1).kind == .complete)
-    #expect(end(delivered: 0, downloads: 0, emptyDownloads: 0).kind == .complete)
-    let cancelled = LibDCWalk.end(
-      status: DC_STATUS_SUCCESS, cancelled: true, family: .suuntoNautic, delivered: 0,
-      emptyReads: 0, refused: 0, fingerprintSet: false, downloads: 1, emptyDownloads: 1)
-    #expect(cancelled.kind == .cancelled)
   }
 
   @Test func theListedIdsAreFourLittleEndianBytesEach() {

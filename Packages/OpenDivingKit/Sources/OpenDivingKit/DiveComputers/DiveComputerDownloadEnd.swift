@@ -11,8 +11,9 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
   }
 
   public let kind: Kind
-  /// Records with no samples and no duration, skipped: on the Nautic family a sign of the
-  /// Suunto app still holding the link. A download that met one never advances the fingerprint.
+  /// Records with no samples and no duration, skipped. A download that met one never advances
+  /// the fingerprint. The Nautic family's are empty or aborted sessions, yielded as
+  /// ``DiveComputerDownloadEvent/skipped(fingerprint:)`` instead and never counted here.
   public let emptyReads: Int
   /// Records the parser could not read, delivered as ``DownloadedDive/Reading/refused(start:)``.
   public let refused: Int
