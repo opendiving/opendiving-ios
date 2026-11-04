@@ -49,7 +49,7 @@ struct DiveFormScreen: View {
           }
         }
       }
-      .safeAreaInset(edge: .bottom, spacing: 0) { saveBar(proxy) }
+      .pinnedToBottom { saveBar(proxy) }
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
           Menu("Sections", systemImage: "list.bullet") {
@@ -97,7 +97,7 @@ struct DiveFormScreen: View {
       .tint(.teal)
     }
     .padding(.horizontal)
-    .padding(.bottom, 8)
+    .padding(.vertical, 8)
   }
 
   /// Saves, or scrolls to the first section a sentence landed in.
@@ -105,6 +105,20 @@ struct DiveFormScreen: View {
     guard !model.submit(), let first = model.issues.first else { return }
     let group = DiveFormField(rawValue: first.field)?.group ?? .diveInfo
     withAnimation { proxy.scrollTo(group, anchor: .top) }
+  }
+}
+
+extension View {
+  /// Pins `bar` under a scrolling view. From iOS 26 the content fades out behind it as it does
+  /// behind the navigation bar; before that the bar has that bar's material.
+  @ViewBuilder fileprivate func pinnedToBottom<Bar: View>(
+    @ViewBuilder _ bar: () -> Bar
+  ) -> some View {
+    if #available(iOS 26, *) {
+      safeAreaBar(edge: .bottom, spacing: 0, content: bar)
+    } else {
+      safeAreaInset(edge: .bottom, spacing: 0) { bar().background(.bar) }
+    }
   }
 }
 
