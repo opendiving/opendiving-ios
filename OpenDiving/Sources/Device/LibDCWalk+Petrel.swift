@@ -64,10 +64,10 @@ nonisolated extension LibDCWalk {
     let logBase: UInt32
   }
 
-  /// The serial, the firmware, the hardware and the log format's base address, read by
-  /// identifier, decoded as libdivecomputer's walk decodes them; `DC_STATUS_DATAFORMAT` where the
-  /// serial or the log format is one libdivecomputer refuses too. Only a computer's page shows the
-  /// hardware, so a computer that refuses it still downloads.
+  /// The serial, the firmware and the log format's base address, read by identifier, decoded as
+  /// libdivecomputer's walk decodes them; `DC_STATUS_DATAFORMAT` where the serial or the log
+  /// format is one libdivecomputer refuses too. Then the hardware, which that walk does not read:
+  /// only a computer's page shows it, so a computer that refuses it still downloads.
   private func petrelIdentity(_ handle: OpaquePointer) -> Result<PetrelIdentity, PetrelFailure> {
     var serial = [UInt8](repeating: 0, count: 8)
     var firmware = [UInt8](repeating: 0, count: 12)
