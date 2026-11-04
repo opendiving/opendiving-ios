@@ -5,7 +5,7 @@ import SwiftUI
 /// confirmation when the dive already has gear — then the items, each a row of the form that drags
 /// to a new place and swipes away, and the picker that adds the next.
 struct GearField: View {
-  @Bindable var model: DiveFormModel
+  let model: DiveFormModel
 
   @State private var picking = false
   @State private var choosingSet = false
