@@ -45,11 +45,11 @@ struct PetrelManifestTests {
   @Test func theNewDivesAreThoseBeforeTheFingerprint() throws {
     let records = PetrelManifest.Page(try probePage()).records
     let all = PetrelManifest.select(records, fingerprint: nil)
-    #expect(all.listing == DiveComputerListing(dives: 11, newDives: 11, newEntries: 11))
+    #expect(all.listing == DiveComputerListing(dives: 11, newDives: 11))
     #expect(all.new == records)
 
     let three = PetrelManifest.select(records, fingerprint: start(0x6AB1_0B71))
-    #expect(three.listing == DiveComputerListing(dives: 11, newDives: 3, newEntries: 3))
+    #expect(three.listing == DiveComputerListing(dives: 11, newDives: 3))
     #expect(three.new.map(\.address) == [0x0002_C260, 0x0002_8660, 0x0002_52C0])
 
     let none = PetrelManifest.select(records, fingerprint: start(0x6ADF_6BBB))
@@ -67,12 +67,12 @@ struct PetrelManifestTests {
     let selection = PetrelManifest.select(records, fingerprint: start(0x6AB1_0B71)) {
       waits.contains($0)
     }
-    #expect(selection.listing == DiveComputerListing(dives: 11, newDives: 2, newEntries: 3))
+    #expect(selection.listing == DiveComputerListing(dives: 11, newDives: 2))
     #expect(selection.new.count == 3)
     #expect(selection.waiting == [start(0x6ADF_6BBB)])
 
     let all = PetrelManifest.select(records, fingerprint: nil) { waits.contains($0) }
-    #expect(all.listing == DiveComputerListing(dives: 11, newDives: 9, newEntries: 11))
+    #expect(all.listing == DiveComputerListing(dives: 11, newDives: 9))
     #expect(all.waiting == waits)
   }
 
@@ -86,7 +86,7 @@ struct PetrelManifestTests {
     ).records
     #expect(records.count == 5)
     let selection = PetrelManifest.select(records, fingerprint: start(10))
-    #expect(selection.listing == DiveComputerListing(dives: 3, newDives: 2, newEntries: 2))
+    #expect(selection.listing == DiveComputerListing(dives: 3, newDives: 2))
     #expect(selection.new.map(\.address) == [5, 3])
     // A deleted record's start is no stopping point.
     #expect(PetrelManifest.select(records, fingerprint: start(40)).listing.newDives == 3)
