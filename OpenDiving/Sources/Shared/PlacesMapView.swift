@@ -1,38 +1,40 @@
-import MapKit
 import OpenDivingKit
 import SwiftUI
 
-/// A map fitted to a record's places, with a dive computer's fixes drawn as rings so they
-/// read as a different claim from a pinned site. No line joins them.
+/// A map fitted to a record's places, with no pan or zoom of its own: refitted when its frame or
+/// its places change, and the whole world with nothing placed. The credit sits in its corner.
 struct PlacesMapView: View {
+  let style: MapStyleModel.Shown
   let points: [MapPoint]
-  var fixes: [MapPoint] = []
+  /// What a screen reader calls it. On the map and not its frame, so the credit's links stay
+  /// reachable.
+  let label: String
+
+  @State private var size = CGSize.zero
 
   var body: some View {
-    Map(initialPosition: .automatic) {
-      ForEach(Array(points.enumerated()), id: \.offset) { _, point in
-        Marker(point.name, image: Icon.mapPin.rawValue, coordinate: point.coordinate)
-      }
-      ForEach(Array(fixes.enumerated()), id: \.offset) { _, fix in
-        Annotation(fix.name, coordinate: fix.coordinate) {
-          Circle()
-            .strokeBorder(Color.white, lineWidth: 2)
-            .background(Circle().fill(Color.blue))
-            .frame(width: 14, height: 14)
-        }
-      }
+    MapLibreView(
+      styleJSON: style.styleJSON, pins: points,
+      camera: MapCamera.fit(points, width: size.width, height: size.height), isInteractive: false
+    )
+    .accessibilityLabel(label)
+    .onGeometryChange(for: CGSize.self) {
+      $0.size
+    } action: {
+      size = $0
     }
-  }
-}
-
-extension MapPoint {
-  fileprivate var coordinate: CLLocationCoordinate2D {
-    CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    .overlay(alignment: .bottomTrailing) {
+      MapCredit(credit: style.credit)
+        .padding(4)
+    }
   }
 }
 
 #Preview {
   PlacesMapView(
+    style: .preview,
     points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)],
-    fixes: [MapPoint(name: "Exit", latitude: 28.5735, longitude: 34.5361)])
+    label: "Map of the site"
+  )
+  .frame(height: 200)
 }

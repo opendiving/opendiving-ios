@@ -22,4 +22,15 @@ public struct LocationWrite: Codable, Hashable, Sendable {
     self.bboxWest = bboxWest
     self.bboxEast = bboxEast
   }
+
+  /// The place on a map, with its footprint where it has one; nil for a name with no position.
+  public var mapPoint: MapPoint? {
+    guard let latitude, let longitude else { return nil }
+    var bounds: LatLonBounds?
+    // All four or none: half a box is not an extent.
+    if let bboxSouth, let bboxNorth, let bboxWest, let bboxEast {
+      bounds = LatLonBounds(south: bboxSouth, north: bboxNorth, west: bboxWest, east: bboxEast)
+    }
+    return MapPoint(name: name, latitude: latitude, longitude: longitude, bounds: bounds)
+  }
 }

@@ -9,6 +9,8 @@ struct PlaceSearchSection: View {
   @Binding var query: String
   var position: DeviceLocation?
   let units: UnitSystem
+  /// Whether the form has a map, for the lines that offer it instead.
+  var hasMap = false
   let onPick: (PlacePick) -> Void
   let onTypeName: (String) -> Void
 
@@ -35,8 +37,8 @@ struct PlaceSearchSection: View {
     case .idle: note(model.text.noItems)
     case .tooLong: note(model.text.queryTooLong)
     case .searching: ProgressView()
-    case .noMatches: note(model.text.noMatches)
-    case .failed: note(model.text.searchError)
+    case .noMatches: note(model.text.noMatches(hasMap: hasMap))
+    case .failed: note(model.text.searchError(hasMap: hasMap))
     case .results(let rows, let hasMore):
       ForEach(rows) { row in
         Button {

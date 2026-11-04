@@ -299,6 +299,17 @@ public actor APIClient {
         timeout: 120))
   }
 
+  /// `GET /map-style/{theme}`: the instance's basemap style, the JSON its tiles are drawn from.
+  /// `language` is as ``mapTile(_:language:etag:)`` takes it.
+  public func mapStyle(_ theme: MapTileTheme, language: String?, etag: String?) async throws
+    -> ConditionalFetch<FetchedBytes>
+  {
+    try await conditionalBytes(
+      Call(
+        path: "map-style/\(theme.rawValue)",
+        query: language.map { [URLQueryItem(name: "language", value: $0)] } ?? [], etag: etag))
+  }
+
   // MARK: - Certifications
 
   /// `GET /certifications`, newest `certified_on` first and dateless last.

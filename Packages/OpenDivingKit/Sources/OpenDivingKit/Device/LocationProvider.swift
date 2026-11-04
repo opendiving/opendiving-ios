@@ -26,12 +26,13 @@ public enum LocationFailure: Error, Hashable, Sendable {
   case unavailable
 
   /// The sentence the site sheet shows under *Use my location*.
-  public var message: String {
+  public func message(hasMap: Bool) -> String {
     switch self {
     case .denied:
       "OpenDiving may not use your location. You can allow it in Settings."
     case .unavailable:
-      "Your location could not be found. Type the coordinates, or place the site on the map."
+      "Your location could not be found. Type the coordinates"
+        + (hasMap ? ", or place the site on the map." : ".")
     }
   }
 }
