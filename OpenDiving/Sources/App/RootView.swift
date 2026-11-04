@@ -25,7 +25,7 @@ struct RootView: View {
       initialValue: DiveComputerDownloads {
         DiveComputerModel(
           session: session, inbox: inbox, link: LibDCDiveComputerLink(),
-          generator: DiveComputerView.generator)
+          positionZones: GeocoderPositionZones(), generator: DiveComputerView.generator)
       })
     // The quiet load: a reconnect that loads the account raises no alert of its own.
     _outbox = State(

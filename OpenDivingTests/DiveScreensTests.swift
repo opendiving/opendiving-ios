@@ -21,7 +21,7 @@ struct DiveScreensTests {
       DiveComputerModel(
         session: session, inbox: inbox,
         link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-        generator: DiveComputerView.generator)
+        positionZones: GeocoderPositionZones(), generator: DiveComputerView.generator)
     }
     window.rootViewController = UIHostingController(
       rootView: view.environment(session).environment(OutboxModel(session: session))

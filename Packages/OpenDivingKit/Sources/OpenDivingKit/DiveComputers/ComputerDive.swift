@@ -11,7 +11,7 @@ public struct ComputerDive: Hashable, Sendable {
     /// reported a zone. The Shearwater family logs a wall clock with no zone.
     case wallClock(LocalDateTime, utcOffsetSeconds: Int?)
     /// An instant with no local clock: the Suunto Nautic family's, which the writer resolves
-    /// in a zone the watch or the diver supplies.
+    /// in the zone of the dive's position, else one the watch or the diver supplies.
     case instant(Date)
   }
 
@@ -41,6 +41,15 @@ public struct ComputerDive: Hashable, Sendable {
   public var isEmpty: Bool {
     body["recordings"]?.arrayValue?.first?["profile"] == nil
       && (body["submerged_time"]?.integerValue ?? 0) <= 1
+  }
+
+  /// Where the dive went in, in decimal degrees: the computer's first GPS fix, where it has one.
+  public var entryPosition: (latitude: Double, longitude: Double)? {
+    guard let position = body["entry_position"],
+      let latitude = position["latitude"]?.numberValue,
+      let longitude = position["longitude"]?.numberValue
+    else { return nil }
+    return (latitude, longitude)
   }
 
   /// An instant as the reader and the server take a fallback start: RFC 3339 in UTC.

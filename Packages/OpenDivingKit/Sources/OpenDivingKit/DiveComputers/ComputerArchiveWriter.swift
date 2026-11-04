@@ -33,16 +33,20 @@ public struct ComputerArchiveWriter: Sendable {
     /// The zone an instant start is written in: the diver's answer for this download, else the
     /// watch's. Needed only where a dive's start is an instant.
     public let instantZone: TimeZone?
+    /// The zone a dive's own position puts it in, by fingerprint, which comes before
+    /// ``instantZone``.
+    public let diveZones: [Data: TimeZone]
 
     public init(
       identity: DiveComputerIdentity, dives: [DownloadedDive], moment: Date, zone: TimeZone,
-      instantZone: TimeZone?
+      instantZone: TimeZone?, diveZones: [Data: TimeZone] = [:]
     ) {
       self.identity = identity
       self.dives = dives
       self.moment = moment
       self.zone = zone
       self.instantZone = instantZone
+      self.diveZones = diveZones
     }
   }
 
@@ -67,14 +71,13 @@ public struct ComputerArchiveWriter: Sendable {
     var members: [Member] = []
     var used: Set<String> = []
     for downloaded in download.dives {
+      let zone = download.diveZones[downloaded.fingerprint] ?? download.instantZone
       let resolved: (text: String, clock: LocalDateTime)?
       switch downloaded.reading {
       case .dive(let dive):
-        resolved = try DiveComputerArchive.start(dive.start, zone: download.instantZone)
+        resolved = try DiveComputerArchive.start(dive.start, zone: zone)
       case .refused(let start):
-        resolved = start.flatMap {
-          try? DiveComputerArchive.start($0, zone: download.instantZone)
-        }
+        resolved = start.flatMap { try? DiveComputerArchive.start($0, zone: zone) }
       }
       let stamp =
         resolved.map { DiveComputerArchive.minute($0.clock) }

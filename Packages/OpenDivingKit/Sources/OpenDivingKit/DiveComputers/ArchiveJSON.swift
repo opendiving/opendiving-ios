@@ -35,6 +35,14 @@ enum ArchiveJSON: Hashable, Sendable {
     return nil
   }
 
+  var numberValue: Double? {
+    switch self {
+    case .number(let value): value
+    case .integer(let value): Double(value)
+    default: nil
+    }
+  }
+
   var arrayValue: [ArchiveJSON]? {
     if case .array(let items) = self { return items }
     return nil

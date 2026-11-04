@@ -185,6 +185,7 @@ public final class DiveComputerModel {
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let inbox: InboxModel
   @ObservationIgnored private let link: any DiveComputerLink
+  @ObservationIgnored private let positionZones: any PositionZoneLookup
   @ObservationIgnored private let writer: ComputerArchiveWriter
   @ObservationIgnored private let workFolder: URL
   @ObservationIgnored private let now: @Sendable () -> Date
@@ -205,12 +206,14 @@ public final class DiveComputerModel {
   /// are the clock and the phone's zone, which a test fixes.
   public init(
     session: Session, inbox: InboxModel, link: any DiveComputerLink,
-    generator: ComputerArchiveWriter.Generator, workFolder: URL? = nil,
+    positionZones: any PositionZoneLookup, generator: ComputerArchiveWriter.Generator,
+    workFolder: URL? = nil,
     now: @escaping @Sendable () -> Date = { Date() }, zone: TimeZone = .current
   ) {
     self.session = session
     self.inbox = inbox
     self.link = link
+    self.positionZones = positionZones
     writer = ComputerArchiveWriter(generator: generator)
     self.workFolder =
       workFolder
@@ -325,7 +328,7 @@ public final class DiveComputerModel {
   }
 
   /// The diver's answer to *Which time zone were these dives in?*, for this download's dives
-  /// and no later ones.
+  /// whose position gave no zone, and no later ones.
   public func answerTimeZone(_ zone: TimeZone) {
     zoneAnswer?.resume(returning: zone)
     zoneAnswer = nil
@@ -492,9 +495,12 @@ public final class DiveComputerModel {
     }
 
     var token = await session.background.begin(name: "Keeping the dives just downloaded")
+    let diveZones = await DivePositionZones.resolve(dives, lookup: positionZones)
     var instantZone = watchZone
     let oldestInstant = dives.compactMap { dive -> Date? in
-      if case .instant(let instant)? = dive.dive?.start { return instant }
+      if case .instant(let instant)? = dive.dive?.start, diveZones[dive.fingerprint] == nil {
+        return instant
+      }
       return nil
     }.min()
     if let oldestInstant,
@@ -518,7 +524,8 @@ public final class DiveComputerModel {
     let folder = workFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: folder) }
     let download = ComputerArchiveWriter.Download(
-      identity: identity, dives: dives, moment: now(), zone: phoneZone, instantZone: instantZone)
+      identity: identity, dives: dives, moment: now(), zone: phoneZone, instantZone: instantZone,
+      diveZones: diveZones)
     let writer = writer
     let written: ComputerArchiveWriter.Written
     do {

@@ -141,6 +141,6 @@ private struct DivesList: View {
         DiveComputerModel(
           session: DivePreviewData.session, inbox: InboxModel(session: DivePreviewData.session),
           link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-          generator: DiveComputerView.generator)
+          positionZones: GeocoderPositionZones(), generator: DiveComputerView.generator)
       })
 }
