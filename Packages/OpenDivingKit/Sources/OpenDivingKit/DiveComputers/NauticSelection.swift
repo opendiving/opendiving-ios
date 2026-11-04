@@ -81,7 +81,6 @@ public struct NauticSelection: Hashable, Sendable {
     listing = DiveComputerListing(
       dives: counted.count { $0 },
       newDives: entries.count { $0.counted && $0.fate == .download },
-      newEntries: newCount,
       sports: zip(ids, summaries).compactMap { id, summary in
         guard case .read(let sport) = summary else { return nil }
         return NauticEntrySport(id: id, sport: sport)

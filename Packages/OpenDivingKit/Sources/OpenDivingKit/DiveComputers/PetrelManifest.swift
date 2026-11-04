@@ -80,8 +80,7 @@ public enum PetrelManifest {
     return Selection(
       new: new, waiting: waits,
       listing: DiveComputerListing(
-        dives: live.count, newDives: new.count { !waits.contains($0.start) },
-        newEntries: new.count))
+        dives: live.count, newDives: new.count { !waits.contains($0.start) }))
   }
 
   static let live: UInt16 = 0xA5C4
