@@ -1,6 +1,6 @@
 import Foundation
 
-/// The words of the *Dive Computers* screen, the Settings list and the inbox's download rows.
+/// The words of the *Dive Computers* screen, a computer's page and the inbox's download rows.
 public enum DiveComputerText {
   public static let connect = "Connect a dive computer"
   public static let screenTitle = "Dive Computers"
@@ -25,14 +25,10 @@ public enum DiveComputerText {
   /// Once the computer is identified, until the download starts.
   public static let reading = "Reading"
 
-  // MARK: - Settings
+  // MARK: - Forgetting
 
-  public static let settingsRow = "Dive Computers"
   public static let forget = "Forget this dive computer"
   public static let forgetMessage = "The next download from it takes every dive again."
-  public static let downloadAllNextTime = "Download all dives next time"
-  public static let emptyList =
-    "No dive computers yet. Connect one with the dive-computer button on the Dives tab."
 
   /// *Forget Perdix 3?*
   public static func forgetTitle(_ record: DiveComputerRecord) -> String {
@@ -54,7 +50,7 @@ public enum DiveComputerText {
   /// Asked before *Remove* or *Remove all* takes a download archive out of the inbox.
   public static let removeDownloadWarning =
     "These dives have not been imported. The next download takes them again only with Download"
-    + " all dives next time."
+    + " all dives."
 
   /// *12 dives from Shearwater Perdix 3, downloaded 25 October*.
   public static func inboxRow(_ download: InboxDownload, in zone: TimeZone = .current) -> String {

@@ -23,7 +23,7 @@ nonisolated extension LibDCWalk {
     var firmware = nauticFirmware()
     let identity = identify(serial: serial, firmware: firmware)
     let record = lookup(family, serial)
-    let fingerprint = record?.fingerprintToSet
+    let fingerprint = record?.fingerprint
     let zoneRead = readWatchZone()
 
     // A busy watch can refuse the firmware or the zone, and a reopened link may answer what the

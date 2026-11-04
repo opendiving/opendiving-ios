@@ -197,7 +197,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       // The device info's 32-bit serial overflows this family's, so the advertised name is the
       // identity and the bridge's lookup hook, which hands over that field, is not used.
       identify(serial: serial, firmware: deviceInfoFirmware)
-      if let fingerprint = lookup(family, serial)?.fingerprintToSet {
+      if let fingerprint = lookup(family, serial)?.fingerprint {
         fingerprintSet =
           fingerprint.withUnsafeBytes {
             dc_device_set_fingerprint(
@@ -232,7 +232,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     guard let number = UInt32(hex, radix: 16) else { return nil }
     let serial = family.serial(deviceInfo: number)
     identify(serial: serial, firmware: deviceInfoFirmware)
-    guard let fingerprint = lookup(family, serial)?.fingerprintToSet, !fingerprint.isEmpty,
+    guard let fingerprint = lookup(family, serial)?.fingerprint, !fingerprint.isEmpty,
       let buffer = malloc(fingerprint.count)?.assumingMemoryBound(to: UInt8.self)
     else { return nil }
     fingerprint.copyBytes(to: buffer, count: fingerprint.count)

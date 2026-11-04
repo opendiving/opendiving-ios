@@ -393,7 +393,7 @@ public final class DiveComputerModel {
     // remembers; under *Download all dives*, with no fingerprint to set.
     let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord? = { family, serial in
       guard var record = store.record(family: family, serial: serial) else { return nil }
-      if all { record.downloadAllNextTime = true }
+      if all { record.fingerprint = nil }
       return record
     }
     let uuids = await Task.detached {
@@ -440,7 +440,7 @@ public final class DiveComputerModel {
         listedFromFingerprint =
           !all
           && identity.flatMap { store.record(family: $0.family, serial: $0.serial) }?
-            .fingerprintToSet != nil
+            .fingerprint != nil
         if found.newDives > 0 {
           if !reportsProgress { walkProgress = 0 }
           phase = .downloading
@@ -484,7 +484,6 @@ public final class DiveComputerModel {
         var kept = remembered(record, identity: identity, computer: computer, sports: sports)
         if advances, let newest {
           kept.fingerprint = newest
-          kept.downloadAllNextTime = false
         }
         try? store.save(kept)
       }
@@ -540,7 +539,6 @@ public final class DiveComputerModel {
       if advances, let newest {
         kept.fingerprint = newest
         kept.lastDownloaded = download.moment
-        kept.downloadAllNextTime = false
       }
       try? store.save(kept)
       outcome = Outcome(
@@ -642,7 +640,7 @@ public final class DiveComputerModel {
       outcome = Outcome(
         kind: .alreadyWaiting, sentence: sentences.compactMap { $0 }.joined(separator: " "))
     case .complete:
-      if let record, record.fingerprintToSet != nil {
+      if let record, record.fingerprint != nil {
         var sentence = DiveComputerText.nothingNew(
           since: record.lastDownloaded ?? now(), in: phoneZone)
         if let listing { sentence += " " + DiveComputerText.onComputer(listing.dives) + "." }
