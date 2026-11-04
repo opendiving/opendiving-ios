@@ -2,9 +2,8 @@ import Foundation
 import Observation
 
 /// Settings' *Dive Computers* list: the account's paired computers, each with
-/// *Forget this dive computer*, *Download all dives next time* and, for a family that logs
-/// instants, the zone its dives are written in. Forgetting removes the phone's record and
-/// nothing on the server.
+/// *Forget this dive computer* and *Download all dives next time*. Forgetting removes the phone's
+/// record and nothing on the server.
 @MainActor
 @Observable
 public final class DiveComputersListModel {
