@@ -91,6 +91,10 @@ struct DiveFormScreen: View {
     } message: {
       Text("This deletes the draft on every device. It cannot be undone.")
     }
+    // Here and not on a gear row: a row scrolled out of the form takes its sheets with it.
+    .sheet(isPresented: $model.isChecklistOpen) {
+      GearChecklistSheet(model: model)
+    }
     .onChange(of: model.isDone) { _, done in if done { dismiss() } }
     .onDisappear { model.leave() }
   }

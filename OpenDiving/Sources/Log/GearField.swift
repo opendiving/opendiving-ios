@@ -27,6 +27,19 @@ struct GearField: View {
         addLabel: nil, addSheet: { _ in EmptyView() },
         onPick: { ref in chosenSet = model.lookups.gearSets.first { $0.ref == ref } })
     }
+    .confirmationDialog(
+      "Replace this dive's gear?",
+      isPresented: Binding(get: { replacing != nil }, set: { if !$0 { replacing = nil } }),
+      titleVisibility: .visible, presenting: replacing
+    ) { set in
+      Button("Replace") {
+        model.loadSet(set)
+        replacing = nil
+      }
+      Button("Cancel", role: .cancel) { replacing = nil }
+    } message: { set in
+      Text(model.replaceSentence(set))
+    }
     if let checklist = model.checklist, model.gearSet != nil {
       Button("Checklist: \(checklist.name)", systemImage: "checkmark.circle") {
         model.reopenChecklist()
@@ -50,22 +63,6 @@ struct GearField: View {
         RecordPickerSheet(model: model, picker: .gear) { ref in
           if let ref { model.addGear(ref) }
         }
-      }
-      .sheet(isPresented: $model.isChecklistOpen) {
-        GearChecklistSheet(model: model)
-      }
-      .confirmationDialog(
-        "Replace this dive's gear?",
-        isPresented: Binding(get: { replacing != nil }, set: { if !$0 { replacing = nil } }),
-        titleVisibility: .visible, presenting: replacing
-      ) { set in
-        Button("Replace") {
-          model.loadSet(set)
-          replacing = nil
-        }
-        Button("Cancel", role: .cancel) { replacing = nil }
-      } message: { set in
-        Text(model.replaceSentence(set))
       }
   }
 
