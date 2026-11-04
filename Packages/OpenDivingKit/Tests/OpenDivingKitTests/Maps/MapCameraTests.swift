@@ -7,6 +7,10 @@ struct MapCameraTests {
   private static let fiji = MapPoint(name: "Fiji", latitude: -17.8, longitude: 178)
   private static let samoa = MapPoint(name: "Samoa", latitude: -13.8, longitude: -172)
   private static let tonga = MapPoint(name: "Tonga", latitude: -21.1, longitude: -175.2)
+  /// Photon's box for the country, which runs the whole way round.
+  private static let fijiCountry = MapPoint(
+    name: "Fiji", latitude: -17, longitude: 179,
+    bounds: LatLonBounds(south: -22, north: -12, west: -180, east: 180))
 
   /// The degrees of longitude a frame `width` points wide shows at `zoom`.
   private func degreesAcross(_ width: Double, at zoom: Double) -> Double {
@@ -56,6 +60,33 @@ struct MapCameraTests {
       bounds: LatLonBounds(south: -21, north: -12, west: 176, east: -178))
     let camera = MapCamera.fit([fiji], width: 360, height: 200)
     #expect(abs(camera.longitude - 179) < 1e-9)
+  }
+
+  @Test func aBoxThatCirclesTheWorldFitsAroundItsOwnPoint() {
+    let camera = MapCamera.fit([Self.fijiCountry], width: 360, height: 200)
+    #expect(abs(camera.longitude - 179) < 1e-9)
+    #expect(degreesAcross(360 - 48, at: camera.zoom) >= 10)
+    #expect(degreesAcross(360 - 48, at: camera.zoom) < 30)
+  }
+
+  @Test func aBoxThatCirclesTheWorldLeavesAnotherPlaceItsOwnFit() {
+    let apia = MapPoint(name: "Apia", latitude: -13.8, longitude: -171.8)
+    for points in [[Self.fijiCountry, apia], [apia, Self.fijiCountry]] {
+      let camera = MapCamera.fit(points, width: 360, height: 200)
+      // From 174 to Apia's 188.2, the short way round.
+      #expect(abs(camera.longitude - -178.9) < 1e-9)
+      #expect(degreesAcross(360 - 48, at: camera.zoom) >= 14.2)
+      #expect(degreesAcross(360 - 48, at: camera.zoom) < 30)
+    }
+  }
+
+  @Test func newZealandsUnwrappedBoxFitsAroundItsOwnPoint() {
+    let newZealand = MapPoint(
+      name: "New Zealand", latitude: -41.8, longitude: 172.8,
+      bounds: LatLonBounds(south: -52.8, north: -29.2, west: -179.059, east: 179.364))
+    let camera = MapCamera.fit([newZealand], width: 360, height: 200)
+    #expect(abs(camera.longitude - 172.8) < 1e-9)
+    #expect(degreesAcross(360 - 48, at: camera.zoom) < 90)
   }
 
   @Test func theWholeWorldFitsAtTheShallowestZoom() {

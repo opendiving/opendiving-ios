@@ -113,6 +113,18 @@ struct MapBackdropLayoutTests {
     expectPins(pulled, shown.pins.map { ($0.x, $0.y + 400) })
   }
 
+  @Test func aBoxThatCirclesTheWorldKeepsItsPinsInTheFrame() throws {
+    let fiji = MapPoint(
+      name: "Fiji", latitude: -17, longitude: 179,
+      bounds: LatLonBounds(south: -22, north: -12, west: -180, east: 180))
+    let apia = MapPoint(name: "Apia", latitude: -13.8, longitude: -171.8)
+    for points in [[fiji], [fiji, apia]] {
+      let head = try layout(points, width: 393, height: 280, coveredBottom: 150)
+      #expect(head.tiles[0].address.z >= 3)
+      #expect(head.pins.allSatisfy { (0...393).contains($0.x) && (0...280).contains($0.y) })
+    }
+  }
+
   @Test func nothingPlacedCanStillBeTheWholeWorld() throws {
     #expect(
       MapBackdropLayout(
