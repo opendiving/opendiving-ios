@@ -53,6 +53,12 @@ struct DiveFormScreen: View {
           }
         }
       }
+      // A list scrolls to a section's first row, takes no anchor but top, centre and bottom, and
+      // aligns to the safe area, so only this keeps a jumped-to section's title in view.
+      .safeAreaInset(edge: .top, spacing: 0) {
+        Color.clear.frame(height: 30).allowsHitTesting(false)
+      }
+      .environment(\.defaultMinListRowHeight, 1)
       .background(TapEndsTyping())
       .pinnedToBottom { saveBar(proxy) }
       .toolbar {

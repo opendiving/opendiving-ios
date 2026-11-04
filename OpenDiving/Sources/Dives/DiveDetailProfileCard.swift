@@ -47,7 +47,7 @@ struct DiveDetailProfileCard: View {
       .controlSize(.small)
       .accessibilityAddTraits(isShown ? .isSelected : [])
     if isShown {
-      button.buttonStyle(.borderedProminent)
+      button.buttonStyle(.borderedProminent).tint(.brandTeal)
     } else {
       button.buttonStyle(.bordered)
     }

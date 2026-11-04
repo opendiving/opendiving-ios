@@ -16,7 +16,7 @@ struct DiveStartField: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       if let start {
-        WheelRow(title: title, value: DateText.diveDateTime(start)) { picking = true }
+        SelectRow(title: title, value: DateText.diveDateTime(start)) { picking = true }
       } else {
         FieldLabel(title)
         Button("Set the start time") { onChange(DiveStart.now()) }

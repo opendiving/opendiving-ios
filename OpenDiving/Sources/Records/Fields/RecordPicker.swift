@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// One record picked from what the phone holds — a dive centre, an instructor, a place to stay
-/// — as the web's comboboxes pick one, *Add…* opening that record's own sheet over this one and
+/// — as the web's comboboxes pick one, the + opening that record's own sheet over this one and
 /// selecting what it makes.
 struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
   let label: String
@@ -41,7 +41,7 @@ struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
   }
 }
 
-/// The list a picker pushes: a search over the rows, *None*, and *Add…*.
+/// The list a picker pushes: a search over the rows and *None*, with *Add…* the + in its top bar.
 struct RecordPickerList<Row: LookupRow>: View {
   let title: String
   let rows: [Row]
@@ -55,10 +55,6 @@ struct RecordPickerList<Row: LookupRow>: View {
   var body: some View {
     List {
       Section {
-        Button(addLabel) {
-          dismiss()
-          add()
-        }
         if selection != nil {
           Button("None", role: .destructive) {
             selection = nil
@@ -74,9 +70,9 @@ struct RecordPickerList<Row: LookupRow>: View {
           } label: {
             HStack {
               VStack(alignment: .leading) {
-                Text(row.title).foregroundStyle(.primary)
+                Text(row.title).foregroundStyle(Color.primary)
                 if let subtitle = row.subtitle {
-                  Text(subtitle).font(.footnote).foregroundStyle(.secondary)
+                  Text(subtitle).font(.footnote).foregroundStyle(Color.secondary)
                 }
                 if row.ref.isLocal { PendingMark() }
               }
@@ -92,6 +88,14 @@ struct RecordPickerList<Row: LookupRow>: View {
     .searchable(text: $search)
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Button(addLabel, systemImage: "plus") {
+          dismiss()
+          add()
+        }
+      }
+    }
   }
 }
 

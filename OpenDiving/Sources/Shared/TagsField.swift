@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A dive's or a site's tags in the diver's order, each removable, and a box that adds what is
-/// typed on Return.
+/// typed on Return and stays open for the next. Return on an empty box closes the keyboard.
 struct TagsField: View {
   let tags: [String]
   var error: String?
@@ -40,10 +40,12 @@ struct TagsField: View {
       TextField(tags.isEmpty ? "Add a tag..." : "Add another tag...", text: $text)
         .textInputAutocapitalization(.never)
         .focused($focused)
-        .submitLabel(.done)
+        .submitLabel(.return)
         .onSubmit {
+          guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
           onAdd(text)
           text = ""
+          focused = true
         }
       if let error { FieldMessage(error) }
     }

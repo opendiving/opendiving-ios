@@ -24,7 +24,7 @@ struct MainTabView: View {
   }
 
   /// Bold labels, and the selected tab in coral — the tab bar's alone, so the rest of the app
-  /// keeps the system tint. Set on the appearance proxy, before the bar exists, because the tab
+  /// keeps its accent. Set on the appearance proxy, before the bar exists, because the tab
   /// bar reads no SwiftUI font. The size is fixed, as the system's own labels are: the bar's height
   /// is, and Dynamic Type reaches it through the Large Content Viewer instead.
   static let styleTabBar: Void = {

@@ -66,7 +66,7 @@ private struct TankCard: View {
     if visibility.isVisible(.mixtureCylinder) {
       RecordPickerField(
         model: model, title: DiveFormField.mixtureCylinder.label, picker: .cylinder,
-        tank: index, value: tank.cylinder
+        tank: index, isInline: true, value: tank.cylinder
       ) { model.linkCylinder($0, tank: index) }
     }
     VolumeField(

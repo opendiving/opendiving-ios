@@ -45,9 +45,9 @@ struct PlaceSearchSection: View {
           model.clear()
         } label: {
           VStack(alignment: .leading) {
-            Text(row.name).foregroundStyle(.primary)
+            Text(row.name).foregroundStyle(Color.primary)
             if let hint = row.hint {
-              Text(hint).font(.footnote).foregroundStyle(.secondary)
+              Text(hint).font(.footnote).foregroundStyle(Color.secondary)
             }
           }
         }

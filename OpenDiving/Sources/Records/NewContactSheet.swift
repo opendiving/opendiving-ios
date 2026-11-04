@@ -53,6 +53,7 @@ private struct ContactSheetForm: View {
       Section("Roles") {
         ForEach(FormVocabulary.contactRoles, id: \.self) { role in
           Toggle(RecordSheetText.contactRole(role), isOn: ticked(role))
+            .tint(.brandTeal)
         }
       }
       Section {

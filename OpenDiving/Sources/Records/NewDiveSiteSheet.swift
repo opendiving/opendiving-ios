@@ -127,7 +127,9 @@ private struct DiveSiteSheetForm: View {
             VocabularyLabels.entryType(entry),
             isOn: Binding(
               get: { model.values.entryTypes.contains(entry) },
-              set: { model.values.setEntryType(entry, $0) }))
+              set: { model.values.setEntryType(entry, $0) })
+          )
+          .tint(.brandTeal)
         }
       }
       Section {

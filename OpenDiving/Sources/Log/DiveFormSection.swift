@@ -162,6 +162,9 @@ struct DiveFormSection: View {
         value: values.weight, error: message(.weight)
       ) { kg in model.change { $0.weight = kg } }
     }
+    if model.shows(.gearItems) {
+      SaveGearSetRow(model: model)
+    }
   }
 
   @ViewBuilder private var notes: some View {
@@ -175,9 +178,9 @@ struct DiveFormSection: View {
         tags: values.tags, error: message(.tags), onAdd: model.addTag, onRemove: model.removeTag)
     }
     if model.shows(.notes) {
-      NotesField(
-        text: Binding(get: { values.notes }, set: { text in model.change { $0.notes = text } }),
-        error: message(.notes))
+      NotesField(text: values.notes, error: message(.notes)) { text in
+        model.change { $0.notes = text }
+      }
     }
   }
 
@@ -234,26 +237,6 @@ private struct InlineTextField: View {
         TextField(placeholder, text: text)
           .focused($focused)
       }
-      if let error { FieldMessage(error) }
-    }
-  }
-}
-
-/// The notes, a box of several lines under its label.
-private struct NotesField: View {
-  let text: Binding<String>
-  var error: String?
-
-  @FocusState private var focused: Bool
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(DiveFormField.notes.label)
-        .contentShape(Rectangle())
-        .onTapGesture { focused = true }
-      TextField("Enter any additional notes about your dive...", text: text, axis: .vertical)
-        .lineLimit(4...12)
-        .focused($focused)
       if let error { FieldMessage(error) }
     }
   }

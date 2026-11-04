@@ -81,6 +81,7 @@ private struct GearItemSheetForm: View {
       }
       Section {
         Toggle("Rented, not owned", isOn: $model.values.rented)
+          .tint(.brandTeal)
         TextBox(
           label: "Notes", placeholder: "Serial number, service dates, sizing...",
           text: $model.values.notes, message: model.message("notes"), multiline: true)

@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One of the form's record pickers: the web's *Add…* row, which opens the record's sheet and
-/// picks what it creates, then the phone's rows, searched as the diver types, and the server's
-/// matches when it can be asked.
+/// One of the form's record pickers: the phone's rows first, searched as the diver types, then
+/// the server's matches when it can be asked, and a + in the top bar, the web's *Add…*, which
+/// opens the record's sheet and picks what it creates.
 struct RecordPickerSheet: View {
   let model: DiveFormModel
   let picker: FormPicker
@@ -24,11 +24,9 @@ struct RecordPickerSheet: View {
     NavigationStack {
       let rows = model.rows(picker, matching: text, tank: tank)
       List {
-        Section {
-          Button(picker.addLabel, systemImage: "plus") { adding = true }
-        }
         if current != nil {
           Button("None") { pick(nil) }
+            .foregroundStyle(Color.primary)
         }
         ForEach(rows + found) { row in
           Button {
@@ -45,7 +43,7 @@ struct RecordPickerSheet: View {
       }
       .searchable(
         text: $text, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: picker.placeholder(holdsSome: false)
+        prompt: picker.sheetPrompt
       )
       .onSubmit(of: .search) {
         if let onSubmitText, onSubmitText(text) { dismiss() }
@@ -56,11 +54,14 @@ struct RecordPickerSheet: View {
         guard !Task.isCancelled else { return }
         found = await model.searchServer(picker, matching: text, tank: tank)
       }
-      .navigationTitle(picker.placeholder(holdsSome: false))
+      .navigationTitle(picker.sheetPrompt)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .primaryAction) {
+          Button(picker.addLabel, systemImage: "plus") { adding = true }
         }
       }
       .sheet(isPresented: $adding) {
@@ -88,11 +89,11 @@ struct PickerRowLabel: View {
     HStack {
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
-          Text(row.title).foregroundStyle(.primary)
+          Text(row.title).foregroundStyle(Color.primary)
           if row.isPending { PendingMark() }
         }
         if let subtitle = row.subtitle {
-          Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+          Text(subtitle).font(.subheadline).foregroundStyle(Color.secondary)
         }
       }
       Spacer()

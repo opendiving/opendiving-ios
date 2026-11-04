@@ -8,12 +8,32 @@ struct RecordPickerField: View {
   let title: String
   let picker: FormPicker
   var tank: Int?
+  /// On one line, as a select is, for a value short enough to sit beside its label.
+  var isInline = false
   let value: RecordRef?
   let onChange: (RecordRef?) -> Void
 
   @State private var picking = false
 
   var body: some View {
+    Group {
+      if isInline {
+        SelectRow(
+          title: title, value: value.map { model.row($0, picker).title } ?? prompt,
+          isPending: value.map { model.row($0, picker).isPending } ?? false
+        ) { picking = true }
+      } else {
+        stacked
+      }
+    }
+    .sheet(isPresented: $picking) {
+      RecordPickerSheet(model: model, picker: picker, tank: tank, current: value, onPick: onChange)
+    }
+  }
+
+  private var prompt: String { picker.placeholder(holdsSome: false) }
+
+  private var stacked: some View {
     VStack(alignment: .leading, spacing: 6) {
       FieldLabel(title)
       Button {
@@ -23,7 +43,7 @@ struct RecordPickerField: View {
           if let value {
             PickerRowLabel(row: model.row(value, picker))
           } else {
-            Text(picker.placeholder(holdsSome: false)).foregroundStyle(.secondary)
+            Text(prompt).foregroundStyle(.secondary)
             Spacer()
           }
           Image(systemName: "chevron.up.chevron.down")
@@ -33,9 +53,6 @@ struct RecordPickerField: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-    }
-    .sheet(isPresented: $picking) {
-      RecordPickerSheet(model: model, picker: picker, tank: tank, current: value, onPick: onChange)
     }
   }
 }

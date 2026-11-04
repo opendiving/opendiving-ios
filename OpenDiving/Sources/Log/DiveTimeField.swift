@@ -12,7 +12,7 @@ struct DiveTimeField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      WheelRow(title: title, value: text.isEmpty ? "Not recorded" : text) { picking = true }
+      SelectRow(title: title, value: text.isEmpty ? "Not recorded" : text) { picking = true }
       if let error { FieldMessage(error) }
     }
     .sheet(isPresented: $picking) {

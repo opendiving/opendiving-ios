@@ -12,6 +12,7 @@ struct DiveSitesField: View {
     let sites = model.values.diveSites
     FieldLabel(DiveFormField.diveSites.label)
       .listRowSeparator(.hidden, edges: .bottom)
+      .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 0, trailing: 16))
     ForEach(Array(sites.enumerated()), id: \.element) { index, ref in
       let row = model.row(ref, .diveSites)
       HStack {

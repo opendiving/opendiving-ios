@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-// What each of the form's record pickers says, the web's words, and the sheet its *Add…* row
+// What each of the form's record pickers says, the web's words, and the sheet its +
 // presents, by the initializers the record sheets keep.
 extension FormPicker {
   /// The picker's prompt, which changes once a multi-select holds something.
@@ -13,11 +13,16 @@ extension FormPicker {
     case .diveSites: holdsSome ? "Add another dive site..." : "Select a dive site..."
     case .people: holdsSome ? "Add another person..." : "Select a person..."
     case .gear: holdsSome ? "Add more gear..." : "Add gear..."
-    case .cylinder: "Not linked to your gear"
+    case .cylinder: "Not linked"
     }
   }
 
-  /// The row that creates a record of the picker's kind.
+  /// The prompt over the picker's sheet, where a cylinder's *Not linked* would not say what to do.
+  var sheetPrompt: String {
+    self == .cylinder ? "Select a cylinder..." : placeholder(holdsSome: false)
+  }
+
+  /// What the + that creates a record of the picker's kind is called.
   var addLabel: String {
     switch self {
     case .course: "Add course..."
@@ -29,7 +34,7 @@ extension FormPicker {
     }
   }
 
-  /// The record sheet *Add…* opens, handing back the new record's ref.
+  /// The record sheet the + opens, handing back the new record's ref.
   @ViewBuilder func addSheet(onCreated: @escaping (RecordRef) -> Void) -> some View {
     switch self {
     case .course: NewCourseSheet(onCreated: onCreated)

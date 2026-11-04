@@ -18,7 +18,7 @@ struct GearChecklistSheet: View {
                 .foregroundStyle(checklist.isTicked(item.ref) ? Color.accentColor : .secondary)
                 .font(.title3)
               Text(DiveDetailText.gearItemLabel(name: item.name, brand: item.brand))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.primary)
               Spacer()
               if item.isArchived { BadgeView("Archived", style: .outline) }
             }
