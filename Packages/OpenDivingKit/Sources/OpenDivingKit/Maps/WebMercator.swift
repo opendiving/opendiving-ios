@@ -13,6 +13,13 @@ public struct LatLonBounds: Hashable, Sendable {
     self.west = west
     self.east = east
   }
+
+  /// The degrees from west to east. Signed first, so a box across the antimeridian, its east
+  /// behind its west, stays one interval.
+  var longitudeSpan: Double {
+    let signed = east - west
+    return signed >= 0 ? min(signed, 360) : signed + 360
+  }
 }
 
 /// The grid every map tile belongs to, in the web app's and the renderer's spelling of it, so
@@ -67,13 +74,10 @@ enum WebMercator {
     for box in boxes {
       south = min(south, clamp(latitude: min(box.south, box.north)))
       north = max(north, clamp(latitude: max(box.south, box.north)))
-      // A signed span first, so a box across the antimeridian stays one interval.
-      let signed = box.east - box.west
-      let span = signed >= 0 ? min(signed, 360) : signed + 360
       var boxWest = wrap(longitude: box.west)
       boxWest += round((reference - boxWest) / 360) * 360
       west = min(west, boxWest)
-      east = max(east, boxWest + span)
+      east = max(east, boxWest + box.longitudeSpan)
     }
     if east - west >= 360 {
       west = -180
