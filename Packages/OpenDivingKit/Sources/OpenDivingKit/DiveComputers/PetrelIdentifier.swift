@@ -7,6 +7,8 @@ public enum PetrelIdentifier {
   public static let serial: UInt16 = 0x8010
   /// ASCII: `V39 Classic`.
   public static let firmware: UInt16 = 0x8011
+  /// The hardware's id, which libdivecomputer no longer reads.
+  public static let hardware: UInt16 = 0x8050
   /// The log format; bytes 1 to 4 are its base address.
   public static let logFormat: UInt16 = 0x8021
   /// One byte: libdivecomputer's model number.
@@ -31,6 +33,12 @@ public enum PetrelIdentifier {
       value = value &* 10 &+ UInt32(byte - 0x30)
     }
     return value
+  }
+
+  /// The hardware's id as hex, `0B0B`, since it names no version a diver would know; nil where
+  /// the answer is empty.
+  public static func hardware(_ answer: Data) -> String? {
+    answer.isEmpty ? nil : Hex.lowercase(answer).uppercased()
   }
 
   /// The address the log format's dives are read from, by libdivecomputer's table: the

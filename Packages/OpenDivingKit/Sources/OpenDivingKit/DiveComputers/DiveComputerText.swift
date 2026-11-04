@@ -39,6 +39,16 @@ public enum DiveComputerText {
     "Forget \(record.product)?"
   }
 
+  // MARK: - A computer's page
+
+  public static let serialLabel = "Serial number"
+  public static let hardwareLabel = "Hardware version"
+  public static let firmwareLabel = "Firmware version"
+  public static let lastDownloadedLabel = "Last downloaded"
+
+  /// *About Shearwater Perdix 3*: what the button that opens it says to VoiceOver.
+  public static func about(_ title: String) -> String { "About \(title)" }
+
   // MARK: - The inbox
 
   /// Asked before *Remove* or *Remove all* takes a download archive out of the inbox.

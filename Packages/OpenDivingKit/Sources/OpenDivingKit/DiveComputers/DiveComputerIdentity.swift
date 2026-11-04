@@ -9,6 +9,9 @@ public struct DiveComputerIdentity: Hashable, Sendable {
   public let product: String
   public let serial: String
   public let firmware: String?
+  /// As the computer names its hardware, for a family whose walk reads it: a Shearwater's id in
+  /// hex, a Nautic's `Seal_RevA3`.
+  public let hardware: String?
   /// libdivecomputer's `dc_family_t` and model numbers at the pinned library: what the open
   /// used. The model number is the descriptor's third part, which a stored original's tag
   /// carries beside the vendor and product; the family number is numbered per build, so it is
@@ -18,13 +21,14 @@ public struct DiveComputerIdentity: Hashable, Sendable {
 
   public init(
     family: DiveComputerFamily, vendor: String, product: String, serial: String,
-    firmware: String?, familyNumber: UInt32, modelNumber: UInt32
+    firmware: String?, hardware: String? = nil, familyNumber: UInt32, modelNumber: UInt32
   ) {
     self.family = family
     self.vendor = vendor
     self.product = product
     self.serial = serial
     self.firmware = firmware
+    self.hardware = hardware
     self.familyNumber = familyNumber
     self.modelNumber = modelNumber
   }

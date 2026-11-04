@@ -27,6 +27,34 @@ struct DiveComputerStoreTests {
       .appendingPathComponent("DiveComputers", isDirectory: true)
   }
 
+  @Test func aRecordWrittenBeforeTheHardwareWasKeptStillDecodes() throws {
+    let encoded = try JSONEncoder().encode(DiveComputerRecord(identity: F.perdix))
+    var fields = try #require(
+      try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    fields["hardware"] = nil
+    let record = try JSONDecoder().decode(
+      DiveComputerRecord.self, from: JSONSerialization.data(withJSONObject: fields))
+    #expect(record.hardware == nil)
+    #expect(record.serial == "D9772626")
+  }
+
+  @Test func aComputersPageShowsWhatItReportedAndLeavesOutTheRest() {
+    var record = DiveComputerRecord(identity: F.perdix, lastDownloaded: F.moment)
+    record.hardware = "0B0B"
+    let page = DiveComputerPageContent(record, in: F.helsinki)
+    #expect(page.title == "Shearwater Perdix 3")
+    #expect(
+      page.facts.map(\.label) == [
+        "Serial number", "Hardware version", "Firmware version", "Last downloaded",
+      ])
+    #expect(page.facts.map(\.value) == ["D9772626", "0B0B", "93", "25 October"])
+
+    record.hardware = nil
+    record.firmware = nil
+    record.lastDownloaded = nil
+    #expect(DiveComputerPageContent(record).facts.map(\.label) == ["Serial number"])
+  }
+
   @Test func aRecordIsOneFileInTheAccountsDirectoryFoundByFamilyAndSerialInEitherCase() throws {
     try store.save(DiveComputerRecord(identity: F.perdix, fingerprint: F.fingerprint(3)))
     #expect(

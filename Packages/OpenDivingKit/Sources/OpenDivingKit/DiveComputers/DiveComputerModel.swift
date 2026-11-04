@@ -290,6 +290,13 @@ public final class DiveComputerModel {
     }
   }
 
+  /// *Forget this dive computer*, from its page: removes the record, and nothing on the server. A
+  /// computer the scan still sees goes back among the found ones.
+  public func forget(_ record: DiveComputerRecord) {
+    computers()?.forget(record)
+    rebuildRows()
+  }
+
   // MARK: - Downloading
 
   /// Connects to the computer a row shows and downloads what is new on it.
@@ -570,6 +577,7 @@ public final class DiveComputerModel {
     kept.vendor = identity.vendor
     kept.product = identity.product
     kept.firmware = identity.firmware ?? kept.firmware
+    kept.hardware = identity.hardware ?? kept.hardware
     kept.peripheral = computer.id
     if let sports { kept.nauticSports = sports }
     kept.receivedBeforeAccountKnown = inbox.keeping?.marked ?? false

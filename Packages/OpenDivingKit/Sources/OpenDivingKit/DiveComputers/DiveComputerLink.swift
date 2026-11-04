@@ -19,7 +19,7 @@ public protocol DiveComputerLink: AnyObject {
   /// — once the device is open for a family that advertises its serial, whose name gave it
   /// before connecting, and from the computer's own answers otherwise — and calls `lookup` at
   /// that moment, folding the serial's case. It yields the identity again where a later answer
-  /// adds the firmware.
+  /// adds the firmware or the hardware.
   /// It takes only the entries newer than the one holding the
   /// ``DiveComputerRecord/fingerprintToSet`` of the record `lookup` returns, and every entry where
   /// `lookup` returns no record or one with no fingerprint to set. Then the watch's zone where

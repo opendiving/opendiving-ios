@@ -63,6 +63,58 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== first)
   }
 
+  @Test func aComputersPageOverTheScreenKeepsTheOutcomeUntilTheScreenIsLeft() async throws {
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.perdix, listing: .init(dives: 3, newDives: 0), [])
+    ]
+    let (downloads, _) = try await downloads(link)
+    let model = downloads.model
+    downloads.screenAppeared()
+    await model.watch()
+    await until { !model.rows.isEmpty }
+    model.connect(try #require(model.rows.first))
+    await model.settled()
+    let outcome = try #require(model.outcome)
+
+    downloads.screenAppeared()
+    downloads.screenDisappeared()
+    downloads.screenAppeared()
+    downloads.screenDisappeared()
+    #expect(downloads.model === model)
+    #expect(model.outcome == outcome)
+
+    downloads.screenDisappeared()
+    #expect(downloads.model !== model)
+  }
+
+  /// Leaving by another tab from a computer's page closes the model under it: *Forget* reaches
+  /// whichever model is current, and the next visit lists what is left.
+  @Test func forgettingFromAPageThatCoveredTheScreenHoldsOnTheNextVisit() async throws {
+    let link = FakeDiveComputerLink()
+    let (downloads, _) = try await downloads(link)
+    let store = DiveComputerStore(
+      store: ServerStateStore(
+        root: root, secrets: InMemorySecretStore(),
+        activeOrigin: InMemoryActiveOriginStore(ImportServer.origin)),
+      origin: ImportServer.origin, account: ImportServer.accountA)
+    let record = DiveComputerRecord(identity: F.perdix)
+    try store.save(record)
+    downloads.screenAppeared()
+    await downloads.model.watch()
+    #expect(downloads.model.paired.map(\.id) == [record.id])
+
+    downloads.screenDisappeared()
+    downloads.model.forget(record)
+    downloads.screenAppeared()
+    await downloads.model.watch()
+
+    #expect(downloads.model.paired.isEmpty)
+    #expect(store.records().isEmpty)
+  }
+
   @Test func leavingMidDownloadKeepsItAndTheButtonShowsUntilTheScreenIsSeen() async throws {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
