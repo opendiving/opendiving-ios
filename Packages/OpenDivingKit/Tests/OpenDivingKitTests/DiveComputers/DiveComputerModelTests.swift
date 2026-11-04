@@ -341,6 +341,55 @@ struct DiveComputerModelTests {
       try startedAt(inbox, try #require(inbox.files.first)).contains("2026-10-26T14:00:00+04:00"))
   }
 
+  /// `dive` with the head a Nautic's bytes open with: the wall clock under `hours`, then the
+  /// offset in quarter hours.
+  private func logged(_ dive: DownloadedDive, instant: TimeInterval, hours: Int) -> DownloadedDive {
+    let clock = UInt64(Int(instant) + hours * 3600) * 1000
+    let base = (0..<7).map { UInt8(clock >> (8 * UInt64($0)) & 0xFF) } + [UInt8(hours * 4)]
+    return DownloadedDive(
+      identity: dive.identity, fingerprint: dive.fingerprint,
+      bytes: Data("SBEM0103".utf8) + [0x01, 0x08] + base, reading: dive.reading)
+  }
+
+  /// The offset is the one the dive was logged under, so its age and the watch's zone now say
+  /// nothing about it.
+  @Test func aLoggedOffsetAsksNothingHoweverOldAndBeatsTheWatch() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let dubai = try #require(TimeZone(identifier: "Asia/Dubai"))
+    let dives = [logged(F.oceanDownload[0], instant: 1_793_008_800, hours: 3)]
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, dives, zone: dubai)]
+    let model = model(session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
+    try await download(model)
+    #expect(model.outcome?.kind == .handedOver)
+    #expect(
+      try startedAt(inbox, try #require(inbox.files.first)) == ["2026-10-26T13:00:00+03:00"])
+  }
+
+  @Test func theQuestionIsLeftOnlyTheDivesThatLoggedNoOffset() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
+    let dives = [
+      logged(F.oceanDownload[0], instant: 1_793_008_800, hours: 3), F.oceanDownload[1],
+    ]
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, dives)]
+    let model = model(session, inbox, link)
+    model.connect(try await scanned(model))
+    await until { model.phase == .askingTimeZone }
+    #expect(model.phase == .askingTimeZone)
+    model.answerTimeZone(tokyo)
+    await model.settled()
+    #expect(
+      try startedAt(inbox, try #require(inbox.files.first)) == [
+        "2026-10-26T13:00:00+03:00", "2026-10-24T19:00:00+09:00",
+      ])
+  }
+
   @Test func aSharedArchiveWaitingOrAnAccountLoadingStartsNothing() async throws {
     let server = try ImportServer()
     let session = try await session(server)

@@ -20,8 +20,7 @@ public struct DiveComputerFamily: RawRepresentable, Hashable, Codable, Sendable 
   /// libdivecomputer's Suunto Nautic family: the Nautic and the Ocean.
   public static let suuntoNautic = DiveComputerFamily(rawValue: "suunto-nautic")
 
-  /// Whether the family logs a dive's start as an instant with no local clock, so a download
-  /// needs a zone to write it in.
+  /// Whether the reader reports the family's start as an instant, the offset left in the bytes.
   public var logsInstants: Bool { self == .suuntoNautic }
 
   /// Whether the computer's advertised name carries its serial after the product, which is

@@ -325,7 +325,7 @@ public final class DiveComputerModel {
   }
 
   /// The diver's answer to *Which time zone were these dives in?*, for this download's dives
-  /// and no later ones.
+  /// that logged no zone, and no later ones.
   public func answerTimeZone(_ zone: TimeZone) {
     zoneAnswer?.resume(returning: zone)
     zoneAnswer = nil
@@ -494,7 +494,7 @@ public final class DiveComputerModel {
     var token = await session.background.begin(name: "Keeping the dives just downloaded")
     var instantZone = watchZone
     let oldestInstant = dives.compactMap { dive -> Date? in
-      if case .instant(let instant)? = dive.dive?.start { return instant }
+      if case .instant(let instant)? = dive.dive?.start, dive.loggedZone == nil { return instant }
       return nil
     }.min()
     if let oldestInstant,

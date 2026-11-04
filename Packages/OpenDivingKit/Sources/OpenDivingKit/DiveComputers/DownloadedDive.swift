@@ -29,6 +29,13 @@ public struct DownloadedDive: Hashable, Sendable {
     return nil
   }
 
+  /// The zone the computer logged the dive in, for a family that reports the start as an
+  /// instant and keeps its offset in the bytes.
+  var loggedZone: TimeZone? {
+    guard case .instant(let instant)? = start else { return nil }
+    return NauticLoggedZone.zone(in: bytes, at: instant)
+  }
+
   var start: ComputerDive.Start? {
     switch reading {
     case .dive(let dive): dive.start

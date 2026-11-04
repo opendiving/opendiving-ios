@@ -10,8 +10,8 @@ public struct ComputerDive: Hashable, Sendable {
     /// The computer's wall clock, with its offset from UTC in seconds where the parser
     /// reported a zone. The Shearwater family logs a wall clock with no zone.
     case wallClock(LocalDateTime, utcOffsetSeconds: Int?)
-    /// An instant with no local clock: the Suunto Nautic family's, which the writer resolves
-    /// in a zone the watch or the diver supplies.
+    /// An instant: the Suunto Nautic family's, whose parser drops the offset the dive logged.
+    /// The writer takes that offset from the bytes, else a zone the watch or the diver supplies.
     case instant(Date)
   }
 
