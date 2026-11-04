@@ -28,7 +28,8 @@ public enum DiveComputerText {
   // MARK: - Forgetting
 
   public static let forget = "Forget this dive computer"
-  public static let forgetMessage = "The next download from it takes every dive again."
+  public static let forgetMessage =
+    "The next download from it, on any server, takes every dive again."
 
   /// *Forget Perdix 3?*
   public static func forgetTitle(_ record: DiveComputerRecord) -> String {

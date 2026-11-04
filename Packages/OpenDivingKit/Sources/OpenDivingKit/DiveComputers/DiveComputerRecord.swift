@@ -1,9 +1,10 @@
 import Foundation
 
-/// What the phone remembers about one dive computer for one account: who it is and where the
-/// download it last finished stopped. Never libdivecomputer's family or model number, which the
-/// open re-derives from the name.
-public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
+/// What the phone remembers about one dive computer as one account sees it: who it is, which is
+/// the phone's, and where the account's last finished download stopped, which is the account's
+/// (``DiveComputerStore``). Never libdivecomputer's family or model number, which the open
+/// re-derives from the name.
+public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   public var family: DiveComputerFamily
   public var vendor: String
   public var product: String
@@ -18,8 +19,7 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   public var fingerprint: Data?
   public var lastDownloaded: Date?
   /// For the Nautic family: the sport each logbook entry's summary named when it was last listed,
-  /// so a walk reads a summary only for an entry it has not met. Optional so that a record
-  /// written before it existed still decodes.
+  /// so a walk reads a summary only for an entry it has not met.
   public var nauticSports: [NauticEntrySport]?
   /// Written while signed in before the account had loaded, into the last account's
   /// directory: removed if the load names another account.
@@ -39,6 +39,20 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
     self.fingerprint = fingerprint
     self.lastDownloaded = lastDownloaded
     self.receivedBeforeAccountKnown = receivedBeforeAccountKnown
+  }
+
+  init(_ computer: PairedComputer, progress: DiveComputerProgress?) {
+    family = computer.family
+    vendor = computer.vendor
+    product = computer.product
+    serial = computer.serial
+    firmware = computer.firmware
+    hardware = computer.hardware
+    peripheral = computer.peripheral
+    nauticSports = computer.nauticSports
+    fingerprint = progress?.fingerprint
+    lastDownloaded = progress?.lastDownloaded
+    receivedBeforeAccountKnown = progress?.receivedBeforeAccountKnown ?? false
   }
 
   /// The file it is kept in: the family and the serial, case-folded, so a lookup by a serial

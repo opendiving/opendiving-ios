@@ -292,7 +292,7 @@ public final class InboxModel {
 
   /// The session changed — signed in or out, or the account loaded. A load moves the files
   /// received before it into the loaded account's inbox, and removes the dive computers'
-  /// records written before it for any other account; a session that ended before one leaves
+  /// progress written before it for any other account; a session that ended before one leaves
   /// them where they are. Then an uncovered inbox is read.
   public func sessionChanged() {
     if let origin = session.state.origin {
@@ -310,7 +310,7 @@ public final class InboxModel {
             _ = try? mine.takeMarked(from: other)
           }
           try? mine.clearMarks()
-          // A computer's record written before the load stays only with the account it was
+          // A computer's progress written before the load stays only with the account it was
           // written for: moved, it would carry that account's fingerprint into this one's.
           for computers in DiveComputerStore.all(store: session.store, origin: origin) {
             if computers.account == user.uuid {

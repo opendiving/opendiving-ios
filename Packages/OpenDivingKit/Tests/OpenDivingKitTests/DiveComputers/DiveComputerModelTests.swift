@@ -446,13 +446,40 @@ struct DiveComputerModelTests {
     server.signIn(as: ImportServer.accountB)
     try await later.loadAccount()
     inbox.sessionChanged()
-    #expect(computers(later).record(family: .shearwaterPetrel, serial: "D9772626") == nil)
-    #expect(computers(later, ImportServer.accountB).records().isEmpty)
+    #expect(
+      computers(later).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint == nil)
+    #expect(computers(later, ImportServer.accountB).records().map(\.fingerprint) == [nil])
     #expect(inbox.files.count == 1)
     #expect(inbox.files.first?.download?.dives == 1)
   }
 
-  @Test func aLoadDuringTheWalkNamingAnotherAccountWritesNoRecord() async throws {
+  @Test func aComputerPairedForOneAccountDownloadsEverythingForTheNext() async throws {
+    let server = try ImportServer()
+    let first = try await session(server)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    try await download(model(first, InboxModel(session: first), link))
+
+    server.signIn(as: ImportServer.accountB)
+    let next = try await session(server)
+    let inbox = InboxModel(session: next)
+    inbox.sessionChanged()
+    let model = model(next, inbox, link)
+    await model.watch()
+    #expect(model.paired.map(\.title) == ["Shearwater Perdix 3"])
+    #expect(model.paired.first?.subtitle == "Serial D9772626")
+
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    try await download(model)
+    #expect(link.fingerprintsSet == [nil, nil])
+    #expect(model.outcome?.kind == .handedOver)
+    #expect(
+      computers(next, ImportServer.accountB).record(family: .shearwaterPetrel, serial: "D9772626")?
+        .fingerprint == F.fingerprint(3))
+  }
+
+  @Test func aLoadDuringTheWalkNamingAnotherAccountMovesNoFingerprint() async throws {
     let server = try ImportServer()
     _ = try await session(server)
     let later = try await session(server, loaded: false)
@@ -473,8 +500,8 @@ struct DiveComputerModelTests {
 
     #expect(model.outcome?.kind == .handedOver)
     #expect(inbox.files.count == 1)
-    #expect(computers(later).records().isEmpty)
-    #expect(computers(later, ImportServer.accountB).records().isEmpty)
+    #expect(computers(later).records().map(\.fingerprint) == [nil])
+    #expect(computers(later, ImportServer.accountB).records().map(\.fingerprint) == [nil])
   }
 
   /// Waits until the fake holds, however busy the main actor is with other suites.

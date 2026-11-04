@@ -2,12 +2,13 @@ import Foundation
 
 /// Every sentence that says what the phone keeps for a server, in one place, so that a new
 /// thing kept is named by all of them at once: the sign-in, the account, the check-in sheet,
-/// the drafts, the writes waiting to sync, the files waiting to be read, the paired dive
-/// computers and the copies of the logbook kept for offline.
+/// the drafts, the writes waiting to sync, the files waiting to be read, the dive computer
+/// download history and the copies of the logbook kept for offline. The paired dive computers
+/// are the phone's, kept for no server, so none of these names them.
 public enum KeptText {
   private static let afterSignOut =
     "Your check-in sheet, your drafts, the dives waiting to sync, the files waiting to be read,"
-    + " the dive computers you have paired and the copies of your logbook kept for"
+    + " your dive computer download history and the copies of your logbook kept for"
     + " offline stay on this phone after you sign out"
 
   /// Under the signed-out screen's entries, for `origin`: only a server that can be forgotten
@@ -24,7 +25,7 @@ public enum KeptText {
   /// Under a *Forget* offered for a server that is not active.
   public static func held(_ origin: ServerOrigin) -> String {
     "This phone holds a sign-in, an account, a check-in sheet, drafts, dives waiting to sync,"
-      + " files waiting to be read, paired dive computers or copies of the logbook for"
+      + " files waiting to be read, dive computer download history or copies of the logbook for"
       + " \(origin)."
   }
 
