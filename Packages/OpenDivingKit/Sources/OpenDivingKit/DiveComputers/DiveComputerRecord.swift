@@ -10,6 +10,8 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   /// As the family's exports spell it.
   public var serial: String
   public var firmware: String?
+  /// Nil until a walk reads it, which a family's walk may never do.
+  public var hardware: String?
   /// The Core Bluetooth identifier the phone last saw it under: a hint for the scan's rows.
   public var peripheral: UUID?
   /// For a family that logs instants: the zone the watch last reported, and the zone the diver
@@ -39,6 +41,7 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
     product = identity.product
     serial = identity.serial
     firmware = identity.firmware
+    hardware = identity.hardware
     self.peripheral = peripheral
     self.watchZone = watchZone
     self.diverZone = diverZone

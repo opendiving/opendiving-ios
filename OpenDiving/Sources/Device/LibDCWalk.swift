@@ -313,12 +313,15 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
 
   fileprivate var isCancelled: Bool { cancel.isSet }
 
-  /// Yields the identity once known, and again where a later answer adds the firmware.
-  @discardableResult func identify(serial: String, firmware: String?) -> DiveComputerIdentity {
+  /// Yields the identity once known, and again where a later answer adds the firmware or the
+  /// hardware.
+  @discardableResult func identify(serial: String, firmware: String?, hardware: String? = nil)
+    -> DiveComputerIdentity
+  {
     let next = DiveComputerIdentity(
       family: family, vendor: vendor, product: product, serial: serial,
-      firmware: firmware ?? identity?.firmware, familyNumber: dcFamily.rawValue,
-      modelNumber: model)
+      firmware: firmware ?? identity?.firmware, hardware: hardware ?? identity?.hardware,
+      familyNumber: dcFamily.rawValue, modelNumber: model)
     guard next != identity else { return next }
     identity = next
     events.yield(.identified(next))

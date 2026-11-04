@@ -15,7 +15,7 @@ nonisolated extension LibDCWalk {
     switch petrelIdentity(handle) {
     case .failure(let failure): return petrelEnd(failure.status)
     case .success(let found):
-      identity = identify(serial: found.serial, firmware: found.firmware)
+      identity = identify(serial: found.serial, firmware: found.firmware, hardware: found.hardware)
       fingerprint = lookup(family, found.serial)?.fingerprintToSet
       base = found.logBase
     }
@@ -60,12 +60,14 @@ nonisolated extension LibDCWalk {
   private struct PetrelIdentity {
     let serial: String
     let firmware: String?
+    let hardware: String?
     let logBase: UInt32
   }
 
-  /// The serial, the firmware and the log format's base address, read by identifier, decoded as
-  /// libdivecomputer's walk decodes them; `DC_STATUS_DATAFORMAT` where the serial or the log
-  /// format is one libdivecomputer refuses too.
+  /// The serial, the firmware, the hardware and the log format's base address, read by
+  /// identifier, decoded as libdivecomputer's walk decodes them; `DC_STATUS_DATAFORMAT` where the
+  /// serial or the log format is one libdivecomputer refuses too. Only a computer's page shows the
+  /// hardware, so a computer that refuses it still downloads.
   private func petrelIdentity(_ handle: OpaquePointer) -> Result<PetrelIdentity, PetrelFailure> {
     var serial = [UInt8](repeating: 0, count: 8)
     var firmware = [UInt8](repeating: 0, count: 12)
@@ -87,9 +89,16 @@ nonisolated extension LibDCWalk {
       let logBase = PetrelIdentifier.logBase(Data(logFormat))
     else { return .failure(PetrelFailure(DC_STATUS_DATAFORMAT)) }
     let number = PetrelIdentifier.firmware(Data(firmware.prefix(Int(firmwareLength))))
+    var hardware = [UInt8](repeating: 0, count: 16)
+    var hardwareLength: UInt32 = 0
+    let hardwareStatus = shearwaterCommonRDBI(
+      handle, UInt32(PetrelIdentifier.hardware), &hardware, UInt32(hardware.count),
+      &hardwareLength)
     return .success(
       PetrelIdentity(
         serial: decoded, firmware: LibDCNames.firmware(number, family: family),
+        hardware: hardwareStatus == DC_STATUS_SUCCESS
+          ? PetrelIdentifier.hardware(Data(hardware.prefix(Int(hardwareLength)))) : nil,
         logBase: logBase))
   }
 

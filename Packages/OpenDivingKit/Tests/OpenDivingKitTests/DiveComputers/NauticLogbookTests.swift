@@ -22,6 +22,11 @@ struct NauticLogbookTests {
   ]
   private let run: UInt32 = 1_792_852_533
 
+  @Test func theDescriptorsNameTheHardware() throws {
+    #expect(NauticDescriptors(try captured("descriptors")).hardware == "Seal_RevA3")
+    #expect(NauticDescriptors(Data("not descriptors".utf8)).hardware == nil)
+  }
+
   @Test func theInfoNamesTheFirmware() throws {
     #expect(NauticInfo.firmware(try captured("info", "bin")) == 2 << 16 | 51 << 8 | 28)
     #expect(NauticInfo.firmware(Data("Suunto\u{0}2.5\u{0}1.2.300\u{0}".utf8)) == nil)

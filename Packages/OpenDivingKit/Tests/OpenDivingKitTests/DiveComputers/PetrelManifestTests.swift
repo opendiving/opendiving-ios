@@ -119,6 +119,8 @@ struct PetrelManifestTests {
     #expect(PetrelIdentifier.serial(Data("+A1B2C3D".utf8)) == nil)
     #expect(PetrelIdentifier.firmware(Data("V39 Classic".utf8)) == 39)
     #expect(PetrelIdentifier.firmware(Data("Vx".utf8)) == 0)
+    #expect(PetrelIdentifier.hardware(Data([0x0B, 0x0B])) == "0B0B")
+    #expect(PetrelIdentifier.hardware(Data()) == nil)
     #expect(PetrelIdentifier.logBase(Data([0x01, 0x80, 0, 0, 0, 0, 0x02, 0, 0x80])) == 0x8000_0000)
     #expect(PetrelIdentifier.logBase(Data([0x01, 0xDD, 0, 0, 0])) == 0xC000_0000)
     #expect(PetrelIdentifier.logBase(Data([0x01, 0x90, 0, 0, 0])) == 0xC000_0000)
