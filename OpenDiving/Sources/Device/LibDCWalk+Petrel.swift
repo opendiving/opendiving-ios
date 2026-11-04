@@ -16,7 +16,7 @@ nonisolated extension LibDCWalk {
     case .failure(let failure): return petrelEnd(failure.status)
     case .success(let found):
       identity = identify(serial: found.serial, firmware: found.firmware, hardware: found.hardware)
-      fingerprint = lookup(family, found.serial)?.fingerprintToSet
+      fingerprint = lookup(family, found.serial)?.fingerprint
       base = found.logBase
     }
 

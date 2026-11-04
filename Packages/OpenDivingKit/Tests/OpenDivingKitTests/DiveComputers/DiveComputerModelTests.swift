@@ -713,7 +713,7 @@ struct DiveComputerModelTests {
       .listing(.init(dives: 1, newDives: 0, sports: sports)),
       .finished(.init(.complete)),
     ]
-    link.scripts = [skipsTheRun, skipsTheRun, nothingNew]
+    link.scripts = [skipsTheRun, nothingNew]
     var record = DiveComputerRecord(identity: F.ocean)
     record.nauticSports = sports
     try computers(session).save(record)
@@ -724,22 +724,15 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(ocean()?.fingerprint == F.fingerprint(0x14))
 
-    // *Download all dives next time* set.
-    var all = try #require(ocean())
-    all.downloadAllNextTime = true
-    try computers(session).save(all)
-    try await download(model)
-    #expect(ocean()?.downloadAllNextTime == false)
-
     // A fingerprint to set, then *Download all dives*.
     try await download(model)
     #expect(model.outcome?.kind == .nothingNew)
     model.downloadAll()
     await model.settled()
 
-    let set: [Data?] = [nil, nil, F.fingerprint(0x14), nil]
+    let set: [Data?] = [nil, F.fingerprint(0x14), nil]
     #expect(link.fingerprintsSet == set)
-    let remembered: [[NauticEntrySport]?] = [sports, sports, sports, sports]
+    let remembered: [[NauticEntrySport]?] = [sports, sports, sports]
     #expect(link.sportsRemembered == remembered)
   }
 
@@ -836,8 +829,8 @@ struct DiveComputerModelTests {
     #expect(computers(session).record(family: .shearwaterPetrel, serial: "D9772626") == nil)
   }
 
-  /// The record is saved once the computer is identified, so Settings lists it while the first
-  /// download runs.
+  /// The record is saved once the computer is identified, so the screen lists it as paired while
+  /// the first download runs.
   @Test func aConnectionPairsTheComputerWhileTheFirstDownloadRuns() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
@@ -856,8 +849,6 @@ struct DiveComputerModelTests {
     #expect(record?.fingerprint == nil)
     #expect(record?.peripheral == F.perdixFound.id)
     #expect(model.paired.map(\.title) == ["Shearwater Perdix 3"])
-    #expect(
-      DiveComputersListModel(session: session).computers.map(\.title) == ["Shearwater Perdix 3"])
 
     await next(link, holding: nil)
     await model.settled()

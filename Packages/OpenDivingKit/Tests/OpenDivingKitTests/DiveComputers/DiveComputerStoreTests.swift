@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// Where the remembered computers live, what survives what, and the Settings list over them.
+/// Where the remembered computers live, and what survives what.
 @MainActor
 struct DiveComputerStoreTests {
   private typealias F = DiveComputerFixtures
@@ -88,39 +88,9 @@ struct DiveComputerStoreTests {
     #expect(store.records().isEmpty)
   }
 
-  @Test func theSettingsListForgetsAsksForEverythingAndSetsTheDiversZone() async throws {
-    let server = try ImportServer()
-    let session = Session(
-      transport: server,
-      secrets: InMemorySecretStore([ImportServer.origin.description: "refresh"]),
-      activeOrigin: InMemoryActiveOriginStore(ImportServer.origin),
-      background: NoBackgroundExecution(), applicationSupport: root,
-      userAgent: ClientHarness.userAgent, accessToken: "live")
-    try await session.loadAccount()
-    try store.save(
-      DiveComputerRecord(
-        identity: F.perdix, fingerprint: F.fingerprint(3), lastDownloaded: F.moment))
-    try store.save(DiveComputerRecord(identity: F.ocean))
-
-    let list = DiveComputersListModel(session: session, zone: F.helsinki)
-    #expect(list.computers.map(\.title) == ["Shearwater Perdix 3", "Suunto Ocean"])
-    let perdix = list.computers[0]
-    #expect(list.subtitle(perdix) == "Serial D9772626 · Last downloaded 25 October")
-    #expect(DiveComputerText.forgetTitle(perdix) == "Forget Perdix 3?")
-
-    list.downloadAllNextTime(perdix)
-    let flagged = try #require(store.record(family: .shearwaterPetrel, serial: "D9772626"))
-    #expect(flagged.downloadAllNextTime)
-    #expect(flagged.fingerprintToSet == nil)
-    #expect(flagged.fingerprint == F.fingerprint(3))
-
-    list.forget(perdix)
-    #expect(list.computers.map(\.title) == ["Suunto Ocean"])
-    list.forget(list.computers[0])
-    #expect(list.computers.isEmpty)
+  @Test func theForgetConfirmationNamesTheComputer() {
     #expect(
-      DiveComputerText.emptyList
-        == "No dive computers yet. Connect one with the dive-computer button on the Dives tab.")
+      DiveComputerText.forgetTitle(DiveComputerRecord(identity: F.perdix)) == "Forget Perdix 3?")
   }
 
   // MARK: - The family's rules
