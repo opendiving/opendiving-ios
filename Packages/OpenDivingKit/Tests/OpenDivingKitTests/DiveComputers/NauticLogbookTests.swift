@@ -103,7 +103,7 @@ struct NauticLogbookTests {
       ids: ids, fingerprint: nil, remembered: nil, learned: learned(ids))
     #expect(selection.listing.dives == 15)
     #expect(selection.listing.newDives == 15)
-    #expect(selection.listing.newEntries == 16)
+    #expect(selection.entries.count == 16)
     #expect(selection.entries.map(\.id) == ids)
     #expect(selection.entries.filter { $0.fate == .skip }.map(\.id) == [run])
     #expect(selection.listing.sports?.count == 16)
@@ -120,7 +120,7 @@ struct NauticLogbookTests {
     #expect(selection.entries.map(\.id) == Array(ids.prefix(4)))
     #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
     let sports: [NauticEntrySport] = ids.map(sport)
-    let expected = DiveComputerListing(dives: 15, newDives: 3, newEntries: 4, sports: sports)
+    let expected = DiveComputerListing(dives: 15, newDives: 3, sports: sports)
     #expect(selection.listing == expected)
   }
 
@@ -128,7 +128,7 @@ struct NauticLogbookTests {
     let selection = NauticSelection(
       ids: ids, fingerprint: NauticSelection.fingerprint(1_700_000_000), remembered: nil,
       learned: learned(ids))
-    #expect(selection.listing.newEntries == 16)
+    #expect(selection.entries.count == 16)
     #expect(selection.listing.newDives == 15)
     #expect(NauticSelection.fingerprint(0x6AE5_5893) == Data([0x93, 0x58, 0xE5, 0x6A]))
   }
@@ -144,7 +144,7 @@ struct NauticLogbookTests {
     #expect(selection.entries.map(\.fate) == [.waiting, .download, .download, .skip])
     #expect(selection.entries.map(\.counted) == [true, true, true, false])
     let expected = DiveComputerListing(
-      dives: 15, newDives: 2, newEntries: 4, sports: ids.map(sport))
+      dives: 15, newDives: 2, sports: ids.map(sport))
     #expect(selection.listing == expected)
   }
 
@@ -161,7 +161,7 @@ struct NauticLogbookTests {
     #expect(selection.entries.map(\.counted) == [true, true, false, false])
     #expect(selection.listing.newDives == 2)
     #expect(selection.listing.dives == 13)
-    #expect(selection.listing.newEntries == 4)
+    #expect(selection.entries.count == 4)
     // The record keeps what a summary said, a sport or none, and nothing of an empty or
     // unread one.
     let kept = selection.listing.sports ?? []

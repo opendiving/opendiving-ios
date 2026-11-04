@@ -424,7 +424,7 @@ struct DiveComputerModelTests {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
-    let listing = DiveComputerListing(dives: 11, newDives: 3, newEntries: 3)
+    let listing = DiveComputerListing(dives: 11, newDives: 3)
     link.scripts = [
       FakeDiveComputerLink.script(F.perdix, Array(F.perdixDownload.suffix(1))),
       FakeDiveComputerLink.script(F.perdix, listing: listing, Array(F.perdixDownload.prefix(2))),
@@ -453,7 +453,7 @@ struct DiveComputerModelTests {
     #expect(model.phase == .downloading)
     #expect(model.countsText == "3 new dives out of 11 on this computer")
     #expect(model.downloadingText == "Downloading 1 of 3 new dives")
-    #expect(model.progress == 0)
+    #expect(model.progress == DiveComputerModel.startingProgress)
 
     await next(link, holding: 4) { model.divesDownloaded == 2 }
     #expect(model.downloadingText == "Downloading 3 of 3 new dives")
@@ -476,7 +476,7 @@ struct DiveComputerModelTests {
     // A listing short of what the walk delivers still never reads past its total.
     link.scripts = [
       FakeDiveComputerLink.script(
-        F.perdix, listing: .init(dives: 1, newDives: 1, newEntries: 1), F.perdixDownload)
+        F.perdix, listing: .init(dives: 1, newDives: 1), F.perdixDownload)
     ]
     link.holdBeforeEnd = true
     let model = model(session, InboxModel(session: session), link)
@@ -502,7 +502,7 @@ struct DiveComputerModelTests {
     link.scripts = [
       [
         .identified(F.ocean), .watchZone(F.helsinki),
-        .listing(.init(dives: 2, newDives: 2, newEntries: 3, sports: sports)),
+        .listing(.init(dives: 2, newDives: 2, sports: sports)),
         .skipped(fingerprint: F.fingerprint(0x13)),
       ] + F.oceanDownload.map { .dive($0) } + [.finished(.init(.complete))]
     ]
@@ -510,10 +510,12 @@ struct DiveComputerModelTests {
     let model = model(session, InboxModel(session: session), link)
     model.connect(try await scanned(model))
     await held(link)
-    await until { (model.progress ?? 0) > 0 }
-    #expect(model.progress == 1.0 / 3)
+    await until { model.phase == .downloading }
     #expect(model.downloadingText == "Downloading 1 of 2 new dives")
     #expect(model.countsText == "2 dives on this computer")
+    // The skipped run moves nothing: the bar counts the dives, as the line does.
+    await next(link, holding: 5) { model.divesDownloaded == 1 }
+    #expect(model.progress == 0.5)
     await next(link, holding: nil)
     await model.settled()
     #expect(model.outcome?.sentence == "2 dives downloaded.")
@@ -533,15 +535,15 @@ struct DiveComputerModelTests {
     link.scripts = [
       FakeDiveComputerLink.script(F.ocean, Array(F.oceanDownload.prefix(1)), zone: F.helsinki),
       [
-        .identified(F.ocean), .listing(.init(dives: 1, newDives: 0, newEntries: 1, sports: before)),
+        .identified(F.ocean), .listing(.init(dives: 1, newDives: 0, sports: before)),
         .skipped(fingerprint: F.fingerprint(0x13)), .finished(.init(.complete)),
       ],
       [
-        .identified(F.ocean), .listing(.init(dives: 1, newDives: 0, newEntries: 0, sports: after)),
+        .identified(F.ocean), .listing(.init(dives: 1, newDives: 0, sports: after)),
         .finished(.init(.complete)),
       ],
       [
-        .identified(F.ocean), .listing(.init(dives: 1, newDives: 0, newEntries: 0, sports: after)),
+        .identified(F.ocean), .listing(.init(dives: 1, newDives: 0, sports: after)),
         .finished(.init(.cancelled)),
       ],
     ]
@@ -553,7 +555,7 @@ struct DiveComputerModelTests {
     link.holdBefore = 3
     model.connect(try #require(model.rows.first))
     await held(link)
-    await until { (model.progress ?? 0) > 0 }
+    await until { model.listing != nil }
     #expect(model.listing?.newDives == 0)
     #expect(model.phase == .connecting)
     #expect(model.connectingText == "Reading")
@@ -598,12 +600,12 @@ struct DiveComputerModelTests {
     link.scripts = [
       [
         .identified(F.ocean), .watchZone(F.helsinki),
-        .listing(.init(dives: 1, newDives: 1, newEntries: 2, sports: first)),
+        .listing(.init(dives: 1, newDives: 1, sports: first)),
         .finished(.init(.cancelled)),
       ],
       [
         .identified(F.ocean),
-        .listing(.init(dives: 2, newDives: 2, newEntries: 3, sports: second)),
+        .listing(.init(dives: 2, newDives: 2, sports: second)),
         .finished(.init(.failed(status: "DC_STATUS_IO"))),
       ],
       [.identified(F.ocean), .finished(.init(.cancelled))],
@@ -646,7 +648,7 @@ struct DiveComputerModelTests {
     ]
     link.scripts = [
       FakeDiveComputerLink.script(
-        F.ocean, listing: .init(dives: 2, newDives: 2, newEntries: 2, sports: sports),
+        F.ocean, listing: .init(dives: 2, newDives: 2, sports: sports),
         F.oceanDownload)
     ]
     let model = model(session, inbox, link)
@@ -677,12 +679,12 @@ struct DiveComputerModelTests {
     ]
     let skipsTheRun: [DiveComputerDownloadEvent] = [
       .identified(F.ocean),
-      .listing(.init(dives: 1, newDives: 0, newEntries: 1, sports: sports)),
+      .listing(.init(dives: 1, newDives: 0, sports: sports)),
       .skipped(fingerprint: F.fingerprint(0x14)), .finished(.init(.complete)),
     ]
     let nothingNew: [DiveComputerDownloadEvent] = [
       .identified(F.ocean),
-      .listing(.init(dives: 1, newDives: 0, newEntries: 0, sports: sports)),
+      .listing(.init(dives: 1, newDives: 0, sports: sports)),
       .finished(.init(.complete)),
     ]
     link.scripts = [skipsTheRun, skipsTheRun, nothingNew]
@@ -722,7 +724,7 @@ struct DiveComputerModelTests {
     link.scripts = [
       [
         .identified(F.ocean), .watchZone(F.helsinki), .busy(.reported), .busy(.free),
-        .listing(.init(dives: 2, newDives: 2, newEntries: 2)),
+        .listing(.init(dives: 2, newDives: 2)),
       ] + F.oceanDownload.map { .dive($0) } + [.finished(.init(.complete))]
     ]
     link.holdBefore = 3
@@ -816,7 +818,7 @@ struct DiveComputerModelTests {
     link.found = [F.perdixFound]
     link.scripts = [
       FakeDiveComputerLink.script(
-        F.perdix, listing: .init(dives: 3, newDives: 3, newEntries: 3), F.perdixDownload)
+        F.perdix, listing: .init(dives: 3, newDives: 3), F.perdixDownload)
     ]
     link.holdBefore = 1
     let model = model(session, InboxModel(session: session), link)
@@ -848,7 +850,7 @@ struct DiveComputerModelTests {
     link.scripts = [
       [
         .identified(F.ocean), .watchZone(F.helsinki),
-        .listing(.init(dives: 2, newDives: 2, newEntries: 2)), .busy(.reported), .busy(.free),
+        .listing(.init(dives: 2, newDives: 2)), .busy(.reported), .busy(.free),
         .dive(dives[0]), .busy(.reported), .busy(.free), .dive(dives[1]),
         .finished(.init(.complete)),
       ]
@@ -860,9 +862,9 @@ struct DiveComputerModelTests {
     await until { model.computerBusy }
     #expect(model.phase == .downloading)
     #expect(model.waitingText == "This computer is busy. The download starts when it is free.")
-    #expect(model.progress == 0)
+    #expect(model.progress == DiveComputerModel.startingProgress)
     let before = DiveComputerButtonContent(model)
-    #expect(before.ring == .fraction(0))
+    #expect(before.ring == .fraction(DiveComputerModel.startingProgress))
     #expect(before.accessibilityValue == model.waitingText)
 
     await next(link, holding: 7) { model.divesDownloaded == 1 && model.computerBusy }
@@ -890,7 +892,7 @@ struct DiveComputerModelTests {
     link.scripts = [
       [
         .identified(F.ocean), .watchZone(F.helsinki), .busy(.otherApp),
-        .listing(.init(dives: 2, newDives: 2, newEntries: 2)), .busy(.otherApp),
+        .listing(.init(dives: 2, newDives: 2)), .busy(.otherApp),
         .dive(dives[0]), .busy(.otherApp), .dive(dives[1]), .finished(.init(.complete)),
       ]
     ]
@@ -952,11 +954,11 @@ struct DiveComputerModelTests {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     let one: [DiveComputerDownloadEvent] = [
-      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0, newEntries: 1)),
+      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0)),
       .skipped(fingerprint: F.fingerprint(4)), .finished(.init(.complete, waiting: 1)),
     ]
     let two: [DiveComputerDownloadEvent] = [
-      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0, newEntries: 2)),
+      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0)),
       .skipped(fingerprint: F.fingerprint(5)), .skipped(fingerprint: F.fingerprint(4)),
       .finished(.init(.complete, waiting: 2)),
     ]
@@ -996,12 +998,12 @@ struct DiveComputerModelTests {
     let dives = F.perdixDownload
     link.scripts = [
       [
-        .identified(F.perdix), .listing(.init(dives: 3, newDives: 3, newEntries: 3)),
+        .identified(F.perdix), .listing(.init(dives: 3, newDives: 3)),
         .dive(dives[0]), .skipped(fingerprint: F.fingerprint(7)), .dive(dives[1]),
         .finished(.init(.complete, notDownloaded: 1)),
       ],
       [
-        .identified(F.perdix), .listing(.init(dives: 5, newDives: 2, newEntries: 2)),
+        .identified(F.perdix), .listing(.init(dives: 5, newDives: 2)),
         .skipped(fingerprint: F.fingerprint(9)), .skipped(fingerprint: F.fingerprint(8)),
         .finished(.init(.failed(status: "DC_STATUS_TIMEOUT"), notDownloaded: 2)),
       ],
@@ -1024,11 +1026,11 @@ struct DiveComputerModelTests {
     link.found = [F.perdixFound]
     link.scripts = [
       [
-        .identified(F.perdix), .listing(.init(dives: 3, newDives: 1, newEntries: 1)),
+        .identified(F.perdix), .listing(.init(dives: 3, newDives: 1)),
         .skipped(fingerprint: F.fingerprint(7)), .finished(.init(.complete, notDownloaded: 1)),
       ],
       [
-        .identified(F.perdix), .listing(.init(dives: 3, newDives: 1, newEntries: 2)),
+        .identified(F.perdix), .listing(.init(dives: 3, newDives: 1)),
         .skipped(fingerprint: F.fingerprint(8)), .skipped(fingerprint: F.fingerprint(7)),
         .finished(.init(.complete, waiting: 1, notDownloaded: 1)),
       ],

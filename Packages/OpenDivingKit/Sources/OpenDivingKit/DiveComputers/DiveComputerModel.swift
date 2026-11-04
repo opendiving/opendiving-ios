@@ -109,9 +109,13 @@ public final class DiveComputerModel {
   /// The computer being downloaded, once it identified itself.
   public private(set) var identity: DiveComputerIdentity?
   public private(set) var divesDownloaded = 0
-  /// libdivecomputer's progress from 0 to 1, where the family reports it; else, after a
-  /// listing, the entries walked over the new entries the listing named.
-  public private(set) var progress: Double?
+  /// libdivecomputer's progress up to 1, where the family reports it; else, after a listing, the
+  /// dives downloaded over the new dives the listing named, as ``downloadingText`` counts them.
+  /// Never below ``startingProgress``.
+  public var progress: Double? { walkProgress.map { max(Self.startingProgress, $0) } }
+  /// The least of the bar, so a long first dive does not read as a download that has not begun.
+  public static let startingProgress = 0.05
+  private var walkProgress: Double?
   /// The walk's count, once the computer listed its entries.
   public private(set) var listing: DiveComputerListing?
   /// The computer last said it was busy with another app.
@@ -340,7 +344,7 @@ public final class DiveComputerModel {
     phase = .connecting
     identity = nil
     divesDownloaded = 0
-    progress = nil
+    walkProgress = nil
     listing = nil
     computerBusy = false
     otherAppHandshaking = false
@@ -402,20 +406,11 @@ public final class DiveComputerModel {
     // The walk is newest first, so the first fingerprint is the one the record advances to.
     var newest: Data?
     var end = DiveComputerDownloadEnd(.failed(status: "DC_STATUS_IO"))
-    // Dives and skips, for the bar of a walk that listed and whose backend reports no progress.
-    var walked = 0
     var reportsProgress = false
     // Nothing reads *Downloading* before anything downloads: the phase moves at the listing, or
     // without one at the first progress, dive or skip.
     func walkedOne() {
-      walked += 1
-      guard let listing else {
-        phase = .downloading
-        return
-      }
-      if !reportsProgress, listing.newEntries > 0 {
-        progress = min(1, Double(walked) / Double(listing.newEntries))
-      }
+      if listing == nil { phase = .downloading }
     }
     for await event in link.download(computer, lookup: lookup, waiting: waiting) {
       switch event {
@@ -439,11 +434,13 @@ public final class DiveComputerModel {
           !all
           && identity.flatMap { store.record(family: $0.family, serial: $0.serial) }?
             .fingerprintToSet != nil
-        if !reportsProgress, found.newEntries > 0 { progress = 0 }
-        if found.newDives > 0 { phase = .downloading }
+        if found.newDives > 0 {
+          if !reportsProgress { walkProgress = 0 }
+          phase = .downloading
+        }
       case .progress(let current, let maximum):
         reportsProgress = true
-        progress = maximum > 0 ? min(1, max(0, Double(current) / Double(maximum))) : nil
+        walkProgress = maximum > 0 ? min(1, max(0, Double(current) / Double(maximum))) : nil
         if listing == nil { phase = .downloading }
       case .dive(let dive):
         newest = newest ?? dive.fingerprint
@@ -451,13 +448,16 @@ public final class DiveComputerModel {
         identity = identity ?? dive.identity
         divesDownloaded = dives.count
         otherAppHandshaking = false
+        if let listing, !reportsProgress, listing.newDives > 0 {
+          walkProgress = min(1, Double(dives.count) / Double(listing.newDives))
+        }
         walkedOne()
       case .skipped(let fingerprint):
         newest = newest ?? fingerprint
         walkedOne()
       case .finished(let finished):
         end = finished
-        if let listing, !reportsProgress, listing.newEntries > 0 { progress = 1 }
+        if let listing, !reportsProgress, listing.newDives > 0 { walkProgress = 1 }
       }
     }
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
