@@ -829,8 +829,8 @@ struct DiveComputerModelTests {
     #expect(computers(session).record(family: .shearwaterPetrel, serial: "D9772626") == nil)
   }
 
-  /// The record is saved once the computer is identified, so Settings lists it while the first
-  /// download runs.
+  /// The record is saved once the computer is identified, so the screen lists it as paired while
+  /// the first download runs.
   @Test func aConnectionPairsTheComputerWhileTheFirstDownloadRuns() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()

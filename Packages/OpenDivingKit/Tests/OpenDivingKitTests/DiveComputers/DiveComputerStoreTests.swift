@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// Where the remembered computers live, what survives what, and the Settings list over them.
+/// Where the remembered computers live, and what survives what.
 @MainActor
 struct DiveComputerStoreTests {
   private typealias F = DiveComputerFixtures

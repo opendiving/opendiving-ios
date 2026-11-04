@@ -1,8 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The one confirmation *Forget this dive computer* asks for, wherever it is offered: the Settings
-/// list and a computer's page.
+/// The one confirmation *Forget this dive computer* asks for, wherever it is offered.
 struct ForgetDiveComputerConfirmation: ViewModifier {
   @Binding var record: DiveComputerRecord?
   let perform: (DiveComputerRecord) -> Void
