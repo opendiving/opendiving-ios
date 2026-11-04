@@ -46,10 +46,7 @@ struct SpeciesPickerSheet: View {
         }
       }
       .pickerListSpacing()
-      .searchable(
-        text: $text, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: "Select a species..."
-      )
+      .searchable(text: $text, prompt: "Select a species...")
       .task(id: text) {
         found = []
         try? await Task.sleep(for: .milliseconds(300))

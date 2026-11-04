@@ -15,7 +15,7 @@ struct WheelSheet<Wheels: View>: View {
       HStack {
         Text(title).font(.headline)
         Spacer()
-        Text(value).foregroundStyle(Color.brandTeal)
+        Text(value).foregroundStyle(Color.accentText)
       }
       wheels()
       Button {

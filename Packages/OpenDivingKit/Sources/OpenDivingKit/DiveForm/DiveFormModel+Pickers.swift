@@ -201,16 +201,6 @@ extension DiveFormModel {
     }
   }
 
-  public func removePerson(_ ref: RecordRef) { change { $0.people.removeAll { $0.person == ref } } }
-
-  /// The role on this dive; nil is *No role*.
-  public func setRole(_ role: String?, of ref: RecordRef) {
-    change { values in
-      guard let index = values.people.firstIndex(where: { $0.person == ref }) else { return }
-      values.people[index].role = role
-    }
-  }
-
   /// Return in the people picker: the person of exactly that name where the phone knows one —
   /// already on the dive, listed, or found by a search — else a new person of that name, queued
   /// and on the dive at once, since the server refuses a second person of one name. False when

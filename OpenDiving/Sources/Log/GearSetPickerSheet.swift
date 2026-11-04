@@ -27,10 +27,7 @@ struct GearSetPickerSheet: View {
         }
       }
       .pickerListSpacing()
-      .searchable(
-        text: $text, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: "Load a gear set..."
-      )
+      .searchable(text: $text, prompt: "Load a gear set...")
       .navigationTitle("Load a gear set...")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
