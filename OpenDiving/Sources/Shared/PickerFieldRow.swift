@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A record a form names: the label above, the record or the prompt below, and a tap anywhere
-/// opening its picker.
+/// A record a form names: the label above, and below it the record or the prompt, which opens its
+/// picker.
 struct PickerFieldRow: View {
   let title: String
   let row: FormPickerRow?
