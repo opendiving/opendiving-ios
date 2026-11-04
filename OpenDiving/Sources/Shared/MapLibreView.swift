@@ -1,3 +1,4 @@
+import CoreLocation
 import MapLibre
 import OpenDivingKit
 import SwiftUI
