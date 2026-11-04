@@ -41,6 +41,7 @@ struct RecordSheetForm<Content: View>: View {
           Button(isReopened ? "Save changes" : "Create") {
             if save() { dismiss() }
           }
+          .buttonStyle(.borderedProminent)
           .tint(.brandTeal)
         }
       }

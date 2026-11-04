@@ -66,6 +66,10 @@ struct DiveFormSection: View {
 
   @ViewBuilder private var diveInfo: some View {
     let required = model.marksRequired ? " *" : ""
+    DiveNumberField(
+      title: "Dive number" + required, number: values.diveNumber,
+      notice: model.numberNotice, error: model.message("dive_number")
+    ) { number in model.change { $0.diveNumber = number } }
     if model.shows(.type) {
       VocabularyPicker(
         title: DiveFormField.type.label, values: Self.offeredDiveTypes,
@@ -76,10 +80,6 @@ struct DiveFormSection: View {
       title: "Start time" + required, start: values.startTime, offsets: model.offsetChoices,
       error: model.message("start_time")
     ) { start in model.change { $0.startTime = start } }
-    DiveNumberField(
-      title: "Dive number" + required, number: values.diveNumber,
-      notice: model.numberNotice, error: model.message("dive_number")
-    ) { number in model.change { $0.diveNumber = number } }
     DiveTimeField(
       title: "Dive time" + required, text: values.submergedTime,
       error: model.message("submerged_time")

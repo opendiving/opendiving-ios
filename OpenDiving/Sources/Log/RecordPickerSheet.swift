@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One of the form's record pickers: the phone's rows first, searched as the diver types, then
-/// the server's matches when it can be asked, and the web's *Add…* row, which opens the
-/// record's sheet and picks what it creates.
+/// One of the form's record pickers: the web's *Add…* row, which opens the record's sheet and
+/// picks what it creates, then the phone's rows, searched as the diver types, and the server's
+/// matches when it can be asked.
 struct RecordPickerSheet: View {
   let model: DiveFormModel
   let picker: FormPicker
@@ -24,6 +24,9 @@ struct RecordPickerSheet: View {
     NavigationStack {
       let rows = model.rows(picker, matching: text, tank: tank)
       List {
+        Section {
+          Button(picker.addLabel, systemImage: "plus") { adding = true }
+        }
         if current != nil {
           Button("None") { pick(nil) }
         }
@@ -38,9 +41,6 @@ struct RecordPickerSheet: View {
         if rows.isEmpty && found.isEmpty {
           Text(model.emptySentence(picker, matching: text, tank: tank))
             .foregroundStyle(.secondary)
-        }
-        Section {
-          Button(picker.addLabel, systemImage: "plus") { adding = true }
         }
       }
       .searchable(

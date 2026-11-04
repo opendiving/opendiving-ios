@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The dive's gear: *Load a gear set…*, which opens the set as a checklist — after the web's
-/// confirmation when the dive already has gear — and *Save as set*, then the picker and under it
-/// the items one by one.
+/// confirmation when the dive already has gear — and *Save as set*, then the items one by one and
+/// the picker that adds the next.
 struct GearField: View {
   @Bindable var model: DiveFormModel
 
@@ -34,6 +34,21 @@ struct GearField: View {
         model.reopenChecklist()
       }
     }
+    ForEach(gear, id: \.self) { ref in
+      let item = model.gearInfo(ref)
+      HStack {
+        PickerRowLabel(row: model.row(ref, .gear))
+        if item?.rented == true { BadgeView("Rented") }
+        if item?.isArchived == true { BadgeView("Archived", style: .outline) }
+        Button {
+          model.removeGear(ref)
+        } label: {
+          Image(systemName: "xmark")
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Remove \(model.row(ref, .gear).title)")
+      }
+    }
     Button(FormPicker.gear.placeholder(holdsSome: !gear.isEmpty)) { picking = true }
       .sheet(isPresented: $picking) {
         RecordPickerSheet(model: model, picker: .gear) { ref in
@@ -59,21 +74,6 @@ struct GearField: View {
       } message: { set in
         Text(model.replaceSentence(set))
       }
-    ForEach(gear, id: \.self) { ref in
-      let item = model.gearInfo(ref)
-      HStack {
-        PickerRowLabel(row: model.row(ref, .gear))
-        if item?.rented == true { BadgeView("Rented") }
-        if item?.isArchived == true { BadgeView("Archived", style: .outline) }
-        Button {
-          model.removeGear(ref)
-        } label: {
-          Image(systemName: "xmark")
-        }
-        .buttonStyle(.borderless)
-        .accessibilityLabel("Remove \(model.row(ref, .gear).title)")
-      }
-    }
   }
 
   /// The web asks once, at the pick, before a set replaces gear the dive holds.

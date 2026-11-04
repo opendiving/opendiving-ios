@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The species spotted, under the picker that adds the next: each with how many — a count, or one
-/// of the web's quick choices — and notes.
+/// The species spotted: each with how many — a count, or one of the web's quick choices — and
+/// notes, and the picker that adds the next.
 struct SpeciesField: View {
   let model: DiveFormModel
 
@@ -10,14 +10,14 @@ struct SpeciesField: View {
 
   var body: some View {
     let sightings = model.values.sightings
+    ForEach(Array(sightings.enumerated()), id: \.element.speciesUuid) { index, sighting in
+      SightingRow(model: model, index: index, sighting: sighting)
+    }
     Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
       picking = true
     }
     .sheet(isPresented: $picking) {
       SpeciesPickerSheet(model: model)
-    }
-    ForEach(Array(sightings.enumerated()), id: \.element.speciesUuid) { index, sighting in
-      SightingRow(model: model, index: index, sighting: sighting)
     }
   }
 }
