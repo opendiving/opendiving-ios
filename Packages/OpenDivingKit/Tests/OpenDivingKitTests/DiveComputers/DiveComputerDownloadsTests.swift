@@ -68,7 +68,7 @@ struct DiveComputerDownloadsTests {
     link.found = [F.perdixFound]
     link.scripts = [
       FakeDiveComputerLink.script(
-        F.perdix, listing: .init(dives: 3, newDives: 0, newEntries: 0), [])
+        F.perdix, listing: .init(dives: 3, newDives: 0), [])
     ]
     let (downloads, _) = try await downloads(link)
     let model = downloads.model

@@ -780,9 +780,9 @@ struct DiveComputerModelTests {
     link.found = [F.perdixFound]
     link.scripts = [
       FakeDiveComputerLink.script(
-        identified, listing: .init(dives: 3, newDives: 0, newEntries: 0), []),
+        identified, listing: .init(dives: 3, newDives: 0), []),
       FakeDiveComputerLink.script(
-        F.perdix, listing: .init(dives: 3, newDives: 0, newEntries: 0), []),
+        F.perdix, listing: .init(dives: 3, newDives: 0), []),
     ]
     let model = model(session, InboxModel(session: session), link)
     for _ in 0..<2 {
