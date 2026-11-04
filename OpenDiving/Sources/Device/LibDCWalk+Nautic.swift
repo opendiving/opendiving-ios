@@ -75,7 +75,10 @@ nonisolated extension LibDCWalk {
           }
           switch fetched {
           case .stop(let stopped): return nauticEnd(stopped)
-          case .answered(let bytes) where !bytes.isEmpty: descriptors = NauticDescriptors(bytes)
+          case .answered(let bytes) where !bytes.isEmpty:
+            let read = NauticDescriptors(bytes)
+            descriptors = read
+            identify(serial: serial, firmware: firmware, hardware: read.hardware)
           case .answered, .failed: break
           }
         }

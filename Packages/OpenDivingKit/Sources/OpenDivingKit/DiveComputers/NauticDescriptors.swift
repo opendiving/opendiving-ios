@@ -64,6 +64,21 @@ public struct NauticDescriptors: Sendable {
     return sport
   }
 
+  /// The watch's hardware, `Seal_RevA3`: the label of the only value of the enumeration at the
+  /// field whose path ends `Header.Device.Info.HW`, where a watch's descriptors name it. Nil where
+  /// no field does.
+  public var hardware: String? {
+    fields.values.lazy.compactMap { field -> String? in
+      guard field.path?.hasSuffix("Header.Device.Info.HW") == true,
+        field.format.hasPrefix(Self.onlyValue)
+      else { return nil }
+      let label = field.format.dropFirst(Self.onlyValue.count).prefix { $0 != "," }
+      return label.isEmpty ? nil : String(label)
+    }.first
+  }
+
+  private static let onlyValue = "enum:0="
+
   private static func isActivityType(_ path: String) -> Bool {
     path == "Header.ActivityType" || path.hasSuffix(".Header.ActivityType")
   }

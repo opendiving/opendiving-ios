@@ -37,15 +37,7 @@ struct DiveComputersListView: View {
     .navigationTitle(DiveComputerText.settingsRow)
     .navigationBarTitleDisplayMode(.inline)
     .onAppear { model.reload() }
-    .confirmationDialog(
-      forgetting.map(DiveComputerText.forgetTitle) ?? DiveComputerText.forget,
-      isPresented: Binding(get: { forgetting != nil }, set: { if !$0 { forgetting = nil } }),
-      titleVisibility: .visible, presenting: forgetting
-    ) { record in
-      Button("Forget", role: .destructive) { model.forget(record) }
-    } message: { _ in
-      Text(DiveComputerText.forgetMessage)
-    }
+    .forgetDiveComputerConfirmation(record: $forgetting) { model.forget($0) }
   }
 }
 

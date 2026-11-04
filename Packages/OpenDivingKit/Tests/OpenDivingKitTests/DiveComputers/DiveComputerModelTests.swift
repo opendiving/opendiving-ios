@@ -796,6 +796,46 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.kind == .handedOver)
   }
 
+  @Test func aWalkKeepsTheHardwareItReadAndALaterWalkThatReadsNoneLeavesIt() async throws {
+    let session = try await session(try ImportServer())
+    let identified = DiveComputerIdentity(
+      family: F.perdix.family, vendor: F.perdix.vendor, product: F.perdix.product,
+      serial: F.perdix.serial, firmware: F.perdix.firmware, hardware: "0B0B",
+      familyNumber: F.perdix.familyNumber, modelNumber: F.perdix.modelNumber)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        identified, listing: .init(dives: 3, newDives: 0), []),
+      FakeDiveComputerLink.script(
+        F.perdix, listing: .init(dives: 3, newDives: 0), []),
+    ]
+    let model = model(session, InboxModel(session: session), link)
+    for _ in 0..<2 {
+      model.connect(try await scanned(model))
+      await model.settled()
+      let record = computers(session).record(family: .shearwaterPetrel, serial: "D9772626")
+      #expect(record?.hardware == "0B0B")
+    }
+  }
+
+  @Test func forgettingAComputerTheScanSeesPutsItAmongTheFound() async throws {
+    let session = try await session(try ImportServer())
+    let record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    try computers(session).save(record)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let model = model(session, InboxModel(session: session), link)
+    _ = try await scanned(model)
+    #expect(model.paired.map(\.id) == [record.id])
+    #expect(model.unpairedRows.isEmpty)
+
+    model.forget(record)
+    #expect(model.paired.isEmpty)
+    #expect(model.unpairedRows.map(\.computer) == [F.perdixFound])
+    #expect(computers(session).record(family: .shearwaterPetrel, serial: "D9772626") == nil)
+  }
+
   /// The record is saved once the computer is identified, so Settings lists it while the first
   /// download runs.
   @Test func aConnectionPairsTheComputerWhileTheFirstDownloadRuns() async throws {

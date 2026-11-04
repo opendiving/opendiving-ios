@@ -24,6 +24,7 @@ struct DiveComputerView: View {
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
   @State private var showsImport = false
+  @State private var showing: DiveComputerRecord?
 
   private var model: DiveComputerModel { downloads.model }
 
@@ -61,6 +62,15 @@ struct DiveComputerScreen: View {
       if outcome?.kind == .handedOver { showsImport = true }
     }
     .navigationDestination(isPresented: $showsImport) { ImportView() }
+    .navigationDestination(item: $showing) { record in
+      DiveComputerPage(record: record) {
+        model.forget(record)
+        showing = nil
+      }
+      // It counts as the screen, whose model would otherwise close with a download's outcome.
+      .onAppear { downloads.screenAppeared() }
+      .onDisappear { downloads.screenDisappeared() }
+    }
   }
 
   @ViewBuilder private var phase: some View {
@@ -125,18 +135,33 @@ struct DiveComputerScreen: View {
     }
   }
 
-  /// Each paired computer, which connects while the scan sees it.
+  /// Each paired computer, which connects while the scan sees it and opens its page from the
+  /// info button whether it does or not.
   @ViewBuilder private var paired: some View {
     if !model.paired.isEmpty {
       Section(DiveComputerText.pairedHeading) {
         ForEach(model.paired) { paired in
           let connects = paired.row != nil && model.blocker == nil
-          Button {
-            if let row = paired.row { model.connect(row) }
-          } label: {
-            label(paired.title, paired.subtitle, connects: connects)
+          HStack {
+            Button {
+              if let row = paired.row { model.connect(row) }
+            } label: {
+              label(paired.title, paired.subtitle, connects: connects)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            // Two buttons in one row: a style other than the default gives each its own taps
+            // rather than the row's.
+            .buttonStyle(PairedRowButtonStyle())
+            .disabled(!connects)
+            Button {
+              showing = paired.record
+            } label: {
+              Image(systemName: "info.circle")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(DiveComputerText.about(paired.title))
           }
-          .disabled(!connects)
         }
       }
     }
@@ -166,6 +191,14 @@ struct DiveComputerScreen: View {
         Text(subtitle).font(.caption).foregroundStyle(.secondary)
       }
     }
+  }
+}
+
+/// A paired computer's row, which dims on a press and otherwise keeps the label's own colours:
+/// `.plain` would dim a computer out of reach a second time over its secondary text.
+private struct PairedRowButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label.opacity(configuration.isPressed ? 0.5 : 1)
   }
 }
 

@@ -76,6 +76,15 @@ struct DiveComputerScreensTests {
     #expect(window != nil)
   }
 
+  @Test func aComputersPageDraws() {
+    let window = F.window(
+      NavigationStack {
+        DiveComputerPage(record: DiveComputerRecord(identity: perdix, lastDownloaded: Date())) {}
+      })
+    defer { window?.isHidden = true }
+    #expect(window != nil)
+  }
+
   @Test func aDownloadsRowSaysWhatItHolds() {
     let download = InboxDownload(
       computers: [
