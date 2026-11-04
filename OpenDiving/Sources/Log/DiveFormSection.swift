@@ -57,12 +57,13 @@ struct DiveFormSection: View {
     }
     if model.shows(.boatName) {
       VStack(alignment: .leading, spacing: 6) {
-        FieldLabel(DiveFormField.boatName.label)
-        TextField(
-          "e.g. Legend",
-          text: Binding(
-            get: { values.boatName }, set: { name in model.change { $0.boatName = name } })
-        )
+        InlineField(DiveFormField.boatName.label) {
+          TextField(
+            "e.g. Legend",
+            text: Binding(
+              get: { values.boatName }, set: { name in model.change { $0.boatName = name } })
+          )
+        }
         if let error = message(.boatName) { FieldMessage(error) }
       }
     }
@@ -85,13 +86,15 @@ struct DiveFormSection: View {
       notice: model.numberNotice, error: model.message("dive_number")
     ) { number in model.change { $0.diveNumber = number } }
     VStack(alignment: .leading, spacing: 6) {
-      FieldLabel("Dive time" + required)
-      TextField(
-        DiveDuration.placeholder,
-        text: Binding(
-          get: { values.submergedTime }, set: { text in model.change { $0.submergedTime = text } })
-      )
-      .keyboardType(.numbersAndPunctuation)
+      InlineField("Dive time" + required) {
+        TextField(
+          DiveDuration.placeholder,
+          text: Binding(
+            get: { values.submergedTime },
+            set: { text in model.change { $0.submergedTime = text } })
+        )
+        .keyboardType(.numbersAndPunctuation)
+      }
       if let error = model.message("submerged_time") { FieldMessage(error) }
     }
     if model.shows(.maxDepth) {
@@ -219,14 +222,15 @@ private struct DiveNumberField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(title)
-      TextField("", text: $text)
-        .keyboardType(.numberPad)
-        .focused($focused)
-        .onChange(of: text) { _, typed in
-          guard focused else { return }
-          onChange(Int(typed.trimmingCharacters(in: .whitespaces)))
-        }
+      InlineField(title) {
+        TextField("", text: $text)
+          .keyboardType(.numberPad)
+          .focused($focused)
+          .onChange(of: text) { _, typed in
+            guard focused else { return }
+            onChange(Int(typed.trimmingCharacters(in: .whitespaces)))
+          }
+      }
       if let notice { FieldMessage(notice, isNote: true) }
       if let error { FieldMessage(error) }
     }

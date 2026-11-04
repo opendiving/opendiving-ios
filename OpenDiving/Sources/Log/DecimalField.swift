@@ -6,6 +6,7 @@ import SwiftUI
 struct DecimalField: View {
   let title: String
   var placeholder = ""
+  var unit: String?
   let value: Double?
   var isReadOnly = false
   var error: String?
@@ -16,16 +17,19 @@ struct DecimalField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(title)
-      TextField(placeholder, text: $text)
-        .keyboardType(.decimalPad)
-        .focused($focused)
-        .disabled(isReadOnly)
-        .foregroundStyle(isReadOnly ? .secondary : .primary)
-        .onChange(of: text) { _, typed in
-          guard focused else { return }
-          onChange(DecimalEntry.parse(typed))
-        }
+      InlineField(title) {
+        TextField(placeholder, text: $text)
+          .keyboardType(.decimalPad)
+          .focused($focused)
+          .disabled(isReadOnly)
+          .foregroundStyle(isReadOnly ? .secondary : .primary)
+          .onChange(of: text) { _, typed in
+            guard focused else { return }
+            onChange(DecimalEntry.parse(typed))
+          }
+      } trailing: {
+        if let unit { Text(unit).foregroundStyle(.secondary) }
+      }
       if let message = DecimalEntry.message(text) ?? error {
         FieldMessage(message)
       }
@@ -42,6 +46,6 @@ struct DecimalField: View {
 
 #Preview {
   Form {
-    DecimalField(title: "O₂ (%)", value: 32) { _ in }
+    DecimalField(title: "O₂", unit: "%", value: 32) { _ in }
   }
 }

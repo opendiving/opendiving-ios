@@ -200,7 +200,6 @@ struct DiveFormModelTests {
     let model = await world.form(.create)
     model.toggleEntryUnits(.depth)
     #expect(model.entryUnits(.depth) == .imperial)
-    #expect(model.label("Maximum depth", .depth) == "Maximum depth (ft)")
     #expect(model.metric(fromEntry: "60", .depth) == 18.29)
     #expect(model.placeholder(30.52, .depth) == "e.g. 100")
     // The toggle is the phone's, and kept.
@@ -432,7 +431,7 @@ struct DiveFormModelTests {
 
     let model = await world.form(.create)
     #expect(model.units == .imperial)
-    #expect(model.label("Maximum depth", .depth) == "Maximum depth (ft)")
+    #expect(model.entryUnits(.depth) == .imperial)
     #expect(!model.shows(.course))
     #expect(!model.isOnline)
     model.change { $0.submergedTime = "40" }

@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The form, ready: its sections as the account shows them, a menu that jumps between them, and
-/// the actions — *Log dive* or *Save changes*, and *Discard draft* once there is one.
+/// The form, ready: its sections as the account shows them, a menu that jumps between them,
+/// *Discard draft* once there is one, and *Log dive* or *Save changes* fixed under it all, where
+/// the tab bar was.
 struct DiveFormScreen: View {
   @Bindable var model: DiveFormModel
   /// Opens a draft in place of a new form that has not been touched.
@@ -38,21 +39,17 @@ struct DiveFormScreen: View {
           }
           .id(group)
         }
-        Section {
-          if let error = model.saveError { FieldMessage(error) }
-          Button(model.submitLabel) { submit(proxy) }
-            .bold()
-          if model.draft != nil {
+        if model.draft != nil {
+          Section {
             Button("Discard draft", role: .destructive) { confirmsDiscard = true }
-          }
-        } footer: {
-          if model.draft != nil {
+          } footer: {
             Text(
               "Saved as a draft. It reaches your server when the phone can, and opens on the web as you left it."
             )
           }
         }
       }
+      .safeAreaInset(edge: .bottom, spacing: 0) { saveBar(proxy) }
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
           Menu("Sections", systemImage: "list.bullet") {
@@ -62,9 +59,6 @@ struct DiveFormScreen: View {
               }
             }
           }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button(model.submitLabel) { submit(proxy) }
         }
       }
     }
@@ -79,6 +73,32 @@ struct DiveFormScreen: View {
     }
     .onChange(of: model.isDone) { _, done in if done { dismiss() } }
     .onDisappear { model.leave() }
+  }
+
+  /// The save button, the bar's full width and down through the home indicator, and what stopped
+  /// the last save above it, since the end of the form may be far from view.
+  private func saveBar(_ proxy: ScrollViewProxy) -> some View {
+    VStack(spacing: 0) {
+      if let error = model.saveError {
+        FieldMessage(error)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal)
+          .padding(.vertical, 8)
+          .background(.bar)
+      }
+      Button {
+        submit(proxy)
+      } label: {
+        Text(model.submitLabel)
+          .bold()
+          .foregroundStyle(.white)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 16)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .background(Color.teal, ignoresSafeAreaEdges: .bottom)
+    }
   }
 
   /// Saves, or scrolls to the first section a sentence landed in.

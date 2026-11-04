@@ -66,19 +66,21 @@ private struct TankCard: View {
             get: { tank.po2Limit },
             set: { limit in model.changeTank(index) { $0.po2Limit = limit } })
         ) {
-          Text("Not recorded (\(NumberText.plain(GasMath.workingPPO2)) default)")
-            .tag(Double?.none)
+          Text("Not recorded").tag(Double?.none)
           ForEach(DiveFormModel.po2LimitChoices(tank.po2Limit), id: \.self) { limit in
             Text(NumberText.fixed(limit, decimals: 1)).tag(Double?.some(limit))
           }
         }
         if let error = message("po2_limit") { FieldMessage(error) }
       }
-      DecimalField(title: "O₂ (%)", value: tank.oxygen, error: message("oxygen")) { oxygen in
+      DecimalField(title: "O₂", unit: "%", value: tank.oxygen, error: message("oxygen")) { oxygen in
         model.changeTank(index) { $0.oxygen = oxygen }
       }
       if visibility.isVisible(.mixtureHelium) {
-        DecimalField(title: "He (%)", value: tank.helium, error: message("helium")) { helium in
+        DecimalField(
+          title: DiveFormField.mixtureHelium.label, unit: "%", value: tank.helium,
+          error: message("helium")
+        ) { helium in
           model.changeTank(index) { $0.helium = helium }
         }
       }
@@ -139,8 +141,9 @@ private struct VolumeField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      HStack(alignment: .bottom) {
-        DecimalField(title: "Volume (L)", value: value, isReadOnly: isReadOnly, onChange: onChange)
+      HStack {
+        DecimalField(
+          title: "Volume", unit: "L", value: value, isReadOnly: isReadOnly, onChange: onChange)
         if !isReadOnly {
           Menu {
             ForEach(model.volumeGroups, id: \.title) { group in

@@ -11,11 +11,11 @@ struct SpeciesField: View {
   var body: some View {
     let sightings = model.values.sightings
     VStack(alignment: .leading, spacing: 10) {
-      FieldLabel(DiveFormField.sightings.label)
       ForEach(Array(sightings.enumerated()), id: \.element.speciesUuid) { index, sighting in
         SightingRow(model: model, index: index, sighting: sighting)
       }
       Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
+        UIApplication.endTyping()
         picking = true
       }
       .buttonStyle(.borderless)

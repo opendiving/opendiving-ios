@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The dive's sites in the order visited — the first is the primary — each movable and
-/// removable, and the picker that adds the next.
+/// The dive's sites in the order visited — the first is the primary — each a row of the form, so
+/// it drags to a new place and swipes away, and the picker that adds the next.
 struct DiveSitesField: View {
   let model: DiveFormModel
 
@@ -10,33 +10,34 @@ struct DiveSitesField: View {
 
   var body: some View {
     let sites = model.values.diveSites
-    VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(DiveFormField.diveSites.label)
-      ForEach(Array(sites.enumerated()), id: \.element) { index, ref in
-        HStack {
-          PickerRowLabel(row: model.row(ref, .diveSites))
-          if sites.count > 1 {
-            Button {
-              model.moveSite(ref, by: -1)
-            } label: {
-              Image(systemName: "arrow.up")
-            }
-            .buttonStyle(.borderless)
-            .disabled(index == 0)
-            .accessibilityLabel("Move \(model.row(ref, .diveSites).title) up")
-          }
-          Button {
-            model.removeSite(ref)
-          } label: {
-            Image(systemName: "xmark")
-          }
-          .buttonStyle(.borderless)
-          .accessibilityLabel("Remove \(model.row(ref, .diveSites).title)")
+    FieldLabel(DiveFormField.diveSites.label)
+      .listRowSeparator(.hidden, edges: .bottom)
+    ForEach(Array(sites.enumerated()), id: \.element) { index, ref in
+      let row = model.row(ref, .diveSites)
+      HStack {
+        PickerRowLabel(row: row)
+        if sites.count > 1 {
+          Image(systemName: "line.3.horizontal")
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
         }
       }
-      Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
-        .buttonStyle(.borderless)
+      .accessibilityActions {
+        if index > 0 {
+          Button("Move \(row.title) up") { model.moveSite(ref, by: -1) }
+        }
+        if index < sites.count - 1 {
+          Button("Move \(row.title) down") { model.moveSite(ref, by: 1) }
+        }
+      }
     }
+    .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
+    .onDelete { offsets in offsets.map { sites[$0] }.forEach(model.removeSite) }
+    Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) {
+      UIApplication.endTyping()
+      picking = true
+    }
+    .buttonStyle(.borderless)
     .sheet(isPresented: $picking) {
       RecordPickerSheet(model: model, picker: .diveSites) { ref in
         if let ref { model.addSite(ref) }

@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// A measured number: typed in the dimension's entry units on this phone, kept metric, with the
-/// toggle beside its label. While the box has focus it shows what was typed; otherwise the
+/// toggle beside its box. While the box has focus it shows what was typed; otherwise the
 /// stored value in the entry units.
 struct MeasuredField: View {
   let model: DiveFormModel
@@ -23,16 +23,17 @@ struct MeasuredField: View {
   var body: some View {
     let units = model.entryUnits(measure)
     VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(model.label(title, measure)) {
+      InlineField(title) {
+        TextField(example.map { model.placeholder($0, measure) } ?? "", text: $text)
+          .keyboardType(keyboard)
+          .focused($focused)
+          .onChange(of: text) { _, typed in
+            guard focused else { return }
+            onChange(model.metric(fromEntry: typed, measure))
+          }
+      } trailing: {
         EntryUnitToggle(measure: measure, current: units) { model.toggleEntryUnits(measure) }
       }
-      TextField(example.map { model.placeholder($0, measure) } ?? "", text: $text)
-        .keyboardType(keyboard)
-        .focused($focused)
-        .onChange(of: text) { _, typed in
-          guard focused else { return }
-          onChange(model.metric(fromEntry: typed, measure))
-        }
       if let message = model.entryMessage(text, measure, min: min, max: max) ?? error {
         FieldMessage(message)
       }

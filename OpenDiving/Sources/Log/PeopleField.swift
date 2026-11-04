@@ -11,7 +11,6 @@ struct PeopleField: View {
   var body: some View {
     let people = model.values.people
     VStack(alignment: .leading, spacing: 8) {
-      FieldLabel(DiveFormField.people.label)
       ForEach(people, id: \.person) { reference in
         let row = model.row(reference.person, .people)
         VStack(alignment: .leading, spacing: 4) {
@@ -38,8 +37,11 @@ struct PeopleField: View {
           .labelsHidden()
         }
       }
-      Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
-        .buttonStyle(.borderless)
+      Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) {
+        UIApplication.endTyping()
+        picking = true
+      }
+      .buttonStyle(.borderless)
     }
     .sheet(isPresented: $picking) {
       RecordPickerSheet(
