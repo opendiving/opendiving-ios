@@ -22,8 +22,7 @@ struct InlineField<Field: View, Trailing: View>: View {
     HStack(spacing: 8) {
       Text(title)
         .layoutPriority(1)
-        .contentShape(Rectangle())
-        .onTapGesture { focus.wrappedValue = true }
+        .focusesOnTap(focus)
         .accessibilityHidden(true)
       field()
         .multilineTextAlignment(.trailing)

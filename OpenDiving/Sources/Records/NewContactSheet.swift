@@ -107,9 +107,9 @@ private struct ContactSheetForm: View {
         }
       }
       Section {
-        TextBox(
-          label: "Notes", placeholder: "Opening hours, who to ask for, what to bring...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+        NotesField(
+          placeholder: "Opening hours, who to ask for, what to bring...", text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
     .showsMapStyle(map)

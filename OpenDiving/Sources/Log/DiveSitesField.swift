@@ -12,7 +12,7 @@ struct DiveSitesField: View {
     let sites = model.values.diveSites
     FieldLabel(DiveFormField.diveSites.label)
       .listRowSeparator(.hidden, edges: .bottom)
-      .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 0, trailing: 16))
+      .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
     ForEach(Array(sites.enumerated()), id: \.element) { index, ref in
       let row = model.row(ref, .diveSites)
       HStack {
@@ -28,10 +28,12 @@ struct DiveSitesField: View {
         }
       }
       .swipeToDelete { model.removeSite(ref) }
+      .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
     }
     .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
     Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
       .accentRow()
+      .listRowSeparator(sites.isEmpty ? .hidden : .automatic, edges: .top)
       .sheet(isPresented: $picking) {
         RecordPickerSheet(model: model, picker: .diveSites) { ref in
           if let ref { model.addSite(ref) }

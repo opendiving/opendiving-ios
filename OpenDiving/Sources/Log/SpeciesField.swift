@@ -107,13 +107,14 @@ private struct SightingRow: View {
     } label: {
       VStack(spacing: 0) {
         Text(label).font(.caption.weight(.semibold))
-        Text(range).font(.caption2).foregroundStyle(chosen ? .primary : .secondary)
+          .foregroundStyle(chosen ? Color.white : Color.primary)
+        Text(range).font(.caption2).foregroundStyle(chosen ? Color.white : Color.secondary)
       }
       .frame(maxWidth: .infinity)
       .padding(.vertical, 4)
       .background(
         RoundedRectangle(cornerRadius: 6)
-          .fill(chosen ? Color.accentColor.opacity(0.25) : Color(.secondarySystemFill)))
+          .fill(chosen ? Color.brandCoral : Color(.secondarySystemFill)))
     }
     .buttonStyle(.plain)
     .accessibilityLabel(key == "one" ? label : "\(label), \(range)")

@@ -180,9 +180,10 @@ struct DiveFormSection: View {
       .id(DiveFormField.tags)
     }
     if model.shows(.notes) {
-      NotesField(text: values.notes, error: message(.notes)) { text in
-        model.change { $0.notes = text }
-      }
+      NotesField(
+        placeholder: "Enter any additional notes about your dive...",
+        text: Binding(get: { values.notes }, set: { text in model.change { $0.notes = text } }),
+        error: message(.notes))
     }
   }
 

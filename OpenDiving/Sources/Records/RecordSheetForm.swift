@@ -31,6 +31,7 @@ struct RecordSheetForm<Content: View>: View {
           }
         }
       }
+      .background(TapEndsTyping())
       .navigationTitle(title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {

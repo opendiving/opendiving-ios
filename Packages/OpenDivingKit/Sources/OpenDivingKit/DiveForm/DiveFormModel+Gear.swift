@@ -49,6 +49,15 @@ extension DiveFormModel {
     return checklist?.items.first { $0.ref == ref }
   }
 
+  /// The tank drawn as what it records so far; the first flagged parallel is the left of the pair.
+  public func tankIcon(_ index: Int) -> TankIcon? {
+    guard values.tanks.indices.contains(index) else { return nil }
+    let tank = values.tanks[index]
+    return TankIcon(
+      volume: tank.shownVolume, oxygen: tank.oxygen, helium: tank.helium,
+      left: values.tanks.firstIndex { $0.usage == "parallel" } == index)
+  }
+
   /// The line under a tank: its gas, its MOD, and — on a dive with one tank, whose depth it was
   /// breathed at — its END or EAD, in the units depths are typed in.
   public func tankHint(_ index: Int) -> String? {

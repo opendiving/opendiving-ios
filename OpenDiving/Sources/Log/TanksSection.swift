@@ -1,24 +1,26 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The tanks: a card per cylinder under the section's title, each removable and each field a row
-/// of it, then *Add tank* below them — where the next one appears — and the depth warning.
+/// The tanks: *Tanks* and *Add tank* while there are none, otherwise a card per cylinder headed
+/// *Tank n* with its bin, each field a row of it, then *Add tank* below them — where the next one
+/// appears — and the depth warning.
 struct TanksSection: View {
   let model: DiveFormModel
 
   var body: some View {
     let tanks = model.values.tanks
     if tanks.isEmpty {
-      Section(DiveFormGroup.tanks.title) {
-        Text("No tanks recorded for this dive.")
-          .foregroundStyle(.secondary)
+      Section {
         addTank
+      } header: {
+        DiveFormSectionHeader(group: .tanks)
       }
       .id(DiveFormGroup.tanks)
     } else {
       ForEach(tanks.indices, id: \.self) { index in
         TankCard(model: model, index: index)
           .id(index == 0 ? AnyHashable(DiveFormGroup.tanks) : AnyHashable(index))
+          .listSectionSpacing(index == tanks.count - 1 ? .custom(8) : .default)
       }
       Section { addTank }
     }
@@ -46,24 +48,15 @@ private struct TankCard: View {
       Section {
         rows(model.values.tanks[index])
       } header: {
-        if index == 0 { Text(DiveFormGroup.tanks.title) }
+        RemovableSectionHeader(title: "Tank \(index + 1)", tank: model.tankIcon(index)) {
+          model.removeTank(index)
+        }
       }
     }
   }
 
   @ViewBuilder private func rows(_ tank: TankValues) -> some View {
     let visibility = model.visibility
-    HStack {
-      Text("Tank \(index + 1)").font(.headline)
-      Spacer()
-      Button(role: .destructive) {
-        model.removeTank(index)
-      } label: {
-        Image(systemName: "trash").foregroundStyle(Color.danger)
-      }
-      .buttonStyle(.borderless)
-      .accessibilityLabel("Remove tank \(index + 1)")
-    }
     if visibility.isVisible(.mixtureCylinder) {
       RecordPickerField(
         model: model, title: DiveFormField.mixtureCylinder.label, picker: .cylinder,
@@ -160,19 +153,7 @@ private struct VolumeField: View {
         DecimalField(
           title: "Volume", unit: "L", value: value, isReadOnly: isReadOnly, onChange: onChange)
         if !isReadOnly {
-          Menu {
-            ForEach(model.volumeGroups, id: \.title) { group in
-              Section(group.title) {
-                ForEach(group.presets, id: \.label) { preset in
-                  Button(preset.label(model.units)) { onChange(preset.liters) }
-                }
-              }
-            }
-          } label: {
-            Image(systemName: "chevron.down.circle")
-          }
-          .buttonStyle(.borderless)
-          .accessibilityLabel("Volume presets")
+          VolumePresetsMenu(groups: model.volumeGroups, units: model.units, onPick: onChange)
         }
       }
       if let error { FieldMessage(error) }

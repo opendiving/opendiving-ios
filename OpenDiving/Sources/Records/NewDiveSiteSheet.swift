@@ -42,6 +42,7 @@ private struct DiveSiteSheetForm: View {
   /// The registry entry the last catalogue pick here added, which the next pick replaces.
   @State private var pickedEntry: ExternalIdWrite?
   @Environment(\.dismiss) private var dismiss
+  @FocusState private var locationFocused: Bool
 
   private static let tagsField = "tags"
 
@@ -60,11 +61,13 @@ private struct DiveSiteSheetForm: View {
         Section {
           VStack(alignment: .leading, spacing: 6) {
             Text("Location").font(.subheadline.weight(.medium))
+              .focusesOnTap($locationFocused)
             HStack {
               TextField(
                 "Location", text: locationName, prompt: Text("e.g. Dahab, South Sinai, Egypt")
               )
               .labelsHidden()
+              .focused($locationFocused)
               Button {
                 searching = true
               } label: {
@@ -143,9 +146,9 @@ private struct DiveSiteSheetForm: View {
           .id(Self.tagsField)
         }
         Section {
-          TextBox(
-            label: "Notes", placeholder: "Any notes about this dive site...",
-            text: $model.values.notes, message: model.message("notes"), multiline: true)
+          NotesField(
+            placeholder: "Any notes about this dive site...", text: $model.values.notes,
+            error: model.message("notes"))
         }
       }
       .followsAddedTags(count: model.values.tags.count, id: Self.tagsField, proxy: proxy)

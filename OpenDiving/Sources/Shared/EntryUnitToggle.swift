@@ -15,10 +15,10 @@ struct EntryUnitToggle: View {
         Text("|").foregroundStyle(.tertiary)
         part(.imperial)
       }
-      .font(.caption)
-      .padding(.horizontal, 6)
-      .padding(.vertical, 2)
-      .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color(.separator)))
+      .font(.footnote)
+      .padding(.horizontal, 9)
+      .padding(.vertical, 4)
+      .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color(.separator)))
     }
     .buttonStyle(.plain)
     .accessibilityLabel(

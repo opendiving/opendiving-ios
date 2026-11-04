@@ -82,10 +82,10 @@ private struct CourseSheetForm: View {
         people: $model.values.people, rows: lookups.people, defaultRole: "student",
         excluded: model.values.instructor)
       Section {
-        TextBox(
-          label: "Notes",
+        NotesField(
           placeholder: "Skills covered, conditions, anything worth remembering...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+          text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
   }

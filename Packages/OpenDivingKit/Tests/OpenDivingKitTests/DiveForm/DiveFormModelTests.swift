@@ -445,6 +445,23 @@ struct DiveFormModelTests {
 
   // MARK: - The tank hint
 
+  @Test func aTankIsDrawnAsWhatItRecords() async throws {
+    let world = try FormWorld()
+    try await world.loaded()
+    let model = await world.form(.create)
+    model.change {
+      $0.tanks = [
+        TankValues(oxygen: 32, helium: 0),
+        TankValues(oxygen: 21, helium: 0, usage: "parallel"),
+        TankValues(oxygen: 18, helium: 45, usage: "parallel"),
+      ]
+    }
+    #expect(model.tankIcon(0) == TankIcon(kind: .single, gas: .nitrox))
+    #expect(model.tankIcon(1) == TankIcon(kind: .left, gas: .air))
+    #expect(model.tankIcon(2) == TankIcon(kind: .single, gas: .trimix))
+    #expect(model.tankIcon(3) == nil)
+  }
+
   @Test func aSingleTankHintsAtItsEquivalentDepth() async throws {
     let world = try FormWorld()
     try await world.loaded()

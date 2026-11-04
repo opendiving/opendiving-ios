@@ -6,6 +6,9 @@ extension Color {
   /// text and in a switch.
   static let brandTeal = Color(red: 0, green: 128 / 255, blue: 128 / 255)
 
+  /// The web's `--coral`, the CSS named colour #FF7F50, the same in light and dark.
+  static let brandCoral = Color(red: 1, green: 127 / 255, blue: 80 / 255)
+
   /// The asset catalog's `AccentColor` as a colour: #008080 in the light and a lighter teal in the
   /// dark, where #008080 is too dim to read.
   static let accentText = Color("AccentColor")

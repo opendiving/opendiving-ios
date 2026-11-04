@@ -1,10 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A measured number as the web's unit input takes it: typed in `units`, kept metric, its
-/// label carrying the unit and — where the web offers one — the toggle that flips it. Text that
-/// is not a number keeps its sentence under the box and its key in `invalid`, which holds the
-/// save back.
+/// A measured number as the web's unit input takes it, on one line as the dive form draws it:
+/// typed in `units`, kept metric, with the unit after the box — or, where the web offers one, the
+/// toggle that flips it. Text that is not a number keeps its sentence under the box and its key in
+/// `invalid`, which holds the save back.
 struct RecordMeasuredField: View {
   let label: String
   let key: String
@@ -22,18 +22,22 @@ struct RecordMeasuredField: View {
 
   @State private var text = ""
   @State private var entryMessage: String?
+  @FocusState private var focused: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      FieldLabel("\(label) (\(measure.label(units)))") {
+      InlineField(label, focus: $focused) {
+        TextField(label, text: $text, prompt: prompt)
+          .keyboardType(allowsNegative ? .numbersAndPunctuation : .decimalPad)
+          .labelsHidden()
+          .focused($focused)
+      } trailing: {
         if let onToggle {
           EntryUnitToggle(measure: measure, current: units, onToggle: onToggle)
+        } else {
+          Text(measure.label(units)).foregroundStyle(.secondary)
         }
       }
-      TextField(label, text: $text, prompt: prompt)
-        .keyboardType(allowsNegative ? .numbersAndPunctuation : .decimalPad)
-        .labelsHidden()
-        .accessibilityLabel("\(label), \(measure.word(units))")
       FieldMessage(entryMessage ?? message)
     }
     .onAppear { text = RecordEntryUnits.text(value, measure, units) }

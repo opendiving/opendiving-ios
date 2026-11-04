@@ -38,8 +38,10 @@ struct DiveFormScreen: View {
           if group == .tanks {
             TanksSection(model: model)
           } else {
-            Section(group.title) {
+            Section {
               DiveFormSection(group: group, model: model)
+            } header: {
+              DiveFormSectionHeader(group: group)
             }
             .id(group)
           }
@@ -68,8 +70,10 @@ struct DiveFormScreen: View {
         ToolbarItem(placement: .topBarTrailing) {
           Menu("Sections", systemImage: "list.bullet") {
             ForEach(model.sections, id: \.self) { group in
-              Button(group.title) {
+              Button {
                 withAnimation { proxy.scrollTo(group, anchor: .top) }
+              } label: {
+                Label(menuItem: group.title, icon: group.icon)
               }
             }
           }
@@ -106,7 +110,7 @@ struct DiveFormScreen: View {
           .bold()
           .frame(maxWidth: .infinity)
       }
-      .buttonStyle(.borderedProminent)
+      .prominentGlassButton()
       .controlSize(.large)
       .tint(.brandTeal)
     }
@@ -122,6 +126,18 @@ struct DiveFormScreen: View {
   }
 }
 
+/// A section's title led by its mark.
+struct DiveFormSectionHeader: View {
+  let group: DiveFormGroup
+
+  var body: some View {
+    HStack(spacing: 6) {
+      Image(group.icon).accessibilityHidden(true)
+      Text(group.title)
+    }
+  }
+}
+
 extension View {
   /// Pins `bar` under a scrolling view. From iOS 26 the content fades out behind it as it does
   /// behind the navigation bar; before that the bar has that bar's material.
@@ -129,7 +145,9 @@ extension View {
     @ViewBuilder _ bar: () -> Bar
   ) -> some View {
     if #available(iOS 26, *) {
-      safeAreaBar(edge: .bottom, spacing: 0, content: bar)
+      // A glass button in the bar leaves the soft edge off, and the form would show around it.
+      scrollEdgeEffectStyle(.hard, for: .bottom)
+        .safeAreaBar(edge: .bottom, spacing: 0, content: bar)
     } else {
       safeAreaInset(edge: .bottom, spacing: 0) { bar().background(.bar) }
     }

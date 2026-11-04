@@ -11,6 +11,8 @@ struct EmailScreen: View {
   let showPending: () -> Void
   @State private var forgetting: ServerOrigin?
 
+  @FocusState private var focused: Bool
+
   var body: some View {
     Form {
       if let notice = flow.notice {
@@ -29,9 +31,10 @@ struct EmailScreen: View {
         .autocorrectionDisabled()
         .submitLabel(.send)
         .onSubmit(send)
+        .focused($focused)
         .accessibilityLabel("Email")
       } header: {
-        Text("Email")
+        Text("Email").focusesOnTap($focused)
       } footer: {
         Text("We'll email you a six-digit sign-in code.")
       }
@@ -84,6 +87,7 @@ struct EmailScreen: View {
         Text(KeptText.signedOutFooter(origin))
       }
     }
+    .background(TapEndsTyping())
     .navigationTitle("Sign In")
     .task { await flow.session.loadServerInfo() }
     .forgetServerConfirmation(origin: $forgetting) { origin in

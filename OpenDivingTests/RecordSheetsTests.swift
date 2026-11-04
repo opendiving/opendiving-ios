@@ -8,7 +8,8 @@ import UIKit
 /// Each record sheet hosts and draws the web dialog's fields. SwiftUI builds no accessibility
 /// tree without an assistive technology running, so the fields are found by what UIKit draws
 /// for them: the title, each box's placeholder — the web's — or its label where it has none,
-/// and each pick-list's current choice.
+/// and each pick-list's current choice. A notes row is SwiftUI text, which UIKit does not draw, so
+/// its placeholder is not among them.
 @MainActor
 struct RecordSheetsTests {
   /// Every text UIKit draws for the sheet, the window tall enough that the form draws every
@@ -74,7 +75,6 @@ struct RecordSheetsTests {
       [
         "New Dive Site", "e.g. Blue Hole", "e.g. Dahab, South Sinai, Egypt", "e.g. 27.8506",
         "e.g. 34.3136", "e.g. 5", "e.g. 30", "e.g. 372", "Not recorded", "Add a tag...",
-        "Any notes about this dive site...",
       ], in: found)
   }
 
@@ -83,14 +83,13 @@ struct RecordSheetsTests {
     expectFields(
       [
         "New Person", "e.g. Alex M.", "e.g. alexm", "Email", "Phone",
-        "How you met, what they dive, anything worth remembering...",
       ], in: found)
   }
 
   @Test func theTripSheetDrawsTheWebsFields() async throws {
     let found = try await texts(NewTripSheet { _ in })
     expectFields(
-      ["New Trip", "e.g. Red Sea Liveaboard 2024", "Any notes about this trip..."], in: found)
+      ["New Trip", "e.g. Red Sea Liveaboard 2024"], in: found)
   }
 
   @Test func theCourseSheetDrawsTheWebsFields() async throws {
@@ -99,7 +98,6 @@ struct RecordSheetsTests {
       [
         "New Course", "e.g. Advanced Nitrox + Decompression Procedures", "No agency",
         "Completed", "Instructor number",
-        "Skills covered, conditions, anything worth remembering...",
       ], in: found)
   }
 
@@ -109,7 +107,7 @@ struct RecordSheetsTests {
       [
         "New Contact", "e.g. Blue Ocean Dive Center", "Phone", "Email", "e.g. blueocean.com",
         "Street, number, building, unit", "City", "Postcode", "Region", "Country",
-        "e.g. 27.8506", "e.g. 34.3136", "Opening hours, who to ask for, what to bring...",
+        "e.g. 27.8506", "e.g. 34.3136",
       ], in: found)
   }
 
@@ -118,7 +116,6 @@ struct RecordSheetsTests {
     expectFields(
       [
         "New Gear", "e.g. MK25 EVO", "e.g. Scubapro", "No type",
-        "Serial number, service dates, sizing...",
       ], in: plain)
     #expect(!plain.contains("e.g. 232"))
 

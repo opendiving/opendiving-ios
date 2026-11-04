@@ -1,15 +1,12 @@
-import OpenDivingKit
 import SwiftUI
 
-/// The notes: what they say so far in a row, which opens them full height to write in.
+/// A record's notes: what they say so far in a row, which opens them full height to write in.
 struct NotesField: View {
-  let text: String
+  let placeholder: String
+  @Binding var text: String
   var error: String?
-  let onChange: (String) -> Void
 
   @State private var writing = false
-
-  private static let placeholder = "Enter any additional notes about your dive..."
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -17,8 +14,8 @@ struct NotesField: View {
         writing = true
       } label: {
         VStack(alignment: .leading, spacing: 6) {
-          FieldLabel(DiveFormField.notes.label)
-          Text(text.isEmpty ? Self.placeholder : text)
+          FieldLabel("Notes")
+          Text(text.isEmpty ? placeholder : text)
             .foregroundStyle(text.isEmpty ? Color(.placeholderText) : Color.primary)
             .lineLimit(4)
         }
@@ -29,7 +26,7 @@ struct NotesField: View {
       if let error { FieldMessage(error) }
     }
     .sheet(isPresented: $writing) {
-      NotesSheet(text: text, onDone: onChange)
+      NotesSheet(text: text) { text = $0 }
     }
   }
 }
@@ -55,7 +52,7 @@ private struct NotesSheet: View {
       TextEditor(text: $draft)
         .focused($focused)
         .padding(.horizontal)
-        .navigationTitle(DiveFormField.notes.label)
+        .navigationTitle("Notes")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
           ToolbarItem(placement: .cancellationAction) {
@@ -80,6 +77,6 @@ private struct NotesSheet: View {
 
 #Preview {
   Form {
-    NotesField(text: "Drift along the wall, turtle at 18 m.") { _ in }
+    NotesField(placeholder: "Any notes...", text: .constant("Turtle at 18 m."))
   }
 }

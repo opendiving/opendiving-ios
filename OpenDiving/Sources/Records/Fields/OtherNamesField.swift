@@ -4,14 +4,19 @@ import SwiftUI
 struct OtherNamesField: View {
   @Binding var names: [String]
 
+  @FocusState private var focused: Int?
+
   var body: some View {
     Section("Other Names") {
       ForEach(names.indices, id: \.self) { index in
         TextField("Other name \(index + 1)", text: name(index), prompt: Text("e.g. Sunabe Seawall"))
+          .focused($focused, equals: index)
       }
       .onDelete { names.remove(atOffsets: $0) }
       Button(names.isEmpty ? "Add a name" : "Add another name", systemImage: "plus") {
         names.append("")
+        // The box does not exist until the list draws it.
+        Task { focused = names.count - 1 }
       }
       .accentRow()
     }

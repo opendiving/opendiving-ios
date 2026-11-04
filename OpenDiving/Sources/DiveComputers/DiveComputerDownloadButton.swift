@@ -40,8 +40,6 @@ struct DiveComputerDownloadButtonLabel: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-  /// #FF7F50, the brand's coral.
-  private static let coral = Color(red: 1, green: 127 / 255, blue: 80 / 255)
   private static let ringWidth: CGFloat = 2.5
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
@@ -74,7 +72,7 @@ struct DiveComputerDownloadButtonLabel: View {
 
   private func ringColor(_ content: DiveComputerButtonContent) -> Color {
     switch content.state {
-    case .working, .waiting: Self.coral
+    case .working, .waiting: Color.brandCoral
     case .succeeded: .brandTeal
     case .failed: .danger
     }

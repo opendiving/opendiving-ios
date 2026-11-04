@@ -26,7 +26,7 @@ struct WheelSheet<Wheels: View>: View {
           .bold()
           .frame(maxWidth: .infinity)
       }
-      .buttonStyle(.borderedProminent)
+      .prominentGlassButton()
       .controlSize(.large)
       .tint(.brandTeal)
     }

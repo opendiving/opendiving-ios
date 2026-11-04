@@ -16,8 +16,7 @@ struct TagsField: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       FieldLabel("Tags")
-        .contentShape(Rectangle())
-        .onTapGesture { focused = true }
+        .focusesOnTap($focused)
       if !tags.isEmpty {
         FlowLayout(spacing: 6) {
           ForEach(tags, id: \.self) { tag in
