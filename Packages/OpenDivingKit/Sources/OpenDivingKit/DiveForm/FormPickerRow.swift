@@ -43,7 +43,7 @@ public struct FormPickerRow: Hashable, Sendable, Identifiable {
   /// Created on the phone and not yet on the server.
   public var isPending: Bool { ref.isLocal }
 
-  init(_ row: some LookupRow) {
+  public init(_ row: some LookupRow) {
     self.init(ref: row.ref, title: row.title, subtitle: row.subtitle)
   }
 

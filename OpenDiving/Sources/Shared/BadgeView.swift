@@ -52,7 +52,7 @@ struct BadgeView: View {
     case .secondary: Color(.secondarySystemFill)
     case .outline: .clear
     case .teal: .brandTeal
-    case .coral: .orange
+    case .coral: .brandCoral
     case .destructive: .dangerFill
     }
   }

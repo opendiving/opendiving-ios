@@ -21,7 +21,11 @@ struct GearField: View {
     .disabled(model.lookups.gearSets.isEmpty)
     // Waits for the picker to close: a set goes on to a dialog or the checklist's own sheet.
     .sheet(isPresented: $choosingSet, onDismiss: loadChosenSet) {
-      GearSetPickerSheet(sets: model.lookups.gearSets) { chosenSet = $0 }
+      PickerSheet(
+        title: "Load a gear set...",
+        rows: { LookupsModel.matching(model.lookups.gearSets, $0).map(Self.row) },
+        addLabel: nil, addSheet: { _ in EmptyView() },
+        onPick: { ref in chosenSet = model.lookups.gearSets.first { $0.ref == ref } })
     }
     if let checklist = model.checklist, model.gearSet != nil {
       Button("Checklist: \(checklist.name)", systemImage: "checkmark.circle") {
@@ -29,28 +33,17 @@ struct GearField: View {
       }
       .accentRow()
     }
-    ForEach(Array(gear.enumerated()), id: \.element) { index, ref in
-      let item = model.gearInfo(ref)
-      let row = model.row(ref, .gear)
-      HStack {
-        PickerRowLabel(row: row)
-        if item?.rented == true { BadgeView("Rented") }
-        if item?.isArchived == true { BadgeView("Archived", style: .outline) }
-        if gear.count > 1 { DragHandle() }
-      }
-      .accessibilityActions {
-        if index > 0 {
-          Button("Move \(row.title) up") { model.change { $0.gearItems.swapAt(index, index - 1) } }
+    SortableRows(
+      items: model.binding(\.gearItems), identity: { $0 }, title: { model.row($0, .gear).title },
+      row: { _, ref in
+        let item = model.gearInfo(ref)
+        HStack {
+          PickerRowLabel(row: model.row(ref, .gear))
+          if item?.rented == true { BadgeView("Rented") }
+          if item?.isArchived == true { BadgeView("Archived", style: .outline) }
+          if gear.count > 1 { DragHandle() }
         }
-        if index < gear.count - 1 {
-          Button("Move \(row.title) down") {
-            model.change { $0.gearItems.swapAt(index, index + 1) }
-          }
-        }
-      }
-      .swipeToDelete { model.removeGear(ref) }
-    }
-    .onMove { from, to in model.change { $0.gearItems.move(fromOffsets: from, toOffset: to) } }
+      })
     Button(FormPicker.gear.placeholder(holdsSome: !gear.isEmpty)) { picking = true }
       .accentRow()
       .sheet(isPresented: $picking) {
@@ -74,6 +67,10 @@ struct GearField: View {
       } message: { set in
         Text(model.replaceSentence(set))
       }
+  }
+
+  private static func row(_ set: GearSetRow) -> FormPickerRow {
+    FormPickerRow(ref: set.ref, title: DiveFormModel.setLabel(set))
   }
 
   private func loadChosenSet() {

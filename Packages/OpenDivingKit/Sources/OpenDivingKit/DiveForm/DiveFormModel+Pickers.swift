@@ -186,13 +186,6 @@ extension DiveFormModel {
     change { values in if !values.diveSites.contains(ref) { values.diveSites.append(ref) } }
   }
 
-  public func removeSite(_ ref: RecordRef) { change { $0.diveSites.removeAll { $0 == ref } } }
-
-  /// Moves one site up or down the visiting order, which makes another the primary.
-  public func moveSite(_ ref: RecordRef, by offset: Int) {
-    change { values in Self.move(ref, by: offset, in: &values.diveSites) }
-  }
-
   /// Adds someone the diver was with: a buddy, until the diver says otherwise.
   public func addPerson(_ ref: RecordRef) {
     change { values in
@@ -241,8 +234,6 @@ extension DiveFormModel {
     change { values in if !values.gearItems.contains(ref) { values.gearItems.append(ref) } }
   }
 
-  public func removeGear(_ ref: RecordRef) { change { $0.gearItems.removeAll { $0 == ref } } }
-
   /// A tag, as typed, unless the dive has it already in any case.
   public func addTag(_ text: String) {
     let tag = text.trimmedOfWhitespace
@@ -254,14 +245,6 @@ extension DiveFormModel {
   }
 
   public func removeTag(_ tag: String) { change { $0.tags.removeAll { $0 == tag } } }
-
-  static func move<Element: Equatable>(_ element: Element, by offset: Int, in list: inout [Element])
-  {
-    guard let index = list.firstIndex(of: element) else { return }
-    let target = index + offset
-    guard list.indices.contains(target) else { return }
-    list.swapAt(index, target)
-  }
 
   // MARK: - Marine life
 

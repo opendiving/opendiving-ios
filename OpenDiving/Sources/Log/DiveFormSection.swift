@@ -58,8 +58,7 @@ struct DiveFormSection: View {
     if model.shows(.boatName) {
       InlineTextField(
         title: DiveFormField.boatName.label, placeholder: "e.g. Legend",
-        text: Binding(
-          get: { values.boatName }, set: { name in model.change { $0.boatName = name } }),
+        text: model.binding(\.boatName),
         error: message(.boatName))
     }
   }
@@ -182,7 +181,7 @@ struct DiveFormSection: View {
     if model.shows(.notes) {
       NotesField(
         placeholder: "Enter any additional notes about your dive...",
-        text: Binding(get: { values.notes }, set: { text in model.change { $0.notes = text } }),
+        text: model.binding(\.notes),
         error: message(.notes))
     }
   }

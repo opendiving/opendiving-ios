@@ -26,9 +26,8 @@ struct WheelSheet<Wheels: View>: View {
           .bold()
           .frame(maxWidth: .infinity)
       }
-      .prominentGlassButton()
+      .brandProminentButton()
       .controlSize(.large)
-      .tint(.brandTeal)
     }
     .padding()
     .presentationDetents([.height(400)])

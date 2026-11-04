@@ -11,8 +11,8 @@ struct OtherNamesField: View {
       ForEach(names.indices, id: \.self) { index in
         TextField("Other name \(index + 1)", text: name(index), prompt: Text("e.g. Sunabe Seawall"))
           .focused($focused, equals: index)
+          .swipeToDelete { if names.indices.contains(index) { names.remove(at: index) } }
       }
-      .onDelete { names.remove(atOffsets: $0) }
       Button(names.isEmpty ? "Add a name" : "Add another name", systemImage: "plus") {
         names.append("")
         // The box does not exist until the list draws it.

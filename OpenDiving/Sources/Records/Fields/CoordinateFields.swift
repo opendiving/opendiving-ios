@@ -46,7 +46,7 @@ private struct CoordinateBox: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      Text(label).font(.subheadline.weight(.medium))
+      FieldLabel(label)
         .focusesOnTap($focused)
       TextField(label, text: $text, prompt: Text(example))
         .keyboardType(.numbersAndPunctuation)

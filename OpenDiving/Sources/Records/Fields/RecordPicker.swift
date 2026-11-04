@@ -2,8 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// One record picked from what the phone holds — a dive centre, an instructor, a place to stay
-/// — as the web's comboboxes pick one, the + opening that record's own sheet over this one and
-/// selecting what it makes.
+/// — as the web's comboboxes pick one, in the sheet every form's pickers share.
 struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
   let label: String
   let placeholder: String
@@ -13,90 +12,22 @@ struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
   /// The sheet that makes a new record, handed what to do with its ref.
   let newSheet: (@escaping (RecordRef) -> Void) -> NewSheet
 
-  @State private var adding = false
+  @State private var picking = false
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Text(label).font(.subheadline.weight(.medium))
-      NavigationLink {
-        RecordPickerList(
-          title: label, rows: rows, selection: $selection, addLabel: addLabel,
-          add: { adding = true })
-      } label: {
-        HStack {
-          Text(selectedTitle ?? placeholder)
-            .foregroundStyle(selectedTitle == nil ? .secondary : .primary)
-          if selection?.isLocal == true { PendingMark() }
-        }
+    PickerFieldRow(title: label, row: selected, prompt: placeholder) { picking = true }
+      .sheet(isPresented: $picking) {
+        PickerSheet(
+          title: placeholder,
+          rows: { LookupsModel.matching(rows, $0).map(FormPickerRow.init) }, current: selection,
+          addLabel: addLabel, addSheet: newSheet, onPick: { selection = $0 })
       }
-    }
-    .sheet(isPresented: $adding) {
-      newSheet { ref in selection = ref }
-    }
   }
 
-  private var selectedTitle: String? {
-    guard let selection else { return nil }
-    return rows.first { $0.ref == selection }?.title ?? "New record"
-  }
-}
-
-/// The list a picker pushes: a search over the rows and *None*, with *Add…* the + in its top bar.
-struct RecordPickerList<Row: LookupRow>: View {
-  let title: String
-  let rows: [Row]
-  @Binding var selection: RecordRef?
-  let addLabel: String
-  let add: () -> Void
-
-  @Environment(\.dismiss) private var dismiss
-  @State private var search = ""
-
-  var body: some View {
-    List {
-      Section {
-        if selection != nil {
-          Button("None", role: .destructive) {
-            selection = nil
-            dismiss()
-          }
-          .foregroundStyle(Color.danger)
-        }
-      }
-      Section {
-        ForEach(LookupsModel.matching(rows, search), id: \.ref) { row in
-          Button {
-            selection = row.ref
-            dismiss()
-          } label: {
-            HStack {
-              VStack(alignment: .leading) {
-                Text(row.title).foregroundStyle(Color.primary)
-                if let subtitle = row.subtitle {
-                  Text(subtitle).font(.footnote).foregroundStyle(Color.secondary)
-                }
-                if row.ref.isLocal { PendingMark() }
-              }
-              Spacer()
-              if row.ref == selection {
-                Image(systemName: "checkmark").foregroundStyle(Color.accentText)
-              }
-            }
-          }
-        }
-      }
-    }
-    .pickerListSpacing()
-    .searchable(text: $search)
-    .navigationTitle(title)
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItem(placement: .primaryAction) {
-        Button(addLabel, systemImage: "plus") {
-          dismiss()
-          add()
-        }
-      }
+  private var selected: FormPickerRow? {
+    selection.map { ref in
+      rows.first { $0.ref == ref }.map(FormPickerRow.init)
+        ?? FormPickerRow(ref: ref, title: "New record")
     }
   }
 }

@@ -16,7 +16,7 @@ struct RecordPeopleField: View {
       PeopleRows(people: $people, row: row) {
         PickerSheet(
           title: FormPicker.people.placeholder(holdsSome: false),
-          rows: { LookupsModel.matching(offered, $0).map(pickerRow) },
+          rows: { LookupsModel.matching(offered, $0).map(FormPickerRow.init) },
           emptySentence: { $0.isEmpty ? "No people yet." : "No people found." },
           addLabel: FormPicker.people.addLabel,
           addSheet: { NewPersonSheet(onCreated: $0) },
@@ -37,11 +37,8 @@ struct RecordPeopleField: View {
   }
 
   private func row(_ ref: RecordRef) -> FormPickerRow {
-    rows.first { $0.ref == ref }.map(pickerRow) ?? FormPickerRow(ref: ref, title: "New person")
-  }
-
-  private func pickerRow(_ item: PersonLookupItem) -> FormPickerRow {
-    FormPickerRow(ref: item.ref, title: item.title, subtitle: item.subtitle)
+    rows.first { $0.ref == ref }.map(FormPickerRow.init)
+      ?? FormPickerRow(ref: ref, title: "New person")
   }
 }
 

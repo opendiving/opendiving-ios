@@ -40,7 +40,7 @@ private struct GearSetSheetForm: View {
   let onSaved: (RecordRef) -> Void
 
   @State private var invalid: Set<String> = []
-  @State private var adding = false
+  @State private var picking = false
 
   var body: some View {
     RecordSheetForm(
@@ -72,18 +72,24 @@ private struct GearSetSheetForm: View {
           text: $model.values.form.name, message: model.message("name"))
       }
       Section("Gear") {
-        ForEach(model.values.form.items, id: \.self) { ref in
-          HStack {
-            Text(name(ref))
-            if ref.isLocal { PendingMark() }
-          }
+        SortableRows(
+          items: $model.values.form.items, identity: { $0 }, title: { row($0).title },
+          row: { _, ref in
+            HStack {
+              PickerRowLabel(row: row(ref))
+              if model.values.form.items.count > 1 { DragHandle() }
+            }
+          })
+        Button(model.values.form.items.isEmpty ? "Select gear..." : "Add more gear...") {
+          picking = true
         }
-        .onDelete { model.values.form.items.remove(atOffsets: $0) }
-        .onMove { model.values.form.items.move(fromOffsets: $0, toOffset: $1) }
-        NavigationLink(model.values.form.items.isEmpty ? "Select gear..." : "Add more gear...") {
-          RecordPickerList(
-            title: "Gear", rows: offered, selection: pick, addLabel: "Add gear...",
-            add: { adding = true })
+        .accentRow()
+        .sheet(isPresented: $picking) {
+          PickerSheet(
+            title: "Select gear...",
+            rows: { LookupsModel.matching(offered, $0).map(FormPickerRow.init) },
+            addLabel: "Add gear...", addSheet: { NewGearItemSheet(onCreated: $0) },
+            onPick: { ref in ref.map(add) })
         }
       }
       Section {
@@ -95,9 +101,6 @@ private struct GearSetSheetForm: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
       }
-    }
-    .sheet(isPresented: $adding) {
-      NewGearItemSheet { ref in add(ref) }
     }
   }
 
@@ -111,16 +114,13 @@ private struct GearSetSheetForm: View {
     lookups.gearItems.filter { !model.values.form.items.contains($0.ref) }
   }
 
-  private var pick: Binding<RecordRef?> {
-    Binding(get: { nil }, set: { ref in ref.map(add) })
-  }
-
   private func add(_ ref: RecordRef) {
     if !model.values.form.items.contains(ref) { model.values.form.items.append(ref) }
   }
 
-  private func name(_ ref: RecordRef) -> String {
-    lookups.gearItems.first { $0.ref == ref }?.name ?? "New gear"
+  private func row(_ ref: RecordRef) -> FormPickerRow {
+    lookups.gearItems.first { $0.ref == ref }.map(FormPickerRow.init)
+      ?? FormPickerRow(ref: ref, title: "New gear")
   }
 
   private func save() -> Bool {

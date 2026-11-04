@@ -11,22 +11,12 @@ struct SpeciesField: View {
 
   var body: some View {
     let sightings = model.values.sightings
-    ForEach(Array(sightings.enumerated()), id: \.element.speciesUuid) { index, sighting in
-      let name = model.speciesName(sighting.speciesUuid)
-      SightingRow(model: model, index: index, sighting: sighting, canMove: sightings.count > 1)
-        .accessibilityActions {
-          if index > 0 {
-            Button("Move \(name) up") { model.change { $0.sightings.swapAt(index, index - 1) } }
-          }
-          if index < sightings.count - 1 {
-            Button("Move \(name) down") { model.change { $0.sightings.swapAt(index, index + 1) } }
-          }
-        }
-        .swipeToDelete {
-          model.change { $0.sightings.removeAll { $0.speciesUuid == sighting.speciesUuid } }
-        }
-    }
-    .onMove { from, to in model.change { $0.sightings.move(fromOffsets: from, toOffset: to) } }
+    SortableRows(
+      items: model.binding(\.sightings), identity: \.speciesUuid,
+      title: { model.speciesName($0.speciesUuid) },
+      row: { index, sighting in
+        SightingRow(model: model, index: index, sighting: sighting, canMove: sightings.count > 1)
+      })
     Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
       picking = true
     }

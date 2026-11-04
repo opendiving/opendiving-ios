@@ -8,8 +8,7 @@ struct PeopleField: View {
 
   var body: some View {
     PeopleRows(
-      people: Binding(
-        get: { model.values.people }, set: { people in model.change { $0.people = people } }),
+      people: model.binding(\.people),
       row: { model.row($0, .people) },
       picker: {
         RecordPickerSheet(

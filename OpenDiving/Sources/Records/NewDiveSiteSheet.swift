@@ -60,7 +60,7 @@ private struct DiveSiteSheetForm: View {
         OtherNamesField(names: $model.values.otherNames)
         Section {
           VStack(alignment: .leading, spacing: 6) {
-            Text("Location").font(.subheadline.weight(.medium))
+            FieldLabel("Location")
               .focusesOnTap($locationFocused)
             HStack {
               TextField(
@@ -100,8 +100,8 @@ private struct DiveSiteSheetForm: View {
           Section("In Other Registries") {
             ForEach(model.values.externalIds, id: \.self) { entry in
               Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
+                .swipeToDelete { model.values.externalIds.removeAll { $0 == entry } }
             }
-            .onDelete { model.values.externalIds.remove(atOffsets: $0) }
           }
         }
         Section {

@@ -11,32 +11,24 @@ struct PeopleRows<PickerSheetView: View>: View {
   @State private var picking = false
 
   var body: some View {
-    ForEach(Array(people.enumerated()), id: \.element.person) { index, reference in
-      let row = row(reference.person)
-      HStack {
-        PickerRowLabel(row: row)
-          .lineLimit(1)
-        Picker("Role of \(row.title)", selection: role(of: reference)) {
-          Text("No role").tag(String?.none)
-          ForEach(roles(reference.role), id: \.self) { role in
-            Text(VocabularyLabels.personRole(role)).tag(String?.some(role))
+    SortableRows(
+      items: $people, identity: \.person, title: { row($0.person).title },
+      row: { _, reference in
+        let row = row(reference.person)
+        HStack {
+          PickerRowLabel(row: row)
+            .lineLimit(1)
+          Picker("Role of \(row.title)", selection: role(of: reference)) {
+            Text("No role").tag(String?.none)
+            ForEach(roles(reference.role), id: \.self) { role in
+              Text(VocabularyLabels.personRole(role)).tag(String?.some(role))
+            }
           }
+          .labelsHidden()
+          .fixedSize()
+          if people.count > 1 { DragHandle() }
         }
-        .labelsHidden()
-        .fixedSize()
-        if people.count > 1 { DragHandle() }
-      }
-      .accessibilityActions {
-        if index > 0 {
-          Button("Move \(row.title) up") { people.swapAt(index, index - 1) }
-        }
-        if index < people.count - 1 {
-          Button("Move \(row.title) down") { people.swapAt(index, index + 1) }
-        }
-      }
-      .swipeToDelete { people.removeAll { $0.person == reference.person } }
-    }
-    .onMove { people.move(fromOffsets: $0, toOffset: $1) }
+      })
     Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
       .accentRow()
       .sheet(isPresented: $picking, content: picker)

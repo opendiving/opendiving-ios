@@ -132,7 +132,7 @@ private struct TripPartSection: View {
   var body: some View {
     Section {
       VStack(alignment: .leading, spacing: 6) {
-        Text("Location").font(.subheadline.weight(.medium))
+        FieldLabel("Location")
         NavigationLink {
           TripPartPlaceScreen(places: places, units: units) { location in
             part.location = location

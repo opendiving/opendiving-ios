@@ -39,15 +39,9 @@ struct RecordSheetForm<Content: View>: View {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button {
+          ToolbarConfirmButton(title: isReopened ? "Save changes" : "Create") {
             if save() { dismiss() }
-          } label: {
-            Text(isReopened ? "Save changes" : "Create")
-              .fontWeight(.regular)
-              .foregroundStyle(.white)
           }
-          .buttonStyle(.borderedProminent)
-          .tint(.brandTeal)
         }
       }
     }

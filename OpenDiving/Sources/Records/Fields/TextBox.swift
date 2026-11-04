@@ -16,7 +16,7 @@ struct TextBox: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      Text(label).font(.subheadline.weight(.medium))
+      FieldLabel(label)
         .focusesOnTap($focused)
       TextField(label, text: $text, prompt: placeholder.map(Text.init))
         .keyboardType(keyboard)

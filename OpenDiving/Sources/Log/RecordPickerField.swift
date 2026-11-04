@@ -19,11 +19,10 @@ struct RecordPickerField: View {
     Group {
       if isInline {
         SelectRow(
-          title: title, value: value.map { model.row($0, picker).title } ?? prompt,
-          isPending: value.map { model.row($0, picker).isPending } ?? false
+          title: title, value: row?.title ?? prompt, isPending: row?.isPending ?? false
         ) { picking = true }
       } else {
-        stacked
+        PickerFieldRow(title: title, row: row, prompt: prompt) { picking = true }
       }
     }
     .sheet(isPresented: $picking) {
@@ -31,30 +30,9 @@ struct RecordPickerField: View {
     }
   }
 
-  private var prompt: String { picker.placeholder(holdsSome: false) }
+  private var row: FormPickerRow? { value.map { model.row($0, picker) } }
 
-  private var stacked: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(title)
-      Button {
-        picking = true
-      } label: {
-        HStack {
-          if let value {
-            PickerRowLabel(row: model.row(value, picker))
-          } else {
-            Text(prompt).foregroundStyle(.secondary)
-            Spacer()
-          }
-          Image(systemName: "chevron.up.chevron.down")
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-        }
-        .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-    }
-  }
+  private var prompt: String { picker.placeholder(holdsSome: false) }
 }
 
 #Preview {

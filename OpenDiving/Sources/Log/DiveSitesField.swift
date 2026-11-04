@@ -13,24 +13,16 @@ struct DiveSitesField: View {
     FieldLabel(DiveFormField.diveSites.label)
       .listRowSeparator(.hidden, edges: .bottom)
       .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 4, trailing: 16))
-    ForEach(Array(sites.enumerated()), id: \.element) { index, ref in
-      let row = model.row(ref, .diveSites)
-      HStack {
-        PickerRowLabel(row: row)
-        if sites.count > 1 { DragHandle() }
-      }
-      .accessibilityActions {
-        if index > 0 {
-          Button("Move \(row.title) up") { model.moveSite(ref, by: -1) }
+    SortableRows(
+      items: model.binding(\.diveSites), identity: { $0 },
+      title: { model.row($0, .diveSites).title },
+      row: { index, ref in
+        HStack {
+          PickerRowLabel(row: model.row(ref, .diveSites))
+          if sites.count > 1 { DragHandle() }
         }
-        if index < sites.count - 1 {
-          Button("Move \(row.title) down") { model.moveSite(ref, by: 1) }
-        }
-      }
-      .swipeToDelete { model.removeSite(ref) }
-      .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
-    }
-    .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
+        .listRowSeparator(index == 0 ? .hidden : .automatic, edges: .top)
+      })
     Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
       .accentRow()
       .listRowSeparator(sites.isEmpty ? .hidden : .automatic, edges: .top)

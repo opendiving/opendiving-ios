@@ -59,14 +59,10 @@ private struct NotesSheet: View {
             Button("Cancel") { dismiss() }
           }
           ToolbarItem(placement: .confirmationAction) {
-            Button {
+            ToolbarConfirmButton(title: "Done") {
               onDone(draft)
               dismiss()
-            } label: {
-              Text("Done").fontWeight(.regular).foregroundStyle(.white)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.brandTeal)
           }
         }
     }
