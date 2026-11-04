@@ -2,9 +2,8 @@ import Foundation
 import Observation
 
 /// Settings' *Dive Computers* list: the account's paired computers, each with
-/// *Forget this dive computer*, *Download all dives next time* and, for a family that logs
-/// instants, the zone its dives are written in. Forgetting removes the phone's record and
-/// nothing on the server.
+/// *Forget this dive computer* and *Download all dives next time*. Forgetting removes the phone's
+/// record and nothing on the server.
 @MainActor
 @Observable
 public final class DiveComputersListModel {
@@ -41,12 +40,6 @@ public final class DiveComputersListModel {
   /// *Download all dives next time*: the next download from it sets no fingerprint.
   public func downloadAllNextTime(_ record: DiveComputerRecord) {
     update(record) { $0.downloadAllNextTime = true }
-  }
-
-  /// Sets the diver's zone for the computer's dives, which wins over the watch's; nil clears it
-  /// and the watch's applies again.
-  public func setDiverZone(_ zone: TimeZone?, for record: DiveComputerRecord) {
-    update(record) { $0.diverZone = zone }
   }
 
   private func update(_ record: DiveComputerRecord, _ change: (inout DiveComputerRecord) -> Void) {
