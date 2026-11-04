@@ -51,7 +51,7 @@ struct BadgeView: View {
     switch style {
     case .secondary: Color(.secondarySystemFill)
     case .outline: .clear
-    case .teal: .teal
+    case .teal: .brandTeal
     case .coral: .orange
     case .destructive: .red
     }

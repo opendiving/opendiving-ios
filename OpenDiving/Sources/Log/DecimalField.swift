@@ -17,7 +17,7 @@ struct DecimalField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      InlineField(title) {
+      InlineField(title, focus: $focused) {
         TextField(placeholder, text: $text)
           .keyboardType(.decimalPad)
           .focused($focused)

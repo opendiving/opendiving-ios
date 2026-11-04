@@ -31,7 +31,7 @@ private struct ChipView: View {
       .background {
         switch chip.kind {
         case .vocabulary: shape.strokeBorder(Color.primary)
-        case .tag: shape.fill(Color.teal)
+        case .tag: shape.fill(Color.brandTeal)
         }
       }
       .accessibilityLabel(chip.accessibilityLabel)

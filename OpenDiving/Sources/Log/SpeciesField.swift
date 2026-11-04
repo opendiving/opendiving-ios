@@ -15,7 +15,6 @@ struct SpeciesField: View {
         SightingRow(model: model, index: index, sighting: sighting)
       }
       Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
-        UIApplication.endTyping()
         picking = true
       }
       .buttonStyle(.borderless)

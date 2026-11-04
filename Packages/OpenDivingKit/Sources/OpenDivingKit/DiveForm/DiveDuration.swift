@@ -2,8 +2,8 @@
 /// and two of seconds below 60 (`45`, `67:30`). A bare number is minutes — `130` is 130
 /// minutes, never 1:30 — and a mistyped `:75` is refused rather than rolled over.
 public enum DiveDuration {
-  /// The field's placeholder.
-  public static let placeholder = "e.g. 45 or 67:30"
+  /// The most minutes the form takes, its three digits, and so the top of the minutes wheel.
+  public static let maxMinutes = 999
 
   /// Seconds for a dive time typed in either shape; nil for anything else (`parseFormDuration`
   /// behind the web's pattern).

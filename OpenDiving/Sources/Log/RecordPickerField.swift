@@ -17,7 +17,6 @@ struct RecordPickerField: View {
     VStack(alignment: .leading, spacing: 6) {
       FieldLabel(title)
       Button {
-        UIApplication.endTyping()
         picking = true
       } label: {
         HStack {

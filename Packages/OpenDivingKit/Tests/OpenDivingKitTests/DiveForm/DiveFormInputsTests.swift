@@ -34,6 +34,9 @@ struct DiveFormInputsTests {
     #expect(DiveDuration.seconds(fromForm: "45") == 2700)
     #expect(DiveDuration.seconds(fromForm: "0") == 0)
     #expect(DiveDuration.seconds(fromForm: DiveDuration.formText(seconds: 125)) == 125)
+    let top = DiveDuration.maxMinutes * 60 + 59
+    #expect(DiveDuration.seconds(fromForm: DiveDuration.formText(seconds: top)) == top)
+    #expect(DiveDuration.seconds(fromForm: "\(DiveDuration.maxMinutes + 1)") == nil)
     for refused in ["", "10:60", "1030", "45:", ":30", "4:5", "abc", "-5", "٤٥"] {
       #expect(DiveDuration.seconds(fromForm: refused) == nil, "\(refused)")
     }

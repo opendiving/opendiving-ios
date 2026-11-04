@@ -23,7 +23,7 @@ struct MeasuredField: View {
   var body: some View {
     let units = model.entryUnits(measure)
     VStack(alignment: .leading, spacing: 6) {
-      InlineField(title) {
+      InlineField(title, focus: $focused) {
         TextField(example.map { model.placeholder($0, measure) } ?? "", text: $text)
           .keyboardType(keyboard)
           .focused($focused)

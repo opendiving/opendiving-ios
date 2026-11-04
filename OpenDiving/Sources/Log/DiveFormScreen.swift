@@ -34,10 +34,14 @@ struct DiveFormScreen: View {
           }
         }
         ForEach(model.sections, id: \.self) { group in
-          Section(group.title) {
-            DiveFormSection(group: group, model: model)
+          if group == .tanks {
+            TanksSection(model: model)
+          } else {
+            Section(group.title) {
+              DiveFormSection(group: group, model: model)
+            }
+            .id(group)
           }
-          .id(group)
         }
         if model.draft != nil {
           Section {
@@ -49,6 +53,7 @@ struct DiveFormScreen: View {
           }
         }
       }
+      .background(TapEndsTyping())
       .pinnedToBottom { saveBar(proxy) }
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {
@@ -94,7 +99,7 @@ struct DiveFormScreen: View {
       }
       .buttonStyle(.borderedProminent)
       .controlSize(.large)
-      .tint(.teal)
+      .tint(.brandTeal)
     }
     .padding(.horizontal)
     .padding(.vertical, 8)

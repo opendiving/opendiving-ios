@@ -25,16 +25,12 @@ struct GearField: View {
         }
         .disabled(model.lookups.gearSets.isEmpty)
         Spacer()
-        Button("Save as set", systemImage: "bookmark") {
-          UIApplication.endTyping()
-          saving = true
-        }
-        .disabled(gear.isEmpty)
+        Button("Save as set", systemImage: "bookmark") { saving = true }
+          .disabled(gear.isEmpty)
       }
       .buttonStyle(.borderless)
       if let checklist = model.checklist, model.gearSet != nil {
         Button("Checklist: \(checklist.name)", systemImage: "checkmark.circle") {
-          UIApplication.endTyping()
           model.reopenChecklist()
         }
         .buttonStyle(.borderless)
@@ -54,11 +50,8 @@ struct GearField: View {
           .accessibilityLabel("Remove \(model.row(ref, .gear).title)")
         }
       }
-      Button(FormPicker.gear.placeholder(holdsSome: !gear.isEmpty)) {
-        UIApplication.endTyping()
-        picking = true
-      }
-      .buttonStyle(.borderless)
+      Button(FormPicker.gear.placeholder(holdsSome: !gear.isEmpty)) { picking = true }
+        .buttonStyle(.borderless)
     }
     .sheet(isPresented: $picking) {
       RecordPickerSheet(model: model, picker: .gear) { ref in
@@ -88,7 +81,6 @@ struct GearField: View {
 
   /// The web asks once, at the pick, before a set replaces gear the dive holds.
   private func pick(_ set: GearSetRow) {
-    UIApplication.endTyping()
     if model.loadingSetReplacesGear {
       replacing = set
     } else {

@@ -75,7 +75,7 @@ struct DiveComputerDownloadButtonLabel: View {
   private func ringColor(_ content: DiveComputerButtonContent) -> Color {
     switch content.state {
     case .working, .waiting: Self.coral
-    case .succeeded: .teal
+    case .succeeded: .brandTeal
     case .failed: .red
     }
   }

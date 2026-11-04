@@ -16,11 +16,7 @@ struct DiveSitesField: View {
       let row = model.row(ref, .diveSites)
       HStack {
         PickerRowLabel(row: row)
-        if sites.count > 1 {
-          Image(systemName: "line.3.horizontal")
-            .foregroundStyle(.tertiary)
-            .accessibilityHidden(true)
-        }
+        if sites.count > 1 { DragHandle() }
       }
       .accessibilityActions {
         if index > 0 {
@@ -33,16 +29,13 @@ struct DiveSitesField: View {
     }
     .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
     .onDelete { offsets in offsets.map { sites[$0] }.forEach(model.removeSite) }
-    Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) {
-      UIApplication.endTyping()
-      picking = true
-    }
-    .buttonStyle(.borderless)
-    .sheet(isPresented: $picking) {
-      RecordPickerSheet(model: model, picker: .diveSites) { ref in
-        if let ref { model.addSite(ref) }
+    Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
+      .buttonStyle(.borderless)
+      .sheet(isPresented: $picking) {
+        RecordPickerSheet(model: model, picker: .diveSites) { ref in
+          if let ref { model.addSite(ref) }
+        }
       }
-    }
   }
 }
 

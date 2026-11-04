@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Who the diver was with, each with a role on this dive — a buddy until the diver says
-/// otherwise — and the picker, whose Return creates a person of the name typed.
+/// Who the diver was with, each a row of the form that drags to a new place and swipes away, its
+/// role on this dive beside the name — a buddy until the diver says otherwise — and the picker,
+/// whose Return creates a person of the name typed.
 struct PeopleField: View {
   let model: DiveFormModel
 
@@ -10,46 +11,45 @@ struct PeopleField: View {
 
   var body: some View {
     let people = model.values.people
-    VStack(alignment: .leading, spacing: 8) {
-      ForEach(people, id: \.person) { reference in
-        let row = model.row(reference.person, .people)
-        VStack(alignment: .leading, spacing: 4) {
-          HStack {
-            PickerRowLabel(row: row)
-            Button {
-              model.removePerson(reference.person)
-            } label: {
-              Image(systemName: "xmark")
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Remove \(row.title)")
+    ForEach(Array(people.enumerated()), id: \.element.person) { index, reference in
+      let row = model.row(reference.person, .people)
+      HStack {
+        PickerRowLabel(row: row)
+          .lineLimit(1)
+        Picker(
+          "Role of \(row.title)",
+          selection: Binding(
+            get: { reference.role }, set: { model.setRole($0, of: reference.person) })
+        ) {
+          Text("No role").tag(String?.none)
+          ForEach(roles(reference.role), id: \.self) { role in
+            Text(VocabularyLabels.personRole(role)).tag(String?.some(role))
           }
-          Picker(
-            "Role of \(row.title)",
-            selection: Binding(
-              get: { reference.role }, set: { model.setRole($0, of: reference.person) })
-          ) {
-            Text("No role").tag(String?.none)
-            ForEach(roles(reference.role), id: \.self) { role in
-              Text(VocabularyLabels.personRole(role)).tag(String?.some(role))
-            }
-          }
-          .labelsHidden()
+        }
+        .labelsHidden()
+        .fixedSize()
+        if people.count > 1 { DragHandle() }
+      }
+      .accessibilityActions {
+        if index > 0 {
+          Button("Move \(row.title) up") { model.change { $0.people.swapAt(index, index - 1) } }
+        }
+        if index < people.count - 1 {
+          Button("Move \(row.title) down") { model.change { $0.people.swapAt(index, index + 1) } }
         }
       }
-      Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) {
-        UIApplication.endTyping()
-        picking = true
-      }
+    }
+    .onMove { from, to in model.change { $0.people.move(fromOffsets: from, toOffset: to) } }
+    .onDelete { offsets in offsets.map { people[$0].person }.forEach(model.removePerson) }
+    Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
       .buttonStyle(.borderless)
-    }
-    .sheet(isPresented: $picking) {
-      RecordPickerSheet(
-        model: model, picker: .people, onSubmitText: { model.addPerson(named: $0) }
-      ) { ref in
-        if let ref { model.addPerson(ref) }
+      .sheet(isPresented: $picking) {
+        RecordPickerSheet(
+          model: model, picker: .people, onSubmitText: { model.addPerson(named: $0) }
+        ) { ref in
+          if let ref { model.addPerson(ref) }
+        }
       }
-    }
   }
 
   /// The roles in the web's order, and one a newer server stored kept on offer.

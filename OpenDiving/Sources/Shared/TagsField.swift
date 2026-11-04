@@ -9,10 +9,13 @@ struct TagsField: View {
   let onRemove: (String) -> Void
 
   @State private var text = ""
+  @FocusState private var focused: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       FieldLabel("Tags")
+        .contentShape(Rectangle())
+        .onTapGesture { focused = true }
       if !tags.isEmpty {
         FlowLayout(spacing: 6) {
           ForEach(tags, id: \.self) { tag in
@@ -27,7 +30,7 @@ struct TagsField: View {
               .padding(.horizontal, 10)
               .padding(.vertical, 4)
               .foregroundStyle(Color.white)
-              .background(RoundedRectangle(cornerRadius: 6).fill(Color.teal))
+              .background(RoundedRectangle(cornerRadius: 6).fill(Color.brandTeal))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(tag)")
@@ -36,6 +39,7 @@ struct TagsField: View {
       }
       TextField(tags.isEmpty ? "Add a tag..." : "Add another tag...", text: $text)
         .textInputAutocapitalization(.never)
+        .focused($focused)
         .submitLabel(.done)
         .onSubmit {
           onAdd(text)
