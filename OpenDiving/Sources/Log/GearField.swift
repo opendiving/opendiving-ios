@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The dive's gear: *Load a gear set…*, which opens the set as a checklist — after the web's
-/// confirmation when the dive already has gear — then the items one by one and the picker that
-/// adds the next.
+/// confirmation when the dive already has gear — then the items, each a row of the form that drags
+/// to a new place and swipes away, and the picker that adds the next.
 struct GearField: View {
   @Bindable var model: DiveFormModel
 
@@ -29,21 +29,28 @@ struct GearField: View {
       }
       .accentRow()
     }
-    ForEach(gear, id: \.self) { ref in
+    ForEach(Array(gear.enumerated()), id: \.element) { index, ref in
       let item = model.gearInfo(ref)
+      let row = model.row(ref, .gear)
       HStack {
-        PickerRowLabel(row: model.row(ref, .gear))
+        PickerRowLabel(row: row)
         if item?.rented == true { BadgeView("Rented") }
         if item?.isArchived == true { BadgeView("Archived", style: .outline) }
-        Button {
-          model.removeGear(ref)
-        } label: {
-          Image(systemName: "xmark")
-        }
-        .buttonStyle(.borderless)
-        .accessibilityLabel("Remove \(model.row(ref, .gear).title)")
+        if gear.count > 1 { DragHandle() }
       }
+      .accessibilityActions {
+        if index > 0 {
+          Button("Move \(row.title) up") { model.change { $0.gearItems.swapAt(index, index - 1) } }
+        }
+        if index < gear.count - 1 {
+          Button("Move \(row.title) down") {
+            model.change { $0.gearItems.swapAt(index, index + 1) }
+          }
+        }
+      }
+      .swipeToDelete { model.removeGear(ref) }
     }
+    .onMove { from, to in model.change { $0.gearItems.move(fromOffsets: from, toOffset: to) } }
     Button(FormPicker.gear.placeholder(holdsSome: !gear.isEmpty)) { picking = true }
       .accentRow()
       .sheet(isPresented: $picking) {
