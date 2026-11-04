@@ -12,14 +12,15 @@ self-hosting bundle — a local instance is a `docker compose up` away.
 - **[XcodeGen](https://github.com/yonaskolb/XcodeGen)**, which writes the Xcode project:
   `brew install xcodegen`.
 
-Nothing else: no CocoaPods and no SwiftLint, and two third-party packages, which SwiftPM fetches
+Nothing else: no CocoaPods and no SwiftLint, and three third-party packages, which SwiftPM fetches
 when Xcode or `xcodebuild` resolves the project. The app target depends on
 [libdc-swift](https://github.com/deepsealabs/libdc-swift) for the Bluetooth download from dive
-computers, and on [libdivejson](https://github.com/divejson/divejson-c) to read each downloaded
-dive, each pinned to an exact release in `project.yml`; the Kit depends on nothing. Formatting is
-the toolchain's own `swift format`.
+computers, on [libdivejson](https://github.com/divejson/divejson-c) to read each downloaded dive,
+and on [MapLibre Native](https://github.com/maplibre/maplibre-gl-native-distribution) to draw a
+map from a style, each pinned to an exact release in `project.yml`; the Kit depends on nothing.
+Formatting is the toolchain's own `swift format`.
 
-**The two pins move together.** libdivejson links against libdc-swift's libdivecomputer, and each
+**The two libdivecomputer pins move together.** libdivejson links against libdc-swift's libdivecomputer, and each
 libdivejson release names the libdivecomputer commit it was built for in its
 `LIBDIVECOMPUTER_COMMIT`; that must be the commit libdc-swift's pinned release carries as its
 `libdivecomputer` submodule. `scripts/libdivecomputer-pins.sh` compares the two, and CI runs it.

@@ -3,7 +3,8 @@
 The app's own source is licensed under the [Apache License 2.0](LICENSE). The app target
 links two libraries under the GNU Lesser General Public License, version 2.1, whose text is in
 [LICENSE-LGPL-2.1](LICENSE-LGPL-2.1), one under the MIT licence and one decoder under an
-ISC-style licence, both reproduced below. Its symbols include icons from Lucide, under the ISC licence, reproduced below too. The
+ISC-style licence, both reproduced below, and MapLibre Native, under the BSD 2-Clause licence,
+whose notices are in [LICENSE-MapLibre.md](LICENSE-MapLibre.md). Its symbols include icons from Lucide, under the ISC licence, reproduced below too. The
 Kit, `OpenDivingKit`, depends on none of them.
 
 ## libdc-swift
@@ -76,6 +77,17 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```
+
+## MapLibre Native
+
+[maplibre/maplibre-native](https://github.com/maplibre/maplibre-native), BSD 2-Clause, copyright
+MapLibre contributors and Mapbox, at tag `ios-v7.0.0` (commit
+`aae210591243d057e082ea46929a21ad9ea0df6d`), the binary that release `7.0.0` of
+[maplibre/maplibre-gl-native-distribution](https://github.com/maplibre/maplibre-gl-native-distribution)
+(commit `c2e6e6bd24efa037a8ab13463d8ad047b929eb9f`) carries: it draws a map from a style.
+`project.yml` pins this exact release. [LICENSE-MapLibre.md](LICENSE-MapLibre.md) reproduces
+`platform/ios/LICENSE.md` at that tag, its own notice and those of the libraries the binary
+contains.
 
 ## Lucide
 

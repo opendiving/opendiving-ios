@@ -19,6 +19,9 @@ packages:
   LibDiveJSON:
     url: https://github.com/divejson/divejson-c
     exactVersion: 0.1.0
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    exactVersion: 7.0.0
 
 settings:
   base:
@@ -41,6 +44,8 @@ targets:
         product: LibDCSwift
       - package: LibDiveJSON
         product: LibDiveJSON
+      - package: MapLibre
+        product: MapLibre
     # Carries the bundle identifier and the optional, gitignored signing file. See
     # CONTRIBUTING.md, "Running on your iPhone".
     configFiles:

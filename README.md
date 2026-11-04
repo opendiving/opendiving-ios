@@ -63,5 +63,5 @@ AGPL-licensed; the data stays yours.
 
 The app links libdc-swift and libdivecomputer, both under the
 [GNU LGPL 2.1](LICENSE-LGPL-2.1); [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) names them
-and the exact versions built, along with libdivejson, under the MIT licence, and the Lucide
-icons the app's symbols draw on.
+and the exact versions built, along with libdivejson, under the MIT licence, MapLibre Native,
+under the BSD 2-Clause licence, and the Lucide icons the app's symbols draw on.
