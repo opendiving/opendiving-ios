@@ -21,14 +21,15 @@ struct NewDiveSiteSheet: View {
       model: RecordSheetModel(
         outbox: OutboxModel(session: session), values: DiveSiteFormValues(),
         failedItem: failedItem),
-      units: RecordEntryUnits(session: session), session: session, locator: locator,
-      onCreated: onCreated)
+      units: RecordEntryUnits(session: session), map: MapStyleModel(session: session),
+      session: session, locator: locator, onCreated: onCreated)
   }
 }
 
 private struct DiveSiteSheetForm: View {
   @State var model: RecordSheetModel<DiveSiteFormValues>
   @State var units: RecordEntryUnits
+  @State var map: MapStyleModel
   let session: Session
   let locator: any LocationProvider
   let onCreated: (RecordRef) -> Void
@@ -37,13 +38,10 @@ private struct DiveSiteSheetForm: View {
   @State private var lookup = PositionLookup()
   @State private var searching = false
   @State private var locating = false
-  @State private var locationFailure: String?
+  @State private var locationFailure: LocationFailure?
   /// The registry entry the last catalogue pick here added, which the next pick replaces.
   @State private var pickedEntry: ExternalIdWrite?
   @Environment(\.dismiss) private var dismiss
-
-  private static let coordinateHint =
-    "Paste a “27.8506, 34.3136” pair into either field to fill both, or place the site on the map below."
 
   var body: some View {
     RecordSheetForm(
@@ -77,15 +75,15 @@ private struct DiveSiteSheetForm: View {
         CoordinateFields(
           latitude: $model.values.latitude, longitude: $model.values.longitude,
           latitudeMessage: model.message("latitude"),
-          longitudeMessage: model.message("longitude"), hint: Self.coordinateHint,
-          onPlaced: place)
+          longitudeMessage: model.message("longitude"),
+          hint: CoordinateHint.diveSite(hasMap: map.hasMap), onPlaced: place)
         Button(locating ? "Finding your location…" : "Use my location", systemImage: "location") {
           Task { await useMyLocation() }
         }
         .disabled(locating)
-        FieldMessage(locationFailure)
+        FieldMessage(locationFailure?.message(hasMap: map.hasMap))
         PinMap(
-          name: "the dive site", latitude: model.values.latitude,
+          style: map.shown, name: "the dive site", latitude: model.values.latitude,
           longitude: model.values.longitude,
           credit: lookup.credit(
             latitude: model.values.latitude, longitude: model.values.longitude),
@@ -141,6 +139,7 @@ private struct DiveSiteSheetForm: View {
           text: $model.values.notes, message: model.message("notes"), multiline: true)
       }
     }
+    .showsMapStyle(map)
     .sheet(isPresented: $searching) {
       LocationSearchSheet(
         latitude: model.values.latitude, longitude: model.values.longitude,
@@ -187,7 +186,7 @@ private struct DiveSiteSheetForm: View {
       let here = try await locator.currentLocation()
       place(PinMap.text(here.latitude), PinMap.text(here.longitude))
     } catch {
-      locationFailure = error.message
+      locationFailure = error
     }
   }
 

@@ -21,8 +21,8 @@ struct NewTripSheet: View {
         outbox: OutboxModel(session: session), values: TripFormValues(),
         failedItem: failedItem),
       lookups: LookupsModel(session: session),
-      places: PlaceSearchModel(session: session, findsSites: false), units: session.units,
-      onCreated: onCreated)
+      places: PlaceSearchModel(session: session, findsSites: false),
+      map: MapStyleModel(session: session), units: session.units, onCreated: onCreated)
   }
 }
 
@@ -30,6 +30,7 @@ private struct TripSheetForm: View {
   @State var model: RecordSheetModel<TripFormValues>
   @State var lookups: LookupsModel
   @State var places: PlaceSearchModel
+  @State var map: MapStyleModel
   let units: UnitSystem
   let onCreated: (RecordRef) -> Void
 
@@ -55,7 +56,7 @@ private struct TripSheetForm: View {
       ForEach(model.values.parts.indices, id: \.self) { index in
         TripPartSection(
           part: part(index), index: index, total: model.values.parts.count,
-          contacts: lookups.contacts, places: places, units: units,
+          contacts: lookups.contacts, places: places, units: units, hasMap: map.hasMap,
           locationMessage: model.message("parts", index: index, member: "location"),
           datesMessage: model.message("parts", index: index, member: "end_date"),
           remove: { model.values.parts.remove(at: index) },
@@ -79,12 +80,12 @@ private struct TripSheetForm: View {
           AttributionLine(credits: places.attributions)
         }
       }
-      Section {
-        PlacesMapView(points: mapped)
-          .id(mapped)
-          .frame(height: 200)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
-          .accessibilityLabel("Map of the trip's locations")
+      if let style = map.shown {
+        Section {
+          PlacesMapView(style: style, points: model.values.mapped)
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
       }
       RecordPeopleField(people: $model.values.people, rows: lookups.people, defaultRole: nil)
       Section {
@@ -93,6 +94,7 @@ private struct TripSheetForm: View {
           text: $model.values.notes, message: model.message("notes"), multiline: true)
       }
     }
+    .showsMapStyle(map)
   }
 
   /// A part by position, read safely: a removed part's section may draw once more after the
@@ -107,15 +109,6 @@ private struct TripSheetForm: View {
   }
 
   private var isFull: Bool { model.values.parts.count >= TripFormValues.maxParts }
-
-  private var mapped: [MapPoint] {
-    model.values.parts.compactMap { part in
-      guard let location = part.location, let latitude = location.latitude,
-        let longitude = location.longitude
-      else { return nil }
-      return MapPoint(name: location.name, latitude: latitude, longitude: longitude)
-    }
-  }
 
   private func save() -> Bool {
     guard let ref = model.save() else { return false }
@@ -132,6 +125,7 @@ private struct TripPartSection: View {
   let contacts: [ContactLookupItem]
   let places: PlaceSearchModel
   let units: UnitSystem
+  let hasMap: Bool
   let locationMessage: String?
   let datesMessage: String?
   let remove: () -> Void
@@ -149,7 +143,7 @@ private struct TripPartSection: View {
           Text(part.location?.name ?? "Search for a place...")
             .foregroundStyle(part.location == nil ? .secondary : .primary)
         }
-        if let location = part.location, location.latitude == nil || location.longitude == nil {
+        if hasMap, let location = part.location, location.mapPoint == nil {
           Text("Not on the map").font(.caption).foregroundStyle(.secondary)
         }
         FieldMessage(locationMessage)

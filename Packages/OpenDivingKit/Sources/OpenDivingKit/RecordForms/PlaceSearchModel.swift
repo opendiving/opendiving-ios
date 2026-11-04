@@ -5,27 +5,37 @@ import Observation
 public struct PlaceSearchText: Hashable, Sendable {
   public let placeholder: String
   public let noItems: String
-  public let noMatches: String
-  public let searchError: String
   public let queryTooLong: String
+  private let noMatches: String
+  private let searchError: String
+  /// How the two sentences above go on where the form has a map to place on.
+  private let onTheMap: String?
+
+  public func noMatches(hasMap: Bool) -> String { sentence(noMatches, hasMap: hasMap) }
+
+  public func searchError(hasMap: Bool) -> String { sentence(searchError, hasMap: hasMap) }
+
+  private func sentence(_ start: String, hasMap: Bool) -> String {
+    start + (hasMap ? onTheMap ?? "" : "") + "."
+  }
 
   /// The dive site's *Search location*: the catalogue's sites and the geocoder's places.
   public static let diveSite = PlaceSearchText(
     placeholder: "e.g. Thistlegorm",
     noItems: "Type to search dive sites and places.",
-    noMatches:
-      "Nothing found - press Enter to use it as typed, or place the site on the map.",
-    searchError:
-      "Couldn't reach the search - press Enter to use it as typed, or place the site on the map.",
-    queryTooLong: "Too long to search for a dive site.")
+    queryTooLong: "Too long to search for a dive site.",
+    noMatches: "Nothing found - press Enter to use it as typed",
+    searchError: "Couldn't reach the search - press Enter to use it as typed",
+    onTheMap: ", or place the site on the map")
 
   /// A trip part's place.
   public static let tripPart = PlaceSearchText(
     placeholder: "Search for a place...",
     noItems: "Type to search places.",
-    noMatches: "No places found - press Enter to add as text.",
-    searchError: "Couldn't reach the place search - press Enter to add as text.",
-    queryTooLong: "Too long to search - press Enter to add as text.")
+    queryTooLong: "Too long to search - press Enter to add as text.",
+    noMatches: "No places found - press Enter to add as text",
+    searchError: "Couldn't reach the place search - press Enter to add as text",
+    onTheMap: nil)
 }
 
 /// One place search box's state: the rows for what was typed, or the line saying why there

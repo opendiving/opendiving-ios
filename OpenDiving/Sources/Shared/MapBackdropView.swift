@@ -28,8 +28,6 @@ struct MapBackdropView: View {
   @State private var isOnScreen = false
   @State private var chipBottom: CGFloat = 0
 
-  /// #FF7F50, the brand's coral, which the web's pins are drawn in for reading on both themes.
-  private static let coral = Color(red: 1, green: 127 / 255, blue: 80 / 255)
   /// The credit chip's inset from the map's corner.
   private static let chipInset: CGFloat = 4
 
@@ -91,7 +89,7 @@ struct MapBackdropView: View {
         }
       }
       ForEach(Array(layout.pins.enumerated()), id: \.offset) { _, pin in
-        marker(isFix: pin.isFix)
+        MapMarker(isFix: pin.isFix)
           .position(x: pin.x, y: pin.y)
       }
     }
@@ -101,10 +99,7 @@ struct MapBackdropView: View {
   /// Laid out but unseen until the map shows, as the web's is, since where the pins' band
   /// starts depends on its height.
   private func creditChip(_ named: String) -> some View {
-    AttributionLine(credits: [named], underline: false)
-      .font(.system(size: 10))
-      .padding(.horizontal, 4)
-      .background(Color(.systemBackground).opacity(0.8), in: RoundedRectangle(cornerRadius: 2))
+    MapCredit(credit: named)
       .opacity(model?.shown == nil ? 0 : 0.75)
       .padding([.top, .leading], Self.chipInset)
       .onGeometryChange(for: CGFloat.self) {
@@ -113,16 +108,6 @@ struct MapBackdropView: View {
         chipBottom = $0
       }
       .accessibilityHidden(model?.shown == nil)
-  }
-
-  /// A place in coral ringed in the page's colour, and a fix the same two colours inverted, as
-  /// the web draws them: one legend, two claims.
-  private func marker(isFix: Bool) -> some View {
-    Circle()
-      .fill(isFix ? Color(.systemBackground).opacity(0.8) : Self.coral)
-      .strokeBorder(isFix ? Self.coral : Color(.systemBackground), lineWidth: 2)
-      .frame(width: 12, height: 12)
-      .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
   }
 }
 

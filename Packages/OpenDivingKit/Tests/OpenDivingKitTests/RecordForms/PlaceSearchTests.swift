@@ -103,6 +103,48 @@ struct PlaceSearchTests {
     #expect(PlaceSearch.adopting(.unknown, current: LocationWrite(name: "Dahab")) == nil)
   }
 
+  @Test func onlyAFormWithAMapOffersIt() {
+    let site = PlaceSearchText.diveSite
+    #expect(
+      site.noMatches(hasMap: true)
+        == "Nothing found - press Enter to use it as typed, or place the site on the map.")
+    #expect(site.noMatches(hasMap: false) == "Nothing found - press Enter to use it as typed.")
+    #expect(
+      site.searchError(hasMap: true)
+        == "Couldn't reach the search - press Enter to use it as typed, or place the site on the map."
+    )
+    #expect(
+      site.searchError(hasMap: false)
+        == "Couldn't reach the search - press Enter to use it as typed.")
+
+    let part = PlaceSearchText.tripPart
+    #expect(part.noMatches(hasMap: true) == "No places found - press Enter to add as text.")
+    #expect(part.noMatches(hasMap: false) == part.noMatches(hasMap: true))
+    #expect(
+      part.searchError(hasMap: true)
+        == "Couldn't reach the place search - press Enter to add as text.")
+
+    #expect(
+      LocationFailure.unavailable.message(hasMap: true)
+        == "Your location could not be found. Type the coordinates, or place the site on the map.")
+    #expect(
+      LocationFailure.unavailable.message(hasMap: false)
+        == "Your location could not be found. Type the coordinates.")
+    #expect(
+      LocationFailure.denied.message(hasMap: true) == LocationFailure.denied.message(hasMap: false))
+
+    let paste = "Paste a “27.8506, 34.3136” pair into either field to fill both"
+    #expect(
+      CoordinateHint.diveSite(hasMap: true) == paste + ", or place the site on the map below.")
+    #expect(CoordinateHint.diveSite(hasMap: false) == paste + ".")
+    #expect(CoordinateHint.contact(hasMap: true) == paste + ", or place the contact on the map.")
+    #expect(CoordinateHint.contact(hasMap: false) == paste + ".")
+    #expect(
+      CoordinateHint.searchedSite(hasMap: true)
+        == "Coordinates of the site, or place it on the map below.")
+    #expect(CoordinateHint.searchedSite(hasMap: false) == "Coordinates of the site.")
+  }
+
   @Test func aPastedPairFillsBothBoxes() {
     #expect(PlaceSearch.coordinatePair("27.8506, 34.3136")! == ("27.8506", "34.3136"))
     #expect(PlaceSearch.coordinatePair(" -27.8506;34 ")! == ("-27.8506", "34"))
