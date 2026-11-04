@@ -63,7 +63,34 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== first)
   }
 
-  /// A computer's page covers the screen, which closes its model: the page's *Forget* reaches
+  @Test func aComputersPageOverTheScreenKeepsTheOutcomeUntilTheScreenIsLeft() async throws {
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.perdix, listing: .init(dives: 3, newDives: 0, newEntries: 0), [])
+    ]
+    let (downloads, _) = try await downloads(link)
+    let model = downloads.model
+    downloads.screenAppeared()
+    await model.watch()
+    await until { !model.rows.isEmpty }
+    model.connect(try #require(model.rows.first))
+    await model.settled()
+    let outcome = try #require(model.outcome)
+
+    downloads.screenAppeared()
+    downloads.screenDisappeared()
+    downloads.screenAppeared()
+    downloads.screenDisappeared()
+    #expect(downloads.model === model)
+    #expect(model.outcome == outcome)
+
+    downloads.screenDisappeared()
+    #expect(downloads.model !== model)
+  }
+
+  /// Leaving by another tab from a computer's page closes the model under it: *Forget* reaches
   /// whichever model is current, and the next visit lists what is left.
   @Test func forgettingFromAPageThatCoveredTheScreenHoldsOnTheNextVisit() async throws {
     let link = FakeDiveComputerLink()

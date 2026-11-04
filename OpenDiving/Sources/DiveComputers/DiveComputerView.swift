@@ -67,11 +67,13 @@ struct DiveComputerScreen: View {
     }
     .navigationDestination(isPresented: $showsImport) { ImportView() }
     .navigationDestination(item: $showing) { record in
-      // Read when it is tapped: the screen's model is closed while the page covers it.
       DiveComputerPage(record: record) {
         model.forget(record)
         showing = nil
       }
+      // It counts as the screen, whose model would otherwise close with a download's outcome.
+      .onAppear { downloads.screenAppeared() }
+      .onDisappear { downloads.screenDisappeared() }
     }
   }
 
