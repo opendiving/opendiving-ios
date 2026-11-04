@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Settings* tab: the server card, with the servers screen and signing out, the account
+/// The *Settings* tab: the server card, with signing out and the servers screen, the account
 /// as read-only rows, and the app.
 struct SettingsView: View {
   @Environment(Session.self) private var session
@@ -28,13 +28,6 @@ private struct SettingsList: View {
     List {
       if let card = model.card {
         ServerCard(content: card) {
-          NavigationLink("Change server") {
-            // A notice from an earlier visit is not this one's; one set while here, by a page
-            // pushed over the list, is.
-            ServerScreen(flow: model.signIn)
-              .onFirstAppear { model.signIn.dismissNotice() }
-          }
-          .disabled(model.isWorking)
           Button("Sign out") { Task { await model.signOut() } }
             .disabled(model.isWorking)
           if let origin = model.signIn.signingOut {
@@ -44,6 +37,13 @@ private struct SettingsList: View {
             Label(error, systemImage: "exclamationmark.triangle")
               .foregroundStyle(.red)
           }
+          NavigationLink("Change server") {
+            // A notice from an earlier visit is not this one's; one set while here, by a page
+            // pushed over the list, is.
+            ServerScreen(flow: model.signIn)
+              .onFirstAppear { model.signIn.dismissNotice() }
+          }
+          .disabled(model.isWorking)
         }
       }
       Section {
