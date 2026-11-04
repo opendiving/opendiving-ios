@@ -19,11 +19,11 @@ struct DiveComputerPage: View {
       }
       Section {
         Button(DiveComputerText.forget, role: .destructive) { forgetting = record }
+          .forgetDiveComputerConfirmation(record: $forgetting) { _ in forget() }
       }
     }
     .navigationTitle(content.title)
     .navigationBarTitleDisplayMode(.inline)
-    .forgetDiveComputerConfirmation(record: $forgetting) { _ in forget() }
   }
 }
 

@@ -158,7 +158,7 @@ struct DiveComputerScreen: View {
             }
             // Two buttons in one row: a style other than the default gives each its own taps
             // rather than the row's.
-            .buttonStyle(.plain)
+            .buttonStyle(PairedRowButtonStyle())
             .disabled(!connects)
             Button {
               showing = paired.record
@@ -197,6 +197,14 @@ struct DiveComputerScreen: View {
         Text(subtitle).font(.caption).foregroundStyle(.secondary)
       }
     }
+  }
+}
+
+/// A paired computer's row, which dims on a press and otherwise keeps the label's own colours:
+/// `.plain` would dim a computer out of reach a second time over its secondary text.
+private struct PairedRowButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label.opacity(configuration.isPressed ? 0.5 : 1)
   }
 }
 
