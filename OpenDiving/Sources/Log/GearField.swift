@@ -19,13 +19,7 @@ struct GearField: View {
     }
     .disabled(model.lookups.gearSets.isEmpty)
     // Waits for the picker to close: a set goes on to a dialog or the checklist's own sheet.
-    .sheet(
-      isPresented: $choosingSet,
-      onDismiss: {
-        if let chosenSet { pick(chosenSet) }
-        chosenSet = nil
-      }
-    ) {
+    .sheet(isPresented: $choosingSet, onDismiss: loadChosenSet) {
       GearSetPickerSheet(sets: model.lookups.gearSets) { chosenSet = $0 }
     }
     if let checklist = model.checklist, model.gearSet != nil {
@@ -70,6 +64,11 @@ struct GearField: View {
       } message: { set in
         Text(model.replaceSentence(set))
       }
+  }
+
+  private func loadChosenSet() {
+    if let chosenSet { pick(chosenSet) }
+    chosenSet = nil
   }
 
   /// The web asks once, at the pick, before a set replaces gear the dive holds.
