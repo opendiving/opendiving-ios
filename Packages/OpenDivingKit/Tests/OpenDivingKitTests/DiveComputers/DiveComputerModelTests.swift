@@ -453,6 +453,30 @@ struct DiveComputerModelTests {
     #expect(inbox.files.first?.download?.dives == 1)
   }
 
+  @Test func marksAreSettledOnlyAfterWholeRecordsBecomePairings() async throws {
+    let session = try await session(try ImportServer())
+    func folder(_ account: UUID) -> URL {
+      session.store.directory(for: ImportServer.origin, account: account)
+        .appendingPathComponent("DiveComputers", isDirectory: true)
+    }
+    try F.writeWholeRecord(
+      DiveComputerRecord(
+        identity: F.perdix, fingerprint: F.fingerprint(3), receivedBeforeAccountKnown: true),
+      in: folder(ImportServer.accountA))
+    try F.writeWholeRecord(
+      DiveComputerRecord(
+        identity: F.ocean, fingerprint: F.fingerprint(4), receivedBeforeAccountKnown: true),
+      in: folder(ImportServer.accountB))
+
+    InboxModel(session: session).sessionChanged()
+
+    let records = computers(session).records()
+    #expect(records.map(\.family) == [.shearwaterPetrel, .suuntoNautic])
+    #expect(records.first?.fingerprint == F.fingerprint(3))
+    #expect(records.first?.receivedBeforeAccountKnown == false)
+    #expect(computers(session, ImportServer.accountB).records().last?.fingerprint == nil)
+  }
+
   @Test func aComputerPairedForOneAccountDownloadsEverythingForTheNext() async throws {
     let server = try ImportServer()
     let first = try await session(server)

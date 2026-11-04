@@ -219,7 +219,6 @@ public final class DiveComputerModel {
     self.now = now
     phoneZone = zone
     suggestedZone = zone
-    DiveComputerStore.adoptAccountRecords(store: session.store)
   }
 
   // MARK: - Scanning

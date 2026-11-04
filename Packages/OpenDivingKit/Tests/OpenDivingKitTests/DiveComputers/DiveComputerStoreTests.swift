@@ -33,21 +33,6 @@ struct DiveComputerStoreTests {
     DiveComputerStore(store: stateStore, origin: otherOrigin, account: ImportServer.accountB)
   }
 
-  /// A file of the shape every computer was kept in before the pairing became the phone's.
-  private func writeWholeRecord(_ record: DiveComputerRecord, in folder: URL) throws {
-    func fields(_ value: some Encodable) throws -> [String: Any] {
-      try #require(
-        try JSONSerialization.jsonObject(with: APICoding.encoder().encode(value))
-          as? [String: Any])
-    }
-    let whole = try fields(PairedComputer(record)).merging(
-      fields(DiveComputerProgress(record))
-    ) { first, _ in first }
-    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    try JSONSerialization.data(withJSONObject: whole).write(
-      to: folder.appendingPathComponent(record.id))
-  }
-
   @Test func aPairingWrittenBeforeTheHardwareWasKeptStillDecodes() throws {
     let encoded = try JSONEncoder().encode(PairedComputer(DiveComputerRecord(identity: F.perdix)))
     var fields = try #require(
@@ -161,8 +146,8 @@ struct DiveComputerStoreTests {
     let newer = DiveComputerRecord(
       identity: F.perdix, peripheral: UUID(), fingerprint: F.fingerprint(2),
       lastDownloaded: F.moment)
-    try writeWholeRecord(older, in: folder)
-    try writeWholeRecord(
+    try F.writeWholeRecord(older, in: folder)
+    try F.writeWholeRecord(
       newer,
       in: stateStore.directory(for: otherOrigin, account: ImportServer.accountB)
         .appendingPathComponent("DiveComputers", isDirectory: true))
@@ -176,7 +161,7 @@ struct DiveComputerStoreTests {
 
   @Test func aForgottenComputerIsNotAdoptedAgain() throws {
     let record = DiveComputerRecord(identity: F.perdix, fingerprint: F.fingerprint(1))
-    try writeWholeRecord(record, in: folder)
+    try F.writeWholeRecord(record, in: folder)
     DiveComputerStore.adoptAccountRecords(store: stateStore)
     store.forget(record)
     DiveComputerStore.adoptAccountRecords(store: stateStore)

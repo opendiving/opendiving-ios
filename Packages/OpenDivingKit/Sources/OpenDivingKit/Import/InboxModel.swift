@@ -295,6 +295,8 @@ public final class InboxModel {
   /// progress written before it for any other account; a session that ended before one leaves
   /// them where they are. Then an uncovered inbox is read.
   public func sessionChanged() {
+    // First: the marks below read an account's whole records as progress alone.
+    DiveComputerStore.adoptAccountRecords(store: session.store)
     if let origin = session.state.origin {
       let inboxes = InboxStore.all(store: session.store, origin: origin)
       switch session.state {
