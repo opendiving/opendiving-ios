@@ -3,6 +3,7 @@ import Testing
 
 @testable import OpenDiving
 
+@MainActor
 struct TimeZonePickerTests {
   @Test func aZoneThePhoneKnowsAddsNothing() throws {
     let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
