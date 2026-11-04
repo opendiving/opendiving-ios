@@ -83,13 +83,12 @@ private struct TankCard: View {
         if let error = message("po2_limit") { FieldMessage(error) }
       }
     }
-    DecimalField(title: "O₂", unit: "%", value: tank.oxygen, error: message("oxygen")) { oxygen in
+    PercentField(title: "O₂", value: tank.oxygen, error: message("oxygen")) { oxygen in
       model.changeTank(index) { $0.oxygen = oxygen }
     }
     if visibility.isVisible(.mixtureHelium) {
-      DecimalField(
-        title: DiveFormField.mixtureHelium.label, unit: "%", value: tank.helium,
-        error: message("helium")
+      PercentField(
+        title: DiveFormField.mixtureHelium.label, value: tank.helium, error: message("helium")
       ) { helium in
         model.changeTank(index) { $0.helium = helium }
       }

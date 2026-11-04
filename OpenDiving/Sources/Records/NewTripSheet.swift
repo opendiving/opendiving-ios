@@ -148,6 +148,7 @@ private struct TripPartSection: View {
       }
       RecordPicker(
         label: "Accommodation", placeholder: "Select accommodation...",
+        searchPrompt: "Search accommodation...",
         addLabel: "Add accommodation...", rows: contacts, selection: $part.accommodation
       ) { made in
         NewContactSheet(roles: ["accommodation"], onCreated: made)
@@ -156,6 +157,7 @@ private struct TripPartSection: View {
       CalendarDateField(label: "End date", date: $part.endDate)
       FieldMessage(datesMessage)
     } header: {
+      // Parts are sections, which do not drag; putting them in order stays with the web.
       RemovableSectionHeader(title: "Part \(index + 1)", onRemove: remove)
     }
   }
@@ -187,7 +189,7 @@ private struct TripPartPlaceScreen: View {
           onUse(nil)
           dismiss()
         }
-        .foregroundStyle(Color.danger)
+        .dangerRow()
       }
     }
     .navigationTitle("Location")

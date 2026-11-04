@@ -110,7 +110,7 @@ struct ImportView: View {
             inbox.removeAll()
           }
         }
-        .foregroundStyle(Color.danger)
+        .dangerRow()
         .disabled(inbox.phase != .idle)
         .confirmationDialog(
           "Remove all files?", isPresented: $confirmingRemoveAll, titleVisibility: .visible

@@ -152,7 +152,7 @@ struct PendingScreen: View {
             Text(OutboxText.unreadableItem)
             Spacer()
             Button("Discard", role: .destructive) { discardingUnreadable = name }
-              .foregroundStyle(Color.danger)
+              .dangerRow()
               .buttonStyle(.borderless)
           }
         }
@@ -349,7 +349,7 @@ struct PendingItemRow: View {
           }
           if let discard {
             Button("Discard", role: .destructive, action: discard)
-              .foregroundStyle(Color.danger)
+              .dangerRow()
           }
         }
         .buttonStyle(.borderless)

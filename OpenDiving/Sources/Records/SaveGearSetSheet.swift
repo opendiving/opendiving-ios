@@ -86,7 +86,7 @@ private struct GearSetSheetForm: View {
         .accentRow()
         .sheet(isPresented: $picking) {
           PickerSheet(
-            title: "Select gear...",
+            title: "Select gear...", searchPrompt: FormPicker.gear.searchPrompt,
             rows: { LookupsModel.matching(offered, $0).map(FormPickerRow.init) },
             addLabel: "Add gear...", addSheet: { NewGearItemSheet(onCreated: $0) },
             onPick: { ref in ref.map(add) })

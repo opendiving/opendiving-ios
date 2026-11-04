@@ -16,6 +16,7 @@ struct RecordPeopleField: View {
       PeopleRows(people: $people, row: row) {
         PickerSheet(
           title: FormPicker.people.placeholder(holdsSome: false),
+          searchPrompt: FormPicker.people.searchPrompt,
           rows: { LookupsModel.matching(offered, $0).map(FormPickerRow.init) },
           emptySentence: { $0.isEmpty ? "No people yet." : "No people found." },
           addLabel: FormPicker.people.addLabel,

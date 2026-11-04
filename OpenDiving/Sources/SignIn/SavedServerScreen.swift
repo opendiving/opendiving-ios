@@ -31,7 +31,7 @@ struct SavedServerScreen: View {
         }
         if model.canForget {
           Button("Forget this server", role: .destructive) { forgetting = model.origin }
-            .foregroundStyle(Color.danger)
+            .dangerRow()
             .disabled(model.isWorking)
         }
         if let origin = model.signIn.signingOut {

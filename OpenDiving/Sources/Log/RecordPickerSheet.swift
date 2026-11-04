@@ -14,7 +14,7 @@ struct RecordPickerSheet: View {
 
   var body: some View {
     PickerSheet(
-      title: picker.sheetPrompt,
+      title: picker.sheetPrompt, searchPrompt: picker.searchPrompt,
       rows: { model.rows(picker, matching: $0, tank: tank) },
       search: { await model.searchServer(picker, matching: $0, tank: tank) },
       emptySentence: { model.emptySentence(picker, matching: $0, tank: tank) },

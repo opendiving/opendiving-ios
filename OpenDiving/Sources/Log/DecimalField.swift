@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A plain number in the same units on both systems — a percentage, a volume — read with
-/// either decimal separator.
+/// A plain number in the same units on both systems, a volume, read with either decimal
+/// separator.
 struct DecimalField: View {
   let title: String
   var placeholder = ""
@@ -46,6 +46,6 @@ struct DecimalField: View {
 
 #Preview {
   Form {
-    DecimalField(title: "O₂", unit: "%", value: 32) { _ in }
+    DecimalField(title: "Volume", unit: "L", value: 11.1) { _ in }
   }
 }

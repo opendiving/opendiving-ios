@@ -67,7 +67,7 @@ struct AddServerScreen: View {
       {
         Section {
           Button("Forget this server", role: .destructive) { forgetting = origin }
-            .foregroundStyle(Color.danger)
+            .dangerRow()
             .disabled(flow.signingOut != nil)
         } footer: {
           Text(ForgetServerConfirmation.heldMessage(origin))

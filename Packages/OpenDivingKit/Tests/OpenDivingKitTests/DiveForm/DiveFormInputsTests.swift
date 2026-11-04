@@ -42,6 +42,27 @@ struct DiveFormInputsTests {
     }
   }
 
+  @Test func aPercentageOnTheWheels() {
+    let nitrox = PercentWheels(32.5)
+    #expect(nitrox.whole == 32)
+    #expect(nitrox.tenth == 5)
+    #expect(nitrox.percent == 32.5)
+    #expect(nitrox.takesTenths)
+
+    let unrecorded = PercentWheels(nil)
+    #expect(unrecorded.percent == nil)
+    #expect(!unrecorded.takesTenths)
+
+    #expect(PercentWheels(20.95).percent == 21)
+    #expect(PercentWheels(150).percent == 100)
+
+    var full = PercentWheels(99.5)
+    full.whole = 100
+    #expect(full.percent == 100)
+    #expect(full.tenth == 0)
+    #expect(!full.takesTenths)
+  }
+
   /// date-time.test.ts:173-189 and utc-offset-select.tsx:11-22.
   @Test func theOffsets() {
     #expect(DiveStart.offsets.count == 105)

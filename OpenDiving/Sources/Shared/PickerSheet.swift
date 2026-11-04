@@ -6,6 +6,7 @@ import SwiftUI
 /// opens the record's own sheet and picks what it creates.
 struct PickerSheet<AddSheet: View>: View {
   let title: String
+  let searchPrompt: String
   let rows: (String) -> [FormPickerRow]
   /// What the server adds to the phone's rows, where it can be asked.
   var search: ((String) async -> [FormPickerRow])?
@@ -50,7 +51,7 @@ struct PickerSheet<AddSheet: View>: View {
         }
       }
       .pickerListSpacing()
-      .searchable(text: $text, prompt: title)
+      .searchable(text: $text, prompt: searchPrompt)
       .onSubmit(of: .search) {
         if let onSubmitText, onSubmitText(text) { dismiss() }
       }
@@ -90,6 +91,7 @@ struct PickerSheet<AddSheet: View>: View {
 
 #Preview {
   PickerSheet(
-    title: "Select a person...", rows: { _ in [] }, emptySentence: { _ in "No people yet." },
+    title: "Select a person...", searchPrompt: "Search people...", rows: { _ in [] },
+    emptySentence: { _ in "No people yet." },
     addLabel: "Add person...", addSheet: { _ in EmptyView() }, onPick: { _ in })
 }

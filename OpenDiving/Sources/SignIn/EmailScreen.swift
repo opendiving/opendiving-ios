@@ -80,7 +80,7 @@ struct EmailScreen: View {
             }
           case .forgetServer:
             Button("Forget this server", role: .destructive) { forgetting = origin }
-              .foregroundStyle(Color.danger)
+              .dangerRow()
           }
         }
       } footer: {

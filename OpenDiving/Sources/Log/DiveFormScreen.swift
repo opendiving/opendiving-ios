@@ -31,7 +31,7 @@ struct DiveFormScreen: View {
             Text("These are the changes you made earlier and did not save.")
               .foregroundStyle(.secondary)
             Button("Discard changes", role: .destructive) { model.discardEdit() }
-              .foregroundStyle(Color.danger)
+              .dangerRow()
           }
         }
         ForEach(model.sections, id: \.self) { group in
@@ -44,12 +44,14 @@ struct DiveFormScreen: View {
               DiveFormSectionHeader(group: group)
             }
             .id(group)
+            // Named, or the section takes the spacing of the tank card after it.
+            .listSectionSpacing(.default)
           }
         }
         if model.draft != nil {
           Section {
             Button("Discard draft", role: .destructive) { confirmsDiscard = true }
-              .foregroundStyle(Color.danger)
+              .dangerRow()
           } footer: {
             Text(
               "Saved as a draft. It reaches your server when the phone can, and opens on the web as you left it."

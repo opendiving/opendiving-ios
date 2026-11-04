@@ -5,8 +5,8 @@ extension View {
   /// behind the navigation bar; before that the bar has that bar's material.
   @ViewBuilder func pinnedToBottom<Bar: View>(@ViewBuilder _ bar: () -> Bar) -> some View {
     if #available(iOS 26, *) {
-      // A glass button in the bar leaves the soft edge off, and the form would show around it.
-      scrollEdgeEffectStyle(.hard, for: .bottom)
+      // Named, because a glass button in the bar can otherwise leave the fade off.
+      scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaBar(edge: .bottom, spacing: 0, content: bar)
     } else {
       safeAreaInset(edge: .bottom, spacing: 0) { bar().background(.bar) }

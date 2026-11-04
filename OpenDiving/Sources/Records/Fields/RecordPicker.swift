@@ -6,6 +6,7 @@ import SwiftUI
 struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
   let label: String
   let placeholder: String
+  let searchPrompt: String
   let addLabel: String
   let rows: [Row]
   @Binding var selection: RecordRef?
@@ -18,7 +19,7 @@ struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
     PickerFieldRow(title: label, row: selected, prompt: placeholder) { picking = true }
       .sheet(isPresented: $picking) {
         PickerSheet(
-          title: placeholder,
+          title: placeholder, searchPrompt: searchPrompt,
           rows: { LookupsModel.matching(rows, $0).map(FormPickerRow.init) }, current: selection,
           addLabel: addLabel, addSheet: newSheet, onPick: { selection = $0 })
       }
@@ -38,7 +39,8 @@ struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
     Form {
       RecordPicker(
         label: "Dive center", placeholder: "Select a dive center...",
-        addLabel: "Add dive center...", rows: [PersonLookupItem](), selection: $selection
+        searchPrompt: "Search dive centers...", addLabel: "Add dive center...",
+        rows: [PersonLookupItem](), selection: $selection
       ) { _ in Text("New") }
     }
   }

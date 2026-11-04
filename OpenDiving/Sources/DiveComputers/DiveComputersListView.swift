@@ -29,7 +29,7 @@ struct DiveComputersListView: View {
               .accentRow()
           }
           Button(DiveComputerText.forget, role: .destructive) { forgetting = record }
-            .foregroundStyle(Color.danger)
+            .dangerRow()
         }
       }
       if let error = model.error {

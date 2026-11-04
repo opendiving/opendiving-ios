@@ -63,6 +63,7 @@ private struct CourseSheetForm: View {
       Section {
         RecordPicker(
           label: "Dive center", placeholder: "Select a dive center...",
+          searchPrompt: FormPicker.contact.searchPrompt,
           addLabel: "Add dive center...", rows: lookups.contacts,
           selection: $model.values.contact
         ) { made in
@@ -70,6 +71,7 @@ private struct CourseSheetForm: View {
         }
         RecordPicker(
           label: "Instructor", placeholder: "Select an instructor...",
+          searchPrompt: "Search instructors...",
           addLabel: "Add instructor...", rows: lookups.people, selection: instructor
         ) { made in
           NewPersonSheet(onCreated: made)

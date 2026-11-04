@@ -22,6 +22,19 @@ extension FormPicker {
     self == .cylinder ? "Select a cylinder..." : placeholder(holdsSome: false)
   }
 
+  /// What the picker's search field asks for.
+  var searchPrompt: String {
+    switch self {
+    case .course: "Search courses..."
+    case .trip: "Search trips..."
+    case .contact: "Search dive centers..."
+    case .diveSites: "Search dive sites..."
+    case .people: "Search people..."
+    case .gear: "Search gear..."
+    case .cylinder: "Search cylinders..."
+    }
+  }
+
   /// What the + that creates a record of the picker's kind is called.
   var addLabel: String {
     switch self {

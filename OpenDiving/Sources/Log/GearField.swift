@@ -22,7 +22,7 @@ struct GearField: View {
     // Waits for the picker to close: a set goes on to a dialog or the checklist's own sheet.
     .sheet(isPresented: $choosingSet, onDismiss: loadChosenSet) {
       PickerSheet(
-        title: "Load a gear set...",
+        title: "Load a gear set...", searchPrompt: "Search gear sets...",
         rows: { LookupsModel.matching(model.lookups.gearSets, $0).map(Self.row) },
         addLabel: nil, addSheet: { _ in EmptyView() },
         onPick: { ref in chosenSet = model.lookups.gearSets.first { $0.ref == ref } })
