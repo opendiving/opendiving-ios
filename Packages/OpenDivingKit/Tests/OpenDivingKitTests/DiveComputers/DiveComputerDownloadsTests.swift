@@ -63,6 +63,31 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== first)
   }
 
+  /// A computer's page covers the screen, which closes its model: the page's *Forget* reaches
+  /// whichever model is current, and the next visit lists what is left.
+  @Test func forgettingFromAPageThatCoveredTheScreenHoldsOnTheNextVisit() async throws {
+    let link = FakeDiveComputerLink()
+    let (downloads, _) = try await downloads(link)
+    let store = DiveComputerStore(
+      store: ServerStateStore(
+        root: root, secrets: InMemorySecretStore(),
+        activeOrigin: InMemoryActiveOriginStore(ImportServer.origin)),
+      origin: ImportServer.origin, account: ImportServer.accountA)
+    let record = DiveComputerRecord(identity: F.perdix)
+    try store.save(record)
+    downloads.screenAppeared()
+    await downloads.model.watch()
+    #expect(downloads.model.paired.map(\.id) == [record.id])
+
+    downloads.screenDisappeared()
+    downloads.model.forget(record)
+    downloads.screenAppeared()
+    await downloads.model.watch()
+
+    #expect(downloads.model.paired.isEmpty)
+    #expect(store.records().isEmpty)
+  }
+
   @Test func leavingMidDownloadKeepsItAndTheButtonShowsUntilTheScreenIsSeen() async throws {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
