@@ -38,9 +38,9 @@ struct PeopleField: View {
           Button("Move \(row.title) down") { model.change { $0.people.swapAt(index, index + 1) } }
         }
       }
+      .swipeToDelete { model.removePerson(reference.person) }
     }
     .onMove { from, to in model.change { $0.people.move(fromOffsets: from, toOffset: to) } }
-    .onDelete { offsets in offsets.map { people[$0].person }.forEach(model.removePerson) }
     Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
       .sheet(isPresented: $picking) {
         RecordPickerSheet(

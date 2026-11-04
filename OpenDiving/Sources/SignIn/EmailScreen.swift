@@ -16,7 +16,7 @@ struct EmailScreen: View {
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
       Section {
@@ -38,7 +38,7 @@ struct EmailScreen: View {
       if let error = flow.emailError {
         Section {
           Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
       Section {
@@ -77,6 +77,7 @@ struct EmailScreen: View {
             }
           case .forgetServer:
             Button("Forget this server", role: .destructive) { forgetting = origin }
+              .foregroundStyle(Color.danger)
           }
         }
       } footer: {

@@ -40,6 +40,7 @@ struct TagsField: View {
       TextField(tags.isEmpty ? "Add a tag..." : "Add another tag...", text: $text)
         .textInputAutocapitalization(.never)
         .focused($focused)
+        .padding(.top, tags.isEmpty ? 0 : 6)
         .submitLabel(.return)
         .onSubmit {
           guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }

@@ -27,9 +27,9 @@ struct DiveSitesField: View {
           Button("Move \(row.title) down") { model.moveSite(ref, by: 1) }
         }
       }
+      .swipeToDelete { model.removeSite(ref) }
     }
     .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
-    .onDelete { offsets in offsets.map { sites[$0] }.forEach(model.removeSite) }
     Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
       .sheet(isPresented: $picking) {
         RecordPickerSheet(model: model, picker: .diveSites) { ref in

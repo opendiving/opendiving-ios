@@ -21,13 +21,13 @@ struct RecordSheetForm<Content: View>: View {
         if let failure {
           Section {
             Label(failure, systemImage: "exclamationmark.triangle")
-              .foregroundStyle(.red)
+              .foregroundStyle(Color.danger)
           }
         }
         content
         if let saveError {
           Section {
-            Text(saveError).foregroundStyle(.red)
+            Text(saveError).foregroundStyle(Color.danger)
           }
         }
       }

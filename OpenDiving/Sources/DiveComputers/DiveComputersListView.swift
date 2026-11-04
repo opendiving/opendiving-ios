@@ -28,10 +28,11 @@ struct DiveComputersListView: View {
             Button(DiveComputerText.downloadAllNextTime) { model.downloadAllNextTime(record) }
           }
           Button(DiveComputerText.forget, role: .destructive) { forgetting = record }
+            .foregroundStyle(Color.danger)
         }
       }
       if let error = model.error {
-        Text(error).foregroundStyle(.red)
+        Text(error).foregroundStyle(Color.danger)
       }
     }
     .navigationTitle(DiveComputerText.settingsRow)

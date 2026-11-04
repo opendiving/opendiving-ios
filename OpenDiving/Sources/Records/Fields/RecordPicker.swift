@@ -60,6 +60,7 @@ struct RecordPickerList<Row: LookupRow>: View {
             selection = nil
             dismiss()
           }
+          .foregroundStyle(Color.danger)
         }
       }
       Section {

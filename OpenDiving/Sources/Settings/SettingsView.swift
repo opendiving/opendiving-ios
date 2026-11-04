@@ -35,7 +35,7 @@ private struct SettingsList: View {
           }
           if let error = model.error {
             Label(error, systemImage: "exclamationmark.triangle")
-              .foregroundStyle(.red)
+              .foregroundStyle(Color.danger)
           }
           NavigationLink("Change server") {
             // A notice from an earlier visit is not this one's; one set while here, by a page

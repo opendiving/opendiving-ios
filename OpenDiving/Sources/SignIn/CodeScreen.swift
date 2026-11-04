@@ -27,7 +27,7 @@ struct CodeScreen: View {
         }
         if let error = flow.codeError {
           Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       } header: {
         Text("Enter the code from the email")

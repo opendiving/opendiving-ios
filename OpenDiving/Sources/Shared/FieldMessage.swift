@@ -13,7 +13,7 @@ struct FieldMessage: View {
   var body: some View {
     Text(text)
       .font(.footnote)
-      .foregroundStyle(isNote ? Color.secondary : Color.red)
+      .foregroundStyle(isNote ? Color.secondary : Color.danger)
       .fixedSize(horizontal: false, vertical: true)
   }
 }

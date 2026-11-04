@@ -8,7 +8,7 @@ struct SaveGearSetRow: View {
   @State private var saving = false
 
   var body: some View {
-    Button("Save as set", systemImage: "bookmark") { saving = true }
+    Button("Save as set") { saving = true }
       .disabled(model.values.gearItems.isEmpty)
       .sheet(isPresented: $saving) {
         SaveGearSetSheet(items: model.values.gearItems, weight: model.values.weight) { _ in }

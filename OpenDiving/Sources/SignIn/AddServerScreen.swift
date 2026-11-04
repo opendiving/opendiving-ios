@@ -43,7 +43,7 @@ struct AddServerScreen: View {
       if let problem = flow.serverProblem {
         Section {
           Label(problem.message, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
       Section {
@@ -64,6 +64,7 @@ struct AddServerScreen: View {
       {
         Section {
           Button("Forget this server", role: .destructive) { forgetting = origin }
+            .foregroundStyle(Color.danger)
             .disabled(flow.signingOut != nil)
         } footer: {
           Text(ForgetServerConfirmation.heldMessage(origin))

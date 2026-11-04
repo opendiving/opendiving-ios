@@ -76,7 +76,7 @@ struct DiveComputerDownloadButtonLabel: View {
     switch content.state {
     case .working, .waiting: Self.coral
     case .succeeded: .brandTeal
-    case .failed: .red
+    case .failed: .danger
     }
   }
 

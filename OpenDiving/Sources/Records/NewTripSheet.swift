@@ -172,6 +172,7 @@ private struct TripPartSection: View {
         }
         Spacer()
         Button("Remove", systemImage: "trash", role: .destructive, action: remove)
+          .foregroundStyle(Color.danger)
           .accessibilityLabel("Remove part \(index + 1)")
       }
       .labelStyle(.iconOnly)
@@ -208,6 +209,7 @@ private struct TripPartPlaceScreen: View {
           onUse(nil)
           dismiss()
         }
+        .foregroundStyle(Color.danger)
       }
     }
     .navigationTitle("Location")

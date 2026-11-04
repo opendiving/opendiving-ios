@@ -77,7 +77,7 @@ private struct StatusLine: View {
   var body: some View {
     Text(text)
       .font(.caption)
-      .foregroundStyle(refused ? Color.red : Color.secondary)
+      .foregroundStyle(refused ? Color.danger : Color.secondary)
   }
 }
 

@@ -18,7 +18,7 @@ struct DiveFormScreen: View {
         if let sentence = model.serverSentence {
           Section {
             Label(sentence, systemImage: "exclamationmark.triangle")
-              .foregroundStyle(.red)
+              .foregroundStyle(Color.danger)
           }
         }
         if let onContinueDraft, model.mode == .create, !model.isTouched,
@@ -31,6 +31,7 @@ struct DiveFormScreen: View {
             Text("These are the changes you made earlier and did not save.")
               .foregroundStyle(.secondary)
             Button("Discard changes", role: .destructive) { model.discardEdit() }
+              .foregroundStyle(Color.danger)
           }
         }
         ForEach(model.sections, id: \.self) { group in
@@ -46,6 +47,7 @@ struct DiveFormScreen: View {
         if model.draft != nil {
           Section {
             Button("Discard draft", role: .destructive) { confirmsDiscard = true }
+              .foregroundStyle(Color.danger)
           } footer: {
             Text(
               "Saved as a draft. It reaches your server when the phone can, and opens on the web as you left it."

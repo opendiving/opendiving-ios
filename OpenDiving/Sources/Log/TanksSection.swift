@@ -58,7 +58,7 @@ private struct TankCard: View {
       Button(role: .destructive) {
         model.removeTank(index)
       } label: {
-        Image(systemName: "trash")
+        Image(systemName: "trash").foregroundStyle(Color.danger)
       }
       .buttonStyle(.borderless)
       .accessibilityLabel("Remove tank \(index + 1)")

@@ -8,20 +8,26 @@ struct GearField: View {
   @Bindable var model: DiveFormModel
 
   @State private var picking = false
+  @State private var choosingSet = false
+  @State private var chosenSet: GearSetRow?
   @State private var replacing: GearSetRow?
 
   var body: some View {
     let gear = model.values.gearItems
-    Menu {
-      ForEach(model.lookups.gearSets, id: \.ref) { set in
-        Button(DiveFormModel.setLabel(set)) { pick(set) }
-      }
-    } label: {
-      Label(
-        model.lookups.gearSets.isEmpty ? "No gear sets yet" : "Load a gear set...",
-        systemImage: "checklist")
+    Button(model.lookups.gearSets.isEmpty ? "No gear sets yet" : "Load a gear set...") {
+      choosingSet = true
     }
     .disabled(model.lookups.gearSets.isEmpty)
+    // Waits for the picker to close: a set goes on to a dialog or the checklist's own sheet.
+    .sheet(
+      isPresented: $choosingSet,
+      onDismiss: {
+        if let chosenSet { pick(chosenSet) }
+        chosenSet = nil
+      }
+    ) {
+      GearSetPickerSheet(sets: model.lookups.gearSets) { chosenSet = $0 }
+    }
     if let checklist = model.checklist, model.gearSet != nil {
       Button("Checklist: \(checklist.name)", systemImage: "checkmark.circle") {
         model.reopenChecklist()

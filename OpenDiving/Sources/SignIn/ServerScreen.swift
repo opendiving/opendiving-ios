@@ -44,6 +44,7 @@ struct ServerScreen: View {
           .swipeActions {
             if server.canForget {
               Button("Forget", role: .destructive) { forgetting = server.origin }
+                .tint(.dangerFill)
             }
           }
         }

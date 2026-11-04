@@ -53,7 +53,7 @@ struct BadgeView: View {
     case .outline: .clear
     case .teal: .brandTeal
     case .coral: .orange
-    case .destructive: .red
+    case .destructive: .dangerFill
     }
   }
 }

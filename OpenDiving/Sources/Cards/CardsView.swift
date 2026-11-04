@@ -113,7 +113,7 @@ private struct CheckinSheetScreen: View {
       if let error = model.refreshError {
         Text(error)
           .font(.footnote)
-          .foregroundStyle(.red)
+          .foregroundStyle(Color.danger)
       }
       if !model.isSignedIn {
         Button("Sign in to refresh") { dismiss() }

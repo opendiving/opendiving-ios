@@ -19,6 +19,7 @@ struct DiveComputerPage: View {
       }
       Section {
         Button(DiveComputerText.forget, role: .destructive) { forgetting = record }
+          .foregroundStyle(Color.danger)
           .forgetDiveComputerConfirmation(record: $forgetting) { _ in forget() }
       }
     }
