@@ -34,12 +34,13 @@ struct DiveComputerModelTests {
   }
 
   private func model(
-    _ session: Session, _ inbox: InboxModel, _ link: FakeDiveComputerLink
+    _ session: Session, _ inbox: InboxModel, _ link: FakeDiveComputerLink,
+    now: Date = DiveComputerFixtures.moment
   ) -> DiveComputerModel {
     inbox.sessionChanged()
     return DiveComputerModel(
       session: session, inbox: inbox, link: link, generator: F.generator,
-      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
+      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { now },
       zone: F.helsinki)
   }
 
@@ -278,6 +279,7 @@ struct DiveComputerModelTests {
     model.connect(try await scanned(model))
     for _ in 0..<1000 where model.phase != .askingTimeZone { await Task.yield() }
     #expect(model.phase == .askingTimeZone)
+    #expect(model.suggestedZone == F.helsinki)
     #expect(inbox.files.isEmpty)
     #expect(log.all == ["begin", "end"])
 
@@ -285,16 +287,12 @@ struct DiveComputerModelTests {
     model.answerTimeZone(tokyo)
     await model.settled()
     #expect(log.all == ["begin", "end", "begin", "end"])
-    let record = try #require(
-      computers(session).record(family: .suuntoNautic, serial: "253810000400"))
-    #expect(record.diverZone == tokyo)
-    #expect(record.watchZone == nil)
     let file = try #require(inbox.files.first)
     let started = try startedAt(inbox, file)
     #expect(started == ["2026-10-26T19:00:00+09:00", "2026-10-24T19:00:00+09:00"])
   }
 
-  @Test func theWatchsZoneIsUsedAndKeptWithNoQuestion() async throws {
+  @Test func divesUnderADayOldTakeTheWatchsZoneWithNoQuestion() async throws {
     let session = try await session(try ImportServer())
     let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
@@ -303,14 +301,44 @@ struct DiveComputerModelTests {
     let model = model(session, inbox, link)
     try await download(model)
     #expect(log.all == ["begin", "end"])
-    let record = try #require(
-      computers(session).record(family: .suuntoNautic, serial: "253810000400"))
-    #expect(record.watchZone == F.helsinki)
-    #expect(record.diverZone == nil)
     #expect(
       try startedAt(inbox, try #require(inbox.files.first)) == [
         "2026-10-26T12:00:00+02:00", "2026-10-24T13:00:00+03:00",
       ])
+  }
+
+  /// The watch shows where it is now, so a dive over a day old may have been somewhere else; the
+  /// answer stands for its download alone, and the next recent dive takes the watch's zone again.
+  @Test func anOlderDiveAsksOfferingTheWatchsZoneAndTheAnswerIsNotKept() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let dubai = try #require(TimeZone(identifier: "Asia/Dubai"))
+    let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
+    link.scripts = [
+      FakeDiveComputerLink.script(F.ocean, Array(F.oceanDownload.suffix(1)), zone: dubai)
+    ]
+    let older = model(
+      session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
+    older.connect(try await scanned(older))
+    await until { older.phase == .askingTimeZone }
+    #expect(older.phase == .askingTimeZone)
+    #expect(older.suggestedZone == dubai)
+    older.answerTimeZone(tokyo)
+    await older.settled()
+    #expect(try startedAt(inbox, try #require(inbox.files.first)) == ["2026-10-24T19:00:00+09:00"])
+
+    let nextLink = FakeDiveComputerLink()
+    nextLink.found = [F.oceanFound]
+    nextLink.scripts = [
+      FakeDiveComputerLink.script(F.ocean, Array(F.oceanDownload.prefix(1)), zone: dubai)
+    ]
+    let recent = model(session, inbox, nextLink)
+    try await download(recent)
+    #expect(recent.outcome?.kind == .handedOver)
+    #expect(
+      try startedAt(inbox, try #require(inbox.files.first)).contains("2026-10-26T14:00:00+04:00"))
   }
 
   @Test func aSharedArchiveWaitingOrAnAccountLoadingStartsNothing() async throws {
@@ -619,7 +647,6 @@ struct DiveComputerModelTests {
     #expect(paired.fingerprint == nil)
     #expect(paired.lastDownloaded == nil)
     #expect(paired.nauticSports == first)
-    #expect(paired.watchZone == F.helsinki)
     #expect(paired.peripheral == F.oceanFound.id)
     #expect(model.paired.map(\.title) == ["Suunto Ocean"])
 
@@ -664,7 +691,6 @@ struct DiveComputerModelTests {
       computers(session).record(family: .suuntoNautic, serial: "253810000400"))
     #expect(record.fingerprint == nil)
     #expect(record.lastDownloaded == nil)
-    #expect(record.diverZone == nil)
     #expect(record.nauticSports == sports)
   }
 

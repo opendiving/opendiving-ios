@@ -125,8 +125,9 @@ public final class DiveComputerModel {
   /// The listing counts from the stored fingerprint, rather than the whole computer.
   public private(set) var listedFromFingerprint = false
   public private(set) var outcome: Outcome?
-  /// The zone the time-zone question offers first: the phone's.
-  public let suggestedZone: TimeZone
+  /// The zone the time-zone question offers first: the watch's where this download reported
+  /// one, else the phone's.
+  public private(set) var suggestedZone: TimeZone
 
   /// The computers found that are not paired.
   public var unpairedRows: [Row] { rows.filter { $0.recordID == nil } }
@@ -187,6 +188,7 @@ public final class DiveComputerModel {
   @ObservationIgnored private let writer: ComputerArchiveWriter
   @ObservationIgnored private let workFolder: URL
   @ObservationIgnored private let now: @Sendable () -> Date
+  @ObservationIgnored private let phoneZone: TimeZone
   @ObservationIgnored private var scanTask: Task<Void, Never>?
   @ObservationIgnored private var downloadTask: Task<Void, Never>?
   @ObservationIgnored private var zoneAnswer: CheckedContinuation<TimeZone?, Never>?
@@ -194,6 +196,10 @@ public final class DiveComputerModel {
   @ObservationIgnored private var lastComputer: FoundComputer?
   /// The diver cancelled before the link's walk began.
   @ObservationIgnored private var cancelRequested = false
+
+  /// How long the watch's zone stands for a dive: a diver waits about a day to fly, so a dive
+  /// younger than this was in the zone the watch shows now, and an older one may not have been.
+  private static let watchZoneHolds: TimeInterval = 24 * 60 * 60
 
   /// `workFolder` is where archives are written before the inbox takes them; `now` and `zone`
   /// are the clock and the phone's zone, which a test fixes.
@@ -211,6 +217,7 @@ public final class DiveComputerModel {
       ?? FileManager.default.temporaryDirectory.appendingPathComponent(
         "DiveComputerDownloads", isDirectory: true)
     self.now = now
+    phoneZone = zone
     suggestedZone = zone
   }
 
@@ -271,14 +278,14 @@ public final class DiveComputerModel {
         computer: computer, title: record?.title ?? computer.title,
         subtitle: DiveComputerText.subtitle(
           serial: record?.serial ?? computer.advertisedSerial,
-          lastDownloaded: record?.lastDownloaded, in: suggestedZone),
+          lastDownloaded: record?.lastDownloaded, in: phoneZone),
         recordID: record?.id)
     }
     paired = (store?.records() ?? []).map { record in
       Paired(
         record: record, title: record.title,
         subtitle: DiveComputerText.subtitle(
-          serial: record.serial, lastDownloaded: record.lastDownloaded, in: suggestedZone),
+          serial: record.serial, lastDownloaded: record.lastDownloaded, in: phoneZone),
         row: rows.first { $0.recordID == record.id })
     }
   }
@@ -317,8 +324,8 @@ public final class DiveComputerModel {
     }
   }
 
-  /// The diver's answer to *Which time zone were these dives in?*, kept as theirs for the
-  /// computer.
+  /// The diver's answer to *Which time zone were these dives in?*, for this download's dives
+  /// and no later ones.
   public func answerTimeZone(_ zone: TimeZone) {
     zoneAnswer?.resume(returning: zone)
     zoneAnswer = nil
@@ -416,7 +423,7 @@ public final class DiveComputerModel {
       switch event {
       case .identified(let found):
         identity = found
-        pair(found, computer: computer, watchZone: watchZone, store: store)
+        pair(found, computer: computer, store: store)
       case .watchZone(let zone):
         watchZone = zone
       case .busy(.reported):
@@ -468,16 +475,13 @@ public final class DiveComputerModel {
     // fingerprint unmoved.
     func rememberListed(_ identity: DiveComputerIdentity) {
       guard listing != nil, inbox.keeping?.account == store.account else { return }
-      try? store.save(
-        remembered(
-          record, identity: identity, computer: computer, watchZone: watchZone, sports: sports))
+      try? store.save(remembered(record, identity: identity, computer: computer, sports: sports))
     }
     guard let identity, !dives.isEmpty else {
       if let identity, (advances && newest != nil) || listing != nil,
         inbox.keeping?.account == store.account
       {
-        var kept = remembered(
-          record, identity: identity, computer: computer, watchZone: watchZone, sports: sports)
+        var kept = remembered(record, identity: identity, computer: computer, sports: sports)
         if advances, let newest {
           kept.fingerprint = newest
           kept.downloadAllNextTime = false
@@ -489,13 +493,16 @@ public final class DiveComputerModel {
     }
 
     var token = await session.background.begin(name: "Keeping the dives just downloaded")
-    var diverZone = record?.diverZone
-    let needsZone = dives.contains {
-      if case .instant? = $0.dive?.start { return true }
-      return false
-    }
-    if needsZone, diverZone == nil, watchZone == nil {
+    var instantZone = watchZone
+    let oldestInstant = dives.compactMap { dive -> Date? in
+      if case .instant(let instant)? = dive.dive?.start { return instant }
+      return nil
+    }.min()
+    if let oldestInstant,
+      watchZone == nil || now().timeIntervalSince(oldestInstant) > Self.watchZoneHolds
+    {
       await session.background.end(token)
+      suggestedZone = watchZone ?? phoneZone
       phase = .askingTimeZone
       let answer = await withCheckedContinuation { zoneAnswer = $0 }
       guard let answer else {
@@ -504,7 +511,7 @@ public final class DiveComputerModel {
         phase = .finished
         return
       }
-      diverZone = answer
+      instantZone = answer
       token = await session.background.begin(name: "Keeping the dives just downloaded")
     }
     defer { phase = .finished }
@@ -512,8 +519,7 @@ public final class DiveComputerModel {
     let folder = workFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: folder) }
     let download = ComputerArchiveWriter.Download(
-      identity: identity, dives: dives, moment: now(), zone: suggestedZone,
-      instantZone: diverZone ?? watchZone)
+      identity: identity, dives: dives, moment: now(), zone: phoneZone, instantZone: instantZone)
     let writer = writer
     let written: ComputerArchiveWriter.Written
     do {
@@ -530,9 +536,7 @@ public final class DiveComputerModel {
     let parsed = dives.count - refused
     switch intake {
     case .kept(let account, _) where account == store.account:
-      var kept = remembered(
-        record, identity: identity, computer: computer, watchZone: watchZone, sports: sports)
-      kept.diverZone = diverZone
+      var kept = remembered(record, identity: identity, computer: computer, sports: sports)
       if advances, let newest {
         kept.fingerprint = newest
         kept.lastDownloaded = download.moment
@@ -555,21 +559,19 @@ public final class DiveComputerModel {
   /// Saves the record of the computer just identified, under the account rule every save keeps,
   /// so it is paired while the download runs.
   private func pair(
-    _ identity: DiveComputerIdentity, computer: FoundComputer, watchZone: TimeZone?,
-    store: DiveComputerStore
+    _ identity: DiveComputerIdentity, computer: FoundComputer, store: DiveComputerStore
   ) {
     guard inbox.keeping?.account == store.account else { return }
     let record = store.record(family: identity.family, serial: identity.serial)
-    try? store.save(
-      remembered(record, identity: identity, computer: computer, watchZone: watchZone, sports: nil))
+    try? store.save(remembered(record, identity: identity, computer: computer, sports: nil))
     rebuildRows()
   }
 
   /// The record as this walk leaves it, before the fingerprint moves: the identity as the
-  /// computer gave it, where the phone saw it, the watch's zone, the entries' sports.
+  /// computer gave it, where the phone saw it, the entries' sports.
   private func remembered(
     _ record: DiveComputerRecord?, identity: DiveComputerIdentity, computer: FoundComputer,
-    watchZone: TimeZone?, sports: [NauticEntrySport]?
+    sports: [NauticEntrySport]?
   ) -> DiveComputerRecord {
     var kept = record ?? DiveComputerRecord(identity: identity)
     kept.vendor = identity.vendor
@@ -577,7 +579,6 @@ public final class DiveComputerModel {
     kept.firmware = identity.firmware ?? kept.firmware
     kept.hardware = identity.hardware ?? kept.hardware
     kept.peripheral = computer.id
-    if let watchZone { kept.watchZone = watchZone }
     if let sports { kept.nauticSports = sports }
     kept.receivedBeforeAccountKnown = inbox.keeping?.marked ?? false
     return kept
@@ -605,7 +606,7 @@ public final class DiveComputerModel {
       let unionFolder = folder.appendingPathComponent("union", isDirectory: true)
       let writer = writer
       let moment = now()
-      let zone = suggestedZone
+      let zone = phoneZone
       let union: ComputerArchiveWriter.Written
       do {
         union = try await Task.detached {
@@ -643,7 +644,7 @@ public final class DiveComputerModel {
     case .complete:
       if let record, record.fingerprintToSet != nil {
         var sentence = DiveComputerText.nothingNew(
-          since: record.lastDownloaded ?? now(), in: suggestedZone)
+          since: record.lastDownloaded ?? now(), in: phoneZone)
         if let listing { sentence += " " + DiveComputerText.onComputer(listing.dives) + "." }
         outcome = Outcome(kind: .nothingNew, sentence: sentence)
       } else {

@@ -63,11 +63,18 @@
     },
     {
       // Moves with libdc-swift, onto the release built for its libdivecomputer commit
-      // (CONTRIBUTING.md, "The two pins move together"), and `THIRD-PARTY-NOTICES.md` names the
+      // (CONTRIBUTING.md, "The two libdivecomputer pins move together"), and `THIRD-PARTY-NOTICES.md` names the
       // release's commit. A bump on its own fails the pins job, so the dashboard asks and a
       // person moves both. Its tags carry a `v` that `project.yml`'s version does not.
       "matchPackageNames": ["divejson/divejson-c"],
       "extractVersion": "^v(?<version>.+)$",
+      "dependencyDashboardApproval": true,
+    },
+    {
+      // A move is more than the pin: `LICENSE-MapLibre.md` is the release's own notices, and
+      // `THIRD-PARTY-NOTICES.md` names its commit. A green build checks neither, so the dashboard
+      // asks and a person makes the change.
+      "matchPackageNames": ["maplibre/maplibre-gl-native-distribution"],
       "dependencyDashboardApproval": true,
     },
     {

@@ -23,7 +23,6 @@ struct DiveComputerView: View {
 /// Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
-  @State private var zone: TimeZone = .current
   @State private var showsImport = false
   @State private var showing: DiveComputerRecord?
 
@@ -59,9 +58,6 @@ struct DiveComputerScreen: View {
       if downloads.screenAppeared()?.kind == .handedOver { showsImport = true }
     }
     .onDisappear { downloads.screenDisappeared() }
-    .onChange(of: model.phase) { _, phase in
-      if phase == .askingTimeZone { zone = model.suggestedZone }
-    }
     .onChange(of: model.outcome) { _, outcome in
       if outcome?.kind == .handedOver { showsImport = true }
     }
@@ -126,11 +122,7 @@ struct DiveComputerScreen: View {
         Text(DiveComputerText.lockHint)
       }
     case .askingTimeZone:
-      Section(DiveComputerText.timeZoneQuestion) {
-        TimeZonePicker(title: "Time zone", selection: $zone)
-        Button("Continue") { model.answerTimeZone(zone) }
-        Button("Cancel", role: .cancel) { model.cancel() }
-      }
+      TimeZoneQuestion(model: model)
     case .finished:
       if let outcome = model.outcome {
         Section {
@@ -207,6 +199,26 @@ struct DiveComputerScreen: View {
 private struct PairedRowButtonStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.label.opacity(configuration.isPressed ? 0.5 : 1)
+  }
+}
+
+/// *Which time zone were these dives in?*, opening on the zone the model offers, whether the
+/// question opens under the diver or was already open when they came back to the screen.
+private struct TimeZoneQuestion: View {
+  let model: DiveComputerModel
+  @State private var zone: TimeZone
+
+  init(model: DiveComputerModel) {
+    self.model = model
+    _zone = State(initialValue: model.suggestedZone)
+  }
+
+  var body: some View {
+    Section(DiveComputerText.timeZoneQuestion) {
+      TimeZonePicker(title: "Time zone", selection: $zone)
+      Button("Continue") { model.answerTimeZone(zone) }
+      Button("Cancel", role: .cancel) { model.cancel() }
+    }
   }
 }
 

@@ -30,8 +30,8 @@ public struct ComputerArchiveWriter: Sendable {
     /// When it was downloaded, and the phone's zone, which the names and `exported_at` use.
     public let moment: Date
     public let zone: TimeZone
-    /// The zone an instant start is written in: the diver's for this computer where set, else
-    /// the watch's. Needed only where a dive's start is an instant.
+    /// The zone an instant start is written in: the diver's answer for this download, else the
+    /// watch's. Needed only where a dive's start is an instant.
     public let instantZone: TimeZone?
 
     public init(
