@@ -11,12 +11,14 @@ struct EmailScreen: View {
   let showPending: () -> Void
   @State private var forgetting: ServerOrigin?
 
+  @FocusState private var focused: Bool
+
   var body: some View {
     Form {
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
       Section {
@@ -29,16 +31,17 @@ struct EmailScreen: View {
         .autocorrectionDisabled()
         .submitLabel(.send)
         .onSubmit(send)
+        .focused($focused)
         .accessibilityLabel("Email")
       } header: {
-        Text("Email")
+        Text("Email").focusesOnTap($focused)
       } footer: {
         Text("We'll email you a six-digit sign-in code.")
       }
       if let error = flow.emailError {
         Section {
           Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
       Section {
@@ -77,12 +80,14 @@ struct EmailScreen: View {
             }
           case .forgetServer:
             Button("Forget this server", role: .destructive) { forgetting = origin }
+              .dangerRow()
           }
         }
       } footer: {
         Text(KeptText.signedOutFooter(origin))
       }
     }
+    .background(TapEndsTyping())
     .navigationTitle("Sign In")
     .task { await flow.session.loadServerInfo() }
     .forgetServerConfirmation(origin: $forgetting) { origin in

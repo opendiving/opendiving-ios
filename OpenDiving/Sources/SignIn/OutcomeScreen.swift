@@ -18,7 +18,7 @@ struct OutcomeScreen: View {
     } actions: {
       if let origin {
         Link("Open " + origin.description, destination: origin.url)
-          .buttonStyle(.borderedProminent)
+          .brandProminentButton()
       }
       Button("Back", action: back)
         .buttonStyle(.bordered)

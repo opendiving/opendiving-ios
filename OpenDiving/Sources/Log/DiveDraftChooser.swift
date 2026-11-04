@@ -15,12 +15,12 @@ struct DiveDraftChooser: View {
         } label: {
           VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
-              Text(row.title).foregroundStyle(.primary)
+              Text(row.title).foregroundStyle(Color.primary)
               if row.isPending { PendingMark() }
             }
             Text(row.detail)
               .font(.subheadline)
-              .foregroundStyle(.secondary)
+              .foregroundStyle(Color.secondary)
           }
         }
       }

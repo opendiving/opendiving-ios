@@ -75,14 +75,14 @@ struct ImportView: View {
       }
       Section {
         if let refusal = inbox.selectionRefusal {
-          Text(refusal).foregroundStyle(.red)
+          Text(refusal).foregroundStyle(Color.danger)
         }
         if !inbox.isAccountLoaded {
           Text("The files are read once your account has loaded.")
             .foregroundStyle(.secondary)
         }
         if let error = inbox.readError {
-          Text(error).foregroundStyle(.red)
+          Text(error).foregroundStyle(Color.danger)
         }
         if let waiting = inbox.waitingForRoute {
           Text(waiting).foregroundStyle(.secondary)
@@ -90,7 +90,7 @@ struct ImportView: View {
         if inbox.read?.stale == true {
           Text(ImportText.staleSentence).foregroundStyle(.secondary)
         } else if let refusal = inbox.read?.refusal {
-          Text(refusal).foregroundStyle(.red)
+          Text(refusal).foregroundStyle(Color.danger)
         }
         if inbox.phase == .reading {
           HStack(spacing: 8) {
@@ -100,6 +100,7 @@ struct ImportView: View {
         }
         if let title = readTitle {
           Button(title) { inbox.readAgain() }
+            .accentRow()
             .disabled(!inbox.canRead)
         }
         Button("Remove all", role: .destructive) {
@@ -109,6 +110,7 @@ struct ImportView: View {
             inbox.removeAll()
           }
         }
+        .dangerRow()
         .disabled(inbox.phase != .idle)
         .confirmationDialog(
           "Remove all files?", isPresented: $confirmingRemoveAll, titleVisibility: .visible
@@ -122,7 +124,7 @@ struct ImportView: View {
 
     if let error = inbox.applyError {
       Section {
-        Text(error).foregroundStyle(.red)
+        Text(error).foregroundStyle(Color.danger)
       }
     }
 

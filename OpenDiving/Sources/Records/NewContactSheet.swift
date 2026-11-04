@@ -40,7 +40,7 @@ private struct ContactSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Contact", createLabel: "Create contact", isReopened: model.isReopened,
+      title: "New Contact", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {
@@ -51,6 +51,7 @@ private struct ContactSheetForm: View {
       Section("Roles") {
         ForEach(FormVocabulary.contactRoles, id: \.self) { role in
           Toggle(RecordSheetText.contactRole(role), isOn: ticked(role))
+            .tint(.brandTeal)
         }
       }
       Section {
@@ -106,9 +107,9 @@ private struct ContactSheetForm: View {
         }
       }
       Section {
-        TextBox(
-          label: "Notes", placeholder: "Opening hours, who to ask for, what to bring...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+        NotesField(
+          placeholder: "Opening hours, who to ask for, what to bring...", text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
     .showsMapStyle(map)

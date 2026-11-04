@@ -9,6 +9,8 @@ struct AddServerScreen: View {
   @State private var forgetting: ServerOrigin?
   @Environment(\.dismiss) private var dismiss
 
+  @FocusState private var focused: Bool
+
   var body: some View {
     Form {
       // What the *Forget* below did, as the servers screen shows it.
@@ -34,16 +36,17 @@ struct AddServerScreen: View {
         .submitLabel(.continue)
         .onSubmit(proceed)
         .disabled(flow.isValidating)
+        .focused($focused)
         .accessibilityLabel("Server address")
       } header: {
-        Text("Server")
+        Text("Server").focusesOnTap($focused)
       } footer: {
         Text("The address of an OpenDiving API server.")
       }
       if let problem = flow.serverProblem {
         Section {
           Label(problem.message, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
       Section {
@@ -64,12 +67,14 @@ struct AddServerScreen: View {
       {
         Section {
           Button("Forget this server", role: .destructive) { forgetting = origin }
+            .dangerRow()
             .disabled(flow.signingOut != nil)
         } footer: {
           Text(ForgetServerConfirmation.heldMessage(origin))
         }
       }
     }
+    .background(TapEndsTyping())
     .navigationTitle("Add Server")
     .forgetServerConfirmation(origin: $forgetting) { origin in
       Task { await flow.forget(origin) }

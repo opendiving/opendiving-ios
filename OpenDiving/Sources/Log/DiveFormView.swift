@@ -22,6 +22,7 @@ struct DiveFormView: View {
         EmptyOrErrorView(status: .loading)
       }
     }
+    .toolbar(.hidden, for: .tabBar)
     .task {
       guard model == nil else { return }
       await open(mode.form)

@@ -9,7 +9,7 @@ struct RatingStars: View {
     HStack(spacing: 1) {
       ForEach(1...Self.maximum, id: \.self) { step in
         Image(systemName: step <= rating ? "star.fill" : "star")
-          .foregroundStyle(step <= rating ? Color.orange : Color.secondary)
+          .foregroundStyle(step <= rating ? Color.brandCoral : Color.secondary)
       }
     }
     .accessibilityElement(children: .ignore)

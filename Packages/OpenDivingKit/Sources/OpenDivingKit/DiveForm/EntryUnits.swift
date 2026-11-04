@@ -17,11 +17,16 @@ public struct EntryUnits: Codable, Hashable, Sendable {
   }
 
   /// The toggle beside a measured field: flips that dimension to the other system, removing the
-  /// override when that is the account's own.
+  /// override when that is the account's own. The lengths move together, since a diver who types
+  /// depth in feet does not type visibility in metres.
   public mutating func toggle(_ measure: Measure, account: UnitSystem) {
-    guard let key = Self.key(measure) else { return }
+    guard Self.key(measure) != nil else { return }
     let next: UnitSystem = units(measure, account: account) == .metric ? .imperial : .metric
-    overrides[key] = next == account ? nil : next
+    let lengths: [Measure] = [.depth, .visibility, .altitude]
+    for member in lengths.contains(measure) ? lengths : [measure] {
+      guard let key = Self.key(member) else { continue }
+      overrides[key] = next == account ? nil : next
+    }
   }
 
   /// A stored value read leniently: a dimension this build does not type into, or a system it

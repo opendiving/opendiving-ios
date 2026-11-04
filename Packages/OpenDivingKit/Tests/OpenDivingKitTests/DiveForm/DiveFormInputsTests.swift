@@ -34,9 +34,33 @@ struct DiveFormInputsTests {
     #expect(DiveDuration.seconds(fromForm: "45") == 2700)
     #expect(DiveDuration.seconds(fromForm: "0") == 0)
     #expect(DiveDuration.seconds(fromForm: DiveDuration.formText(seconds: 125)) == 125)
+    let top = DiveDuration.maxMinutes * 60 + 59
+    #expect(DiveDuration.seconds(fromForm: DiveDuration.formText(seconds: top)) == top)
+    #expect(DiveDuration.seconds(fromForm: "\(DiveDuration.maxMinutes + 1)") == nil)
     for refused in ["", "10:60", "1030", "45:", ":30", "4:5", "abc", "-5", "٤٥"] {
       #expect(DiveDuration.seconds(fromForm: refused) == nil, "\(refused)")
     }
+  }
+
+  @Test func aPercentageOnTheWheels() {
+    let nitrox = PercentWheels(32.5)
+    #expect(nitrox.whole == 32)
+    #expect(nitrox.tenth == 5)
+    #expect(nitrox.percent == 32.5)
+    #expect(nitrox.takesTenths)
+
+    let unrecorded = PercentWheels(nil)
+    #expect(unrecorded.percent == nil)
+    #expect(!unrecorded.takesTenths)
+
+    #expect(PercentWheels(20.95).percent == 21)
+    #expect(PercentWheels(150).percent == 100)
+
+    var full = PercentWheels(99.5)
+    full.whole = 100
+    #expect(full.percent == 100)
+    #expect(full.tenth == 0)
+    #expect(!full.takesTenths)
   }
 
   /// date-time.test.ts:173-189 and utc-offset-select.tsx:11-22.

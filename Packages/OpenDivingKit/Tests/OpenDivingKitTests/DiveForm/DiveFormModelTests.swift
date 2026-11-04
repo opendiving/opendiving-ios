@@ -200,7 +200,6 @@ struct DiveFormModelTests {
     let model = await world.form(.create)
     model.toggleEntryUnits(.depth)
     #expect(model.entryUnits(.depth) == .imperial)
-    #expect(model.label("Maximum depth", .depth) == "Maximum depth (ft)")
     #expect(model.metric(fromEntry: "60", .depth) == 18.29)
     #expect(model.placeholder(30.52, .depth) == "e.g. 100")
     // The toggle is the phone's, and kept.
@@ -432,7 +431,7 @@ struct DiveFormModelTests {
 
     let model = await world.form(.create)
     #expect(model.units == .imperial)
-    #expect(model.label("Maximum depth", .depth) == "Maximum depth (ft)")
+    #expect(model.entryUnits(.depth) == .imperial)
     #expect(!model.shows(.course))
     #expect(!model.isOnline)
     model.change { $0.submergedTime = "40" }
@@ -445,6 +444,23 @@ struct DiveFormModelTests {
   }
 
   // MARK: - The tank hint
+
+  @Test func aTankIsDrawnAsWhatItRecords() async throws {
+    let world = try FormWorld()
+    try await world.loaded()
+    let model = await world.form(.create)
+    model.change {
+      $0.tanks = [
+        TankValues(oxygen: 32, helium: 0),
+        TankValues(oxygen: 21, helium: 0, usage: "parallel"),
+        TankValues(oxygen: 18, helium: 45, usage: "parallel"),
+      ]
+    }
+    #expect(model.tankIcon(0) == TankIcon(kind: .single, gas: .nitrox))
+    #expect(model.tankIcon(1) == TankIcon(kind: .left, gas: .air))
+    #expect(model.tankIcon(2) == TankIcon(kind: .single, gas: .trimix))
+    #expect(model.tankIcon(3) == nil)
+  }
 
   @Test func aSingleTankHintsAtItsEquivalentDepth() async throws {
     let world = try FormWorld()

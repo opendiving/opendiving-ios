@@ -28,21 +28,22 @@ struct NewGearItemSheet: View {
       model: RecordSheetModel(
         outbox: OutboxModel(session: session), values: GearItemFormValues(type: type),
         failedItem: failedItem),
-      lookups: LookupsModel(session: session), units: session.units, onCreated: onCreated)
+      lookups: LookupsModel(session: session), units: RecordEntryUnits(session: session),
+      onCreated: onCreated)
   }
 }
 
 private struct GearItemSheetForm: View {
   @State var model: RecordSheetModel<GearItemFormValues>
   @State var lookups: LookupsModel
-  let units: UnitSystem
+  @State var units: RecordEntryUnits
   let onCreated: (RecordRef) -> Void
 
   @State private var invalid: Set<String> = []
 
   var body: some View {
     RecordSheetForm(
-      title: "New Gear", createLabel: "Create gear", isReopened: model.isReopened,
+      title: "New Gear", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {
@@ -61,16 +62,20 @@ private struct GearItemSheetForm: View {
       }
       if model.values.isCylinder {
         Section {
-          HStack(alignment: .bottom) {
+          HStack {
             DecimalBox(
-              label: "Volume (L)", key: "volume", placeholder: "e.g. 11.1",
+              label: "Volume", key: "volume", placeholder: "e.g. 11.1", unit: "L",
               value: $model.values.volume, invalid: $invalid, message: model.message("volume"))
-            volumePresets
+            VolumePresetsMenu(
+              groups: VolumePresets.groups(for: units.account, recent: lookups.recentVolumes),
+              units: units.account
+            ) { model.values.volume = $0 }
           }
           RecordMeasuredField(
             label: "Working pressure", key: "working_pressure", measure: .pressure,
-            units: units, example: 232, value: $model.values.workingPressure,
-            invalid: $invalid, message: model.message("working_pressure"))
+            units: units.units(.pressure), example: 232, value: $model.values.workingPressure,
+            invalid: $invalid, message: model.message("working_pressure"),
+            onToggle: { units.toggle(.pressure) })
           Picker("Material", selection: $model.values.material) {
             Text("Not recorded").tag(String?.none)
             ForEach(FormVocabulary.cylinderMaterials, id: \.self) { material in
@@ -81,9 +86,10 @@ private struct GearItemSheetForm: View {
       }
       Section {
         Toggle("Rented, not owned", isOn: $model.values.rented)
-        TextBox(
-          label: "Notes", placeholder: "Serial number, service dates, sizing...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+          .tint(.brandTeal)
+        NotesField(
+          placeholder: "Serial number, service dates, sizing...", text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
   }
@@ -96,23 +102,6 @@ private struct GearItemSheetForm: View {
         model.values.setType(type)
         if !model.values.isCylinder { invalid.subtract(["volume", "working_pressure"]) }
       })
-  }
-
-  private var volumePresets: some View {
-    Menu {
-      ForEach(VolumePresets.groups(for: units, recent: lookups.recentVolumes), id: \.title) {
-        group in
-        Section(group.title) {
-          ForEach(group.presets, id: \.self) { preset in
-            Button(preset.label(units)) { model.values.volume = preset.liters }
-          }
-        }
-      }
-    } label: {
-      Image(systemName: "list.bullet")
-        .accessibilityLabel("Common volumes")
-    }
-    .padding(.bottom, 8)
   }
 
   private func save() -> Bool {

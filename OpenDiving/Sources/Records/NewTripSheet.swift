@@ -36,7 +36,7 @@ private struct TripSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Trip", createLabel: "Create trip", isReopened: model.isReopened,
+      title: "New Trip", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {
@@ -55,19 +55,17 @@ private struct TripSheetForm: View {
       }
       ForEach(model.values.parts.indices, id: \.self) { index in
         TripPartSection(
-          part: part(index), index: index, total: model.values.parts.count,
+          part: part(index), index: index,
           contacts: lookups.contacts, places: places, units: units, hasMap: map.hasMap,
           locationMessage: model.message("parts", index: index, member: "location"),
           datesMessage: model.message("parts", index: index, member: "end_date"),
-          remove: { model.values.parts.remove(at: index) },
-          move: { offset in
-            model.values.parts.swapAt(index, index + offset)
-          })
+          remove: { model.values.parts.remove(at: index) })
       }
       Section {
         Button("Add a part", systemImage: "plus") {
           model.values.parts.append(TripPartFormValues())
         }
+        .accentRow()
         .disabled(isFull)
         if isFull {
           Text("\(TripFormValues.maxParts) parts maximum - remove one to add another.")
@@ -91,9 +89,9 @@ private struct TripSheetForm: View {
       }
       RecordPeopleField(people: $model.values.people, rows: lookups.people, defaultRole: nil)
       Section {
-        TextBox(
-          label: "Notes", placeholder: "Any notes about this trip...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+        NotesField(
+          placeholder: "Any notes about this trip...", text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
     .showsMapStyle(map)
@@ -123,7 +121,6 @@ private struct TripSheetForm: View {
 private struct TripPartSection: View {
   @Binding var part: TripPartFormValues
   let index: Int
-  let total: Int
   let contacts: [ContactLookupItem]
   let places: PlaceSearchModel
   let units: UnitSystem
@@ -131,12 +128,11 @@ private struct TripPartSection: View {
   let locationMessage: String?
   let datesMessage: String?
   let remove: () -> Void
-  let move: (Int) -> Void
 
   var body: some View {
     Section {
       VStack(alignment: .leading, spacing: 6) {
-        Text("Location").font(.subheadline.weight(.medium))
+        FieldLabel("Location")
         NavigationLink {
           TripPartPlaceScreen(places: places, units: units) { location in
             part.location = location
@@ -152,6 +148,7 @@ private struct TripPartSection: View {
       }
       RecordPicker(
         label: "Accommodation", placeholder: "Select accommodation...",
+        searchPrompt: "Search accommodation...",
         addLabel: "Add accommodation...", rows: contacts, selection: $part.accommodation
       ) { made in
         NewContactSheet(roles: ["accommodation"], onCreated: made)
@@ -159,21 +156,9 @@ private struct TripPartSection: View {
       CalendarDateField(label: "Start date", date: $part.startDate)
       CalendarDateField(label: "End date", date: $part.endDate)
       FieldMessage(datesMessage)
-      HStack {
-        if total > 1 {
-          Button("Move up", systemImage: "arrow.up") { move(-1) }
-            .disabled(index == 0)
-          Button("Move down", systemImage: "arrow.down") { move(1) }
-            .disabled(index == total - 1)
-        }
-        Spacer()
-        Button("Remove", systemImage: "trash", role: .destructive, action: remove)
-          .accessibilityLabel("Remove part \(index + 1)")
-      }
-      .labelStyle(.iconOnly)
-      .buttonStyle(.borderless)
     } header: {
-      Text("Part \(index + 1)")
+      // Parts are sections, which do not drag; putting them in order stays with the web.
+      RemovableSectionHeader(title: "Part \(index + 1)", onRemove: remove)
     }
   }
 }
@@ -204,6 +189,7 @@ private struct TripPartPlaceScreen: View {
           onUse(nil)
           dismiss()
         }
+        .dangerRow()
       }
     }
     .navigationTitle("Location")

@@ -2,20 +2,20 @@ import OpenDivingKit
 import SwiftUI
 
 /// One section of the form, its fields in the web's order, each where the account shows it:
-/// a measured number with its unit toggle, a menu with *Not recorded* first, the pickers.
+/// a measured number with its unit toggle, a menu with *Not recorded* first, the pickers. The
+/// tanks are not one of these: each is a section of its own, in `TanksSection`.
 struct DiveFormSection: View {
   let group: DiveFormGroup
   let model: DiveFormModel
 
   var body: some View {
     switch group {
-    case .importFiles: EmptyView()
+    case .importFiles, .tanks: EmptyView()
     case .training: training
     case .location: location
     case .people: PeopleField(model: model)
     case .diveInfo: diveInfo
     case .environment: environment
-    case .tanks: TanksSection(model: model)
     case .gear: gear
     case .marineLife: SpeciesField(model: model)
     case .notes: notes
@@ -56,20 +56,19 @@ struct DiveFormSection: View {
       ) { entry in model.change { $0.entryType = entry } }
     }
     if model.shows(.boatName) {
-      VStack(alignment: .leading, spacing: 6) {
-        FieldLabel(DiveFormField.boatName.label)
-        TextField(
-          "e.g. Legend",
-          text: Binding(
-            get: { values.boatName }, set: { name in model.change { $0.boatName = name } })
-        )
-        if let error = message(.boatName) { FieldMessage(error) }
-      }
+      InlineTextField(
+        title: DiveFormField.boatName.label, placeholder: "e.g. Legend",
+        text: model.binding(\.boatName),
+        error: message(.boatName))
     }
   }
 
   @ViewBuilder private var diveInfo: some View {
     let required = model.marksRequired ? " *" : ""
+    DiveNumberField(
+      title: "Dive number" + required, number: values.diveNumber,
+      notice: model.numberNotice, error: model.message("dive_number")
+    ) { number in model.change { $0.diveNumber = number } }
     if model.shows(.type) {
       VocabularyPicker(
         title: DiveFormField.type.label, values: Self.offeredDiveTypes,
@@ -80,20 +79,10 @@ struct DiveFormSection: View {
       title: "Start time" + required, start: values.startTime, offsets: model.offsetChoices,
       error: model.message("start_time")
     ) { start in model.change { $0.startTime = start } }
-    DiveNumberField(
-      title: "Dive number" + required, number: values.diveNumber,
-      notice: model.numberNotice, error: model.message("dive_number")
-    ) { number in model.change { $0.diveNumber = number } }
-    VStack(alignment: .leading, spacing: 6) {
-      FieldLabel("Dive time" + required)
-      TextField(
-        DiveDuration.placeholder,
-        text: Binding(
-          get: { values.submergedTime }, set: { text in model.change { $0.submergedTime = text } })
-      )
-      .keyboardType(.numbersAndPunctuation)
-      if let error = model.message("submerged_time") { FieldMessage(error) }
-    }
+    DiveTimeField(
+      title: "Dive time" + required, text: values.submergedTime,
+      error: model.message("submerged_time")
+    ) { text in model.change { $0.submergedTime = text } }
     if model.shows(.maxDepth) {
       MeasuredField(
         model: model, title: DiveFormField.maxDepth.label, measure: .depth, example: 30.52,
@@ -172,6 +161,9 @@ struct DiveFormSection: View {
         value: values.weight, error: message(.weight)
       ) { kg in model.change { $0.weight = kg } }
     }
+    if model.shows(.gearItems) {
+      SaveGearSetRow(model: model)
+    }
   }
 
   @ViewBuilder private var notes: some View {
@@ -182,19 +174,15 @@ struct DiveFormSection: View {
     }
     if model.shows(.tags) {
       TagsField(
-        tags: values.tags, error: message(.tags), onAdd: model.addTag, onRemove: model.removeTag)
+        tags: values.tags, error: message(.tags), onAdd: model.addTag, onRemove: model.removeTag
+      )
+      .id(DiveFormField.tags)
     }
     if model.shows(.notes) {
-      VStack(alignment: .leading, spacing: 6) {
-        FieldLabel(DiveFormField.notes.label)
-        TextField(
-          "Enter any additional notes about your dive...",
-          text: Binding(get: { values.notes }, set: { text in model.change { $0.notes = text } }),
-          axis: .vertical
-        )
-        .lineLimit(4...12)
-        if let error = message(.notes) { FieldMessage(error) }
-      }
+      NotesField(
+        placeholder: "Enter any additional notes about your dive...",
+        text: model.binding(\.notes),
+        error: message(.notes))
     }
   }
 
@@ -219,19 +207,40 @@ private struct DiveNumberField: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      FieldLabel(title)
-      TextField("", text: $text)
-        .keyboardType(.numberPad)
-        .focused($focused)
-        .onChange(of: text) { _, typed in
-          guard focused else { return }
-          onChange(Int(typed.trimmingCharacters(in: .whitespaces)))
-        }
+      InlineField(title, focus: $focused) {
+        TextField("", text: $text)
+          .keyboardType(.numberPad)
+          .focused($focused)
+          .onChange(of: text) { _, typed in
+            guard focused else { return }
+            onChange(Int(typed.trimmingCharacters(in: .whitespaces)))
+          }
+      }
       if let notice { FieldMessage(notice, isNote: true) }
       if let error { FieldMessage(error) }
     }
     .onAppear { text = number.map(String.init) ?? "" }
     .onChange(of: number) { _, now in if !focused { text = now.map(String.init) ?? "" } }
+  }
+}
+
+/// A line of text on one row.
+private struct InlineTextField: View {
+  let title: String
+  let placeholder: String
+  let text: Binding<String>
+  var error: String?
+
+  @FocusState private var focused: Bool
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      InlineField(title, focus: $focused) {
+        TextField(placeholder, text: text)
+          .focused($focused)
+      }
+      if let error { FieldMessage(error) }
+    }
   }
 }
 

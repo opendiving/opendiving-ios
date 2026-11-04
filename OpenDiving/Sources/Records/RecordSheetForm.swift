@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// The frame every record sheet shares: the web dialog's title, *Cancel* and its create button,
+/// The frame every record sheet shares: the web dialog's title, *Cancel* and *Create* in teal,
 /// the server's sentence about a refused item above the fields, and the reason a save did not
 /// keep below them.
 struct RecordSheetForm<Content: View>: View {
   let title: String
-  let createLabel: String
   /// The sheet reopened a refused item: its button saves the change, as an edit's does.
   var isReopened = false
   var failure: String?
@@ -22,16 +21,17 @@ struct RecordSheetForm<Content: View>: View {
         if let failure {
           Section {
             Label(failure, systemImage: "exclamationmark.triangle")
-              .foregroundStyle(.red)
+              .foregroundStyle(Color.danger)
           }
         }
         content
         if let saveError {
           Section {
-            Text(saveError).foregroundStyle(.red)
+            Text(saveError).foregroundStyle(Color.danger)
           }
         }
       }
+      .background(TapEndsTyping())
       .navigationTitle(title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -39,7 +39,7 @@ struct RecordSheetForm<Content: View>: View {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          Button(isReopened ? "Save changes" : createLabel) {
+          ToolbarConfirmButton(title: isReopened ? "Save changes" : "Create") {
             if save() { dismiss() }
           }
         }
@@ -50,6 +50,6 @@ struct RecordSheetForm<Content: View>: View {
 
 #Preview {
   RecordSheetForm(
-    title: "New Person", createLabel: "Create person", failure: "Name is required.",
+    title: "New Person", failure: "Name is required.",
     save: { false }, content: { Text("Fields") })
 }

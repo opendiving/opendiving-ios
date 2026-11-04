@@ -15,10 +15,10 @@ struct GearChecklistSheet: View {
           } label: {
             HStack {
               Image(systemName: checklist.isTicked(item.ref) ? "checkmark.square.fill" : "square")
-                .foregroundStyle(checklist.isTicked(item.ref) ? Color.accentColor : .secondary)
+                .foregroundStyle(checklist.isTicked(item.ref) ? Color.accentText : .secondary)
                 .font(.title3)
               Text(DiveDetailText.gearItemLabel(name: item.name, brand: item.brand))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.primary)
               Spacer()
               if item.isArchived { BadgeView("Archived", style: .outline) }
             }

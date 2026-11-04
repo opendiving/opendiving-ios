@@ -14,6 +14,23 @@ public enum DiveFormGroup: String, CaseIterable, Sendable, Hashable {
   /// The section's heading.
   public var title: String { rawValue }
 
+  /// The section's mark, the web's `DIVE_SECTION_ICONS`: the same on the form's headings, in its
+  /// section menu and on the dive's cards.
+  public var icon: Icon {
+    switch self {
+    case .importFiles: .diveComputer
+    case .training: .graduationCap
+    case .location: .mapPin
+    case .people: .users
+    case .diveInfo: .gauge
+    case .environment: .cloudSun
+    case .tanks: .twinTank
+    case .gear: .backpack
+    case .marineLife: .fish
+    case .notes: .fileText
+    }
+  }
+
   /// The hideable fields the section holds, in form order.
   public var fields: [DiveFormField] {
     DiveFormField.allCases.filter { $0.group == self }

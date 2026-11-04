@@ -26,10 +26,12 @@ struct SavedServerScreen: View {
       Section {
         if model.isSignedIn {
           Button("Sign out") { Task { await model.signOut() } }
+            .accentRow()
             .disabled(model.isWorking)
         }
         if model.canForget {
           Button("Forget this server", role: .destructive) { forgetting = model.origin }
+            .dangerRow()
             .disabled(model.isWorking)
         }
         if let origin = model.signIn.signingOut {
@@ -37,7 +39,7 @@ struct SavedServerScreen: View {
         }
         if let error = model.error {
           Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       }
     }

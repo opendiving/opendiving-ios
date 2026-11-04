@@ -40,7 +40,8 @@ struct PendingSummaryCard: View {
       VStack(alignment: .leading, spacing: 8) {
         ForEach(summary.rows) { row in
           Label(row.text, systemImage: Self.systemImage(row))
-            .foregroundStyle(Self.isWarning(row) ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+            .foregroundStyle(
+              Self.isWarning(row) ? AnyShapeStyle(Color.danger) : AnyShapeStyle(.primary))
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)

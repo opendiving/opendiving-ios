@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The people on a trip or a course, each with a role, as the web's people multi-select holds
-/// them: picked from the diver's people or added as a new person, who joins with `defaultRole`.
+/// The people on a trip or a course, the rows and the picker the dive form has: picked from the
+/// diver's people or added as a new person, who joins with `defaultRole`.
 struct RecordPeopleField: View {
   @Binding var people: [PersonReference]
   let rows: [PersonLookupItem]
@@ -11,35 +11,20 @@ struct RecordPeopleField: View {
   /// Someone the form names elsewhere, a course's instructor, is not offered here.
   var excluded: RecordRef?
 
-  @State private var adding = false
-
   var body: some View {
     Section("People") {
-      ForEach($people, id: \.person) { $reference in
-        HStack {
-          VStack(alignment: .leading) {
-            Text(name(reference.person))
-            if reference.person.isLocal { PendingMark() }
-          }
-          Spacer()
-          Picker("Role of \(name(reference.person))", selection: $reference.role) {
-            Text("No role").tag(String?.none)
-            ForEach(FormVocabulary.personRoles, id: \.self) { role in
-              Text(VocabularyLabels.personRole(role)).tag(Optional(role))
-            }
-          }
-          .labelsHidden()
-        }
+      PeopleRows(people: $people, row: row) {
+        PickerSheet(
+          title: FormPicker.people.placeholder(holdsSome: false),
+          searchPrompt: FormPicker.people.searchPrompt,
+          rows: { LookupsModel.matching(offered, $0).map(FormPickerRow.init) },
+          emptySentence: { $0.isEmpty ? "No people yet." : "No people found." },
+          addLabel: FormPicker.people.addLabel,
+          addSheet: { NewPersonSheet(onCreated: $0) },
+          onPick: { ref in
+            if let ref { join(ref) }
+          })
       }
-      .onDelete { people.remove(atOffsets: $0) }
-      NavigationLink(people.isEmpty ? "Select a person..." : "Add another person...") {
-        RecordPickerList(
-          title: "People", rows: offered, selection: pick, addLabel: "Add person...",
-          add: { adding = true })
-      }
-    }
-    .sheet(isPresented: $adding) {
-      NewPersonSheet { ref in join(ref) }
     }
   }
 
@@ -47,17 +32,14 @@ struct RecordPeopleField: View {
     rows.filter { row in row.ref != excluded && !people.contains { $0.person == row.ref } }
   }
 
-  private var pick: Binding<RecordRef?> {
-    Binding(get: { nil }, set: { ref in ref.map(join) })
-  }
-
   private func join(_ ref: RecordRef) {
     guard !people.contains(where: { $0.person == ref }) else { return }
     people.append(PersonReference(person: ref, role: defaultRole))
   }
 
-  private func name(_ ref: RecordRef) -> String {
-    rows.first { $0.ref == ref }?.name ?? "New person"
+  private func row(_ ref: RecordRef) -> FormPickerRow {
+    rows.first { $0.ref == ref }.map(FormPickerRow.init)
+      ?? FormPickerRow(ref: ref, title: "New person")
   }
 }
 

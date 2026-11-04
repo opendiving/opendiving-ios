@@ -29,7 +29,7 @@ private struct PersonSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Person", createLabel: "Create person", isReopened: model.isReopened,
+      title: "New Person", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {
@@ -52,10 +52,10 @@ private struct PersonSheetForm: View {
         TextBox(
           label: "Phone", text: $model.values.phone, message: model.message("phone"),
           keyboard: .phonePad)
-        TextBox(
-          label: "Notes",
+        NotesField(
           placeholder: "How you met, what they dive, anything worth remembering...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+          text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
   }

@@ -89,8 +89,8 @@ struct DiveFormViewTests {
           "Training", "Location", "People", "Dive Info", "Environment", "Tanks", "Gear",
           "Marine Life", "Notes",
         ])
-    // The form draws one section per title, then its actions.
-    #expect(await Self.renderedSections(in: window) == model.sections.count + 1)
+    // The form draws one section per title.
+    #expect(await Self.renderedSections(in: window) == model.sections.count)
   }
 
   @Test func theAccountsHiddenSectionsAreNotOnTheForm() async throws {
@@ -105,7 +105,7 @@ struct DiveFormViewTests {
     defer { window.isHidden = true }
 
     #expect(model.sections.map(\.title) == ["Location", "Dive Info", "Tanks", "Gear", "Notes"])
-    #expect(await Self.renderedSections(in: window) == model.sections.count + 1)
+    #expect(await Self.renderedSections(in: window) == model.sections.count)
   }
 
   @Test func onlineTheFormAsksTheServerForItsNumberAndItsPickers() async throws {
@@ -153,8 +153,8 @@ struct DiveFormViewTests {
     let window = try host(DiveFormScreen(model: model), session: session)
     defer { window.isHidden = true }
 
-    #expect(await Self.renderedSections(in: window) == model.sections.count + 1)
-    #expect(model.label(DiveFormField.maxDepth.label, .depth) == "Maximum depth (ft)")
+    #expect(await Self.renderedSections(in: window) == model.sections.count)
+    #expect(model.entryUnits(.depth) == .imperial)
     #expect(!model.sections.contains(.training))
     model.change { $0.submergedTime = "40" }
     model.change { $0.diveNumber = 1 }

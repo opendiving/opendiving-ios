@@ -152,6 +152,7 @@ struct PendingScreen: View {
             Text(OutboxText.unreadableItem)
             Spacer()
             Button("Discard", role: .destructive) { discardingUnreadable = name }
+              .dangerRow()
               .buttonStyle(.borderless)
           }
         }
@@ -167,6 +168,7 @@ struct PendingScreen: View {
             Text(notice.sentence)
             Spacer()
             Button("Dismiss") { outbox.dismiss(notice) }
+              .accentRow()
               .buttonStyle(.borderless)
           }
         }
@@ -183,13 +185,14 @@ struct PendingScreen: View {
             Label(ImportFileRow.title(file), systemImage: "doc")
             Text(PendingText.fileStage(stage))
               .font(.caption)
-              .foregroundStyle(stage.isRefused ? Color.red : Color.secondary)
+              .foregroundStyle(stage.isRefused ? Color.danger : Color.secondary)
           }
         }
         if signedIn {
           Button(PendingText.openImport, systemImage: "square.and.arrow.down") {
             route = .importFiles
           }
+          .accentRow()
         }
       } header: {
         Text(PendingText.filesHeader)
@@ -336,15 +339,17 @@ struct PendingItemRow: View {
       if let failure = item.failure {
         Label(failure.message, systemImage: "exclamationmark.triangle")
           .font(.footnote)
-          .foregroundStyle(.red)
+          .foregroundStyle(Color.danger)
       }
       if edit != nil || discard != nil {
         HStack(spacing: 16) {
           if let edit {
             Button("Edit", action: edit)
+              .accentRow()
           }
           if let discard {
             Button("Discard", role: .destructive, action: discard)
+              .dangerRow()
           }
         }
         .buttonStyle(.borderless)

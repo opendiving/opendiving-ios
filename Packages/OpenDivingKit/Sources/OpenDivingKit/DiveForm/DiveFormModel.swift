@@ -195,11 +195,6 @@ public final class DiveFormModel: AccountStoresObserver {
     try? Self.entryUnitsStore(session, account: outbox.account)?.save(entryUnits)
   }
 
-  /// A field's label with the unit it is typed in: `Maximum depth (ft)`.
-  public func label(_ label: String, _ measure: Measure) -> String {
-    "\(label) (\(measure.label(entryUnits(measure))))"
-  }
-
   /// A stored metric value as its box shows it in the entry units.
   public func entryText(_ metric: Double?, _ measure: Measure) -> String {
     guard let metric else { return "" }

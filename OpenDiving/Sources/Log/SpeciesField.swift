@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The species spotted: each with how many — a count, or one of the web's quick choices — and
-/// notes, and the picker that adds the next.
+/// The species spotted, each a row of the form that drags to a new place and swipes away, with
+/// how many — a count, or one of the web's quick choices — and notes, and the picker that adds
+/// the next.
 struct SpeciesField: View {
   let model: DiveFormModel
 
@@ -10,28 +11,29 @@ struct SpeciesField: View {
 
   var body: some View {
     let sightings = model.values.sightings
-    VStack(alignment: .leading, spacing: 10) {
-      FieldLabel(DiveFormField.sightings.label)
-      ForEach(Array(sightings.enumerated()), id: \.element.speciesUuid) { index, sighting in
-        SightingRow(model: model, index: index, sighting: sighting)
-      }
-      Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
-        picking = true
-      }
-      .buttonStyle(.borderless)
+    SortableRows(
+      items: model.binding(\.sightings), identity: \.speciesUuid,
+      title: { model.speciesName($0.speciesUuid) },
+      row: { index, sighting in
+        SightingRow(model: model, index: index, sighting: sighting, canMove: sightings.count > 1)
+      })
+    Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
+      picking = true
     }
+    .accentRow()
     .sheet(isPresented: $picking) {
       SpeciesPickerSheet(model: model)
     }
   }
 }
 
-/// One sighting: the species, *Count* with *One*, *Few*, *Many* and *Abundant* beside it — one
-/// answer per row — and its notes.
+/// One sighting: the species, *Count* on a line of its own with *One*, *Few*, *Many* and
+/// *Abundant* under it — one answer per row — and its notes.
 private struct SightingRow: View {
   let model: DiveFormModel
   let index: Int
   let sighting: SightingWrite
+  let canMove: Bool
 
   @State private var count = ""
   @FocusState private var countFocused: Bool
@@ -42,25 +44,18 @@ private struct SightingRow: View {
       HStack {
         Text(name).font(.body.weight(.medium))
         Spacer()
-        Button {
-          model.change { $0.sightings.removeAll { $0.speciesUuid == sighting.speciesUuid } }
-        } label: {
-          Image(systemName: "xmark")
-        }
-        .buttonStyle(.borderless)
-        .accessibilityLabel("Remove \(name)")
+        if canMove { DragHandle() }
       }
-      HStack(spacing: 6) {
-        TextField("Count", text: $count)
+      InlineField("Count", focus: $countFocused) {
+        TextField("", text: $count)
           .keyboardType(.numberPad)
           .focused($countFocused)
-          .frame(maxWidth: 70)
-          .textFieldStyle(.roundedBorder)
-          .accessibilityLabel("Count of \(name)")
           .onChange(of: count) { _, typed in
             guard countFocused else { return }
             model.setCount(typed, sighting: index)
           }
+      }
+      HStack(spacing: 6) {
         ForEach(["one"] + FormVocabulary.abundances, id: \.self) { key in
           quickChoice(key)
         }
@@ -81,7 +76,7 @@ private struct SightingRow: View {
             }
           }), axis: .vertical
       )
-      .font(.subheadline)
+      .padding(.top, 6)
       if let message = model.message("sightings", index: index, member: "notes") {
         FieldMessage(message)
       }
@@ -102,13 +97,14 @@ private struct SightingRow: View {
     } label: {
       VStack(spacing: 0) {
         Text(label).font(.caption.weight(.semibold))
-        Text(range).font(.caption2).foregroundStyle(chosen ? .primary : .secondary)
+          .foregroundStyle(chosen ? Color.white : Color.primary)
+        Text(range).font(.caption2).foregroundStyle(chosen ? Color.white : Color.secondary)
       }
       .frame(maxWidth: .infinity)
       .padding(.vertical, 4)
       .background(
         RoundedRectangle(cornerRadius: 6)
-          .fill(chosen ? Color.accentColor.opacity(0.25) : Color(.secondarySystemFill)))
+          .fill(chosen ? Color.brandCoral : Color(.secondarySystemFill)))
     }
     .buttonStyle(.plain)
     .accessibilityLabel(key == "one" ? label : "\(label), \(range)")

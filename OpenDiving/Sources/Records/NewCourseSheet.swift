@@ -31,7 +31,7 @@ private struct CourseSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Course", createLabel: "Create course", isReopened: model.isReopened,
+      title: "New Course", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {
@@ -63,6 +63,7 @@ private struct CourseSheetForm: View {
       Section {
         RecordPicker(
           label: "Dive center", placeholder: "Select a dive center...",
+          searchPrompt: FormPicker.contact.searchPrompt,
           addLabel: "Add dive center...", rows: lookups.contacts,
           selection: $model.values.contact
         ) { made in
@@ -70,6 +71,7 @@ private struct CourseSheetForm: View {
         }
         RecordPicker(
           label: "Instructor", placeholder: "Select an instructor...",
+          searchPrompt: "Search instructors...",
           addLabel: "Add instructor...", rows: lookups.people, selection: instructor
         ) { made in
           NewPersonSheet(onCreated: made)
@@ -82,10 +84,10 @@ private struct CourseSheetForm: View {
         people: $model.values.people, rows: lookups.people, defaultRole: "student",
         excluded: model.values.instructor)
       Section {
-        TextBox(
-          label: "Notes",
+        NotesField(
           placeholder: "Skills covered, conditions, anything worth remembering...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
+          text: $model.values.notes,
+          error: model.message("notes"))
       }
     }
   }

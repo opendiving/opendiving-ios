@@ -26,12 +26,12 @@ struct SpeciesPickerSheet: View {
           } label: {
             HStack {
               VStack(alignment: .leading, spacing: 2) {
-                Text(pick.title).foregroundStyle(.primary)
+                Text(pick.title).foregroundStyle(Color.primary)
                 if let subtitle = pick.subtitle {
-                  Text(subtitle).font(.subheadline).italic().foregroundStyle(.secondary)
+                  Text(subtitle).font(.subheadline).italic().foregroundStyle(Color.secondary)
                 }
                 if let attribution = pick.attribution {
-                  Text(attribution).font(.caption2).foregroundStyle(.tertiary)
+                  Text(attribution).font(.caption2).foregroundStyle(Color(.tertiaryLabel))
                 }
               }
               Spacer()
@@ -45,10 +45,8 @@ struct SpeciesPickerSheet: View {
             .foregroundStyle(.secondary)
         }
       }
-      .searchable(
-        text: $text, placement: .navigationBarDrawer(displayMode: .always),
-        prompt: "Select a species..."
-      )
+      .pickerListSpacing()
+      .searchable(text: $text, prompt: "Search species...")
       .task(id: text) {
         found = []
         try? await Task.sleep(for: .milliseconds(300))

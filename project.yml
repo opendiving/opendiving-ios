@@ -63,6 +63,7 @@ targets:
         # The Kit's `Icon` names the symbols; Xcode's generated `ImageResource` names would
         # make `Image(.fish)` ambiguous.
         ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS: NO
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
       path: OpenDiving/Info.plist
       properties:

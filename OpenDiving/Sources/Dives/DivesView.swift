@@ -26,12 +26,12 @@ struct DivesView: View {
             Button {
               route = .logDive
             } label: {
-              Label("Log a dive", icon: .dive)
+              Label(menuItem: "Log a dive", icon: .dive)
             }
             Button {
               route = .importFiles
             } label: {
-              Label("Import files", icon: .upload)
+              Label(menuItem: "Import files", icon: .upload)
             }
           }
         }

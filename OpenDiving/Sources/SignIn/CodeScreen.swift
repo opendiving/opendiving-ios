@@ -27,7 +27,7 @@ struct CodeScreen: View {
         }
         if let error = flow.codeError {
           Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(.red)
+            .foregroundStyle(Color.danger)
         }
       } header: {
         Text("Enter the code from the email")
@@ -40,9 +40,11 @@ struct CodeScreen: View {
           Button(flow.resendLabel(at: context.date)) {
             Task { await flow.resendCode() }
           }
+          .accentRow()
           .disabled(flow.isResending || flow.resendSecondsLeft(at: context.date) > 0)
         }
         Button("Use a different email") { flow.useDifferentEmail() }
+          .accentRow()
       }
     }
     .navigationTitle("Check Your Email")

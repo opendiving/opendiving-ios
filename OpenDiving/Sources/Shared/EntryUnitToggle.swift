@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The toggle beside a measured field's label, `m | ft` with the one typed in bold, which flips
+/// The toggle on a measured field's row, `m | ft` with the one typed in bold, which flips
 /// that dimension's entry for this phone.
 struct EntryUnitToggle: View {
   let measure: Measure
@@ -15,10 +15,10 @@ struct EntryUnitToggle: View {
         Text("|").foregroundStyle(.tertiary)
         part(.imperial)
       }
-      .font(.caption)
-      .padding(.horizontal, 6)
-      .padding(.vertical, 2)
-      .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color(.separator)))
+      .font(.footnote)
+      .padding(.horizontal, 9)
+      .padding(.vertical, 4)
+      .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color(.separator)))
     }
     .buttonStyle(.plain)
     .accessibilityLabel(

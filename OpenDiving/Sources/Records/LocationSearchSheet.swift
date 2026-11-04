@@ -80,7 +80,9 @@ private struct LocationSearchForm: View {
               onTakeHeldSite(held.uuid)
               dismiss()
             }
+            .accentRow()
             Button("Make a new site") { fill(from: offer) }
+              .accentRow()
           }
         }
         Section {
@@ -111,6 +113,7 @@ private struct LocationSearchForm: View {
             onUse(used)
             dismiss()
           }
+          .accentRow()
           .labelStyle(.titleOnly)
           .disabled(!usable)
         }

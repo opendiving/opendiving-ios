@@ -14,33 +14,49 @@ struct CoordinateFields: View {
   var onPlaced: ((String, String) -> Void)?
 
   var body: some View {
-    box("Latitude", "e.g. 27.8506", $latitude, latitudeMessage)
-    box("Longitude", "e.g. 34.3136", $longitude, longitudeMessage)
+    CoordinateBox(
+      label: "Latitude", example: "e.g. 27.8506", text: $latitude, message: latitudeMessage,
+      hint: hint, onChange: split)
+    CoordinateBox(
+      label: "Longitude", example: "e.g. 34.3136", text: $longitude, message: longitudeMessage,
+      hint: hint, onChange: split)
     Text(hint).font(.footnote).foregroundStyle(.secondary)
-  }
-
-  private func box(_ label: String, _ example: String, _ text: Binding<String>, _ message: String?)
-    -> some View
-  {
-    VStack(alignment: .leading, spacing: 6) {
-      Text(label).font(.subheadline.weight(.medium))
-      TextField(label, text: text, prompt: Text(example))
-        .keyboardType(.numbersAndPunctuation)
-        .autocorrectionDisabled()
-        .labelsHidden()
-        .accessibilityHint(hint)
-        .onChange(of: text.wrappedValue) { old, new in split(old, new, into: text) }
-      FieldMessage(message)
-    }
   }
 
   /// Typing adds a character at a time, so only a change of several at once is a paste —
   /// otherwise `27.8 3` would split as it was being typed.
-  private func split(_ old: String, _ new: String, into text: Binding<String>) {
+  private func split(_ old: String, _ new: String) {
     guard new.count - old.count > 1, let pair = PlaceSearch.coordinatePair(new) else { return }
     latitude = pair.latitude
     longitude = pair.longitude
     onPlaced?(pair.latitude, pair.longitude)
+  }
+}
+
+/// One of the two boxes.
+private struct CoordinateBox: View {
+  let label: String
+  let example: String
+  @Binding var text: String
+  let message: String?
+  let hint: String
+  let onChange: (String, String) -> Void
+
+  @FocusState private var focused: Bool
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      FieldLabel(label)
+        .focusesOnTap($focused)
+      TextField(label, text: $text, prompt: Text(example))
+        .keyboardType(.numbersAndPunctuation)
+        .autocorrectionDisabled()
+        .labelsHidden()
+        .focused($focused)
+        .accessibilityHint(hint)
+        .onChange(of: text) { old, new in onChange(old, new) }
+      FieldMessage(message)
+    }
   }
 }
 
