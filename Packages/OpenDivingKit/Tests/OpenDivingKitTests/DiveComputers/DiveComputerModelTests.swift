@@ -768,8 +768,6 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.kind == .handedOver)
   }
 
-  /// The record is saved once the computer is identified, so Settings lists it while the first
-  /// download runs.
   @Test func aWalkKeepsTheHardwareItReadAndALaterWalkThatReadsNoneLeavesIt() async throws {
     let session = try await session(try ImportServer())
     let identified = DiveComputerIdentity(
@@ -810,6 +808,8 @@ struct DiveComputerModelTests {
     #expect(computers(session).record(family: .shearwaterPetrel, serial: "D9772626") == nil)
   }
 
+  /// The record is saved once the computer is identified, so Settings lists it while the first
+  /// download runs.
   @Test func aConnectionPairsTheComputerWhileTheFirstDownloadRuns() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
