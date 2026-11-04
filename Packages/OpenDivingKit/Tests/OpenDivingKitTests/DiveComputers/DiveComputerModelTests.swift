@@ -477,6 +477,20 @@ struct DiveComputerModelTests {
     #expect(computers(session, ImportServer.accountB).records().last?.fingerprint == nil)
   }
 
+  @Test func aColdStartBeforeTheLoadKnowsTheComputerOfAWholeRecord() async throws {
+    let session = try await session(try ImportServer(), loaded: false)
+    try F.writeWholeRecord(
+      DiveComputerRecord(identity: F.perdix, fingerprint: F.fingerprint(3)),
+      in: session.store.directory(for: ImportServer.origin, account: ImportServer.accountA)
+        .appendingPathComponent("DiveComputers", isDirectory: true))
+
+    _ = InboxModel(session: session)
+
+    #expect(
+      computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint
+        == F.fingerprint(3))
+  }
+
   @Test func aComputerPairedForOneAccountDownloadsEverythingForTheNext() async throws {
     let server = try ImportServer()
     let first = try await session(server)
