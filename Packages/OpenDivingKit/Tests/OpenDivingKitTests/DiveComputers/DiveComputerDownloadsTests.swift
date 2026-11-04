@@ -28,9 +28,8 @@ struct DiveComputerDownloadsTests {
     let root = root
     let downloads = DiveComputerDownloads {
       DiveComputerModel(
-        session: session, inbox: inbox, link: link, positionZones: FakePositionZones(),
-        generator: F.generator, workFolder: root.appendingPathComponent("Work", isDirectory: true),
-        now: { F.moment },
+        session: session, inbox: inbox, link: link, generator: F.generator,
+        workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
         zone: F.helsinki)
     }
     return (downloads, inbox)

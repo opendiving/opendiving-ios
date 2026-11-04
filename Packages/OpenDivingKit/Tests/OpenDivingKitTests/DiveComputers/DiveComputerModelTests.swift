@@ -35,13 +35,12 @@ struct DiveComputerModelTests {
 
   private func model(
     _ session: Session, _ inbox: InboxModel, _ link: FakeDiveComputerLink,
-    now: Date = DiveComputerFixtures.moment, positionZones: FakePositionZones = .init()
+    now: Date = DiveComputerFixtures.moment
   ) -> DiveComputerModel {
     inbox.sessionChanged()
     return DiveComputerModel(
-      session: session, inbox: inbox, link: link, positionZones: positionZones,
-      generator: F.generator, workFolder: root.appendingPathComponent("Work", isDirectory: true),
-      now: { now },
+      session: session, inbox: inbox, link: link, generator: F.generator,
+      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { now },
       zone: F.helsinki)
   }
 
@@ -342,20 +341,44 @@ struct DiveComputerModelTests {
       try startedAt(inbox, try #require(inbox.files.first)).contains("2026-10-26T14:00:00+04:00"))
   }
 
-  /// A position says where the dive was whatever its age, so it comes before the watch; the
-  /// dive with none is what the question is left to answer, and only that one.
-  @Test func aPositionsZoneBeatsTheWatchAndTheQuestionIsLeftTheRest() async throws {
+  /// `dive` with the head a Nautic's bytes open with: the wall clock under `hours`, then the
+  /// offset in quarter hours.
+  private func logged(_ dive: DownloadedDive, instant: TimeInterval, hours: Int) -> DownloadedDive {
+    let clock = UInt64(Int(instant) + hours * 3600) * 1000
+    let base = (0..<7).map { UInt8(clock >> (8 * UInt64($0)) & 0xFF) } + [UInt8(hours * 4)]
+    return DownloadedDive(
+      identity: dive.identity, fingerprint: dive.fingerprint,
+      bytes: Data("SBEM0103".utf8) + [0x01, 0x08] + base, reading: dive.reading)
+  }
+
+  /// The offset is the one the dive was logged under, so its age and the watch's zone now say
+  /// nothing about it.
+  @Test func aLoggedOffsetAsksNothingHoweverOldAndBeatsTheWatch() async throws {
     let session = try await session(try ImportServer())
     let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     let dubai = try #require(TimeZone(identifier: "Asia/Dubai"))
+    let dives = [logged(F.oceanDownload[0], instant: 1_793_008_800, hours: 3)]
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, dives, zone: dubai)]
+    let model = model(session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
+    try await download(model)
+    #expect(model.outcome?.kind == .handedOver)
+    #expect(
+      try startedAt(inbox, try #require(inbox.files.first)) == ["2026-10-26T13:00:00+03:00"])
+  }
+
+  @Test func theQuestionIsLeftOnlyTheDivesThatLoggedNoOffset() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
     let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
-    let cairo = try #require(TimeZone(identifier: "Africa/Cairo"))
-    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload, zone: dubai)]
-    let model = model(
-      session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60),
-      positionZones: FakePositionZones(cairo))
+    let dives = [
+      logged(F.oceanDownload[0], instant: 1_793_008_800, hours: 3), F.oceanDownload[1],
+    ]
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, dives)]
+    let model = model(session, inbox, link)
     model.connect(try await scanned(model))
     await until { model.phase == .askingTimeZone }
     #expect(model.phase == .askingTimeZone)
@@ -365,22 +388,6 @@ struct DiveComputerModelTests {
       try startedAt(inbox, try #require(inbox.files.first)) == [
         "2026-10-26T13:00:00+03:00", "2026-10-24T19:00:00+09:00",
       ])
-  }
-
-  @Test func everyDiveWithAPositionsZoneAsksNothingHoweverOld() async throws {
-    let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
-    let link = FakeDiveComputerLink()
-    link.found = [F.oceanFound]
-    let cairo = try #require(TimeZone(identifier: "Africa/Cairo"))
-    link.scripts = [FakeDiveComputerLink.script(F.ocean, Array(F.oceanDownload.prefix(1)))]
-    let model = model(
-      session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60),
-      positionZones: FakePositionZones(cairo))
-    try await download(model)
-    #expect(model.outcome?.kind == .handedOver)
-    #expect(
-      try startedAt(inbox, try #require(inbox.files.first)) == ["2026-10-26T13:00:00+03:00"])
   }
 
   @Test func aSharedArchiveWaitingOrAnAccountLoadingStartsNothing() async throws {
@@ -409,8 +416,7 @@ struct DiveComputerModelTests {
       background: NoBackgroundExecution(), applicationSupport: other,
       userAgent: ClientHarness.userAgent, accessToken: "live")
     let loading = DiveComputerModel(
-      session: fresh, inbox: InboxModel(session: fresh), link: link,
-      positionZones: FakePositionZones(), generator: F.generator)
+      session: fresh, inbox: InboxModel(session: fresh), link: link, generator: F.generator)
     await loading.watch()
     #expect(loading.blocker == DiveComputerText.accountLoading)
     #expect(link.downloads == 0)

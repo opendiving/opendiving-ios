@@ -77,6 +77,6 @@ struct MainTabView: View {
         DiveComputerModel(
           session: session, inbox: InboxModel(session: session),
           link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-          positionZones: GeocoderPositionZones(), generator: DiveComputerView.generator)
+          generator: DiveComputerView.generator)
       })
 }

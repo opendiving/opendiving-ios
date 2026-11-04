@@ -38,7 +38,7 @@ struct DiveComputerScreensTests {
             DiveComputerModel(
               session: session, inbox: inbox,
               link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-              positionZones: GeocoderPositionZones(), generator: DiveComputerView.generator)
+              generator: DiveComputerView.generator)
           })
       }
       .environment(session).environment(inbox))

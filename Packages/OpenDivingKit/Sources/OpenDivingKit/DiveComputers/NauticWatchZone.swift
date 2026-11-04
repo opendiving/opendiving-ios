@@ -1,8 +1,7 @@
 import Foundation
 
-/// A Suunto Nautic's own time zone, decoded from the settings resources the Suunto app reads
-/// it from. The dives carry no offset, so this is what puts a download's starts in the zone
-/// the watch was set to.
+/// A Suunto Nautic's own time zone now, decoded from the watch's settings resources: the fallback
+/// for a dive whose bytes give no ``NauticLoggedZone``.
 ///
 /// Each resource is as libdc-swift's `SuuntoNauticExplorer.fetch` returns it: a two-byte
 /// sequence number, the eight-byte reply header, the value, and a four-byte checksum. The value

@@ -30,23 +30,19 @@ public struct ComputerArchiveWriter: Sendable {
     /// When it was downloaded, and the phone's zone, which the names and `exported_at` use.
     public let moment: Date
     public let zone: TimeZone
-    /// The zone an instant start is written in: the diver's answer for this download, else the
-    /// watch's. Needed only where a dive's start is an instant.
+    /// The zone an instant start is written in where its dive logged none: the diver's answer
+    /// for this download, else the watch's.
     public let instantZone: TimeZone?
-    /// The zone a dive's own position puts it in, by fingerprint, which comes before
-    /// ``instantZone``.
-    public let diveZones: [Data: TimeZone]
 
     public init(
       identity: DiveComputerIdentity, dives: [DownloadedDive], moment: Date, zone: TimeZone,
-      instantZone: TimeZone?, diveZones: [Data: TimeZone] = [:]
+      instantZone: TimeZone?
     ) {
       self.identity = identity
       self.dives = dives
       self.moment = moment
       self.zone = zone
       self.instantZone = instantZone
-      self.diveZones = diveZones
     }
   }
 
@@ -71,7 +67,7 @@ public struct ComputerArchiveWriter: Sendable {
     var members: [Member] = []
     var used: Set<String> = []
     for downloaded in download.dives {
-      let zone = download.diveZones[downloaded.fingerprint] ?? download.instantZone
+      let zone = downloaded.loggedZone ?? download.instantZone
       let resolved: (text: String, clock: LocalDateTime)?
       switch downloaded.reading {
       case .dive(let dive):
