@@ -12,8 +12,8 @@ struct SearchedLocation {
 }
 
 /// The web's *Search location* dialog: finds where a site is — by a dive site's or a place's
-/// name, by coordinates, or on the map where there is one — without touching the site sheet until *Use location*.
-/// A catalogue row the diver already has a site for offers that site first.
+/// name, by coordinates, or on the map where there is one — without touching the site sheet
+/// until *Use location*. A catalogue row the diver already has a site for offers that site first.
 struct LocationSearchSheet: View {
   let latitude: String
   let longitude: String

@@ -82,9 +82,11 @@ private struct TripSheetForm: View {
       }
       if let style = map.shown {
         Section {
-          PlacesMapView(style: style, points: model.values.mapped)
-            .frame(height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+          PlacesMapView(
+            style: style, points: model.values.mapped, label: "Map of the trip's locations"
+          )
+          .frame(height: 200)
+          .clipShape(RoundedRectangle(cornerRadius: 8))
         }
       }
       RecordPeopleField(people: $model.values.people, rows: lookups.people, defaultRole: nil)

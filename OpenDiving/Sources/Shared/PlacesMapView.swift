@@ -6,6 +6,9 @@ import SwiftUI
 struct PlacesMapView: View {
   let style: MapStyleModel.Shown
   let points: [MapPoint]
+  /// What a screen reader calls it. On the map and not its frame, so the credit's links stay
+  /// reachable.
+  let label: String
 
   @State private var size = CGSize.zero
 
@@ -14,7 +17,7 @@ struct PlacesMapView: View {
       styleJSON: style.styleJSON, pins: points,
       camera: MapCamera.fit(points, width: size.width, height: size.height), isInteractive: false
     )
-    .accessibilityLabel("Map of the trip's locations")
+    .accessibilityLabel(label)
     .onGeometryChange(for: CGSize.self) {
       $0.size
     } action: {
@@ -30,7 +33,8 @@ struct PlacesMapView: View {
 #Preview {
   PlacesMapView(
     style: .preview,
-    points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)]
+    points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)],
+    label: "Map of the site"
   )
   .frame(height: 200)
 }
