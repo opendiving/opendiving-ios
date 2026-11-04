@@ -17,8 +17,6 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   /// libdivecomputer's fingerprint of the newest dive a finished download took, and when.
   public var fingerprint: Data?
   public var lastDownloaded: Date?
-  /// *Download all dives next time*: the next download sets no fingerprint.
-  public var downloadAllNextTime: Bool
   /// For the Nautic family: the sport each logbook entry's summary named when it was last listed,
   /// so a walk reads a summary only for an entry it has not met. Optional so that a record
   /// written before it existed still decodes.
@@ -29,8 +27,7 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
 
   public init(
     identity: DiveComputerIdentity, peripheral: UUID? = nil, fingerprint: Data? = nil,
-    lastDownloaded: Date? = nil, downloadAllNextTime: Bool = false,
-    receivedBeforeAccountKnown: Bool = false
+    lastDownloaded: Date? = nil, receivedBeforeAccountKnown: Bool = false
   ) {
     family = identity.family
     vendor = identity.vendor
@@ -41,7 +38,6 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
     self.peripheral = peripheral
     self.fingerprint = fingerprint
     self.lastDownloaded = lastDownloaded
-    self.downloadAllNextTime = downloadAllNextTime
     self.receivedBeforeAccountKnown = receivedBeforeAccountKnown
   }
 
@@ -51,9 +47,6 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
 
   /// *Shearwater Perdix 3*.
   public var title: String { DiveComputerText.title(vendor: vendor, product: product) }
-
-  /// The fingerprint a download from it sets: none when the diver asked for everything.
-  public var fingerprintToSet: Data? { downloadAllNextTime ? nil : fingerprint }
 
   static func name(family: DiveComputerFamily, serial: String) -> String {
     let safe = serial.uppercased().unicodeScalars.map {

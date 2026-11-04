@@ -62,20 +62,6 @@ struct DiveComputerScreensTests {
     #expect(window != nil)
   }
 
-  @Test func theSettingsListDrawsTheAccountsComputers() async throws {
-    let session = try await loaded()
-    let origin = try #require(session.state.origin)
-    let account = try #require(session.user?.uuid)
-    try DiveComputerStore(store: session.store, origin: origin, account: account)
-      .save(DiveComputerRecord(identity: perdix, lastDownloaded: Date()))
-    let model = DiveComputersListModel(session: session)
-    #expect(model.computers.map(\.title) == ["Shearwater Perdix 3"])
-
-    let window = F.window(NavigationStack { DiveComputersListView(model: model) })
-    defer { window?.isHidden = true }
-    #expect(window != nil)
-  }
-
   @Test func aComputersPageDraws() {
     let window = F.window(
       NavigationStack {

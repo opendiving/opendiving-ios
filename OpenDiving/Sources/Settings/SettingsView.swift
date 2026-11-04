@@ -17,11 +17,9 @@ struct SettingsView: View {
 
 private struct SettingsList: View {
   @State private var model: SettingsModel
-  @State private var computers: DiveComputersListModel
 
   init(session: Session, signIn: SignInFlow) {
     _model = State(initialValue: SettingsModel(session: session, signIn: signIn))
-    _computers = State(initialValue: DiveComputersListModel(session: session))
   }
 
   var body: some View {
@@ -65,16 +63,10 @@ private struct SettingsList: View {
         Text("Units are changed on the web.")
       }
       Section("App") {
-        NavigationLink {
-          DiveComputersListView(model: computers)
-        } label: {
-          LabeledContent(DiveComputerText.settingsRow, value: "\(computers.computers.count)")
-        }
         LabeledContent("Version", value: Self.appVersion)
       }
     }
     .task { await model.load() }
-    .onAppear { computers.reload() }
   }
 
   private static var appVersion: String {

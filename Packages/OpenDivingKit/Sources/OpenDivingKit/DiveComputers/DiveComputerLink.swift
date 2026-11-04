@@ -21,8 +21,8 @@ public protocol DiveComputerLink: AnyObject {
   /// that moment, folding the serial's case. It yields the identity again where a later answer
   /// adds the firmware or the hardware.
   /// It takes only the entries newer than the one holding the
-  /// ``DiveComputerRecord/fingerprintToSet`` of the record `lookup` returns, and every entry where
-  /// `lookup` returns no record or one with no fingerprint to set. Then the watch's zone where
+  /// ``DiveComputerRecord/fingerprint`` of the record `lookup` returns, and every entry where
+  /// `lookup` returns no record or one with no fingerprint. Then the watch's zone where
   /// the family logs instants and the watch reports one;
   /// ``DiveComputerDownloadEvent/busy(_:)`` whenever the computer says it is busy, again once it
   /// says it is free, and each time another app's handshake broke a transfer; once, where the
