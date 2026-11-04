@@ -408,4 +408,15 @@ square of the same map. Tiles are asked for only where `/config` says `map_tiles
 `map_attribution`; anywhere else the band shows without a map. Rejected: MapKit as the fallback,
 a second look with Apple's credit; a shipped OpenFreeMap credit, which is false for an operator's
 own style. Tiles shown and the last credit are kept in the server's directory, so a head draws
-offline. The forms' maps stay MapKit: the tiles stop at zoom 9, too coarse to place a pin.
+offline. The tiles stop at zoom 9, too coarse to place a pin, so a form draws the style instead.
+
+## A form's map is the instance's style, and a form with no style has no map
+
+`PinMap` and `PlacesMapView` draw `GET /map-style/{theme}` with MapLibre, as the web's forms draw
+theirs, by the gate a page head keeps. The renderer resolves the style and the API passes it on,
+so the app keeps one server address, and an instance without the renderer has no form map:
+coordinates, search and *Use my location* still place the pin, and no sentence offers a map.
+Rejected: `/config` naming the web's address, a second origin needing a credit from elsewhere;
+shipping the Liberty pair and its credit, false for an operator's own style; MapKit as the
+fallback, two looks and two code paths. MapLibre's ambient cache stays at its default and
+outlives `forget`: public tiles, the same for every server.

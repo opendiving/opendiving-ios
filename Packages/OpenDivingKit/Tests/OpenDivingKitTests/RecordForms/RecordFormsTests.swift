@@ -123,6 +123,28 @@ struct RecordFormsTests {
   // MARK: Trip
 
   /// trip.test.ts:12-186 and name.test.ts:18-25.
+  @Test func aTripsMapHoldsItsPlacedPartsWithTheirFootprints() {
+    let fiji = LocationWrite(
+      name: "Fiji", latitude: -17.8, longitude: 178, bboxSouth: -21, bboxNorth: -12,
+      bboxWest: 176, bboxEast: -178)
+    let halfABox = LocationWrite(name: "Samoa", latitude: -13.8, longitude: -172, bboxSouth: -14)
+    let trip = TripFormValues(
+      name: "x",
+      parts: [
+        TripPartFormValues(location: fiji),
+        TripPartFormValues(location: LocationWrite(name: "Typed")),
+        TripPartFormValues(),
+        TripPartFormValues(location: halfABox),
+      ])
+    #expect(
+      trip.mapped == [
+        MapPoint(
+          name: "Fiji", latitude: -17.8, longitude: 178,
+          bounds: LatLonBounds(south: -21, north: -12, west: 176, east: -178)),
+        MapPoint(name: "Samoa", latitude: -13.8, longitude: -172),
+      ])
+  }
+
   @Test func aTrip() throws {
     #expect(TripFormValues(name: "Red Sea").issues.isEmpty)
     #expect(

@@ -13,4 +13,9 @@ public struct MapPoint: Hashable, Sendable {
     self.longitude = longitude
     self.bounds = bounds
   }
+
+  /// What a fit fits: the footprint, or the point where there is none.
+  var extent: LatLonBounds {
+    bounds ?? LatLonBounds(south: latitude, north: latitude, west: longitude, east: longitude)
+  }
 }

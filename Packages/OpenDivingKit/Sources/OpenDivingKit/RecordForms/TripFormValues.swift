@@ -19,6 +19,11 @@ public struct TripFormValues: Codable, Hashable, Sendable {
     self.notes = notes
   }
 
+  /// The parts' places that carry a position, in the diver's order.
+  public var mapped: [MapPoint] {
+    parts.compactMap { $0.location?.mapPoint }
+  }
+
   public var issues: [FormIssue] {
     var list = FormIssueList()
     list.add("name", FormText.requiredName(name, "Trip name", max: 255))

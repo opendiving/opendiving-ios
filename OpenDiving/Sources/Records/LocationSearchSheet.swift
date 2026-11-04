@@ -12,8 +12,8 @@ struct SearchedLocation {
 }
 
 /// The web's *Search location* dialog: finds where a site is — by a dive site's or a place's
-/// name, by coordinates, or on the map — without touching the site sheet until *Use location*.
-/// A catalogue row the diver already has a site for offers that site first.
+/// name, by coordinates, or on the map where there is one — without touching the site sheet
+/// until *Use location*. A catalogue row the diver already has a site for offers that site first.
 struct LocationSearchSheet: View {
   let latitude: String
   let longitude: String
@@ -28,7 +28,8 @@ struct LocationSearchSheet: View {
 
   var body: some View {
     LocationSearchForm(
-      search: PlaceSearchModel(session: session, findsSites: true), session: session,
+      search: PlaceSearchModel(session: session, findsSites: true),
+      map: MapStyleModel(session: session), session: session,
       initial: SearchedLocation(latitude: latitude, longitude: longitude, location: location),
       onUse: onUse, onTakeHeldSite: onTakeHeldSite)
   }
@@ -36,6 +37,7 @@ struct LocationSearchSheet: View {
 
 private struct LocationSearchForm: View {
   @State var search: PlaceSearchModel
+  @State var map: MapStyleModel
   let session: Session
   let onUse: (SearchedLocation) -> Void
   let onTakeHeldSite: ((UUID) -> Void)?
@@ -47,10 +49,11 @@ private struct LocationSearchForm: View {
   @Environment(\.dismiss) private var dismiss
 
   init(
-    search: PlaceSearchModel, session: Session, initial: SearchedLocation,
+    search: PlaceSearchModel, map: MapStyleModel, session: Session, initial: SearchedLocation,
     onUse: @escaping (SearchedLocation) -> Void, onTakeHeldSite: ((UUID) -> Void)?
   ) {
     _search = State(initialValue: search)
+    _map = State(initialValue: map)
     self.session = session
     self.onUse = onUse
     self.onTakeHeldSite = onTakeHeldSite
@@ -68,7 +71,8 @@ private struct LocationSearchForm: View {
         }
         PlaceSearchSection(
           model: search, query: $query, position: position, units: session.units,
-          onPick: pick, onTypeName: { picked.location = PlaceSearch.typedLocation($0) })
+          hasMap: map.hasMap, onPick: pick,
+          onTypeName: { picked.location = PlaceSearch.typedLocation($0) })
         if let offer, let held = offer.heldSite, let onTakeHeldSite {
           Section {
             Text("You already have **\(held.name)** for this site.")
@@ -84,12 +88,12 @@ private struct LocationSearchForm: View {
             latitude: $picked.latitude, longitude: $picked.longitude,
             latitudeMessage: nil, longitudeMessage: nil,
             hint: usable
-              ? "Coordinates of the site, or place it on the map below."
+              ? CoordinateHint.searchedSite(hasMap: map.hasMap)
               : "Enter both a latitude and a longitude in decimal degrees, or neither.",
             onPlaced: place)
           PinMap(
-            name: "the dive site", latitude: picked.latitude, longitude: picked.longitude,
-            credit: credit, onPick: place)
+            style: map.shown, name: "the dive site", latitude: picked.latitude,
+            longitude: picked.longitude, credit: credit, onPick: place)
         }
       }
       .navigationTitle("Search Location")
@@ -111,6 +115,7 @@ private struct LocationSearchForm: View {
           .disabled(!usable)
         }
       }
+      .showsMapStyle(map)
       .task {
         // Opened on a placed site, the Location says what is there now.
         if position != nil { place(picked.latitude, picked.longitude) }

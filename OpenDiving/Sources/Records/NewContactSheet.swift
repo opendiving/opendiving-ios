@@ -27,18 +27,16 @@ struct NewContactSheet: View {
       model: RecordSheetModel(
         outbox: OutboxModel(session: session), values: ContactFormValues(roles: roles),
         failedItem: failedItem),
-      onCreated: onCreated)
+      map: MapStyleModel(session: session), onCreated: onCreated)
   }
 }
 
 private struct ContactSheetForm: View {
   @State var model: RecordSheetModel<ContactFormValues>
+  @State var map: MapStyleModel
   let onCreated: (RecordRef) -> Void
 
   @State private var mapOpen = false
-
-  private static let coordinateHint =
-    "Paste a “27.8506, 34.3136” pair into either field to fill both, or place the contact on the map."
 
   var body: some View {
     RecordSheetForm(
@@ -88,20 +86,23 @@ private struct ContactSheetForm: View {
         CoordinateFields(
           latitude: $model.values.latitude, longitude: $model.values.longitude,
           latitudeMessage: model.message("latitude"),
-          longitudeMessage: model.message("longitude"), hint: Self.coordinateHint)
-        if mapOpen {
-          PinMap(
-            name: "the contact", latitude: model.values.latitude,
-            longitude: model.values.longitude
-          ) { latitude, longitude in
-            model.values.latitude = latitude
-            model.values.longitude = longitude
-          }
-        } else {
-          Button {
-            mapOpen = true
-          } label: {
-            Label("Show map", icon: .mapPin)
+          longitudeMessage: model.message("longitude"),
+          hint: CoordinateHint.contact(hasMap: map.hasMap))
+        if let style = map.shown {
+          if mapOpen {
+            PinMap(
+              style: style, name: "the contact", latitude: model.values.latitude,
+              longitude: model.values.longitude
+            ) { latitude, longitude in
+              model.values.latitude = latitude
+              model.values.longitude = longitude
+            }
+          } else {
+            Button {
+              mapOpen = true
+            } label: {
+              Label("Show map", icon: .mapPin)
+            }
           }
         }
       }
@@ -111,6 +112,7 @@ private struct ContactSheetForm: View {
           text: $model.values.notes, message: model.message("notes"), multiline: true)
       }
     }
+    .showsMapStyle(map)
   }
 
   private func ticked(_ role: String) -> Binding<Bool> {
