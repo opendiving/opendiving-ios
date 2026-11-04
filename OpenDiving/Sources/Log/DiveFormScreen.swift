@@ -75,30 +75,29 @@ struct DiveFormScreen: View {
     .onDisappear { model.leave() }
   }
 
-  /// The save button, the bar's full width and down through the home indicator, and what stopped
-  /// the last save above it, since the end of the form may be far from view.
+  /// The save button, the screen's width inside its margins, and what stopped the last save above
+  /// it, since the end of the form may be far from view.
   private func saveBar(_ proxy: ScrollViewProxy) -> some View {
-    VStack(spacing: 0) {
+    VStack(spacing: 8) {
       if let error = model.saveError {
         FieldMessage(error)
           .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.horizontal)
-          .padding(.vertical, 8)
-          .background(.bar)
+          .padding(8)
+          .background(.bar, in: RoundedRectangle(cornerRadius: 8))
       }
       Button {
         submit(proxy)
       } label: {
         Text(model.submitLabel)
           .bold()
-          .foregroundStyle(.white)
           .frame(maxWidth: .infinity)
-          .padding(.vertical, 16)
-          .contentShape(Rectangle())
       }
-      .buttonStyle(.plain)
-      .background(Color.teal, ignoresSafeAreaEdges: .bottom)
+      .buttonStyle(.borderedProminent)
+      .controlSize(.large)
+      .tint(.teal)
     }
+    .padding(.horizontal)
+    .padding(.bottom, 8)
   }
 
   /// Saves, or scrolls to the first section a sentence landed in.
