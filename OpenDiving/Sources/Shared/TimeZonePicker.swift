@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A time zone chosen from every zone the phone knows, by its identifier: the download's
-/// question and a remembered computer's zone in Settings.
+/// question.
 struct TimeZonePicker: View {
   let title: String
   @Binding var selection: TimeZone

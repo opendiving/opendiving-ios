@@ -149,15 +149,17 @@ written before the load is removed, not moved, when the load names another accou
 libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import, which needs the
 inbox to report back across a sign-out.
 
-## A computer that logs instants keeps two zones, and the diver's wins
+## A computer that logs instants gets its zone per download
 
-A Suunto Nautic reports a dive's start as an instant with no local clock. The record keeps the
-zone the watch last reported and the zone the diver named; a start is written in the diver's
-where set, else this download's watch's, and only where neither exists does the screen ask,
-after the walk and before the archive is written. The offset is the zone's at each dive's own
-instant, so a download across a daylight-saving change is right dive by dive. Rejected: `Z`,
-which puts UTC on every dive's page; the phone's zone written silently, an offset the source
-never carried.
+A Suunto Nautic reports a dive's start as an instant with no local clock, and the zone it reports
+is the one it shows now, not the one it dived in. A download writes the watch's zone where every
+dive is under a day old, since a diver waits about that long to fly. Otherwise, or with no zone
+reported, the screen asks after the walk, offering the watch's zone, else the phone's. Nothing is
+remembered: a kept answer would misplace the next trip's dives. The offset is the zone's at each
+dive's own instant, so a download across a daylight-saving change is right dive by dive. Rejected:
+`Z`, which puts UTC on every dive's page; the phone's zone written silently, an offset the source
+never carried; a zone per computer in Settings; asking at every download, which stops a download
+on the boat.
 
 ## The Ocean's logbook holds every sport, and a download skips what is not a dive
 

@@ -72,7 +72,7 @@ struct DiveComputerStoreTests {
     try store.save(
       DiveComputerRecord(
         identity: F.perdix, fingerprint: F.fingerprint(3), lastDownloaded: F.moment))
-    try store.save(DiveComputerRecord(identity: F.ocean, watchZone: F.helsinki))
+    try store.save(DiveComputerRecord(identity: F.ocean))
 
     let list = DiveComputersListModel(session: session, zone: F.helsinki)
     #expect(list.computers.map(\.title) == ["Shearwater Perdix 3", "Suunto Ocean"])
@@ -85,14 +85,6 @@ struct DiveComputerStoreTests {
     #expect(flagged.downloadAllNextTime)
     #expect(flagged.fingerprintToSet == nil)
     #expect(flagged.fingerprint == F.fingerprint(3))
-
-    let ocean = list.computers[1]
-    #expect(ocean.zone == F.helsinki)
-    let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
-    list.setDiverZone(tokyo, for: ocean)
-    #expect(list.computers[1].zone == tokyo)
-    list.setDiverZone(nil, for: list.computers[1])
-    #expect(list.computers[1].zone == F.helsinki)
 
     list.forget(perdix)
     #expect(list.computers.map(\.title) == ["Suunto Ocean"])

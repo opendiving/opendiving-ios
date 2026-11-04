@@ -43,12 +43,6 @@ public final class DiveComputersListModel {
     update(record) { $0.downloadAllNextTime = true }
   }
 
-  /// Sets the diver's zone for the computer's dives, which wins over the watch's; nil clears it
-  /// and the watch's applies again.
-  public func setDiverZone(_ zone: TimeZone?, for record: DiveComputerRecord) {
-    update(record) { $0.diverZone = zone }
-  }
-
   private func update(_ record: DiveComputerRecord, _ change: (inout DiveComputerRecord) -> Void) {
     guard let store, var current = store.record(family: record.family, serial: record.serial)
     else { return }

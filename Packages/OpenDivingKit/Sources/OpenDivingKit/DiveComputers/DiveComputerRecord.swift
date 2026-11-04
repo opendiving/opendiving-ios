@@ -1,8 +1,8 @@
 import Foundation
 
-/// What the phone remembers about one dive computer for one account: who it is, where the
-/// download it last finished stopped, and the zones its dives are written in. Never
-/// libdivecomputer's family or model number, which the open re-derives from the name.
+/// What the phone remembers about one dive computer for one account: who it is and where the
+/// download it last finished stopped. Never libdivecomputer's family or model number, which the
+/// open re-derives from the name.
 public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   public var family: DiveComputerFamily
   public var vendor: String
@@ -12,10 +12,6 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   public var firmware: String?
   /// The Core Bluetooth identifier the phone last saw it under: a hint for the scan's rows.
   public var peripheral: UUID?
-  /// For a family that logs instants: the zone the watch last reported, and the zone the diver
-  /// named, which wins over the watch's.
-  public var watchZone: TimeZone?
-  public var diverZone: TimeZone?
   /// libdivecomputer's fingerprint of the newest dive a finished download took, and when.
   public var fingerprint: Data?
   public var lastDownloaded: Date?
@@ -30,9 +26,9 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
   public var receivedBeforeAccountKnown: Bool
 
   public init(
-    identity: DiveComputerIdentity, peripheral: UUID? = nil, watchZone: TimeZone? = nil,
-    diverZone: TimeZone? = nil, fingerprint: Data? = nil, lastDownloaded: Date? = nil,
-    downloadAllNextTime: Bool = false, receivedBeforeAccountKnown: Bool = false
+    identity: DiveComputerIdentity, peripheral: UUID? = nil, fingerprint: Data? = nil,
+    lastDownloaded: Date? = nil, downloadAllNextTime: Bool = false,
+    receivedBeforeAccountKnown: Bool = false
   ) {
     family = identity.family
     vendor = identity.vendor
@@ -40,8 +36,6 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
     serial = identity.serial
     firmware = identity.firmware
     self.peripheral = peripheral
-    self.watchZone = watchZone
-    self.diverZone = diverZone
     self.fingerprint = fingerprint
     self.lastDownloaded = lastDownloaded
     self.downloadAllNextTime = downloadAllNextTime
@@ -54,11 +48,6 @@ public struct DiveComputerRecord: Codable, Hashable, Sendable, Identifiable {
 
   /// *Shearwater Perdix 3*.
   public var title: String { DiveComputerText.title(vendor: vendor, product: product) }
-
-  /// The zone Settings shows its dives in: the diver's where set, else the watch's as last
-  /// reported. A download writes in the diver's, else the zone the watch reports for that
-  /// download, and asks where neither exists.
-  public var zone: TimeZone? { diverZone ?? watchZone }
 
   /// The fingerprint a download from it sets: none when the diver asked for everything.
   public var fingerprintToSet: Data? { downloadAllNextTime ? nil : fingerprint }

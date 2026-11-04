@@ -58,7 +58,8 @@ struct DiveComputerScreen: View {
       if downloads.screenAppeared()?.kind == .handedOver { showsImport = true }
     }
     .onDisappear { downloads.screenDisappeared() }
-    .onChange(of: model.phase) { _, phase in
+    // Initial too: a diver who left mid-download comes back to a question already open.
+    .onChange(of: model.phase, initial: true) { _, phase in
       if phase == .askingTimeZone { zone = model.suggestedZone }
     }
     .onChange(of: model.outcome) { _, outcome in

@@ -2,8 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// Settings' *Dive Computers*: the account's paired computers, each with what
-/// the phone remembers of it, *Download all dives next time*, *Forget this dive computer*, and,
-/// for a computer that logs instants, the zone its dives are written in.
+/// the phone remembers of it, *Download all dives next time* and *Forget this dive computer*.
 struct DiveComputersListView: View {
   let model: DiveComputersListModel
 
@@ -21,9 +20,6 @@ struct DiveComputersListView: View {
             if let subtitle = model.subtitle(record) {
               Text(subtitle).font(.caption).foregroundStyle(.secondary)
             }
-          }
-          if record.family.logsInstants {
-            zone(record)
           }
           if record.downloadAllNextTime {
             Label(DiveComputerText.downloadAllNextTime, systemImage: "checkmark")
@@ -49,19 +45,6 @@ struct DiveComputersListView: View {
       Button("Forget", role: .destructive) { model.forget(record) }
     } message: { _ in
       Text(DiveComputerText.forgetMessage)
-    }
-  }
-
-  /// The zone the computer's dives are written in, the diver's where set and the watch's as
-  /// last reported otherwise; the picker sets the diver's, which wins over the watch's.
-  @ViewBuilder private func zone(_ record: DiveComputerRecord) -> some View {
-    TimeZonePicker(
-      title: "Time zone",
-      selection: Binding(
-        get: { record.zone ?? .current },
-        set: { model.setDiverZone($0, for: record) }))
-    if record.diverZone != nil, record.watchZone != nil {
-      Button("Use the watch's time zone") { model.setDiverZone(nil, for: record) }
     }
   }
 }
