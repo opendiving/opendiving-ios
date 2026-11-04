@@ -30,6 +30,7 @@ struct SpeciesField: View {
     Button(sightings.isEmpty ? "Select a species..." : "Add another species...") {
       picking = true
     }
+    .accentRow()
     .sheet(isPresented: $picking) {
       SpeciesPickerSheet(model: model)
     }

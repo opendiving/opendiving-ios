@@ -41,7 +41,9 @@ struct RecordSheetForm<Content: View>: View {
           Button {
             if save() { dismiss() }
           } label: {
-            Text(isReopened ? "Save changes" : "Create").foregroundStyle(.white)
+            Text(isReopened ? "Save changes" : "Create")
+              .fontWeight(.regular)
+              .foregroundStyle(.white)
           }
           .buttonStyle(.borderedProminent)
           .tint(.brandTeal)

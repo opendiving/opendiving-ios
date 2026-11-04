@@ -14,6 +14,7 @@ struct SigningOutRow: View {
     }
     .foregroundStyle(.secondary)
     Button("Stop waiting", action: stop)
+      .accentRow()
   }
 }
 

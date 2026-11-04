@@ -26,6 +26,7 @@ struct TanksSection: View {
 
   @ViewBuilder private var addTank: some View {
     Button("Add tank", systemImage: "plus") { model.addTank() }
+      .accentRow()
     if let warning = model.modWarning {
       Label(warning, systemImage: "exclamationmark.triangle")
         .font(.footnote)

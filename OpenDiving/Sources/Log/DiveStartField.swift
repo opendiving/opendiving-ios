@@ -20,6 +20,7 @@ struct DiveStartField: View {
       } else {
         FieldLabel(title)
         Button("Set the start time") { onChange(DiveStart.now()) }
+          .accentRow()
       }
       if let error { FieldMessage(error) }
     }

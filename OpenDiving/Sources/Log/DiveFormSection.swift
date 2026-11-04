@@ -175,7 +175,9 @@ struct DiveFormSection: View {
     }
     if model.shows(.tags) {
       TagsField(
-        tags: values.tags, error: message(.tags), onAdd: model.addTag, onRemove: model.removeTag)
+        tags: values.tags, error: message(.tags), onAdd: model.addTag, onRemove: model.removeTag
+      )
+      .id(DiveFormField.tags)
     }
     if model.shows(.notes) {
       NotesField(text: values.notes, error: message(.notes)) { text in

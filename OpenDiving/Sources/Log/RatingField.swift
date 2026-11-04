@@ -12,6 +12,7 @@ struct RatingField: View {
       FieldLabel("Rating") {
         if rating != nil {
           Button("Clear") { onChange(nil) }
+            .accentRow()
             .font(.caption)
             .buttonStyle(.borderless)
             .accessibilityLabel("Clear rating")

@@ -68,6 +68,7 @@ private struct TripSheetForm: View {
         Button("Add a part", systemImage: "plus") {
           model.values.parts.append(TripPartFormValues())
         }
+        .accentRow()
         .disabled(isFull)
         if isFull {
           Text("\(TripFormValues.maxParts) parts maximum - remove one to add another.")
@@ -162,8 +163,10 @@ private struct TripPartSection: View {
       HStack {
         if total > 1 {
           Button("Move up", systemImage: "arrow.up") { move(-1) }
+            .accentRow()
             .disabled(index == 0)
           Button("Move down", systemImage: "arrow.down") { move(1) }
+            .accentRow()
             .disabled(index == total - 1)
         }
         Spacer()

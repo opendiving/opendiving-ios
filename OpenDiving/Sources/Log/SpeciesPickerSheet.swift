@@ -45,6 +45,7 @@ struct SpeciesPickerSheet: View {
             .foregroundStyle(.secondary)
         }
       }
+      .pickerListSpacing()
       .searchable(
         text: $text, placement: .navigationBarDrawer(displayMode: .always),
         prompt: "Select a species..."

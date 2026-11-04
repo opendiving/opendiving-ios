@@ -42,6 +42,7 @@ struct DiveComputerScreen: View {
                 UIApplication.shared.open(url)
               }
             }
+            .accentRow()
           }
         }
       }
@@ -129,6 +130,7 @@ struct DiveComputerScreen: View {
           Text(outcome.sentence)
           if outcome.offersDownloadAll {
             Button(DiveComputerText.downloadAll) { model.downloadAll() }
+              .accentRow()
           }
         }
       }

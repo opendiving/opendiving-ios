@@ -100,6 +100,7 @@ struct ImportView: View {
         }
         if let title = readTitle {
           Button(title) { inbox.readAgain() }
+            .accentRow()
             .disabled(!inbox.canRead)
         }
         Button("Remove all", role: .destructive) {

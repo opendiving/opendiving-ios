@@ -17,6 +17,7 @@ struct GearField: View {
     Button(model.lookups.gearSets.isEmpty ? "No gear sets yet" : "Load a gear set...") {
       choosingSet = true
     }
+    .accentRow()
     .disabled(model.lookups.gearSets.isEmpty)
     // Waits for the picker to close: a set goes on to a dialog or the checklist's own sheet.
     .sheet(isPresented: $choosingSet, onDismiss: loadChosenSet) {
@@ -26,6 +27,7 @@ struct GearField: View {
       Button("Checklist: \(checklist.name)", systemImage: "checkmark.circle") {
         model.reopenChecklist()
       }
+      .accentRow()
     }
     ForEach(gear, id: \.self) { ref in
       let item = model.gearInfo(ref)
@@ -43,6 +45,7 @@ struct GearField: View {
       }
     }
     Button(FormPicker.gear.placeholder(holdsSome: !gear.isEmpty)) { picking = true }
+      .accentRow()
       .sheet(isPresented: $picking) {
         RecordPickerSheet(model: model, picker: .gear) { ref in
           if let ref { model.addGear(ref) }

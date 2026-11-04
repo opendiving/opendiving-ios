@@ -41,6 +41,7 @@ struct RecordPickerSheet: View {
             .foregroundStyle(.secondary)
         }
       }
+      .pickerListSpacing()
       .searchable(
         text: $text, placement: .navigationBarDrawer(displayMode: .always),
         prompt: picker.sheetPrompt
@@ -98,7 +99,7 @@ struct PickerRowLabel: View {
       }
       Spacer()
       if isSelected {
-        Image(systemName: "checkmark").foregroundStyle(.tint)
+        Image(systemName: "checkmark").foregroundStyle(Color.accentText)
       }
     }
   }

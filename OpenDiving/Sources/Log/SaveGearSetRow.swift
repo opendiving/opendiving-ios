@@ -9,6 +9,7 @@ struct SaveGearSetRow: View {
 
   var body: some View {
     Button("Save as set") { saving = true }
+      .accentRow()
       .disabled(model.values.gearItems.isEmpty)
       .sheet(isPresented: $saving) {
         SaveGearSetSheet(items: model.values.gearItems, weight: model.values.weight) { _ in }

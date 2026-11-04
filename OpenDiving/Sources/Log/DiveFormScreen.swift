@@ -62,6 +62,7 @@ struct DiveFormScreen: View {
       }
       .environment(\.defaultMinListRowHeight, 1)
       .background(TapEndsTyping())
+      .followsAddedTags(count: model.values.tags.count, id: DiveFormField.tags, proxy: proxy)
       .pinnedToBottom { saveBar(proxy) }
       .toolbar {
         ToolbarItem(placement: .topBarTrailing) {

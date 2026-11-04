@@ -93,7 +93,7 @@ private struct SavedServerLabel: View {
       Spacer()
       if server.isActive {
         Image(systemName: "checkmark")
-          .foregroundStyle(.tint)
+          .foregroundStyle(Color.accentText)
           .accessibilityLabel("Current server")
       }
     }

@@ -26,6 +26,7 @@ struct DiveComputersListView: View {
               .foregroundStyle(.secondary)
           } else {
             Button(DiveComputerText.downloadAllNextTime) { model.downloadAllNextTime(record) }
+              .accentRow()
           }
           Button(DiveComputerText.forget, role: .destructive) { forgetting = record }
             .foregroundStyle(Color.danger)

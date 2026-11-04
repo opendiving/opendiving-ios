@@ -113,4 +113,15 @@ struct EntryConversionTests {
     units.toggle(.sac, account: .metric)
     #expect(units.overrides.isEmpty)
   }
+
+  @Test func theLengthsMoveTogether() {
+    var units = EntryUnits()
+    units.toggle(.visibility, account: .metric)
+    for length in [Measure.depth, .visibility, .altitude] {
+      #expect(units.units(length, account: .metric) == .imperial)
+    }
+    #expect(units.units(.pressure, account: .metric) == .metric)
+    units.toggle(.altitude, account: .metric)
+    #expect(units.overrides.isEmpty)
+  }
 }

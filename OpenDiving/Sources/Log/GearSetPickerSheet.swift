@@ -26,6 +26,7 @@ struct GearSetPickerSheet: View {
           Text("No gear sets found.").foregroundStyle(.secondary)
         }
       }
+      .pickerListSpacing()
       .searchable(
         text: $text, placement: .navigationBarDrawer(displayMode: .always),
         prompt: "Load a gear set..."

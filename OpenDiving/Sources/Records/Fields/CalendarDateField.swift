@@ -23,6 +23,7 @@ struct CalendarDateField: View {
         .accessibilityLabel("Clear \(label)")
       } else {
         Button("Set") { date = Self.calendarDate(Date()) }
+          .accentRow()
           .buttonStyle(.borderless)
           .accessibilityLabel("Set \(label)")
       }

@@ -79,13 +79,14 @@ struct RecordPickerList<Row: LookupRow>: View {
               }
               Spacer()
               if row.ref == selection {
-                Image(systemName: "checkmark").foregroundStyle(.tint)
+                Image(systemName: "checkmark").foregroundStyle(Color.accentText)
               }
             }
           }
         }
       }
     }
+    .pickerListSpacing()
     .searchable(text: $search)
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)

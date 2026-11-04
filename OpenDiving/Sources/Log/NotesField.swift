@@ -66,7 +66,7 @@ private struct NotesSheet: View {
               onDone(draft)
               dismiss()
             } label: {
-              Text("Done").foregroundStyle(.white)
+              Text("Done").fontWeight(.regular).foregroundStyle(.white)
             }
             .buttonStyle(.borderedProminent)
             .tint(.brandTeal)

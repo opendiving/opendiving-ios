@@ -13,6 +13,7 @@ struct OtherNamesField: View {
       Button(names.isEmpty ? "Add a name" : "Add another name", systemImage: "plus") {
         names.append("")
       }
+      .accentRow()
     }
   }
 

@@ -42,6 +42,7 @@ struct PeopleField: View {
     }
     .onMove { from, to in model.change { $0.people.move(fromOffsets: from, toOffset: to) } }
     Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
+      .accentRow()
       .sheet(isPresented: $picking) {
         RecordPickerSheet(
           model: model, picker: .people, onSubmitText: { model.addPerson(named: $0) }

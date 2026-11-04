@@ -23,6 +23,7 @@ struct PlaceSearchSection: View {
       results
       if !trimmed.isEmpty {
         Button("Use “\(trimmed)”", action: useTyped)
+          .accentRow()
       }
     } footer: {
       if !model.attributions.isEmpty {

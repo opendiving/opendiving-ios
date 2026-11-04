@@ -168,6 +168,7 @@ struct PendingScreen: View {
             Text(notice.sentence)
             Spacer()
             Button("Dismiss") { outbox.dismiss(notice) }
+              .accentRow()
               .buttonStyle(.borderless)
           }
         }
@@ -191,6 +192,7 @@ struct PendingScreen: View {
           Button(PendingText.openImport, systemImage: "square.and.arrow.down") {
             route = .importFiles
           }
+          .accentRow()
         }
       } header: {
         Text(PendingText.filesHeader)
@@ -343,6 +345,7 @@ struct PendingItemRow: View {
         HStack(spacing: 16) {
           if let edit {
             Button("Edit", action: edit)
+              .accentRow()
           }
           if let discard {
             Button("Discard", role: .destructive, action: discard)

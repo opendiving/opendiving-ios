@@ -43,103 +43,112 @@ private struct DiveSiteSheetForm: View {
   @State private var pickedEntry: ExternalIdWrite?
   @Environment(\.dismiss) private var dismiss
 
+  private static let tagsField = "tags"
+
   var body: some View {
-    RecordSheetForm(
-      title: "New Dive Site", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
-    ) {
-      Section {
-        TextBox(
-          label: "Name *", placeholder: "e.g. Blue Hole", text: $model.values.name,
-          message: model.message("name"))
-      }
-      OtherNamesField(names: $model.values.otherNames)
-      Section {
-        VStack(alignment: .leading, spacing: 6) {
-          Text("Location").font(.subheadline.weight(.medium))
-          HStack {
-            TextField(
-              "Location", text: locationName, prompt: Text("e.g. Dahab, South Sinai, Egypt")
-            )
-            .labelsHidden()
-            Button {
-              searching = true
-            } label: {
-              Label("Search location", icon: .mapSearch)
+    ScrollViewReader { proxy in
+      RecordSheetForm(
+        title: "New Dive Site", isReopened: model.isReopened,
+        failure: model.failure, saveError: model.saveError, save: save
+      ) {
+        Section {
+          TextBox(
+            label: "Name *", placeholder: "e.g. Blue Hole", text: $model.values.name,
+            message: model.message("name"))
+        }
+        OtherNamesField(names: $model.values.otherNames)
+        Section {
+          VStack(alignment: .leading, spacing: 6) {
+            Text("Location").font(.subheadline.weight(.medium))
+            HStack {
+              TextField(
+                "Location", text: locationName, prompt: Text("e.g. Dahab, South Sinai, Egypt")
+              )
+              .labelsHidden()
+              Button {
+                searching = true
+              } label: {
+                Label("Search location", icon: .mapSearch)
+              }
+              .labelStyle(.iconOnly)
+              .buttonStyle(.borderless)
             }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
+            FieldMessage(model.message("location", member: "name"))
           }
-          FieldMessage(model.message("location", member: "name"))
-        }
-        CoordinateFields(
-          latitude: $model.values.latitude, longitude: $model.values.longitude,
-          latitudeMessage: model.message("latitude"),
-          longitudeMessage: model.message("longitude"),
-          hint: CoordinateHint.diveSite(hasMap: map.hasMap), onPlaced: place)
-        Button(locating ? "Finding your location…" : "Use my location", systemImage: "location") {
-          Task { await useMyLocation() }
-        }
-        .disabled(locating)
-        FieldMessage(locationFailure?.message(hasMap: map.hasMap))
-        PinMap(
-          style: map.shown, name: "the dive site", latitude: model.values.latitude,
-          longitude: model.values.longitude,
-          credit: lookup.credit(
-            latitude: model.values.latitude, longitude: model.values.longitude),
-          onPick: place)
-      }
-      if !model.values.externalIds.isEmpty {
-        Section("In Other Registries") {
-          ForEach(model.values.externalIds, id: \.self) { entry in
-            Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
+          CoordinateFields(
+            latitude: $model.values.latitude, longitude: $model.values.longitude,
+            latitudeMessage: model.message("latitude"),
+            longitudeMessage: model.message("longitude"),
+            hint: CoordinateHint.diveSite(hasMap: map.hasMap), onPlaced: place)
+          Button(locating ? "Finding your location…" : "Use my location", systemImage: "location") {
+            Task { await useMyLocation() }
           }
-          .onDelete { model.values.externalIds.remove(atOffsets: $0) }
+          .accentRow()
+          .disabled(locating)
+          FieldMessage(locationFailure?.message(hasMap: map.hasMap))
+          PinMap(
+            style: map.shown, name: "the dive site", latitude: model.values.latitude,
+            longitude: model.values.longitude,
+            credit: lookup.credit(
+              latitude: model.values.latitude, longitude: model.values.longitude),
+            onPick: place)
         }
-      }
-      Section {
-        RecordMeasuredField(
-          label: "Depth from", key: "depth_from", measure: .depth, units: units.units(.depth),
-          example: 5, value: $model.values.depthFrom, invalid: $invalid,
-          message: model.message("depth_from"), onToggle: { units.toggle(.depth) })
-        RecordMeasuredField(
-          label: "Depth to", key: "depth_to", measure: .depth, units: units.units(.depth),
-          example: 30, value: $model.values.depthTo, invalid: $invalid,
-          message: model.message("depth_to"), onToggle: { units.toggle(.depth) })
-        Picker("Water type", selection: $model.values.waterType) {
-          Text("Not recorded").tag(String?.none)
-          ForEach(FormVocabulary.waterTypes, id: \.self) { type in
-            Text(VocabularyLabels.waterType(type)).tag(Optional(type))
+        if !model.values.externalIds.isEmpty {
+          Section("In Other Registries") {
+            ForEach(model.values.externalIds, id: \.self) { entry in
+              Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
+            }
+            .onDelete { model.values.externalIds.remove(atOffsets: $0) }
           }
         }
-        RecordMeasuredField(
-          label: "Altitude", key: "altitude", measure: .altitude,
-          units: units.units(.altitude), example: 372, value: $model.values.altitudeMeters,
-          invalid: $invalid,
-          message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
-          allowsNegative: true)
-      }
-      Section("Entry Types") {
-        ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
-          Toggle(
-            VocabularyLabels.entryType(entry),
-            isOn: Binding(
-              get: { model.values.entryTypes.contains(entry) },
-              set: { model.values.setEntryType(entry, $0) })
+        Section {
+          RecordMeasuredField(
+            label: "Depth from", key: "depth_from", measure: .depth, units: units.units(.depth),
+            example: 5, value: $model.values.depthFrom, invalid: $invalid,
+            message: model.message("depth_from"), onToggle: { units.toggle(.depth) })
+          RecordMeasuredField(
+            label: "Depth to", key: "depth_to", measure: .depth, units: units.units(.depth),
+            example: 30, value: $model.values.depthTo, invalid: $invalid,
+            message: model.message("depth_to"), onToggle: { units.toggle(.depth) })
+          Picker("Water type", selection: $model.values.waterType) {
+            Text("Not recorded").tag(String?.none)
+            ForEach(FormVocabulary.waterTypes, id: \.self) { type in
+              Text(VocabularyLabels.waterType(type)).tag(Optional(type))
+            }
+          }
+          RecordMeasuredField(
+            label: "Altitude", key: "altitude", measure: .altitude,
+            units: units.units(.altitude), example: 372, value: $model.values.altitudeMeters,
+            invalid: $invalid,
+            message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
+            allowsNegative: true)
+        }
+        Section("Entry Types") {
+          ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
+            Toggle(
+              VocabularyLabels.entryType(entry),
+              isOn: Binding(
+                get: { model.values.entryTypes.contains(entry) },
+                set: { model.values.setEntryType(entry, $0) })
+            )
+            .tint(.brandTeal)
+          }
+        }
+        Section {
+          TagsField(
+            tags: model.values.tags, error: model.message("tags"),
+            onAdd: { model.values.addTag($0) },
+            onRemove: { model.values.removeTag($0) }
           )
-          .tint(.brandTeal)
+          .id(Self.tagsField)
+        }
+        Section {
+          TextBox(
+            label: "Notes", placeholder: "Any notes about this dive site...",
+            text: $model.values.notes, message: model.message("notes"), multiline: true)
         }
       }
-      Section {
-        TagsField(
-          tags: model.values.tags, error: model.message("tags"), onAdd: { model.values.addTag($0) },
-          onRemove: { model.values.removeTag($0) })
-      }
-      Section {
-        TextBox(
-          label: "Notes", placeholder: "Any notes about this dive site...",
-          text: $model.values.notes, message: model.message("notes"), multiline: true)
-      }
+      .followsAddedTags(count: model.values.tags.count, id: Self.tagsField, proxy: proxy)
     }
     .showsMapStyle(map)
     .sheet(isPresented: $searching) {

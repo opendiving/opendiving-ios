@@ -31,6 +31,7 @@ struct DiveSitesField: View {
     }
     .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
     Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
+      .accentRow()
       .sheet(isPresented: $picking) {
         RecordPickerSheet(model: model, picker: .diveSites) { ref in
           if let ref { model.addSite(ref) }

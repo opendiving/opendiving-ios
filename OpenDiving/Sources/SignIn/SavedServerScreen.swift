@@ -26,6 +26,7 @@ struct SavedServerScreen: View {
       Section {
         if model.isSignedIn {
           Button("Sign out") { Task { await model.signOut() } }
+            .accentRow()
             .disabled(model.isWorking)
         }
         if model.canForget {
