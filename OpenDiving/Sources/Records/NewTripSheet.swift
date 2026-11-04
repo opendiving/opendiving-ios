@@ -35,7 +35,7 @@ private struct TripSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Trip", createLabel: "Create trip", isReopened: model.isReopened,
+      title: "New Trip", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {

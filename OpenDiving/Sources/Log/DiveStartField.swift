@@ -24,21 +24,7 @@ struct DiveStartField: View {
       if let error { FieldMessage(error) }
     }
     .sheet(isPresented: $picking) {
-      if let start {
-        let (date, zone) = DiveStart.pickerValue(start)
-        WheelSheet(title: "Start time", value: DateText.diveDateTime(start)) {
-          DatePicker(
-            "Date and time",
-            selection: Binding(
-              get: { date },
-              set: { onChange(DiveStart.picking($0, in: zone, keeping: start)) }),
-            displayedComponents: isDay(start) ? [.date] : [.date, .hourAndMinute]
-          )
-          .datePickerStyle(.wheel)
-          .labelsHidden()
-          .environment(\.timeZone, zone)
-        }
-      }
+      if let start { StartTimeSheet(start: start, onDone: onChange) }
     }
     if let start {
       Picker(
@@ -56,6 +42,42 @@ struct DiveStartField: View {
   }
 
   private func isDay(_ start: DiveTimestamp) -> Bool {
+    if case .day = start { true } else { false }
+  }
+}
+
+/// The wheels, in the dive's own offset. A dive that records only its day turns only days.
+private struct StartTimeSheet: View {
+  let start: DiveTimestamp
+  let zone: TimeZone
+  let onDone: (DiveTimestamp?) -> Void
+
+  @State private var date: Date
+
+  init(start: DiveTimestamp, onDone: @escaping (DiveTimestamp?) -> Void) {
+    let (date, zone) = DiveStart.pickerValue(start)
+    self.start = start
+    self.zone = zone
+    self.onDone = onDone
+    _date = State(initialValue: date)
+  }
+
+  var body: some View {
+    let picked = DiveStart.picking(date, in: zone, keeping: start)
+    WheelSheet(title: "Start time", value: DateText.diveDateTime(picked)) {
+      onDone(picked)
+    } wheels: {
+      DatePicker(
+        "Date and time", selection: $date,
+        displayedComponents: isDay ? [.date] : [.date, .hourAndMinute]
+      )
+      .datePickerStyle(.wheel)
+      .labelsHidden()
+      .environment(\.timeZone, zone)
+    }
+  }
+
+  private var isDay: Bool {
     if case .day = start { true } else { false }
   }
 }

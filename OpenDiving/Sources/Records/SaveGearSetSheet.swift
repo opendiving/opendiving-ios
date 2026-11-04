@@ -44,7 +44,7 @@ private struct GearSetSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "Save as Set", createLabel: "Create set", isReopened: model.isReopened,
+      title: "Save as Set", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {

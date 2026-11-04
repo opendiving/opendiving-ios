@@ -31,7 +31,7 @@ private struct CourseSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Course", createLabel: "Create course", isReopened: model.isReopened,
+      title: "New Course", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {

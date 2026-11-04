@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// Who the diver was with, each a row of the form that drags to a new place and swipes away, its
-/// role on this dive beside the name — a buddy until the diver says otherwise — and the picker,
+/// role on this dive beside the name — a buddy until the diver says otherwise — under the picker,
 /// whose Return creates a person of the name typed.
 struct PeopleField: View {
   let model: DiveFormModel
@@ -11,6 +11,14 @@ struct PeopleField: View {
 
   var body: some View {
     let people = model.values.people
+    Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
+      .sheet(isPresented: $picking) {
+        RecordPickerSheet(
+          model: model, picker: .people, onSubmitText: { model.addPerson(named: $0) }
+        ) { ref in
+          if let ref { model.addPerson(ref) }
+        }
+      }
     ForEach(Array(people.enumerated()), id: \.element.person) { index, reference in
       let row = model.row(reference.person, .people)
       HStack {
@@ -41,15 +49,6 @@ struct PeopleField: View {
     }
     .onMove { from, to in model.change { $0.people.move(fromOffsets: from, toOffset: to) } }
     .onDelete { offsets in offsets.map { people[$0].person }.forEach(model.removePerson) }
-    Button(FormPicker.people.placeholder(holdsSome: !people.isEmpty)) { picking = true }
-      .buttonStyle(.borderless)
-      .sheet(isPresented: $picking) {
-        RecordPickerSheet(
-          model: model, picker: .people, onSubmitText: { model.addPerson(named: $0) }
-        ) { ref in
-          if let ref { model.addPerson(ref) }
-        }
-      }
   }
 
   /// The roles in the web's order, and one a newer server stored kept on offer.

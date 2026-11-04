@@ -47,7 +47,7 @@ private struct DiveSiteSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Dive Site", createLabel: "Create dive site", isReopened: model.isReopened,
+      title: "New Dive Site", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {

@@ -29,7 +29,7 @@ private struct PersonSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Person", createLabel: "Create person", isReopened: model.isReopened,
+      title: "New Person", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {

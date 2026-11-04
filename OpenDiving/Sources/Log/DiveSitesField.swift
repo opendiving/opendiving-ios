@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The dive's sites in the order visited — the first is the primary — each a row of the form, so
-/// it drags to a new place and swipes away, and the picker that adds the next.
+/// it drags to a new place and swipes away, under the picker that adds the next.
 struct DiveSitesField: View {
   let model: DiveFormModel
 
@@ -12,6 +12,12 @@ struct DiveSitesField: View {
     let sites = model.values.diveSites
     FieldLabel(DiveFormField.diveSites.label)
       .listRowSeparator(.hidden, edges: .bottom)
+    Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
+      .sheet(isPresented: $picking) {
+        RecordPickerSheet(model: model, picker: .diveSites) { ref in
+          if let ref { model.addSite(ref) }
+        }
+      }
     ForEach(Array(sites.enumerated()), id: \.element) { index, ref in
       let row = model.row(ref, .diveSites)
       HStack {
@@ -29,13 +35,6 @@ struct DiveSitesField: View {
     }
     .onMove { from, to in model.change { $0.diveSites.move(fromOffsets: from, toOffset: to) } }
     .onDelete { offsets in offsets.map { sites[$0] }.forEach(model.removeSite) }
-    Button(FormPicker.diveSites.placeholder(holdsSome: !sites.isEmpty)) { picking = true }
-      .buttonStyle(.borderless)
-      .sheet(isPresented: $picking) {
-        RecordPickerSheet(model: model, picker: .diveSites) { ref in
-          if let ref { model.addSite(ref) }
-        }
-      }
   }
 }
 

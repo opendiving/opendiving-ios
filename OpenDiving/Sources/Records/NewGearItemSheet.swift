@@ -42,7 +42,7 @@ private struct GearItemSheetForm: View {
 
   var body: some View {
     RecordSheetForm(
-      title: "New Gear", createLabel: "Create gear", isReopened: model.isReopened,
+      title: "New Gear", isReopened: model.isReopened,
       failure: model.failure, saveError: model.saveError, save: save
     ) {
       Section {

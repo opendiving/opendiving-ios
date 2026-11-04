@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// A short sheet of wheels: what they set and its value so far, the wheels, and *Done*. Each turn
-/// lands in the form as it happens, so *Done* and a swipe down both only close the sheet.
+/// A short sheet of wheels: what they set and the value on them, the wheels, and *Done*, the one
+/// way a turn reaches the form. Swiping the sheet down leaves the form as it was.
 struct WheelSheet<Wheels: View>: View {
   let title: String
   let value: String
+  let onDone: () -> Void
   @ViewBuilder let wheels: () -> Wheels
 
   @Environment(\.dismiss) private var dismiss
@@ -18,6 +19,7 @@ struct WheelSheet<Wheels: View>: View {
       }
       wheels()
       Button {
+        onDone()
         dismiss()
       } label: {
         Text("Done")
@@ -37,7 +39,7 @@ struct WheelSheet<Wheels: View>: View {
 #Preview {
   Text("Form")
     .sheet(isPresented: .constant(true)) {
-      WheelSheet(title: "Start time", value: "Nov 4, 2026, 12:15") {
+      WheelSheet(title: "Start time", value: "Nov 4, 2026, 12:15", onDone: {}) {
         DatePicker("Date", selection: .constant(.now)).datePickerStyle(.wheel).labelsHidden()
       }
     }
