@@ -3,16 +3,22 @@ import SwiftUI
 
 /// The web's *New Dive Site* dialog, plus *Use my location*: queues the site and hands back its
 /// ref, or reopens a queued create the server refused (`failedItem`) and queues it again. Its
-/// *Search location* can hand back a site the diver already has instead, and nothing is made.
+/// *Search location* can hand back a Commons record instead, and nothing is made.
 struct NewDiveSiteSheet: View {
   let failedItem: UUID?
+  /// Nil where a Commons record has nothing to go on.
+  var onCommonsSite: ((DiveSiteLookupItem) -> Void)?
   let onCreated: (RecordRef) -> Void
   var locator: any LocationProvider = CoreLocationProvider()
 
   @Environment(Session.self) private var session
 
-  init(failedItem: UUID? = nil, onCreated: @escaping (RecordRef) -> Void) {
+  init(
+    failedItem: UUID? = nil, onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
+    onCreated: @escaping (RecordRef) -> Void
+  ) {
     self.failedItem = failedItem
+    self.onCommonsSite = onCommonsSite
     self.onCreated = onCreated
   }
 
@@ -22,12 +28,13 @@ struct NewDiveSiteSheet: View {
         outbox: OutboxModel(session: session), values: DiveSiteFormValues(),
         failedItem: failedItem),
       units: RecordEntryUnits(session: session), map: MapStyleModel(session: session),
-      session: session, locator: locator, onCreated: onCreated)
+      session: session, locator: locator, onCommonsSite: onCommonsSite, onCreated: onCreated)
   }
 }
 
 /// The dive site form as a screen of its own: the *Sites* tab's new site, a site's page's edit,
-/// or a queued edit the server refused.
+/// or a queued edit the server refused. A Commons record opens its own form, and one off the
+/// diver's list none.
 struct DiveSiteFormView: View {
   let mode: RecordFormMode<DiveSiteRead>
   /// The site was deleted from the form, which leaves the page it was opened from nothing to show.
@@ -40,13 +47,28 @@ struct DiveSiteFormView: View {
     case .create:
       form(RecordSheetModel(outbox: OutboxModel(session: session), values: DiveSiteFormValues()))
     case .edit(let site):
-      form(edit(site, failedItem: nil))
+      editing(site, failedItem: nil)
     case .failed(let item, let uuid):
       RecordFormLoader {
         try await session.requireClient().diveSite(uuid)
       } content: { site in
-        form(edit(site, failedItem: item))
+        editing(site, failedItem: item)
       }
+    }
+  }
+
+  @ViewBuilder private func editing(_ site: DiveSiteRead, failedItem: UUID?) -> some View {
+    if site.isUnsavedCommons {
+      EmptyOrErrorView(
+        status: .empty(
+          icon: .diveSite, title: "Not on your list",
+          message: "This site is no longer on your list, so nothing of it can be changed here."))
+    } else if site.isCommons {
+      CommonsSiteForm(
+        site: site, model: edit(site, failedItem: failedItem), units: session.units,
+        onDeleted: onDeleted)
+    } else {
+      form(edit(site, failedItem: failedItem))
     }
   }
 
@@ -72,6 +94,7 @@ private struct DiveSiteSheetForm: View {
   let session: Session
   let locator: any LocationProvider
   var isPushed = false
+  var onCommonsSite: ((DiveSiteLookupItem) -> Void)?
   let onCreated: (RecordRef) -> Void
   var onDeleted: () -> Void = {}
 
@@ -80,12 +103,10 @@ private struct DiveSiteSheetForm: View {
   @State private var searching = false
   @State private var locating = false
   @State private var locationFailure: LocationFailure?
-  /// The registry entry the last catalogue pick here added, which the next pick replaces.
-  @State private var pickedEntry: ExternalIdWrite?
+  /// A Commons record went on the list from the search: the form leaves once it has closed.
+  @State private var savedFromSearch = false
   @Environment(\.dismiss) private var dismiss
   @FocusState private var locationFocused: Bool
-
-  private static let tagsField = "tags"
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -187,33 +208,40 @@ private struct DiveSiteSheetForm: View {
         } header: {
           FormSectionHeader(title: "Entry Types", icon: .wavesArrowDown)
         }
-        Section {
-          TagsField(
-            tags: model.values.tags, error: model.message("tags"),
-            onAdd: { model.values.addTag($0) },
-            onRemove: { model.values.removeTag($0) }
-          )
-          .id(Self.tagsField)
-          NotesField(
-            placeholder: "Any notes about this dive site...", text: $model.values.notes,
-            error: model.message("notes"))
-        } header: {
-          FormSectionHeader(group: .notes)
-        }
+        SiteNotesSection(model: model)
       }
-      .followsAddedTags(count: model.values.tags.count, id: Self.tagsField, proxy: proxy)
+      .followsAddedTags(
+        count: model.values.tags.count, id: SiteNotesSection.tagsField, proxy: proxy)
     }
     .showsMapStyle(map)
-    .sheet(isPresented: $searching) {
-      LocationSearchSheet(
-        latitude: model.values.latitude, longitude: model.values.longitude,
-        location: model.values.location, onUse: use,
-        onTakeHeldSite: model.isReopened
-          ? nil
-          : { uuid in
-            onCreated(.server(uuid))
-            dismiss()
-          })
+    .sheet(
+      isPresented: $searching,
+      onDismiss: {
+        if savedFromSearch { dismiss() }
+      },
+      content: {
+        LocationSearchSheet(
+          latitude: model.values.latitude, longitude: model.values.longitude,
+          location: model.values.location, onUse: use, commonsOffer: commonsOffer)
+      })
+  }
+
+  /// From a dive's picker the record goes on the dive, and from the *Sites* tab on the diver's
+  /// list; a record of the diver's being corrected or edited has no use for one.
+  private var commonsOffer: CommonsOffer? {
+    if model.isReopened { return nil }
+    if isPushed {
+      return CommonsOffer(
+        label: { _ in "Save to your sites" },
+        take: { savedFromSearch = model.saveToList($0) })
+    }
+    return onCommonsSite.map { onCommonsSite in
+      CommonsOffer(
+        label: { "Use \($0.name)" },
+        take: { site in
+          onCommonsSite(site)
+          dismiss()
+        })
     }
   }
 
@@ -254,8 +282,7 @@ private struct DiveSiteSheetForm: View {
     }
   }
 
-  /// What *Search location* settled on fills the position and the Location wholesale; a
-  /// catalogue site names the site too and adds its registry entry.
+  /// What *Search location* settled on fills the position and the Location wholesale.
   private func use(_ searched: SearchedLocation) {
     model.values.latitude = searched.latitude
     model.values.longitude = searched.longitude
@@ -264,12 +291,6 @@ private struct DiveSiteSheetForm: View {
       latitude: searched.latitude, longitude: searched.longitude,
       credit: location == nil ? nil : searched.credit)
     model.values.location = location
-    guard let site = searched.site else { return }
-    model.values.name = site.name
-    let picked = PlaceSearch.pickExternalId(
-      model.values.externalIds, replacing: pickedEntry, with: site.externalId)
-    model.values.externalIds = picked.externalIds
-    pickedEntry = picked.added
   }
 
   private func save() -> Bool {

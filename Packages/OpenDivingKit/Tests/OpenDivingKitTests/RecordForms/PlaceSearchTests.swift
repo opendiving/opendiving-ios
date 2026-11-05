@@ -11,13 +11,22 @@ struct PlaceSearchTests {
     "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)"
 
   private func site(
-    _ name: String, id: String = "node/1", region: String? = "South Sinai",
-    country: String? = "Egypt", nameEn: String? = nil, held: DiveSiteReference? = nil
-  ) -> DiveSiteSuggestion {
-    DiveSiteSuggestion(
-      name: name, nameEn: nameEn, latitude: 28.5722, longitude: 34.5372, country: country,
-      region: region, source: "osm", sourceId: id, attribution: Self.osm,
-      externalId: ExternalIdRead(registry: "openstreetmap", identifier: id), heldSite: held)
+    _ name: String, id: String = "node/1", locality: String? = "South Sinai, Egypt",
+    otherNames: [String] = []
+  ) -> DiveSiteLookupItem {
+    DiveSiteLookupItem(
+      ref: .server(UUID(uuidString: "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f")!), name: name,
+      otherNames: otherNames, latitude: 28.5722, longitude: 34.5372,
+      location: locality.map { LocationRead(name: $0) },
+      externalIds: [ExternalIdRead(registry: "openstreetmap", identifier: id)],
+      owner: DiveSiteOwner.commons, saved: false, attribution: Self.osm)
+  }
+
+  private func page(_ sites: [DiveSiteLookupItem], hasMore: Bool = false)
+    -> PaginatedListResponse<DiveSiteLookupItem>
+  {
+    PaginatedListResponse(
+      data: sites, totalCount: sites.count, hasMore: hasMore, page: 1, itemsPerPage: 10)
   }
 
   private func place(
@@ -30,9 +39,9 @@ struct PlaceSearchTests {
       bboxNorth: 29, bboxWest: 34, bboxEast: 35)
   }
 
-  @Test func catalogueRowsComeFirstAndAGeocodedCopyOfOneIsDropped() {
+  @Test func commonsRowsComeFirstAndAGeocodedCopyOfOneIsDropped() {
     let rows = PlaceSearch.siteRows(
-      catalog: [site("Blue Hole")],
+      commons: [site("Blue Hole")],
       geocoded: [
         place(
           "Blue Hole, South Sinai, Egypt", name: "Blue Hole", source: "osm", sourceId: "node/1"),
@@ -42,12 +51,27 @@ struct PlaceSearchTests {
     #expect(rows.map(\.hint) == ["South Sinai, Egypt", "South Sinai, Egypt"])
   }
 
-  @Test func aCatalogueRowSaysItIsHeldItsEnglishNameAndHowFar() {
-    let held = DiveSiteReference(uuid: UUID(), name: "Bells")
-    let hint = PlaceSearch.catalogHint(
-      site("砂辺", nameEn: "Sunabe", held: held),
+  @Test func aGeocodedRowStaysUnlessTheRecordNamesItsObject() {
+    let other = place("Blue Hole", source: "osm", sourceId: "node/2")
+    let unsourced = place("Canyon", sourceId: "node/1")
+    let rows = PlaceSearch.siteRows(
+      commons: [site("Blue Hole")], geocoded: [other, unsourced], position: nil, units: .metric)
+    #expect(rows.count == 3)
+  }
+
+  @Test func aCommonsRowSaysAnotherNameWhereItIsAndHowFar() {
+    let hint = PlaceSearch.commonsHint(
+      site("砂辺", otherNames: ["Sunabe"]),
       position: DeviceLocation(latitude: 28.5722, longitude: 34.5272), units: .metric)
-    #expect(hint == "In your sites as Bells · Sunabe · South Sinai, Egypt · 977 m")
+    #expect(hint == "Sunabe · South Sinai, Egypt · 977 m")
+  }
+
+  @Test func aCommonsRowSaysTheOtherNameTheSearchFoundItBy() {
+    let row = site("砂辺", locality: nil, otherNames: ["Sunabe", "Seawall", "砂辺"])
+    #expect(
+      PlaceSearch.commonsHint(row, query: "seaw", position: nil, units: .metric) == "Seawall")
+    #expect(PlaceSearch.commonsHint(row, query: "砂", position: nil, units: .metric) == "Sunabe")
+    #expect(PlaceSearch.commonsHint(site("A", locality: nil), position: nil, units: .metric) == nil)
   }
 
   @Test func aGeocodedRowDropsAContextPartItsNameSays() {
@@ -69,28 +93,6 @@ struct PlaceSearchTests {
     if case .geocode(let result) = rows.first?.pick {
       #expect(PlaceSearch.location(of: result).bboxNorth == 29)
     }
-  }
-
-  @Test func aPickReplacesTheEntryThePreviousPickAdded() {
-    let kept = ExternalIdWrite(registry: "wikidata", identifier: "Q1")
-    let first = PlaceSearch.pickExternalId(
-      [kept], replacing: nil, with: ExternalIdRead(registry: "openstreetmap", identifier: "node/1"))
-    let second = PlaceSearch.pickExternalId(
-      first.externalIds, replacing: first.added,
-      with: ExternalIdRead(registry: "openstreetmap", identifier: "node/2"))
-    #expect(
-      second.externalIds == [
-        kept, ExternalIdWrite(registry: "openstreetmap", identifier: "node/2"),
-      ])
-    let again = PlaceSearch.pickExternalId(
-      [kept], replacing: nil, with: ExternalIdRead(registry: "wikidata", identifier: "Q1"))
-    #expect(again.externalIds == [kept])
-    #expect(again.added == nil)
-  }
-
-  @Test func aCataloguePickNamesItsPlaceOnlyWhereTheRecordHasOne() {
-    #expect(PlaceSearch.location(of: site("A"))?.name == "South Sinai, Egypt")
-    #expect(PlaceSearch.location(of: site("A", region: nil, country: nil)) == nil)
   }
 
   @Test func aLookedUpPositionNamesTheLocationOrClearsOnlyANamedOne() {
@@ -173,25 +175,40 @@ struct PlaceSearchTests {
   private struct Down: Error {}
 
   @Test func oneSourceDownIsAShorterListAndBothDownIsAnError() async {
-    let catalogOnly = PlaceSearchModel(
+    let commonsOnly = PlaceSearchModel(
       text: .diveSite,
-      catalog: { _, _ in DiveSiteSuggestResponse(results: [self.site("Blue Hole")], hasMore: true)
-      },
+      commons: { _, _ in self.page([self.site("Blue Hole")], hasMore: true) },
       geocode: { _ in throw Down() }, debounce: .zero)
-    await catalogOnly.search("blue", near: nil, units: .metric)
+    await commonsOnly.search("blue", near: nil, units: .metric)
     #expect(
-      catalogOnly.state
+      commonsOnly.state
         == .results(
           PlaceSearch.siteRows(
-            catalog: [site("Blue Hole")], geocoded: [], position: nil, units: .metric),
+            commons: [site("Blue Hole")], geocoded: [], query: "blue", position: nil,
+            units: .metric),
           hasMore: true))
-    #expect(catalogOnly.attributions == [Self.osm])
+    #expect(commonsOnly.attributions == [Self.osm])
 
     let neither = PlaceSearchModel(
-      text: .diveSite, catalog: { _, _ in throw Down() }, geocode: { _ in throw Down() },
+      text: .diveSite, commons: { _, _ in throw Down() }, geocode: { _ in throw Down() },
       debounce: .zero)
     await neither.search("blue", near: nil, units: .metric)
     #expect(neither.state == .failed)
+  }
+
+  @Test func aSitesPlacesAloneAreLabelledAsTheCombinedSearchLabelsThem() async {
+    let model = PlaceSearchModel(
+      text: .diveSitePlace, commons: nil,
+      geocode: { _ in
+        [self.place("Dahab, South Sinai, Egypt", name: "Dahab", country: "Egypt")]
+      }, debounce: .zero)
+    await model.search("dahab", near: nil, units: .metric)
+    guard case .results(let rows, hasMore: false) = model.state else {
+      Issue.record("No rows")
+      return
+    }
+    #expect(rows.map(\.name) == ["Dahab"])
+    #expect(rows.map(\.hint) == ["Egypt"])
   }
 
   @Test func bothSourcesAreAskedAtOnce() async {
@@ -199,10 +216,10 @@ struct PlaceSearchTests {
     var overlapped = false
     let model = PlaceSearchModel(
       text: .diveSite,
-      catalog: { _, _ in
+      commons: { _, _ in
         for _ in 0..<200 where !geocoderAsked { try await Task.sleep(for: .milliseconds(5)) }
         overlapped = geocoderAsked
-        return DiveSiteSuggestResponse(results: [], hasMore: false)
+        return self.page([])
       },
       geocode: { _ in
         geocoderAsked = true
@@ -215,7 +232,7 @@ struct PlaceSearchTests {
   @Test func aShortOrLongQueryAsksNeitherSource() async {
     var asked = 0
     let model = PlaceSearchModel(
-      text: .tripPart, catalog: nil,
+      text: .tripPart, commons: nil,
       geocode: { _ in
         asked += 1
         return []

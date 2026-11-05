@@ -87,6 +87,7 @@ public enum PendingText {
     case .updateDiveSite(_, let body):
       return body.name.map { named("Changes to dive site", $0) } ?? "Changes to a dive site"
     case .deleteDiveSite: return "A deleted dive site"
+    case .saveDiveSite(let site): return named("Save to your sites", site.name)
     case .createPerson(let body): return named("Buddy", body.name)
     case .createTrip(let body): return named("Trip", body.name)
     case .updateTrip(_, let body):

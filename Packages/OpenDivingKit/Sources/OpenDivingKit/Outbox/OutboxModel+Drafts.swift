@@ -130,6 +130,7 @@ extension OutboxModel {
       }
       if let drafts {
         cacheForAnswer(fetchedUnder: stores, session: session)?.writeDiveDrafts(drafts)
+        await LookupsModel.nameSites(client, session: session, fetchedUnder: stores)
       }
       hub.draftsRefresh = nil
       hub.changed()

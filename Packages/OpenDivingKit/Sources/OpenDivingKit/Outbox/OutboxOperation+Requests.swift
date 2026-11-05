@@ -19,6 +19,7 @@ extension OutboxOperation {
     case .updateDiveSite(let ref, let body):
       return ("PATCH", try path("dive-site", ref), try APIClient.json(body))
     case .deleteDiveSite(let ref): return ("DELETE", try path("dive-site", ref), nil)
+    case .saveDiveSite(let site): return ("PUT", try path("dive-site", site.ref, "/saved"), nil)
     case .createPerson(let body): return ("POST", "person", try APIClient.json(body))
     case .createTrip(let body): return ("POST", "trip", try APIClient.json(body))
     case .updateTrip(let ref, let body):
@@ -55,8 +56,8 @@ extension OutboxOperation {
     case .createContact: return .record(try decoder.decode(ContactRead.self, from: data).uuid)
     case .createGearItem: return .record(try decoder.decode(GearItemRead.self, from: data).uuid)
     case .createGearSet: return .gearSet(try decoder.decode(GearSetRead.self, from: data))
-    case .updateDive, .deleteDive, .updateDiveSite, .deleteDiveSite, .updateTrip, .deleteTrip,
-      .updateGearSet, .updateDiveDraft, .deleteDiveDraft:
+    case .updateDive, .deleteDive, .updateDiveSite, .deleteDiveSite, .saveDiveSite, .updateTrip,
+      .deleteTrip, .updateGearSet, .updateDiveDraft, .deleteDiveDraft:
       return nil
     }
   }
@@ -107,8 +108,8 @@ extension OutboxOperation {
         + body.people.map { ($0.person, .person) }
     case .createGearSet(let body): return body.gearItems.map { ($0, .gearItem) }
     case .updateGearSet(_, let body): return (body.gearItems ?? []).map { ($0, .gearItem) }
-    case .createDiveSite, .updateDiveSite, .createPerson, .createContact, .createGearItem,
-      .deleteDive, .deleteDiveSite, .deleteTrip, .deleteDiveDraft:
+    case .createDiveSite, .updateDiveSite, .saveDiveSite, .createPerson, .createContact,
+      .createGearItem, .deleteDive, .deleteDiveSite, .deleteTrip, .deleteDiveDraft:
       return []
     }
   }

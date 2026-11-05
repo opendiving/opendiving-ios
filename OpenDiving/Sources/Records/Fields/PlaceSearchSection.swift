@@ -77,7 +77,7 @@ struct PlaceSearchSection: View {
   @Previewable @State var query = ""
   List {
     PlaceSearchSection(
-      model: PlaceSearchModel(text: .tripPart, catalog: nil, geocode: { _ in [] }),
+      model: PlaceSearchModel(text: .tripPart, commons: nil, geocode: { _ in [] }),
       query: $query, units: .metric, onPick: { _ in }, onTypeName: { _ in })
   }
 }

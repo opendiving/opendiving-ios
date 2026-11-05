@@ -83,7 +83,7 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
     case .updateDive, .updateGearSet: return failure?.status != 404
     case .updateDiveSite, .updateTrip: return isFailed && failure?.status != 404
     case .updateDiveDraft: return true
-    case .deleteDive, .deleteDiveSite, .deleteTrip, .deleteDiveDraft: return false
+    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deleteTrip, .deleteDiveDraft: return false
     default: return holdsNothing
     }
   }

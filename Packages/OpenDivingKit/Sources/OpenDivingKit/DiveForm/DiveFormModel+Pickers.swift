@@ -44,9 +44,11 @@ extension DiveFormModel {
           search: search, until: until, page: 1, itemsPerPage: size
         ).data.map(FormPickerRow.init)
       case .diveSites:
-        found = try await client.lookupDiveSites(
+        let sites = try await client.lookupDiveSites(
           search: search, until: until, page: 1, itemsPerPage: size
-        ).data.map(FormPickerRow.init)
+        ).data
+        for site in sites { sitesFound[site.ref] = site }
+        found = sites.map(FormPickerRow.init)
       case .people:
         found = try await client.lookupPeople(
           search: search, until: until, page: 1, itemsPerPage: size
@@ -99,6 +101,9 @@ extension DiveFormModel {
   /// mark; the web's placeholder name otherwise.
   public func row(_ ref: RecordRef, _ picker: FormPicker) -> FormPickerRow {
     if let row = table(picker).first(where: { $0.ref == ref }) { return row }
+    if picker == .diveSites, let site = lookups.namedSites.first(where: { $0.ref == ref }) {
+      return FormPickerRow(site)
+    }
     if let item = knownGear[ref], picker == .gear || picker == .cylinder {
       return FormPickerRow(gear: item)
     }
@@ -181,9 +186,19 @@ extension DiveFormModel {
   public func setTrip(_ ref: RecordRef?) { change { $0.trip = ref } }
   public func setContact(_ ref: RecordRef?) { change { $0.contact = ref } }
 
-  /// Adds a site after the others: the first is the primary.
+  /// Adds a site after the others: the first is the primary. A Commons record off the diver's
+  /// list stays nameable once the form is gone: no lookup of theirs lists it until the dive lands.
   public func addSite(_ ref: RecordRef) {
+    if let site = sitesFound[ref], site.isCommons, !site.saved {
+      LookupsModel.keep(site, session: session)
+    }
     change { values in if !values.diveSites.contains(ref) { values.diveSites.append(ref) } }
+  }
+
+  /// A Commons record taken from the site form's search, which the picker then adds.
+  public func take(_ site: DiveSiteLookupItem) {
+    sitesFound[site.ref] = site
+    remember(FormPickerRow(site))
   }
 
   /// Adds someone the diver was with: a buddy, until the diver says otherwise.

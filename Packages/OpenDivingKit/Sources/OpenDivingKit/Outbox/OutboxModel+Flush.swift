@@ -298,6 +298,10 @@ private struct Flush {
     if case .updateDive(let ref, let update) = item.operation, let uuid = ref.serverUUID {
       keepLanded(update, ofDive: uuid)
     }
+    if case .saveDiveSite(var site) = item.operation {
+      site.saved = true
+      cache.upsertLookupRow(site, table: .diveSites)
+    }
     // Before the item goes, so its list never shows the record between the two.
     if let deleted = item.operation.deletedRecord { hub.deleted.insert(deleted) }
     outbox.remove(item.id)

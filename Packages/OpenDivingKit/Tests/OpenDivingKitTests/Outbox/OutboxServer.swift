@@ -166,6 +166,8 @@ final class OutboxServer: HTTPTransport {
           decoding: try! JSONSerialization.data(withJSONObject: object), as: UTF8.self)
       }
       return .json(created, status: 201)
+    case ("PUT", "dive-site"):
+      return .json(Self.with(fixtures["dive-site"]!, uuid: segments[1]))
     case ("PATCH", _): return .json(#"{"message":"Updated"}"#)
     case ("DELETE", _): return .json(#"{"message":"Deleted"}"#)
     default: return .json(#"{"detail":"Not Found"}"#, status: 404)

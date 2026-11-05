@@ -42,7 +42,7 @@ struct PickerSheet<AddSheet: View>: View {
             onChoose(row)
             pick(row.ref)
           } label: {
-            PickerRowLabel(row: row, isSelected: row.ref == current)
+            PickerRowLabel(row: row, isSelected: row.ref == current, showsCredit: true)
           }
         }
         if shown.isEmpty && found.isEmpty {

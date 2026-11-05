@@ -78,6 +78,32 @@ struct RecordSheetsTests {
       ], in: found)
   }
 
+  private func commonsSite(saved: Bool) throws -> DiveSiteRead {
+    let json = """
+      {"uuid":"01a0a521-28c5-7e34-a572-4d7324f5033b","name":"Quarry","notes":"",
+       "other_names":[],"external_ids":[],"entry_types":[],"tags":[],"dive_count":0,
+       "species_count":0,"owner":"opendivingcommons","saved":\(saved),
+       "attribution":"[Data from OpenDiving Commons contributors, CC0 1.0.](https://example.org)",
+       "created_at":"2026-09-15T12:53:28.901059Z"}
+      """
+    return try APICoding.decoder().decode(DiveSiteRead.self, from: Data(json.utf8))
+  }
+
+  @Test func aSavedCommonsSitesFormOffersItsTagsAndNoSharedInput() async throws {
+    let site = try commonsSite(saved: true)
+    let found = try await texts(NavigationStack { DiveSiteFormView(mode: .edit(site)) })
+    expectFields(["Edit Dive Site", "Add a tag...", "Commons"], in: found)
+    for shared in ["e.g. Blue Hole", "e.g. 27.8506", "e.g. 372"] {
+      #expect(!found.contains(shared), "\(shared) drawn")
+    }
+  }
+
+  @Test func anUnsavedCommonsSiteHasNoForm() async throws {
+    let site = try commonsSite(saved: false)
+    let found = try await texts(NavigationStack { DiveSiteFormView(mode: .edit(site)) })
+    #expect(!found.contains("Add a tag..."))
+  }
+
   @Test func thePersonSheetDrawsTheWebsFields() async throws {
     let found = try await texts(NewPersonSheet { _ in })
     expectFields(

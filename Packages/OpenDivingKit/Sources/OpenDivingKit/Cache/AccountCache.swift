@@ -204,4 +204,7 @@ public struct AccountCache: Sendable {
 /// The pickers' tables the lookups cache keeps.
 public enum LookupTable: String, CaseIterable, Sendable {
   case diveSites, trips, contacts, people, courses, gearItems, gearSets, lifeList, recentVolumes
+  /// Commons records a dive or a draft names without the diver having saved them, which no
+  /// refresh of `diveSites` brings. Never offered by a picker, only read to name them.
+  case namedSites
 }

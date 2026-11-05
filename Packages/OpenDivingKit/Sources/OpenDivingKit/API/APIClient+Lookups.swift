@@ -4,20 +4,29 @@ import Foundation
   import FoundationNetworking
 #endif
 
-// What the dive form and the record forms read: the pickers' lookups, the suggestions, the
-// searches. `until` is the start of the dive being edited, so the records a dive of its time
+// What the dive form and the record forms read: the pickers' lookups and the searches. `until` is the start of the dive being edited, so the records a dive of its time
 // used rank first; nil ranks as of now.
 extension APIClient {
   // MARK: - Lookups
 
-  /// `GET /dive-sites/lookup`. `uuids` narrows the page to sites a form already holds.
+  /// `GET /dive-sites/lookup`. `uuids` narrows the page to sites a form already holds, which
+  /// may be Commons records off the diver's list. With `search`, Commons records the diver has
+  /// not saved follow their own matches, the nearest `near` first; `commonsOnly` asks for those
+  /// alone, and is refused without a search.
   public func lookupDiveSites(
-    search: String? = nil, until: DiveTimestamp? = nil, uuids: [UUID] = [], page: Int,
+    search: String? = nil, until: DiveTimestamp? = nil, uuids: [UUID] = [],
+    near: DeviceLocation? = nil, commonsOnly: Bool = false, page: Int,
     itemsPerPage: Int = listPageSize
   ) async throws -> PaginatedListResponse<DiveSiteLookupItem> {
-    try await lookup(
+    var extra: [URLQueryItem] = []
+    if let near {
+      extra.append(URLQueryItem(name: "latitude", value: String(near.latitude)))
+      extra.append(URLQueryItem(name: "longitude", value: String(near.longitude)))
+    }
+    if commonsOnly { extra.append(URLQueryItem(name: "commons_only", value: "true")) }
+    return try await lookup(
       "dive-sites/lookup", search: search, until: until, uuids: uuids, page: page,
-      itemsPerPage: itemsPerPage)
+      itemsPerPage: itemsPerPage, extra: extra)
   }
 
   /// `GET /trips/lookup`. `uuids` narrows the page to trips a form already holds.
@@ -135,20 +144,6 @@ extension APIClient {
     if response.statusCode == 204 { return .nameless }
     guard let result = try decode(GeocodeResult?.self, data, response) else { return .unknown }
     return .named(result)
-  }
-
-  /// `GET /dive-sites/suggest`: named dive sites from the server's catalog, nearest a
-  /// position first when the form has one.
-  public func diveSiteSuggestions(
-    query: String, latitude: Double? = nil, longitude: Double? = nil
-  ) async throws -> DiveSiteSuggestResponse {
-    var items = [URLQueryItem(name: "q", value: query)]
-    if let latitude, let longitude {
-      items.append(URLQueryItem(name: "latitude", value: String(latitude)))
-      items.append(URLQueryItem(name: "longitude", value: String(longitude)))
-    }
-    return try await authorizedDecoded(
-      DiveSiteSuggestResponse.self, Call(path: "dive-sites/suggest", query: items))
   }
 
   // MARK: - The account

@@ -4,30 +4,50 @@ import Foundation
 public struct DiveSiteLookupItem: LookupRow {
   public var ref: RecordRef
   public var name: String
+  public var otherNames: [String]
+  public var latitude: Double?
+  public var longitude: Double?
   public var location: LocationRead?
+  public var externalIds: [ExternalIdRead]
   public var waterType: String?
   public var altitude: Int?
   public var entryTypes: [String]
+  public var owner: String
+  /// Whether the site is on the diver's list.
+  public var saved: Bool
+  /// The credit a Commons record's source asks for, as `[label](href)`; nil on the diver's own.
+  public var attribution: String?
 
   enum CodingKeys: String, CodingKey {
     case ref = "uuid"
-    case name, location, waterType, altitude, entryTypes
+    case name, otherNames, latitude, longitude, location, externalIds, waterType, altitude
+    case entryTypes, owner, saved, attribution
   }
 
   public init(
-    ref: RecordRef, name: String, location: LocationRead? = nil, waterType: String? = nil,
-    altitude: Int? = nil, entryTypes: [String] = []
+    ref: RecordRef, name: String, otherNames: [String] = [], latitude: Double? = nil,
+    longitude: Double? = nil, location: LocationRead? = nil, externalIds: [ExternalIdRead] = [],
+    waterType: String? = nil, altitude: Int? = nil, entryTypes: [String] = [],
+    owner: String = DiveSiteOwner.account, saved: Bool = true, attribution: String? = nil
   ) {
     self.ref = ref
     self.name = name
+    self.otherNames = otherNames
+    self.latitude = latitude
+    self.longitude = longitude
     self.location = location
+    self.externalIds = externalIds
     self.waterType = waterType
     self.altitude = altitude
     self.entryTypes = entryTypes
+    self.owner = owner
+    self.saved = saved
+    self.attribution = attribution
   }
 
   public var title: String { name }
   public var subtitle: String? { location?.name }
+  public var isCommons: Bool { owner == DiveSiteOwner.commons }
 
   public mutating func rewriteRefs(_ rewrite: (RecordRef) -> RecordRef?) {
     ref = rewrite(ref) ?? ref

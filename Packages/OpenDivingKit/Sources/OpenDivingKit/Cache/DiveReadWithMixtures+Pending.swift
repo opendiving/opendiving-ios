@@ -76,7 +76,7 @@ private struct Known {
       let uuid = ref.uuid.uuidString.lowercased()
       return ref.isLocal ? RecordRef.localPrefix + uuid : uuid
     }
-    for row in tables.diveSites {
+    for row in tables.namedSites + tables.diveSites {
       let site = DiveSiteInfo(ref: row.ref, name: row.name, location: row.location)
       if let key = key(row.ref) { sites[key] = object(site) }
     }

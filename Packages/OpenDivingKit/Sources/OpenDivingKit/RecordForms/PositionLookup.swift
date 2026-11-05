@@ -27,8 +27,8 @@ public final class PositionLookup {
     placed == Placed(latitude: latitude, longitude: longitude) ? credit : nil
   }
 
-  /// A pick that brought its own place — a search result, a catalogue row — and so needs no
-  /// lookup; any lookup still out is moot.
+  /// A pick that brought its own place, a search result, and so needs no lookup; any lookup
+  /// still out is moot.
   public func adopt(latitude: String, longitude: String, credit: String?) {
     generation += 1
     placed = Placed(latitude: latitude, longitude: longitude)

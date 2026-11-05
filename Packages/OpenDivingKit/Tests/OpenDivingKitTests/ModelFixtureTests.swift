@@ -151,6 +151,10 @@ struct ModelFixtureTests {
     let site = try KitFixture.roundTrip(DiveSiteRead.self, "dive-site")
     #expect(site.lastDivedOn == CalendarDate(year: 2026, month: 4, day: 17))
     #expect(site.latitude == nil)
+    #expect(site.owner == DiveSiteOwner.account)
+    #expect(site.saved)
+    #expect(site.attribution == nil)
+    #expect(!site.isCommons)
   }
 
   @Test func course() throws {

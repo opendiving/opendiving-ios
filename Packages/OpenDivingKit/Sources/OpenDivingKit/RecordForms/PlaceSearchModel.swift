@@ -19,11 +19,20 @@ public struct PlaceSearchText: Hashable, Sendable {
     start + (hasMap ? onTheMap ?? "" : "") + "."
   }
 
-  /// The dive site's *Search location*: the catalogue's sites and the geocoder's places.
+  /// The dive site's *Search location*: Commons records and the geocoder's places.
   public static let diveSite = PlaceSearchText(
     placeholder: "e.g. Thistlegorm",
     noItems: "Type to search dive sites and places.",
     queryTooLong: "Too long to search for a dive site.",
+    noMatches: "Nothing found - press Enter to use it as typed",
+    searchError: "Couldn't reach the search - press Enter to use it as typed",
+    onTheMap: ", or place the site on the map")
+
+  /// The same search where a form has no use for a Commons record: the places alone.
+  public static let diveSitePlace = PlaceSearchText(
+    placeholder: "e.g. Dahab",
+    noItems: "Type to search places.",
+    queryTooLong: "Too long to search for a place.",
     noMatches: "Nothing found - press Enter to use it as typed",
     searchError: "Couldn't reach the search - press Enter to use it as typed",
     onTheMap: ", or place the site on the map")
@@ -54,45 +63,63 @@ public final class PlaceSearchModel {
     case failed
   }
 
-  public typealias Catalog =
-    @MainActor (_ query: String, _ near: DeviceLocation?) async throws -> DiveSiteSuggestResponse
+  /// What a box finds.
+  public enum Finds: Hashable, Sendable {
+    case tripPlaces
+    case sitePlaces
+    case commonsAndPlaces
+  }
+
+  public typealias Commons =
+    @MainActor (_ query: String, _ near: DeviceLocation?) async throws
+    -> PaginatedListResponse<DiveSiteLookupItem>
   public typealias Geocode = @MainActor (_ query: String) async throws -> [GeocodeResult]
 
   public private(set) var state: State = .idle
   public private(set) var attributions: [String] = []
   public let text: PlaceSearchText
 
-  @ObservationIgnored private let catalog: Catalog?
+  @ObservationIgnored private let commons: Commons?
   @ObservationIgnored private let geocode: Geocode
   @ObservationIgnored private let debounce: Duration
   @ObservationIgnored private var generation = 0
 
-  /// Without `catalog`, the box finds places alone, as a trip part's does.
+  /// Without `commons`, the box finds places alone.
   public init(
-    text: PlaceSearchText, catalog: Catalog?, geocode: @escaping Geocode,
+    text: PlaceSearchText, commons: Commons?, geocode: @escaping Geocode,
     debounce: Duration = PlaceSearch.debounce
   ) {
     self.text = text
-    self.catalog = catalog
+    self.commons = commons
     self.geocode = geocode
     self.debounce = debounce
   }
 
-  /// Over the session's client; the dive site's search asks the catalogue too.
-  public convenience init(session: Session, findsSites: Bool) {
-    var catalog: Catalog?
-    if findsSites {
-      catalog = { query, near in
+  /// How many Commons records one search lists.
+  static let commonsPageSize = 10
+
+  /// Over the session's client.
+  public convenience init(session: Session, finds: Finds) {
+    var commons: Commons?
+    if finds == .commonsAndPlaces {
+      commons = { query, near in
         let client = try session.requireClient()
-        return try await client.diveSiteSuggestions(
-          query: query, latitude: near?.latitude, longitude: near?.longitude)
+        return try await client.lookupDiveSites(
+          search: query, near: near, commonsOnly: true, page: 1,
+          itemsPerPage: Self.commonsPageSize)
       }
     }
     let geocode: Geocode = { query in
       let client = try session.requireClient()
       return try await client.geocodeSearch(query: query)
     }
-    self.init(text: findsSites ? .diveSite : .tripPart, catalog: catalog, geocode: geocode)
+    let text: PlaceSearchText =
+      switch finds {
+      case .tripPlaces: .tripPart
+      case .sitePlaces: .diveSitePlace
+      case .commonsAndPlaces: .diveSite
+      }
+    self.init(text: text, commons: commons, geocode: geocode)
   }
 
   /// Searches for `query`, after the debounce; a newer search makes this one's answer moot.
@@ -115,32 +142,32 @@ public final class PlaceSearchModel {
     guard mine == generation, !Task.isCancelled else { return }
 
     // Both asked at once, as the web's `allSettled` asks them.
-    let catalog = catalog
+    let commons = commons
     let geocode = geocode
-    async let suggested = Self.settle { try await catalog?(trimmed, position) }
+    async let listed = Self.settle { try await commons?(trimmed, position) }
     async let found = Self.settle { try await geocode(trimmed) }
-    let (suggestedAnswer, foundAnswer) = await (suggested, found)
+    let (listedAnswer, foundAnswer) = await (listed, found)
     guard mine == generation else { return }
-    let suggestions = (try? suggestedAnswer.get()) ?? nil
-    let catalogFailed = (try? suggestedAnswer.get()) == nil
+    let records = (try? listedAnswer.get()) ?? nil
+    let commonsFailed = (try? listedAnswer.get()) == nil
     let places = try? foundAnswer.get()
 
-    if places == nil && (catalog == nil || catalogFailed) {
+    if places == nil && (commons == nil || commonsFailed) {
       state = .failed
       return
     }
     let rows =
-      catalog == nil
+      text == .tripPart
       ? PlaceSearch.placeRows(places ?? [])
       : PlaceSearch.siteRows(
-        catalog: suggestions?.results ?? [], geocoded: places ?? [], position: position,
+        commons: records?.data ?? [], geocoded: places ?? [], query: trimmed, position: position,
         units: units)
     let credits =
-      (suggestions?.results.map(\.attribution) ?? []) + (places ?? []).map(\.attribution)
+      (records?.data.compactMap(\.attribution) ?? []) + (places ?? []).map(\.attribution)
     for credit in credits where !credit.isEmpty && !attributions.contains(credit) {
       attributions.append(credit)
     }
-    state = rows.isEmpty ? .noMatches : .results(rows, hasMore: suggestions?.hasMore ?? false)
+    state = rows.isEmpty ? .noMatches : .results(rows, hasMore: records?.hasMore ?? false)
   }
 
   private static func settle<Value: Sendable>(_ work: @MainActor () async throws -> Value) async

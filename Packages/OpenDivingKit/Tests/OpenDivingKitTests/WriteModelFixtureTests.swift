@@ -11,6 +11,12 @@ struct WriteModelFixtureTests {
     #expect(sites.data.map(\.subtitle) == ["Dahab, South Sinai, Egypt", nil])
     #expect(sites.data.first?.entryTypes == ["shore", "boat"])
     #expect(sites.data.allSatisfy { !$0.ref.isLocal })
+    #expect(sites.data.map(\.isCommons) == [false, true])
+    #expect(sites.data.last?.saved == false)
+    #expect(sites.data.last?.attribution?.contains("OpenStreetMap") == true)
+    #expect(sites.data.last?.otherNames == ["Old Quarry"])
+    #expect(sites.data.last?.externalIds.first?.identifier == "node/255316037")
+    #expect(sites.data.first?.latitude == 28.5021)
 
     let trips = try KitFixture.roundTrip(PaginatedListResponse<TripLookupItem>.self, "lookup-trips")
     #expect(trips.data.first?.people.first?.role == "companion")
@@ -59,14 +65,10 @@ struct WriteModelFixtureTests {
     #expect(species.results.first?.lastSeen?.utcOffsetMinutes == 180)
   }
 
-  @Test func placesAndSiteSuggestionsCarryTheirAttribution() throws {
+  @Test func placesCarryTheirAttribution() throws {
     let places = try KitFixture.roundTrip([GeocodeResult].self, "geocode-search")
     #expect(places.first?.location == "Dahab, South Sinai, Egypt")
     #expect(places.first?.attribution.contains("OpenStreetMap") == true)
-    let sites = try KitFixture.roundTrip(DiveSiteSuggestResponse.self, "dive-site-suggest")
-    #expect(sites.hasMore)
-    #expect(sites.results.first?.heldSite?.name == "Thistlegorm")
-    #expect(sites.results.first?.externalId.identifier == "node/255316037")
   }
 
   @Test func storage() throws {

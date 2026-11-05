@@ -19,7 +19,14 @@ struct RecordPickerSheet: View {
       search: { await model.searchServer(picker, matching: $0, tank: tank) },
       emptySentence: { model.emptySentence(picker, matching: $0, tank: tank) },
       current: current, onSubmitText: onSubmitText, onChoose: { model.remember($0) },
-      addLabel: picker.addLabel, addSheet: { picker.addSheet(onCreated: $0) }, onPick: onPick)
+      addLabel: picker.addLabel,
+      addSheet: { onCreated in
+        picker.addSheet(
+          onCommonsSite: { site in
+            model.take(site)
+            onCreated(site.ref)
+          }, onCreated: onCreated)
+      }, onPick: onPick)
   }
 }
 

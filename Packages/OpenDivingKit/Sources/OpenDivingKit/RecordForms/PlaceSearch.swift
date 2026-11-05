@@ -1,10 +1,10 @@
 import Foundation
 
-/// What a place search row would place, by where it came from: only a catalogue row names the
-/// site itself.
+/// What a place search row is, by where it came from: a place to put a site in, or a Commons
+/// record, which is a site already.
 public enum PlacePick: Hashable, Sendable {
   case geocode(GeocodeResult)
-  case catalog(DiveSiteSuggestion)
+  case commons(DiveSiteLookupItem)
 }
 
 /// One row of a place search's list.
@@ -26,27 +26,25 @@ public enum PlaceSearch {
   /// The API's ceiling on a place's name.
   public static let maxLocationNameLength = 255
 
-  /// The dive site search's two sources in one list, catalogue rows first, a geocoded row
-  /// dropped where it is the same OpenStreetMap record as a catalogue row.
+  /// The dive site search's two sources in one list, Commons records first, a geocoded row
+  /// dropped where it is an OpenStreetMap object a listed record names.
   public static func siteRows(
-    catalog: [DiveSiteSuggestion], geocoded: [GeocodeResult], position: DeviceLocation?,
-    units: UnitSystem
+    commons: [DiveSiteLookupItem], geocoded: [GeocodeResult], query: String = "",
+    position: DeviceLocation?, units: UnitSystem
   ) -> [PlaceSearchRow] {
     var rows: [PlaceSearchRow] = []
     var seen: Set<String> = []
-    for site in catalog {
-      let id = "catalog:\(site.source):\(site.sourceId)"
+    for site in commons {
+      let id = "commons:\(site.ref.uuid)"
       guard seen.insert(id).inserted else { continue }
       rows.append(
         PlaceSearchRow(
-          id: id, name: site.name, hint: catalogHint(site, position: position, units: units),
-          pick: .catalog(site)))
+          id: id, name: site.name,
+          hint: commonsHint(site, query: query, position: position, units: units),
+          pick: .commons(site)))
     }
     for result in geocoded {
-      let sameRecord = catalog.contains { site in
-        result.source != nil && result.sourceId != nil && result.source == site.source
-          && result.sourceId == site.sourceId
-      }
+      let sameRecord = commons.contains { sameObject(result, as: $0) }
       guard !sameRecord else { continue }
       let id = "\(result.latitude):\(result.longitude):\(result.location)"
       guard seen.insert(id).inserted else { continue }
@@ -70,29 +68,44 @@ public enum PlaceSearch {
     return rows
   }
 
-  /// What a catalogue row says besides its name: the diver's own site that carries its entry,
-  /// its English name where that differs, where it is, and how far from the position the form
-  /// has (`catalogHint`).
-  public static func catalogHint(
-    _ site: DiveSiteSuggestion, position: DeviceLocation?, units: UnitSystem
+  /// Whether a geocoded row is an OpenStreetMap object the record names: the geocoder's id is
+  /// spelled as that registry's.
+  private static func sameObject(_ result: GeocodeResult, as site: DiveSiteLookupItem) -> Bool {
+    guard result.source == geocoderOpenStreetMap, let id = result.sourceId else { return false }
+    return site.externalIds.contains {
+      $0.registry == ExternalIdRegistry.openStreetMap.rawValue && $0.identifier == id
+    }
+  }
+
+  private static let geocoderOpenStreetMap = "osm"
+
+  /// What a Commons row says besides its name: another name, the one `query` found it by where
+  /// the name itself does not hold it, where it is, and how far from the position the form has.
+  public static func commonsHint(
+    _ site: DiveSiteLookupItem, query: String = "", position: DeviceLocation?, units: UnitSystem
   ) -> String? {
     var parts: [String] = []
-    if let held = site.heldSite { parts.append("In your sites as \(held.name)") }
-    if let english = site.nameEn?.trimmedOfWhitespace, !english.isEmpty,
-      english != site.name.trimmedOfWhitespace
-    {
-      parts.append(english)
-    }
-    if let place = placeContext(region: site.region, country: site.country) {
-      parts.append(place)
-    }
-    if let position {
+    if let name = otherName(of: site, query: query) { parts.append(name) }
+    if let place = site.location?.name.trimmedOfWhitespace, !place.isEmpty { parts.append(place) }
+    if let position, let latitude = site.latitude, let longitude = site.longitude {
       let meters = GeoDistance.haversineMeters(
         fromLatitude: position.latitude, longitude: position.longitude,
-        toLatitude: site.latitude, longitude: site.longitude)
+        toLatitude: latitude, longitude: longitude)
       parts.append(GeoDistance.format(meters, units))
     }
     return parts.isEmpty ? nil : parts.joined(separator: " · ")
+  }
+
+  private static func otherName(of site: DiveSiteLookupItem, query: String) -> String? {
+    let names = site.otherNames.map(\.trimmedOfWhitespace).filter {
+      !$0.isEmpty && $0 != site.name.trimmedOfWhitespace
+    }
+    let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+    let needle = query.trimmedOfWhitespace
+    guard !needle.isEmpty, site.name.range(of: needle, options: options) == nil else {
+      return names.first
+    }
+    return names.first { $0.range(of: needle, options: options) != nil } ?? names.first
   }
 
   /// `region, country`, whichever are known (`formatPlaceContext`).
@@ -134,23 +147,6 @@ public enum PlaceSearch {
     return LocationWrite(name: String(trimmed.prefix(maxLocationNameLength)))
   }
 
-  /// The place a catalogue row names: `region, country`, or nil where the record has neither.
-  public static func location(of site: DiveSiteSuggestion) -> LocationWrite? {
-    placeContext(region: site.region, country: site.country).map { LocationWrite(name: $0) }
-  }
-
-  /// A catalogue pick's registry entry added to the site's, replacing the one the previous pick
-  /// in the same sheet added (`pickExternalId`). Returns the list and the entry this pick
-  /// added, nil where the site already had it.
-  public static func pickExternalId(
-    _ current: [ExternalIdWrite], replacing earlier: ExternalIdWrite?, with picked: ExternalIdRead
-  ) -> (externalIds: [ExternalIdWrite], added: ExternalIdWrite?) {
-    let entry = ExternalIdWrite(registry: picked.registry, identifier: picked.identifier)
-    let kept = earlier.map { earlier in current.filter { $0 != earlier } } ?? current
-    if kept.contains(entry) { return (kept, nil) }
-    return (kept + [entry], entry)
-  }
-
   /// What the location looks like after the place at a newly placed position was looked up
   /// (`useGeocodedLocation`): the place's name and its credit; cleared where the position has
   /// no name and a name was there; nil — leave everything — where nothing was learned.
@@ -167,7 +163,7 @@ public enum PlaceSearch {
   }
 
   /// The position two boxes hold, when both read as coordinates in range: what the map pins
-  /// and the catalogue sorts by (`parseFormPosition`).
+  /// and the Commons search sorts by (`parseFormPosition`).
   public static func position(latitude: String, longitude: String) -> DeviceLocation? {
     guard let latitude = CoordinateEntry.value(latitude), abs(latitude) <= 90,
       let longitude = CoordinateEntry.value(longitude), abs(longitude) <= 180

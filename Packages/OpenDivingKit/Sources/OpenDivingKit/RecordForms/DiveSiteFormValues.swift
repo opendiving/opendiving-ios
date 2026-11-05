@@ -16,9 +16,12 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
   public var altitude: Int?
   public var entryTypes: [String]
   public var tags: [String]
-  /// Never typed: a catalogue suggestion adds one.
+  /// Never typed: what the record being edited carries, which the form can take off.
   public var externalIds: [ExternalIdWrite]
   public var notes: String
+  /// Editing a Commons record: the notes and the tags are the diver's, and everything else here
+  /// is shown and neither checked nor written.
+  public var isCommons = false
 
   public init(
     name: String = "", otherNames: [String] = [], location: LocationWrite? = nil,
@@ -54,29 +57,34 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
         ExternalIdWrite(registry: $0.registry, identifier: $0.identifier)
       },
       notes: site.notes)
+    isCommons = site.isCommons
   }
 
   public var issues: [FormIssue] {
     var list = FormIssueList()
-    list.add("name", FormText.requiredName(name, "Dive site name", max: 255))
-    if let location {
-      list.add(
-        "location", member: "name", FormText.length(location.name, "Location name", max: 255))
-      if location.name.isEmpty {
-        list.add("location", member: "name", "Location name is required")
+    if !isCommons {
+      list.add("name", FormText.requiredName(name, "Dive site name", max: 255))
+      if let location {
+        list.add(
+          "location", member: "name", FormText.length(location.name, "Location name", max: 255))
+        if location.name.isEmpty {
+          list.add("location", member: "name", "Location name is required")
+        }
       }
+      CoordinateEntry.check(latitude: latitude, longitude: longitude, into: &list)
     }
-    CoordinateEntry.check(latitude: latitude, longitude: longitude, into: &list)
     list.add("notes", FormText.length(notes, "Notes", max: DiveFormBounds.notesMax))
-    if let depthFrom, depthFrom < 0 { list.add("depth_from", "Depth from cannot be negative") }
-    if let depthTo, depthTo < 0 { list.add("depth_to", "Depth to cannot be negative") }
-    if let altitude, !DiveFormBounds.altitudeRange.contains(altitude) {
-      list.add("altitude", DiveFormValues.altitudeRangeMessage)
+    if !isCommons {
+      if let depthFrom, depthFrom < 0 { list.add("depth_from", "Depth from cannot be negative") }
+      if let depthTo, depthTo < 0 { list.add("depth_to", "Depth to cannot be negative") }
+      if let altitude, !DiveFormBounds.altitudeRange.contains(altitude) {
+        list.add("altitude", DiveFormValues.altitudeRangeMessage)
+      }
     }
     if tags.contains(where: { $0.unicodeScalars.count > DiveFormBounds.tagMax }) {
       list.add("tags", "A tag can be at most \(DiveFormBounds.tagMax) characters")
     }
-    if let depthFrom, let depthTo, depthFrom > depthTo {
+    if !isCommons, let depthFrom, let depthTo, depthFrom > depthTo {
       list.add("depth_to", "Depth to cannot be shallower than depth from")
     }
     return list.issues
@@ -102,18 +110,20 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
 
   /// `PATCH /dive-site/{uuid}`'s body: what differs from the values the form opened on, so an
   /// edit saved offline does not undo what the web changed meanwhile. The position goes as a
-  /// pair, which is the one value the API takes it as.
+  /// pair, which is the one value the API takes it as. On a Commons record it is the notes and
+  /// the tags alone, whatever a reopened edit laid over the rest: the API refuses anything else.
   public func diff(from baseline: DiveSiteFormValues) throws(FormInvalid) -> DiveSiteUpdate {
     if !issues.isEmpty { throw FormInvalid(issues: issues) }
     let now = written
     let before = baseline.written
     var update = DiveSiteUpdate()
-    if now.name != before.name { update.name = now.name }
     if now.notes != before.notes { update.notes = now.notes }
+    if now.tags != before.tags { update.tags = now.tags }
+    if isCommons { return update }
+    if now.name != before.name { update.name = now.name }
     if now.otherNames != before.otherNames { update.otherNames = now.otherNames }
     if now.externalIds != before.externalIds { update.externalIds = now.externalIds }
     if now.entryTypes != before.entryTypes { update.entryTypes = now.entryTypes }
-    if now.tags != before.tags { update.tags = now.tags }
     if now.latitude != before.latitude || now.longitude != before.longitude {
       update.latitude = now.latitude.map(Patch.value) ?? .null
       update.longitude = now.longitude.map(Patch.value) ?? .null
