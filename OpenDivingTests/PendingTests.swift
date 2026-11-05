@@ -132,6 +132,24 @@ struct PendingTests {
     #expect(item.isDiscardable)
   }
 
+  @Test func editReopensARefusedTripOrSiteEditAndADeleteOffersDiscardAlone() async throws {
+    let online = Flag(false)
+    let session = try await loaded(F.directory(), online: online)
+    let outbox = OutboxModel(session: session)
+    let record = UUID()
+    let trip = try outbox.queue(.updateTrip(.server(record), TripUpdate(name: "Dahab")))
+    var update = DiveSiteUpdate()
+    update.name = "Lighthouse"
+    let site = try outbox.queue(.updateDiveSite(.server(record), update))
+    let deleted = try outbox.queue(.deleteDive(.server(UUID())))
+    await outbox.settled()
+
+    #expect(PendingScreen.edit(trip) == .trip(.failed(item: trip.id, record: record)))
+    #expect(PendingScreen.edit(site) == .diveSite(.failed(item: site.id, record: record)))
+    #expect(PendingScreen.edit(deleted) == nil)
+    #expect(deleted.isDiscardable)
+  }
+
   @Test func signedOutTheEmailScreenOffersTheLastAccountsPendingScreen() async throws {
     let directory = F.directory()
     let signedIn = try await loaded(directory, online: Flag(false))
