@@ -136,18 +136,17 @@ and dive details are bounded to the two hundred most recently opened. It exists 
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 
-## A computer's record is the account's, and its fingerprint moves only once the archive is kept
+## A computer's pairing is the phone's, its fingerprint the account's, and it moves only once the archive is kept
 
-The fingerprint of the newest dive downloaded says what one account's logbook holds, so each
-account keeps `DiveComputers/<family>_<SERIAL>.json` in its own directory: sign-out leaves it,
-`forget` removes it. It is found by family and serial, never by Core Bluetooth's identifier,
-which iOS rotates. It advances only after a completed walk with no empty read, once the inbox
-has kept the archive for the account the walk began from — or, for a walk that skipped entries
-and delivered none, at its end; a cancel, a failure, an archive not kept or an app killed at the
-time-zone question leaves it, and the import's gates make dives walked again links. A record
-written before the load is removed, not moved, when the load names another account. Rejected:
-libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import, which needs the
-inbox to report back across a sign-out.
+A computer's identity is one file in `DiveComputers/` under Application Support, found by family
+and serial, never by Core Bluetooth's identifier, which iOS rotates. The fingerprint says what one
+account's logbook holds, so each account keeps its own; shared, a second server's first download
+would stop at dives it never saw. It advances only after a completed walk with no empty read, once
+the inbox has kept the archive for the account the walk began from — or, for a walk that skipped
+entries and delivered none, at its end; anything else leaves it, and the import's gates make dives
+walked again links. Progress written before the load is removed, not moved, when the load names
+another account. Rejected: libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at
+import, which needs the inbox to report back across a sign-out.
 
 ## A computer that logs instants gets its zone per download
 

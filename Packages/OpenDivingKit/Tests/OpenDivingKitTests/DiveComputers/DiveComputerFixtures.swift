@@ -1,10 +1,25 @@
 import Foundation
-import OpenDivingKit
+
+@testable import OpenDivingKit
 
 /// The downloads the writer's goldens and the model's tests are made from: dives written by hand
 /// in the shape the shared libdivecomputer reader returns them. Each is parsed once: the model's
 /// tests read them inside wait loops that run many thousands of times.
 enum DiveComputerFixtures {
+  /// A file of the shape every computer was kept in before the pairing became the phone's.
+  static func writeWholeRecord(_ record: DiveComputerRecord, in folder: URL) throws {
+    func fields(_ value: some Encodable) throws -> [String: Any] {
+      let object = try JSONSerialization.jsonObject(with: APICoding.encoder().encode(value))
+      return object as? [String: Any] ?? [:]
+    }
+    let whole = try fields(PairedComputer(record)).merging(
+      fields(DiveComputerProgress(record))
+    ) { first, _ in first }
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try JSONSerialization.data(withJSONObject: whole).write(
+      to: folder.appendingPathComponent(record.id))
+  }
+
   static let perdix = DiveComputerIdentity(
     family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
     firmware: "93", familyNumber: 0x0003_0000 | 2, modelNumber: 14)

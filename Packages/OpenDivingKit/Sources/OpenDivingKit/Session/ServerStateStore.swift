@@ -38,6 +38,21 @@ public struct ServerStateStore: Sendable {
       .appendingPathComponent(account.uuidString.lowercased(), isDirectory: true)
   }
 
+  /// The dive computers paired with the phone, which belong to no server. Not created here.
+  var diveComputersDirectory: URL {
+    root.appendingPathComponent("DiveComputers", isDirectory: true)
+  }
+
+  /// Every account's directory, on every server the phone keeps one for.
+  func accountDirectories() -> [URL] {
+    func contents(_ url: URL) -> [URL] {
+      (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
+    }
+    return contents(root.appendingPathComponent("Servers", isDirectory: true)).flatMap {
+      contents($0.appendingPathComponent("Accounts", isDirectory: true))
+    }
+  }
+
   /// The account `loadAccount()` last read from this server, signed in or not since; nil
   /// before one has loaded.
   public func lastAccount(for origin: ServerOrigin) -> UUID? {

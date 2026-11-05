@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// The *Dive Computers* screen's model, over the link, the account's remembered computers and
-/// the inbox: idle → scanning → connecting → downloading → the time-zone question, only where it
+/// The *Dive Computers* screen's model, over the link, the phone's paired computers and the
+/// inbox: idle → scanning → connecting → downloading → the time-zone question, only where it
 /// is needed → finished, with an outcome.
 ///
 /// **No route is needed**: a download on a boat is the point. What is needed is Bluetooth and an
@@ -20,8 +20,8 @@ import Observation
 /// for that same account; a walk that skipped entries and delivered no dive has no archive, and
 /// advances at its end while the inbox still keeps for that account.
 ///
-/// **A connection pairs the computer**: its record is saved once the computer is identified,
-/// the fingerprint aside, so it is listed while the first download runs. A walk that listed the
+/// **A connection pairs the computer**, for every server: its record is saved once the computer
+/// is identified, the fingerprint aside, so it is listed while the first download runs. A walk that listed the
 /// computer's entries saves it again however it ends, completed, cancelled or failed, with what
 /// it learned, so the next walk reads no summary this one read.
 ///
@@ -58,7 +58,7 @@ public final class DiveComputerModel {
     public var id: UUID { computer.id }
   }
 
-  /// One computer the account remembers, as *Paired Computers* shows it.
+  /// One computer the phone remembers, as *Paired Computers* shows it.
   public struct Paired: Hashable, Sendable, Identifiable {
     public let record: DiveComputerRecord
     public let title: String
@@ -101,7 +101,7 @@ public final class DiveComputerModel {
   public private(set) var phase = Phase.idle
   /// The computers found, newest-seen first.
   public private(set) var rows: [Row] = []
-  /// The account's paired computers, by title.
+  /// The phone's paired computers, by title, with this account's downloads.
   public private(set) var paired: [Paired] = []
   /// Why nothing may start, other than Bluetooth: the account is loading, or a shared archive
   /// waits in the inbox.
@@ -290,8 +290,8 @@ public final class DiveComputerModel {
     }
   }
 
-  /// *Forget this dive computer*, from its page: removes the record, and nothing on the server. A
-  /// computer the scan still sees goes back among the found ones.
+  /// *Forget this dive computer*, from its page: removes it for every server, and nothing on any
+  /// of them. A computer the scan still sees goes back among the found ones.
   public func forget(_ record: DiveComputerRecord) {
     computers()?.forget(record)
     rebuildRows()
