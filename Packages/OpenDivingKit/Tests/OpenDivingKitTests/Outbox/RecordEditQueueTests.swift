@@ -113,6 +113,25 @@ struct RecordEditQueueTests {
     #expect(outbox.items.isEmpty)
   }
 
+  @Test func aWaitingEditIsChangedFromThePageAndKeepsItsChangesIfNamedAnyway() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.offline()
+    let outbox = world.outbox()
+    let first = try form(outbox)
+    first.values.name = "Waiting"
+    _ = first.save()
+    await outbox.settled()
+    let waiting = try #require(outbox.items.first)
+    #expect(waiting.isPending && !waiting.isEditable && waiting.isDiscardable)
+
+    let named = try form(outbox, failedItem: waiting.id)
+    #expect(named.values.name == "Waiting")
+    _ = named.save()
+    await outbox.settled()
+    #expect(outbox.items.map(\.operation) == [.updateTrip(trip, TripUpdate(name: "Waiting"))])
+  }
+
   @Test func anEditOfARecordGoneFromTheServerOffersDiscardAlone() async throws {
     let world = try OutboxWorld()
     try await world.load()

@@ -260,3 +260,8 @@ private struct TripPartPlaceScreen: View {
   NewTripSheet { _ in }
     .environment(Session.stub(transport: StubTransport(routes: [:])))
 }
+
+#Preview("Pushed") {
+  NavigationStack { TripFormView(mode: .create) }
+    .environment(Session.stub(transport: StubTransport(routes: [:])))
+}

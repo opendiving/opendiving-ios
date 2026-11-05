@@ -36,3 +36,11 @@ struct RecordFormLoader<Read: Sendable, Content: View>: View {
     }
   }
 }
+
+#Preview {
+  RecordFormLoader {
+    "Dahab"
+  } content: {
+    Text($0)
+  }
+}

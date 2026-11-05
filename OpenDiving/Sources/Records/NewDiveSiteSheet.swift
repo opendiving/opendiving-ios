@@ -290,3 +290,8 @@ private struct DiveSiteSheetForm: View {
   NewDiveSiteSheet { _ in }
     .environment(Session.stub(transport: StubTransport(routes: [:])))
 }
+
+#Preview("Pushed") {
+  NavigationStack { DiveSiteFormView(mode: .create) }
+    .environment(Session.stub(transport: StubTransport(routes: [:])))
+}

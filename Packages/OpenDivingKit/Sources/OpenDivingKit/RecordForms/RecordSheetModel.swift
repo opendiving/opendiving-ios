@@ -139,12 +139,16 @@ extension RecordSheetModel where Values: RecordEditValues {
   public convenience init(
     outbox: OutboxModel, editing ref: RecordRef, read: Values, failedItem: UUID? = nil
   ) {
+    func laidOver(_ writes: [OutboxItem]) -> Values {
+      writes.reduce(read) { $0.applying($1.operation) }
+    }
     let writes = outbox.items.filter { $0.operation.target == ref }
-    let failed = writes.first { $0.id == failedItem }
-    let baseline = writes.filter { !$0.isFailed }.reduce(read) { $0.applying($1.operation) }
+    // The reopened write stays out of what the form compares against, whatever its state: in it,
+    // saving would find none of that write's own changes to keep.
+    let baseline = laidOver(writes.filter { !$0.isFailed && $0.id != failedItem })
     self.init(
-      outbox: outbox, values: failed.map { baseline.applying($0.operation) } ?? baseline,
-      failed: failed,
+      outbox: outbox, values: laidOver(writes.filter { !$0.isFailed || $0.id == failedItem }),
+      failed: writes.first { $0.id == failedItem },
       editing: Editing(
         ref: ref, write: { try $0.update(of: ref, from: baseline) }, delete: Values.delete(ref)))
   }
