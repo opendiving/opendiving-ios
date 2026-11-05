@@ -219,7 +219,9 @@ private struct Flush {
     var item = item
     let keyed = item.operation.isCreate
     switch status {
-    case 200..<300:
+    // A record already gone from the server is what its delete asked for.
+    case 200..<300,
+      404 where item.operation.deletedRecord != nil:
       outcome.changedLists = outcome.changedLists || item.operation.changesLists
       let landed: LandedRecord?
       do {
@@ -227,7 +229,8 @@ private struct Flush {
       } catch {
         return lostCreate(item, sentence: OutboxText.landedUnreadable)
       }
-      outcome.landedRecord = outcome.landedRecord || landed != nil || isGearSetUpdate(item)
+      outcome.landedRecord =
+        outcome.landedRecord || landed != nil || item.operation.changesLookups
       return await land(item, landed)
     case 409 where keyed:
       item.state = .pending(lastAnswer: .status(status))
@@ -246,6 +249,8 @@ private struct Flush {
       case .updateDive(let ref, _):
         // The dive is gone from the server; the edit fails below, with *Discard* alone.
         if let uuid = ref.serverUUID { stores.cache.removeDive(uuid) }
+        outcome.changedLists = true
+      case .updateDiveSite, .updateTrip:
         outcome.changedLists = true
       case .logDive(let draft, let dive):
         // The draft went on another device: the dive the diver logged here is still a dive.
@@ -276,10 +281,6 @@ private struct Flush {
     return .next
   }
 
-  private func isGearSetUpdate(_ item: OutboxItem) -> Bool {
-    if case .updateGearSet = item.operation { true } else { false }
-  }
-
   // MARK: - Landing
 
   /// A success, read. A create is done once its resolution is written.
@@ -297,6 +298,8 @@ private struct Flush {
     if case .updateDive(let ref, let update) = item.operation, let uuid = ref.serverUUID {
       keepLanded(update, ofDive: uuid)
     }
+    // Before the item goes, so its list never shows the record between the two.
+    if let deleted = item.operation.deletedRecord { hub.deleted.insert(deleted) }
     outbox.remove(item.id)
     hub.answers[item.id] = nil
 
@@ -309,6 +312,8 @@ private struct Flush {
       await readBack(dive: dive.uuid)
     case (.updateDive(let ref, _), _):
       if let uuid = ref.serverUUID { await readBack(dive: uuid) }
+    case (.deleteDive(let ref), _):
+      if let uuid = ref.serverUUID { cache.removeDive(uuid) }
     case (.createDiveDraft, .draft(let draft)):
       cache.replaceDiveDraft(draft)
       await readBack(draft: draft.uuid)

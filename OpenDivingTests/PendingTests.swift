@@ -132,6 +132,34 @@ struct PendingTests {
     #expect(item.isDiscardable)
   }
 
+  @Test func editReopensARefusedTripOrSiteEditAndNothingStillWaiting() async throws {
+    let online = Flag(true)
+    let session = try await loaded(F.directory(), online: online)
+    let outbox = OutboxModel(session: session)
+    let (tripUUID, siteUUID) = (UUID(), UUID())
+    var update = DiveSiteUpdate()
+    update.name = "Lighthouse"
+    let trip = try outbox.queue(.updateTrip(.server(tripUUID), TripUpdate(name: "Dahab")))
+    let site = try outbox.queue(.updateDiveSite(.server(siteUUID), update))
+    await outbox.settled()
+    #expect(
+      PendingScreen.edit(try #require(outbox.item(trip.id)))
+        == .trip(.failed(item: trip.id, record: tripUUID)))
+    #expect(
+      PendingScreen.edit(try #require(outbox.item(site.id)))
+        == .diveSite(.failed(item: site.id, record: siteUUID)))
+
+    online.set(false)
+    let waiting = try outbox.queue(.updateTrip(.server(UUID()), TripUpdate(name: "Sinai")))
+    let deleted = try outbox.queue(.deleteDive(.server(UUID())))
+    await outbox.settled()
+    for id in [waiting.id, deleted.id] {
+      let item = try #require(outbox.item(id))
+      #expect(PendingScreen.edit(item) == nil)
+      #expect(item.isDiscardable)
+    }
+  }
+
   @Test func signedOutTheEmailScreenOffersTheLastAccountsPendingScreen() async throws {
     let directory = F.directory()
     let signedIn = try await loaded(directory, online: Flag(false))

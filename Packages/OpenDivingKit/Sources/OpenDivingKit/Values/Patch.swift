@@ -14,6 +14,12 @@ public enum Patch<Value: Hashable & Sendable>: Hashable, Sendable {
     self = value.map(Patch.value) ?? .absent
   }
 
+  /// The member of an update taking `before` to `now`: absent while they agree.
+  public static func change(from before: Value?, to now: Value?) -> Patch {
+    guard now != before else { return .absent }
+    return now.map(Patch.value) ?? .null
+  }
+
   /// What the member holds once the update has applied, given what it held before.
   public func applied(to current: Value?) -> Value? {
     switch self {

@@ -5,7 +5,7 @@ import Observation
 /// on them with their photos.
 @MainActor
 @Observable
-public final class DiveSiteDetailModel {
+public final class DiveSiteDetailModel: AccountStoresObserver, AccountListsObserver {
   /// The *Species Seen Here* card's state.
   public enum Species: Hashable, Sendable {
     /// The site counts no species, so nothing is asked for and no card is drawn.
@@ -22,7 +22,12 @@ public final class DiveSiteDetailModel {
   /// Photo bytes by species uuid, as each card asks for its own.
   public private(set) var photos: [UUID: Data] = [:]
 
+  /// The queue holds an edit of this site, which the page shows once it lands.
+  public private(set) var hasPendingEdit = false
+
   @ObservationIgnored private let session: Session
+  /// The read a queued edit landing started.
+  @ObservationIgnored var reloading: Task<Void, Never>?
   /// The photo version last asked for, by species uuid.
   @ObservationIgnored private var photosAsked: [UUID: String] = [:]
 
@@ -73,10 +78,34 @@ public final class DiveSiteDetailModel {
     do {
       let site = try await session.requireClient().diveSite(siteUUID)
       phase = .loaded(site)
+      watchStores()
     } catch {
       let next = DetailPhase<DiveSiteRead>.failure(error)
       if !wasLoaded || next == .notFound { phase = next }
     }
+  }
+
+  private func watchStores() {
+    guard let stores = AccountStores.current(session) else { return }
+    let hub = OutboxHub.hub(for: stores.directory)
+    hub.observe(self)
+    hub.observeLists(self)
+    accountStoresChanged()
+  }
+
+  func accountStoresChanged() {
+    let ref = RecordRef.server(siteUUID)
+    hasPendingEdit =
+      AccountStores.current(session)?.outbox.items().contains { item in
+        if case .updateDiveSite(ref, _) = item.operation { !item.isFailed } else { false }
+      } ?? false
+  }
+
+  /// A write landed, perhaps this site's edit: the page reads the site again. Its dives are a
+  /// list, which reads itself.
+  func accountListsChanged() {
+    guard phase.isLoaded else { return }
+    reloading = Task { await readSite() }
   }
 
   /// Read whole, as the web reads it: a site's species are a list worth seeing entire.

@@ -31,6 +31,8 @@ struct DiveDetailView: View {
 private struct DiveDetailScreen: View {
   let model: DiveDetailModel
 
+  @Environment(\.dismiss) private var dismiss
+
   var body: some View {
     page
       .navigationTitle(model.content?.navigationTitle ?? "")
@@ -43,9 +45,12 @@ private struct DiveDetailScreen: View {
           pagerButton("Next dive", systemImage: "chevron.right", model.neighbors?.next)
         }
         if case .loaded(let dive) = model.phase {
+          ToolbarIslandGap()
           ToolbarItem(placement: .topBarTrailing) {
-            NavigationLink("Edit") {
-              DiveFormView(mode: .edit(dive.uuid))
+            NavigationLink {
+              DiveFormView(mode: .edit(dive.uuid)) { dismiss() }
+            } label: {
+              Label("Edit dive", systemImage: "pencil")
             }
           }
         }
@@ -119,10 +124,7 @@ private struct DiveDetailPage: View {
             LastUpdatedLine(date: lastUpdated)
           }
           if hasPendingEdit {
-            Label(OfflineText.pendingEdit, systemImage: "arrow.triangle.2.circlepath")
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .leading)
+            PendingEditLine()
           }
           mainColumn
           sidebar

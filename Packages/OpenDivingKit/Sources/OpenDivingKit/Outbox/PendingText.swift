@@ -80,9 +80,18 @@ public enum PendingText {
       }
       return
         "Changes to dive \(shown.diveNumber), \(DateText.diveDateTime(shown.startTime))"
+    case .deleteDive(let ref):
+      guard case .server(let uuid) = ref, let shown = dive(uuid) else { return "A deleted dive" }
+      return "Deleted dive \(shown.diveNumber), \(DateText.diveDateTime(shown.startTime))"
     case .createDiveSite(let body): return named("Dive site", body.name)
+    case .updateDiveSite(_, let body):
+      return body.name.map { named("Changes to dive site", $0) } ?? "Changes to a dive site"
+    case .deleteDiveSite: return "A deleted dive site"
     case .createPerson(let body): return named("Buddy", body.name)
     case .createTrip(let body): return named("Trip", body.name)
+    case .updateTrip(_, let body):
+      return body.name.map { named("Changes to trip", $0) } ?? "Changes to a trip"
+    case .deleteTrip: return "A deleted trip"
     case .createCourse(let body): return named("Course", body.name)
     case .createContact(let body): return named("Contact", body.name)
     case .createGearItem(let body): return named("Gear", body.name)
@@ -152,12 +161,13 @@ public enum PendingText {
 
   /// What a queued write is about, in the pending section's words, in the order it lists them.
   private enum Noun: Int, Comparable {
-    case dive, site, buddy, trip, course, contact, gear, gearSet, discardedDraft
+    case dive, site, buddy, trip, course, contact, gear, gearSet, discardedDraft, deletion
 
     init?(_ operation: OutboxOperation) {
       switch operation {
       case .createDiveDraft, .updateDiveDraft: return nil
       case .deleteDiveDraft: self = .discardedDraft
+      case .deleteDive, .deleteDiveSite, .deleteTrip: self = .deletion
       default:
         switch operation.kind {
         case .dive: self = .dive
@@ -184,6 +194,7 @@ public enum PendingText {
       case .gear: "piece of gear"
       case .gearSet: "gear set"
       case .discardedDraft: "discarded draft"
+      case .deletion: "deletion"
       }
     }
 

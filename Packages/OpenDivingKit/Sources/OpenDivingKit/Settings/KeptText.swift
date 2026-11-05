@@ -57,7 +57,8 @@ public enum OfflineText {
     "Last updated " + DateText.dateTime(at, in: timeZone)
   }
 
-  /// On a dive whose edit is queued, which the page already shows.
+  /// On a record whose edit is queued. A dive's page already shows the edit; a trip's or a
+  /// site's shows it once it lands.
   public static let pendingEdit = "Edited on this phone, waiting to sync."
   /// A dive the phone has never opened, which only the server can show.
   public static let diveNotShown =

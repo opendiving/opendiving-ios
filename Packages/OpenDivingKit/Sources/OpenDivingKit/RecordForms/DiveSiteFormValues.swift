@@ -42,6 +42,20 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
     self.notes = notes
   }
 
+  /// The form an edit opens on.
+  public init(editing site: DiveSiteRead) {
+    self.init(
+      name: site.name, otherNames: site.otherNames, location: site.location.map(LocationWrite.init),
+      latitude: CoordinateEntry.text(site.latitude),
+      longitude: CoordinateEntry.text(site.longitude), depthFrom: site.depthFrom,
+      depthTo: site.depthTo, waterType: site.waterType, altitude: site.altitude,
+      entryTypes: site.entryTypes, tags: site.tags,
+      externalIds: site.externalIds.map {
+        ExternalIdWrite(registry: $0.registry, identifier: $0.identifier)
+      },
+      notes: site.notes)
+  }
+
   public var issues: [FormIssue] {
     var list = FormIssueList()
     list.add("name", FormText.requiredName(name, "Dive site name", max: 255))
@@ -72,6 +86,10 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
   /// numbers, blank other names dropped.
   public func toCreate() throws(FormInvalid) -> DiveSiteCreate {
     if !issues.isEmpty { throw FormInvalid(issues: issues) }
+    return written
+  }
+
+  private var written: DiveSiteCreate {
     var place = location
     place?.name = location?.name.trimmedOfWhitespace ?? ""
     return DiveSiteCreate(
@@ -80,6 +98,53 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
       otherNames: otherNames.compactMap(FormText.trimmedOrNil), externalIds: externalIds,
       depthFrom: depthFrom, depthTo: depthTo, waterType: waterType, altitude: altitude,
       entryTypes: entryTypes, location: place, tags: tags)
+  }
+
+  /// `PATCH /dive-site/{uuid}`'s body: what differs from the values the form opened on, so an
+  /// edit saved offline does not undo what the web changed meanwhile. The position goes as a
+  /// pair, which is the one value the API takes it as.
+  public func diff(from baseline: DiveSiteFormValues) throws(FormInvalid) -> DiveSiteUpdate {
+    if !issues.isEmpty { throw FormInvalid(issues: issues) }
+    let now = written
+    let before = baseline.written
+    var update = DiveSiteUpdate()
+    if now.name != before.name { update.name = now.name }
+    if now.notes != before.notes { update.notes = now.notes }
+    if now.otherNames != before.otherNames { update.otherNames = now.otherNames }
+    if now.externalIds != before.externalIds { update.externalIds = now.externalIds }
+    if now.entryTypes != before.entryTypes { update.entryTypes = now.entryTypes }
+    if now.tags != before.tags { update.tags = now.tags }
+    if now.latitude != before.latitude || now.longitude != before.longitude {
+      update.latitude = now.latitude.map(Patch.value) ?? .null
+      update.longitude = now.longitude.map(Patch.value) ?? .null
+    }
+    update.depthFrom = .change(from: before.depthFrom, to: now.depthFrom)
+    update.depthTo = .change(from: before.depthTo, to: now.depthTo)
+    update.waterType = .change(from: before.waterType, to: now.waterType)
+    update.altitude = .change(from: before.altitude, to: now.altitude)
+    update.location = .change(from: before.location, to: now.location)
+    return update
+  }
+
+  /// These values with a queued update laid over.
+  public func applying(_ update: DiveSiteUpdate) -> DiveSiteFormValues {
+    var next = self
+    if let name = update.name { next.name = name }
+    if let notes = update.notes { next.notes = notes }
+    if let otherNames = update.otherNames { next.otherNames = otherNames }
+    if let externalIds = update.externalIds { next.externalIds = externalIds }
+    if let entryTypes = update.entryTypes { next.entryTypes = entryTypes }
+    if let tags = update.tags { next.tags = tags }
+    if update.latitude != .absent {
+      next.latitude = CoordinateEntry.text(update.latitude.applied(to: nil))
+      next.longitude = CoordinateEntry.text(update.longitude.applied(to: nil))
+    }
+    next.depthFrom = update.depthFrom.applied(to: depthFrom)
+    next.depthTo = update.depthTo.applied(to: depthTo)
+    next.waterType = update.waterType.applied(to: waterType)
+    next.altitude = update.altitude.applied(to: altitude)
+    next.location = update.location.applied(to: location)
+    return next
   }
 }
 

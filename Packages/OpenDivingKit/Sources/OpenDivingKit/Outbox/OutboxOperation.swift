@@ -5,9 +5,14 @@ import Foundation
 public enum OutboxOperation: Hashable, Sendable {
   case createDive(DiveCreate)
   case updateDive(RecordRef, DiveUpdate)
+  case deleteDive(RecordRef)
   case createDiveSite(DiveSiteCreate)
+  case updateDiveSite(RecordRef, DiveSiteUpdate)
+  case deleteDiveSite(RecordRef)
   case createPerson(PersonCreate)
   case createTrip(TripCreate)
+  case updateTrip(RecordRef, TripUpdate)
+  case deleteTrip(RecordRef)
   case createCourse(CourseCreate)
   /// A dive centre, among others.
   case createContact(ContactCreate)
@@ -24,10 +29,10 @@ public enum OutboxOperation: Hashable, Sendable {
   /// What kind of record the write is about.
   public var kind: OutboxRecordKind {
     switch self {
-    case .createDive, .updateDive, .logDive: .dive
-    case .createDiveSite: .diveSite
+    case .createDive, .updateDive, .deleteDive, .logDive: .dive
+    case .createDiveSite, .updateDiveSite, .deleteDiveSite: .diveSite
     case .createPerson: .person
-    case .createTrip: .trip
+    case .createTrip, .updateTrip, .deleteTrip: .trip
     case .createCourse: .course
     case .createContact: .contact
     case .createGearItem: .gearItem
@@ -42,7 +47,9 @@ public enum OutboxOperation: Hashable, Sendable {
     case .createDive, .createDiveSite, .createPerson, .createTrip, .createCourse, .createContact,
       .createGearItem, .createGearSet, .createDiveDraft, .logDive:
       true
-    case .updateDive, .updateGearSet, .updateDiveDraft, .deleteDiveDraft: false
+    case .updateDive, .deleteDive, .updateDiveSite, .deleteDiveSite, .updateTrip, .deleteTrip,
+      .updateGearSet, .updateDiveDraft, .deleteDiveDraft:
+      false
     }
   }
 
@@ -50,16 +57,37 @@ public enum OutboxOperation: Hashable, Sendable {
   /// counts for all three, which order and count by their dives.
   var changesLists: Bool {
     switch self {
-    case .createDive, .updateDive, .logDive, .createDiveSite, .createTrip: true
+    case .createDive, .updateDive, .deleteDive, .logDive, .createDiveSite, .updateDiveSite,
+      .deleteDiveSite, .createTrip, .updateTrip, .deleteTrip:
+      true
     default: false
+    }
+  }
+
+  /// Whether landing it changes what a picker offers, beyond a new record's own row.
+  var changesLookups: Bool {
+    switch self {
+    case .updateDiveSite, .deleteDiveSite, .updateTrip, .deleteTrip, .updateGearSet: true
+    default: false
+    }
+  }
+
+  /// The record a delete takes off the server, which its list stops showing from the moment it
+  /// is queued. Nil for any other write; a draft has no list.
+  var deletedRecord: UUID? {
+    switch self {
+    case .deleteDive(let ref), .deleteDiveSite(let ref), .deleteTrip(let ref): ref.serverUUID
+    default: nil
     }
   }
 
   /// The record an update, a delete or a log writes to; nil for a plain create.
   public var target: RecordRef? {
     switch self {
-    case .updateDive(let ref, _), .updateGearSet(let ref, _), .updateDiveDraft(let ref, _),
-      .deleteDiveDraft(let ref), .logDive(let ref, _):
+    case .updateDive(let ref, _), .updateDiveSite(let ref, _), .updateTrip(let ref, _),
+      .updateGearSet(let ref, _), .updateDiveDraft(let ref, _), .deleteDive(let ref),
+      .deleteDiveSite(let ref), .deleteTrip(let ref), .deleteDiveDraft(let ref),
+      .logDive(let ref, _):
       ref
     default: nil
     }
@@ -102,15 +130,27 @@ extension OutboxOperation: RewritesLocalRefs {
     case .updateDive(let ref, var body):
       body.rewriteRefs(rewrite)
       self = .updateDive(retarget(ref), body)
+    case .deleteDive(let ref):
+      self = .deleteDive(retarget(ref))
     case .createDiveSite(var body):
       body.rewriteRefs(rewrite)
       self = .createDiveSite(body)
+    case .updateDiveSite(let ref, var body):
+      body.rewriteRefs(rewrite)
+      self = .updateDiveSite(retarget(ref), body)
+    case .deleteDiveSite(let ref):
+      self = .deleteDiveSite(retarget(ref))
     case .createPerson(var body):
       body.rewriteRefs(rewrite)
       self = .createPerson(body)
     case .createTrip(var body):
       body.rewriteRefs(rewrite)
       self = .createTrip(body)
+    case .updateTrip(let ref, var body):
+      body.rewriteRefs(rewrite)
+      self = .updateTrip(retarget(ref), body)
+    case .deleteTrip(let ref):
+      self = .deleteTrip(retarget(ref))
     case .createCourse(var body):
       body.rewriteRefs(rewrite)
       self = .createCourse(body)
@@ -145,7 +185,8 @@ extension OutboxOperation: Codable {
   private enum Kind: String, Codable {
     case createDive, updateDive, createDiveSite, createPerson, createTrip, createCourse,
       createContact, createGearItem, createGearSet, updateGearSet, createDiveDraft,
-      updateDiveDraft, deleteDiveDraft, logDive
+      updateDiveDraft, deleteDiveDraft, logDive, deleteDive, updateDiveSite, deleteDiveSite,
+      updateTrip, deleteTrip
   }
 
   private enum CodingKeys: String, CodingKey {
@@ -171,6 +212,12 @@ extension OutboxOperation: Codable {
     case .updateDiveDraft: self = .updateDiveDraft(try target(), try body(DiveDraftWrite.self))
     case .deleteDiveDraft: self = .deleteDiveDraft(try target())
     case .logDive: self = .logDive(fromDraft: try target(), try body(DiveCreate.self))
+    case .deleteDive: self = .deleteDive(try target())
+    case .updateDiveSite:
+      self = .updateDiveSite(try target(), try body(DiveSiteUpdate.self))
+    case .deleteDiveSite: self = .deleteDiveSite(try target())
+    case .updateTrip: self = .updateTrip(try target(), try body(TripUpdate.self))
+    case .deleteTrip: self = .deleteTrip(try target())
     }
   }
 
@@ -219,6 +266,18 @@ extension OutboxOperation: Codable {
     case .logDive(_, let body):
       try c.encode(Kind.logDive, forKey: .kind)
       try c.encode(body, forKey: .body)
+    case .deleteDive:
+      try c.encode(Kind.deleteDive, forKey: .kind)
+    case .updateDiveSite(_, let body):
+      try c.encode(Kind.updateDiveSite, forKey: .kind)
+      try c.encode(body, forKey: .body)
+    case .deleteDiveSite:
+      try c.encode(Kind.deleteDiveSite, forKey: .kind)
+    case .updateTrip(_, let body):
+      try c.encode(Kind.updateTrip, forKey: .kind)
+      try c.encode(body, forKey: .body)
+    case .deleteTrip:
+      try c.encode(Kind.deleteTrip, forKey: .kind)
     }
   }
 }

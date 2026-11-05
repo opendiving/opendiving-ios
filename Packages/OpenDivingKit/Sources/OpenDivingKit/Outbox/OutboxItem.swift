@@ -36,10 +36,7 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
     changedAt = now
     self.sequence = sequence
     self.operation = operation
-    switch operation {
-    case .updateDive, .updateGearSet, .updateDiveDraft, .deleteDiveDraft: creates = nil
-    default: creates = .local(UUID())
-    }
+    creates = operation.isCreate ? .local(UUID()) : nil
     idempotencyKey = UUID()
     state = .pending(lastAnswer: nil)
     attempted = false
@@ -77,12 +74,16 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
   /// holds nothing for. A create sent once and answered any other way may have committed under
   /// its key, so its body stays. A write moved from another account's stores has nothing to apply
   /// to here. Nothing is edited while it is being sent: the answer would overwrite the edit.
+  ///
+  /// A trip's or a site's update only once it has failed: the phone keeps no copy of the record
+  /// to open it over without a read, and one still waiting is changed from the record's page.
   public var isEditable: Bool {
     if state == .inFlight || failure?.kind == .wrongAccount { return false }
     switch operation {
     case .updateDive, .updateGearSet: return failure?.status != 404
+    case .updateDiveSite, .updateTrip: return isFailed && failure?.status != 404
     case .updateDiveDraft: return true
-    case .deleteDiveDraft: return false
+    case .deleteDive, .deleteDiveSite, .deleteTrip, .deleteDiveDraft: return false
     default: return holdsNothing
     }
   }

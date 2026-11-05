@@ -62,8 +62,10 @@ public final class DiveFormModel: AccountStoresObserver {
   public private(set) var numberSuggestion: DiveNumberSuggestion?
   /// The dive draft the form writes to, once there is one.
   public private(set) var draft: RecordRef?
-  /// The form's work is queued, or its draft discarded: the screen closes.
+  /// The form's work is queued, or its draft or dive deleted: the screen closes.
   public private(set) var isDone = false
+  /// The dive was deleted: the page it was edited from has nothing left to show.
+  public private(set) var isDeleted = false
   /// The dive an edit compares against.
   public private(set) var baseline: DiveReadWithMixtures?
   /// The diver has changed something since the form opened, or since the edit it resumed.
@@ -521,6 +523,28 @@ public final class DiveFormModel: AccountStoresObserver {
     }
     do {
       try outbox.discardDraft(draft)
+      isDone = true
+    } catch {
+      saveError = Self.noStores
+    }
+  }
+
+  /// Whether *Delete dive* is offered: on a dive the account has, and not over a refused edit,
+  /// which the pending screen discards.
+  public var canDelete: Bool {
+    if case .edit = mode { true } else { false }
+  }
+
+  /// *Delete dive*, after the confirmation: the dive goes, and any edit kept for it.
+  public func deleteDive() {
+    guard case .edit(let uuid) = mode, !isDone else { return }
+    saveTask?.cancel()
+    dirty = false
+    do {
+      try outbox.queue(.deleteDive(.server(uuid)))
+      DraftStore<DiveEditDraft>(session: session)?.remove(.server(uuid))
+      saveError = nil
+      isDeleted = true
       isDone = true
     } catch {
       saveError = Self.noStores

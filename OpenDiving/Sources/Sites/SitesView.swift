@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The *Sites* tab: the diver's dive sites, the most recently dived first and the sites no
-/// dive names last, each opening its page.
+/// dive names last, each opening its page, and the `+` that adds one.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -10,6 +10,15 @@ struct SitesView: View {
     NavigationStack {
       SiteList(session: session)
         .navigationTitle("Sites")
+        .toolbar {
+          ToolbarItem(placement: .primaryAction) {
+            NavigationLink {
+              DiveSiteFormView(mode: .create)
+            } label: {
+              Label("Add dive site", systemImage: "plus")
+            }
+          }
+        }
     }
   }
 }
@@ -44,7 +53,7 @@ private struct SiteList: View {
         EmptyOrErrorView(
           status: .empty(
             icon: .diveSite, title: "No dive sites yet",
-            message: "Dive sites you add on the web, or when logging a dive, appear here."))
+            message: "Add one with +, or when logging a dive."))
       case .loaded:
         ScrollView {
           LazyVStack(spacing: 12) {

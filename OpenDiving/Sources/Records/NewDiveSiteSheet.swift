@@ -26,13 +26,54 @@ struct NewDiveSiteSheet: View {
   }
 }
 
+/// The dive site form as a screen of its own: the *Sites* tab's new site, a site's page's edit,
+/// or a queued edit the server refused.
+struct DiveSiteFormView: View {
+  let mode: RecordFormMode<DiveSiteRead>
+  /// The site was deleted from the form, which leaves the page it was opened from nothing to show.
+  var onDeleted: () -> Void = {}
+
+  @Environment(Session.self) private var session
+
+  var body: some View {
+    switch mode {
+    case .create:
+      form(RecordSheetModel(outbox: OutboxModel(session: session), values: DiveSiteFormValues()))
+    case .edit(let site):
+      form(edit(site, failedItem: nil))
+    case .failed(let item, let uuid):
+      RecordFormLoader {
+        try await session.requireClient().diveSite(uuid)
+      } content: { site in
+        form(edit(site, failedItem: item))
+      }
+    }
+  }
+
+  private func edit(_ site: DiveSiteRead, failedItem: UUID?) -> RecordSheetModel<DiveSiteFormValues>
+  {
+    RecordSheetModel(
+      outbox: OutboxModel(session: session), editing: .server(site.uuid),
+      read: DiveSiteFormValues(editing: site), failedItem: failedItem)
+  }
+
+  private func form(_ model: RecordSheetModel<DiveSiteFormValues>) -> some View {
+    DiveSiteSheetForm(
+      model: model, units: RecordEntryUnits(session: session),
+      map: MapStyleModel(session: session), session: session, locator: CoreLocationProvider(),
+      isPushed: true, onCreated: { _ in }, onDeleted: onDeleted)
+  }
+}
+
 private struct DiveSiteSheetForm: View {
   @State var model: RecordSheetModel<DiveSiteFormValues>
   @State var units: RecordEntryUnits
   @State var map: MapStyleModel
   let session: Session
   let locator: any LocationProvider
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   @State private var invalid: Set<String> = []
   @State private var lookup = PositionLookup()
@@ -49,8 +90,9 @@ private struct DiveSiteSheetForm: View {
   var body: some View {
     ScrollViewReader { proxy in
       RecordSheetForm(
-        title: "New Dive Site", isReopened: model.isReopened,
-        failure: model.failure, saveError: model.saveError, save: save
+        title: model.isEditing ? "Edit Dive Site" : "New Dive Site",
+        isReopened: model.isReopened, createLabel: "Create dive site", isPushed: isPushed,
+        failure: model.failure, saveError: model.saveError, deletion: deletion, save: save
       ) {
         Section {
           TextBox(
@@ -95,13 +137,17 @@ private struct DiveSiteSheetForm: View {
             credit: lookup.credit(
               latitude: model.values.latitude, longitude: model.values.longitude),
             onPick: place)
+        } header: {
+          FormSectionHeader(group: .location)
         }
         if !model.values.externalIds.isEmpty {
-          Section("In Other Registries") {
+          Section {
             ForEach(model.values.externalIds, id: \.self) { entry in
               Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
                 .swipeToDelete { model.values.externalIds.removeAll { $0 == entry } }
             }
+          } header: {
+            FormSectionHeader(title: "In Other Registries", icon: .globe)
           }
         }
         Section {
@@ -125,8 +171,10 @@ private struct DiveSiteSheetForm: View {
             invalid: $invalid,
             message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
             allowsNegative: true)
+        } header: {
+          FormSectionHeader(title: "Depth & Water", icon: .waves)
         }
-        Section("Entry Types") {
+        Section {
           ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
             Toggle(
               VocabularyLabels.entryType(entry),
@@ -136,6 +184,8 @@ private struct DiveSiteSheetForm: View {
             )
             .tint(.brandTeal)
           }
+        } header: {
+          FormSectionHeader(title: "Entry Types", icon: .wavesArrowDown)
         }
         Section {
           TagsField(
@@ -144,11 +194,11 @@ private struct DiveSiteSheetForm: View {
             onRemove: { model.values.removeTag($0) }
           )
           .id(Self.tagsField)
-        }
-        Section {
           NotesField(
             placeholder: "Any notes about this dive site...", text: $model.values.notes,
             error: model.message("notes"))
+        } header: {
+          FormSectionHeader(group: .notes)
         }
       }
       .followsAddedTags(count: model.values.tags.count, id: Self.tagsField, proxy: proxy)
@@ -227,9 +277,21 @@ private struct DiveSiteSheetForm: View {
     onCreated(ref)
     return true
   }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    return RecordDeletion(
+      title: "Delete dive site", message: RecordDeletionText.diveSite, delete: model.delete,
+      onDeleted: onDeleted)
+  }
 }
 
 #Preview {
   NewDiveSiteSheet { _ in }
+    .environment(Session.stub(transport: StubTransport(routes: [:])))
+}
+
+#Preview("Pushed") {
+  NavigationStack { DiveSiteFormView(mode: .create) }
     .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

@@ -1,3 +1,4 @@
+import OpenDivingKit
 import SwiftUI
 
 /// A site's other names, a box each; a blank one is dropped on save.
@@ -7,7 +8,7 @@ struct OtherNamesField: View {
   @FocusState private var focused: Int?
 
   var body: some View {
-    Section("Other Names") {
+    Section {
       ForEach(names.indices, id: \.self) { index in
         TextField("Other name \(index + 1)", text: name(index), prompt: Text("e.g. Sunabe Seawall"))
           .focused($focused, equals: index)
@@ -19,6 +20,8 @@ struct OtherNamesField: View {
         Task { focused = names.count - 1 }
       }
       .accentRow()
+    } header: {
+      FormSectionHeader(title: "Other Names", icon: .diveSite)
     }
   }
 

@@ -14,6 +14,7 @@ struct TripDetailView: View {
 
 private struct TripDetailContent: View {
   @Environment(Session.self) private var session
+  @Environment(\.dismiss) private var dismiss
   @State private var model: TripDetailModel
 
   init(model: TripDetailModel) {
@@ -36,6 +37,9 @@ private struct TripDetailContent: View {
           LazyVStack(spacing: 16) {
             HeroView(content: TripSummary.hero(trip, units: session.units))
             Group {
+              if model.hasPendingEdit {
+                PendingEditLine()
+              }
               TripDives(trip: trip, list: model.dives, units: session.units)
               PageEndTrigger(list: model.dives)
               LoadMoreFooter(list: model.dives)
@@ -53,6 +57,17 @@ private struct TripDetailContent: View {
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
+    .toolbar {
+      if case .loaded(let trip) = model.phase {
+        ToolbarItem(placement: .topBarTrailing) {
+          NavigationLink {
+            TripFormView(mode: .edit(trip)) { dismiss() }
+          } label: {
+            Label("Edit trip", systemImage: "pencil")
+          }
+        }
+      }
+    }
     .task { await model.load() }
   }
 

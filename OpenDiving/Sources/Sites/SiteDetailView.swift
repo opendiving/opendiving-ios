@@ -14,6 +14,7 @@ struct SiteDetailView: View {
 
 private struct SiteDetailContent: View {
   @Environment(Session.self) private var session
+  @Environment(\.dismiss) private var dismiss
   @State private var model: DiveSiteDetailModel
 
   init(model: DiveSiteDetailModel) {
@@ -36,6 +37,9 @@ private struct SiteDetailContent: View {
           LazyVStack(spacing: 16) {
             HeroView(content: DiveSiteSummary.hero(site, units: session.units))
             Group {
+              if model.hasPendingEdit {
+                PendingEditLine()
+              }
               SiteDives(list: model.dives, units: session.units)
               PageEndTrigger(list: model.dives)
               SiteInformationCard(info: DiveSiteSummary.info(site))
@@ -59,6 +63,17 @@ private struct SiteDetailContent: View {
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
+    .toolbar {
+      if case .loaded(let site) = model.phase {
+        ToolbarItem(placement: .topBarTrailing) {
+          NavigationLink {
+            DiveSiteFormView(mode: .edit(site)) { dismiss() }
+          } label: {
+            Label("Edit dive site", systemImage: "pencil")
+          }
+        }
+      }
+    }
     .task { await model.load() }
   }
 
