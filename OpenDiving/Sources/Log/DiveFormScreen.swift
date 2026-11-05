@@ -42,7 +42,7 @@ struct DiveFormScreen: View {
             Section {
               DiveFormSection(group: group, model: model)
             } header: {
-              DiveFormSectionHeader(group: group)
+              FormSectionHeader(group: group)
             }
             .id(group)
             // Named, or the section takes the spacing of the tank card after it.

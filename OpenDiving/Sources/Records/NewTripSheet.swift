@@ -89,12 +89,14 @@ private struct TripSheetForm: View {
       // Named, or the section takes the spacing of the last part after it.
       .listSectionSpacing(.default)
       if model.values.parts.isEmpty {
-        Section("Parts") {
+        Section {
           Text(
             "No parts yet. Add one for each place the trip went - or one with dates and no place, for a travel day or a week nobody geocoded."
           )
           .font(.footnote)
           .foregroundStyle(.secondary)
+        } header: {
+          FormSectionHeader(title: "Parts", icon: .mapPin)
         }
         .listSectionSpacing(.custom(8))
       }
@@ -213,7 +215,7 @@ private struct TripPartSection: View {
       FieldMessage(datesMessage)
     } header: {
       // Parts are sections, which do not drag; putting them in order stays with the web.
-      RemovableSectionHeader(title: "Part \(index + 1)", onRemove: remove)
+      RemovableSectionHeader(title: "Part \(index + 1)", icon: .mapPin, onRemove: remove)
     }
   }
 }

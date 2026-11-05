@@ -13,7 +13,7 @@ struct TanksSection: View {
       Section {
         addTank
       } header: {
-        DiveFormSectionHeader(group: .tanks)
+        FormSectionHeader(group: .tanks)
       }
       .id(DiveFormGroup.tanks)
     } else {

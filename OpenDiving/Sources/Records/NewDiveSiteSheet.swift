@@ -139,11 +139,13 @@ private struct DiveSiteSheetForm: View {
             onPick: place)
         }
         if !model.values.externalIds.isEmpty {
-          Section("In Other Registries") {
+          Section {
             ForEach(model.values.externalIds, id: \.self) { entry in
               Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
                 .swipeToDelete { model.values.externalIds.removeAll { $0 == entry } }
             }
+          } header: {
+            FormSectionHeader(title: "In Other Registries", icon: .globe)
           }
         }
         Section {
@@ -168,7 +170,7 @@ private struct DiveSiteSheetForm: View {
             message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
             allowsNegative: true)
         }
-        Section("Entry Types") {
+        Section {
           ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
             Toggle(
               VocabularyLabels.entryType(entry),
@@ -178,6 +180,8 @@ private struct DiveSiteSheetForm: View {
             )
             .tint(.brandTeal)
           }
+        } header: {
+          FormSectionHeader(title: "Entry Types", icon: .wavesArrowDown)
         }
         Section {
           TagsField(
@@ -190,7 +194,7 @@ private struct DiveSiteSheetForm: View {
             placeholder: "Any notes about this dive site...", text: $model.values.notes,
             error: model.message("notes"))
         } header: {
-          DiveFormSectionHeader(group: .notes)
+          FormSectionHeader(group: .notes)
         }
       }
       .followsAddedTags(count: model.values.tags.count, id: Self.tagsField, proxy: proxy)

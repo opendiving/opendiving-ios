@@ -12,7 +12,7 @@ struct RecordPeopleField: View {
   var excluded: RecordRef?
 
   var body: some View {
-    Section("People") {
+    Section {
       PeopleRows(people: $people, row: row) {
         PickerSheet(
           title: FormPicker.people.placeholder(holdsSome: false),
@@ -25,6 +25,8 @@ struct RecordPeopleField: View {
             if let ref { join(ref) }
           })
       }
+    } header: {
+      FormSectionHeader(group: .people)
     }
   }
 
