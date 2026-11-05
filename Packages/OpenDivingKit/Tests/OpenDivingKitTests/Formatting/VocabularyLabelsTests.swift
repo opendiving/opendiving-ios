@@ -1,5 +1,6 @@
-import OpenDivingKit
 import Testing
+
+@testable import OpenDivingKit
 
 /// Every table against the web's own at `opendiving-web` `ec014ff9` — `src/lib/api/dives.ts`,
 /// `dive-mixtures.ts`, `people.ts`, `gear.ts`, `logbook-import.ts`, `certifications.ts` —
@@ -150,5 +151,22 @@ struct VocabularyLabelsTests {
     #expect(Labels.certificationSide("front") == "Front")
     #expect(Labels.certificationSide("back") == "Back")
     #expect(Labels.certificationSide("edge") == nil)
+  }
+
+  /// The fallback would hide a gap: a value with no entry still reads, as "Cdaa".
+  @Test func thePickersAgenciesAreTheTablesKeys() {
+    #expect(Set(FormVocabulary.certificationAgencies) == Set(Labels.certificationAgencies.keys))
+  }
+
+  @Test func cdaaIscAndIseReadAsTheirShortNames() {
+    #expect(Labels.certificationAgency("cdaa") == "CDAA")
+    #expect(Labels.certificationAgency("isc") == "ISC")
+    #expect(Labels.certificationAgency("ise") == "ISE")
+  }
+
+  /// A stored row keeps a value the vocabulary gave up, and reads through the fallback.
+  @Test func aRetiredAgencyReadsThroughTheFallback() {
+    #expect(Labels.certificationAgency("efr") == "Efr")
+    #expect(Labels.certificationAgency("saa") == "Saa")
   }
 }

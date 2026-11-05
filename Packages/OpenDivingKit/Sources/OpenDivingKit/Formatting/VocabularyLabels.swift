@@ -181,12 +181,12 @@ public enum VocabularyLabels {
   static let certificationAgencies = [
     "padi": "PADI", "ssi": "SSI", "naui": "NAUI", "sdi": "SDI", "tdi": "TDI", "cmas": "CMAS",
     "raid": "RAID", "bsac": "BSAC", "gue": "GUE", "iantd": "IANTD", "psai": "PSAI",
-    "dan": "DAN", "efr": "EFR", "andi": "ANDI", "snsi": "SNSI", "acuc": "ACUC", "pss": "PSS",
-    "ida": "IDA", "ndl": "NDL", "utd": "UTD", "saa": "SAA", "scotsac": "ScotSAC", "iac": "IAC",
+    "dan": "DAN", "andi": "ANDI", "snsi": "SNSI", "acuc": "ACUC", "pss": "PSS",
+    "ida": "IDA", "ndl": "NDL", "utd": "UTD", "scotsac": "ScotSAC", "iac": "IAC",
     "protec": "ProTec", "pdic": "PDIC", "nase": "NASE", "sei": "SEI", "ymca": "YMCA",
     "erdi": "ERDI", "aida": "AIDA", "molchanovs": "Molchanovs", "pfi": "PFI",
     "apnea_academy": "Apnea Academy", "fii": "FII", "nss_cds": "NSS-CDS", "nacd": "NACD",
-    "idea": "IDEA", "diwa": "DIWA", "other": "Other",
+    "idea": "IDEA", "diwa": "DIWA", "cdaa": "CDAA", "isc": "ISC", "ise": "ISE", "other": "Other",
   ]
 
   static let certificationSides = ["front": "Front", "back": "Back"]
