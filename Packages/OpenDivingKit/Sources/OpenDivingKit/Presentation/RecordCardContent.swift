@@ -2,6 +2,8 @@
 /// it and what the diver's dives there add up to.
 public struct RecordCardContent: Hashable, Sendable {
   public var title: String
+  /// Marks over the title, a Commons site's.
+  public var chips: [Chip]
   public var facts: [Fact]
   public var figures: [Figure]
   /// The record's places: a trip's geocoded parts, a site's own pin.
@@ -11,10 +13,12 @@ public struct RecordCardContent: Hashable, Sendable {
   public var mapsTheWorldWhenEmpty: Bool
 
   public init(
-    title: String, facts: [Fact] = [], figures: [Figure] = [], points: [MapPoint] = [],
+    title: String, chips: [Chip] = [], facts: [Fact] = [], figures: [Figure] = [],
+    points: [MapPoint] = [],
     mapsTheWorldWhenEmpty: Bool = false
   ) {
     self.title = title
+    self.chips = chips
     self.facts = facts
     self.figures = figures
     self.points = points

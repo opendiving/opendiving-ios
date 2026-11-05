@@ -1,6 +1,14 @@
 import Foundation
 
-/// A dive site, with the summary of the diver's own dives there.
+/// Who a site belongs to, as the API spells it. A string rather than an enum, so a later kind of
+/// owner reads as nobody's Commons record instead of failing the whole list.
+public enum DiveSiteOwner {
+  public static let account = "account"
+  public static let commons = "opendivingcommons"
+}
+
+/// A dive site, with the summary of the diver's own dives there. On a Commons record the diver
+/// has not saved, the notes and the tags are empty and the summary is zero.
 public struct DiveSiteRead: Codable, Hashable, Sendable, Identifiable {
   public var id: UUID { uuid }
 
@@ -26,6 +34,15 @@ public struct DiveSiteRead: Codable, Hashable, Sendable, Identifiable {
   public let maxDiveDepth: Double?
   public let speciesCount: Int
   public let averageRating: Double?
-  public let userUuid: UUID
+  public let owner: String
+  /// Whether the site is on the diver's list.
+  public let saved: Bool
+  /// The credit a Commons record's source asks for, as `[label](href)`; nil on the diver's own.
+  public let attribution: String?
   public let createdAt: DiveTimestamp
+
+  public var isCommons: Bool { owner == DiveSiteOwner.commons }
+
+  /// A Commons record off the diver's list: its page shows it, and nothing of it can be edited.
+  public var isUnsavedCommons: Bool { isCommons && !saved }
 }

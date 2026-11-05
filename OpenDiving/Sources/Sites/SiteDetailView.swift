@@ -37,6 +37,10 @@ private struct SiteDetailContent: View {
           LazyVStack(spacing: 16) {
             HeroView(content: DiveSiteSummary.hero(site, units: session.units))
             Group {
+              if let attribution = site.attribution {
+                AttributionLine(credits: [attribution])
+                  .frame(maxWidth: .infinity, alignment: .leading)
+              }
               if model.hasPendingEdit {
                 PendingEditLine()
               }
@@ -64,7 +68,7 @@ private struct SiteDetailContent: View {
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
     .toolbar {
-      if case .loaded(let site) = model.phase {
+      if case .loaded(let site) = model.phase, !site.isUnsavedCommons {
         ToolbarItem(placement: .topBarTrailing) {
           NavigationLink {
             DiveSiteFormView(mode: .edit(site)) { dismiss() }

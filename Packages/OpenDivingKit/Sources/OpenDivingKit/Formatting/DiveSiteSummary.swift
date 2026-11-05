@@ -29,6 +29,23 @@ public enum DiveSiteSummary {
     }
   }
 
+  /// One thing a Commons record says, as its edit form shows it: not the diver's to change.
+  public struct SharedMember: Hashable, Sendable {
+    public var label: String
+    public var value: String
+  }
+
+  /// The mark on a Commons site, wherever one is listed or shown.
+  public static let commonsLabel = "Commons"
+
+  /// What the head of a Commons site's card or page carries.
+  public static func chips(_ site: DiveSiteRead) -> [Chip] {
+    guard site.isCommons else { return [] }
+    return [
+      Chip(text: commonsLabel, accessibilityLabel: "OpenDiving Commons site", kind: .vocabulary)
+    ]
+  }
+
   /// The site's card on the sites list: its name, its facts, and its dives, its deepest —
   /// a dash where it has none — and its species once there are some, over a map of its pin.
   public static func card(_ site: DiveSiteRead, units: UnitSystem) -> RecordCardContent {
@@ -40,7 +57,8 @@ public enum DiveSiteSummary {
       figures.append(Figure(label: "Species seen", value: String(site.speciesCount)))
     }
     return RecordCardContent(
-      title: site.name, facts: facts(site, units: units), figures: figures, points: points(site))
+      title: site.name, chips: chips(site), facts: facts(site, units: units), figures: figures,
+      points: points(site))
   }
 
   /// The site's page's head: its card the width of the screen, over a map of its pin when
@@ -58,7 +76,8 @@ public enum DiveSiteSummary {
       figures.append(Figure(label: "Last dive", value: DateText.date(lastDivedOn)))
     }
     return HeroContent(
-      title: site.name, facts: facts(site, units: units), figures: figures, points: points(site))
+      title: site.name, chips: chips(site), facts: facts(site, units: units), figures: figures,
+      points: points(site))
   }
 
   /// The site's pin alone, where it has one: its locality's centre is the town a geocoder
@@ -112,6 +131,24 @@ public enum DiveSiteSummary {
           label: ExternalIdRegistry.label(entry.registry), identifier: entry.identifier,
           link: ExternalIdRegistry.link(registry: entry.registry, identifier: entry.identifier))
       })
+  }
+
+  /// A Commons record's facts, each only where it records it.
+  public static func sharedMembers(_ site: DiveSiteRead, units: UnitSystem) -> [SharedMember] {
+    let info = info(site)
+    var members = [SharedMember(label: "Name", value: site.name)]
+    func add(_ label: String, _ value: String?) {
+      if let value, !value.isEmpty { members.append(SharedMember(label: label, value: value)) }
+    }
+    add("Also known as", info.alsoKnownAs)
+    add("Location", site.location?.name)
+    add("Coordinates", info.coordinates)
+    add("Depth", depthRange(site, units: units))
+    add("Water type", site.waterType.map(VocabularyLabels.waterType))
+    add("Altitude", site.altitude.map { UnitFormat.altitude(Double($0), units) })
+    add("Entry types", site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", "))
+    for registry in info.registries { add(registry.label, registry.identifier) }
+    return members
   }
 
   /// `5 m – 30 m`, or the one end the site records.

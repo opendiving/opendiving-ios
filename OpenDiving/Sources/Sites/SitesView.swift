@@ -61,13 +61,18 @@ private struct SiteList: View {
               LastUpdatedLine(date: lastUpdated)
             }
             ForEach(list.items) { site in
-              NavigationLink {
-                SiteDetailView(siteUUID: site.uuid)
-              } label: {
-                RecordCardView(
-                  content: DiveSiteSummary.card(site, units: session.units), icon: .tabDiveSite)
+              VStack(alignment: .leading, spacing: 4) {
+                NavigationLink {
+                  SiteDetailView(siteUUID: site.uuid)
+                } label: {
+                  RecordCardView(
+                    content: DiveSiteSummary.card(site, units: session.units), icon: .tabDiveSite)
+                }
+                .buttonStyle(.plain)
+                if let attribution = site.attribution {
+                  AttributionLine(credits: [attribution])
+                }
               }
-              .buttonStyle(.plain)
               .onAppear { Task { await list.loadMore(after: site) } }
             }
             LoadMoreFooter(list: list)

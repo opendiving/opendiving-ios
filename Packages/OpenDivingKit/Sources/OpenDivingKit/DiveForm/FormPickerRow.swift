@@ -33,11 +33,19 @@ public struct FormPickerRow: Hashable, Sendable, Identifiable {
   public let title: String
   /// What tells two of one name apart, or a cylinder's capacity.
   public let subtitle: String?
+  public let isCommons: Bool
+  /// What a Commons record's source asks to be shown wherever it is listed.
+  public let attribution: String?
 
-  public init(ref: RecordRef, title: String, subtitle: String? = nil) {
+  public init(
+    ref: RecordRef, title: String, subtitle: String? = nil, isCommons: Bool = false,
+    attribution: String? = nil
+  ) {
     self.ref = ref
     self.title = title
     self.subtitle = subtitle
+    self.isCommons = isCommons
+    self.attribution = attribution
   }
 
   /// Created on the phone and not yet on the server.
@@ -45,6 +53,12 @@ public struct FormPickerRow: Hashable, Sendable, Identifiable {
 
   public init(_ row: some LookupRow) {
     self.init(ref: row.ref, title: row.title, subtitle: row.subtitle)
+  }
+
+  public init(_ site: DiveSiteLookupItem) {
+    self.init(
+      ref: site.ref, title: site.title, subtitle: site.subtitle, isCommons: site.isCommons,
+      attribution: site.attribution)
   }
 
   init(gear item: GearItemInfo) {

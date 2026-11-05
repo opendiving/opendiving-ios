@@ -133,6 +133,21 @@ public final class RecordSheetModel<Values: RecordSheetValues> {
   }
 }
 
+extension RecordSheetModel where Values == DiveSiteFormValues {
+  /// Queues saving a Commons record to the diver's list instead of what the form holds. False,
+  /// with the reason on screen, when the outbox refused it.
+  public func saveToList(_ site: DiveSiteLookupItem) -> Bool {
+    saveError = nil
+    do {
+      try outbox.queue(.saveDiveSite(site))
+      return true
+    } catch {
+      saveError = Self.sentence(error)
+      return false
+    }
+  }
+}
+
 extension RecordSheetModel where Values: RecordEditValues {
   /// Edits `ref`, read as `read`. `failedItem` names a queued update the server refused, whose
   /// changes the form opens with and which saving replaces.

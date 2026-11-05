@@ -13,6 +13,8 @@ import Observation
 @Observable
 public final class LookupsModel: AccountStoresObserver {
   public private(set) var diveSites: [DiveSiteLookupItem] = []
+  /// The Commons records a dive or a draft names and the diver has not saved.
+  public private(set) var namedSites: [DiveSiteLookupItem] = []
   public private(set) var trips: [TripLookupItem] = []
   /// Dive centres, among other contacts.
   public private(set) var contacts: [ContactLookupItem] = []
@@ -55,11 +57,13 @@ public final class LookupsModel: AccountStoresObserver {
     guard let stores = AccountStores.current(session) else {
       (diveSites, trips, contacts, people, courses, gearItems) = ([], [], [], [], [], [])
       (gearSets, lifeList, recentVolumes, fetchedAt) = ([], [], [], nil)
+      namedSites = []
       return
     }
     OutboxHub.hub(for: stores.directory).observe(self)
     let tables = LookupTables(cache: stores.cache, items: stores.outbox.items())
     diveSites = tables.diveSites
+    namedSites = tables.namedSites
     trips = tables.trips
     contacts = tables.contacts
     people = tables.people
@@ -136,12 +140,41 @@ public final class LookupsModel: AccountStoresObserver {
       try await APIClient.allPages { try await client.speciesLifeList(page: $0, itemsPerPage: $1) }
     }
     await store(.recentVolumes) { try await client.recentVolumes().volumes }
+    await nameSites(client, session: session, fetchedUnder: stores)
+  }
+
+  /// Keeps a site for the name a dive or a draft shows, when the diver has not saved it.
+  static func keep(_ site: DiveSiteLookupItem, session: Session) {
+    guard let stores = AccountStores.current(session) else { return }
+    stores.cache.upsertLookupRow(site, table: .namedSites)
+    OutboxHub.hub(for: stores.directory).changed()
+  }
+
+  /// Fetches the sites the queued writes and the drafts name and the tables do not: a Commons
+  /// record picked on another device, or before the phone kept what it picks.
+  static func nameSites(
+    _ client: APIClient, session: Session, fetchedUnder stores: AccountStores
+  ) async {
+    let items = stores.outbox.items()
+    let tables = LookupTables(cache: stores.cache, items: items)
+    let known = Set((tables.diveSites + tables.namedSites).map(\.ref))
+    let queued = items.flatMap(\.operation.namedRecords).filter { $0.kind == .diveSite }.map(\.ref)
+    let drafted = (stores.cache.diveDrafts?.value ?? []).flatMap { $0.values.diveSites ?? [] }
+    let unnamed = Set(queued + drafted).subtracting(known).compactMap(\.serverUUID)
+    guard !unnamed.isEmpty,
+      let rows = try? await client.lookupDiveSites(
+        uuids: Array(unnamed.prefix(APIClient.listPageSize)), page: 1
+      ).data,
+      let cache = cacheForAnswer(fetchedUnder: stores, session: session)
+    else { return }
+    for row in rows { cache.upsertLookupRow(row, table: .namedSites) }
   }
 }
 
 /// The cached tables with the phone's own records after the server's.
 struct LookupTables {
   var diveSites: [DiveSiteLookupItem] = []
+  var namedSites: [DiveSiteLookupItem] = []
   var trips: [TripLookupItem] = []
   var contacts: [ContactLookupItem] = []
   var people: [PersonLookupItem] = []
@@ -160,6 +193,7 @@ struct LookupTables {
       return entry.value
     }
     diveSites = rows(.diveSites, DiveSiteLookupItem.self)
+    namedSites = cache.lookup(.namedSites, of: DiveSiteLookupItem.self)?.value ?? []
     trips = rows(.trips, TripLookupItem.self)
     contacts = rows(.contacts, ContactLookupItem.self)
     people = rows(.people, PersonLookupItem.self)
@@ -172,6 +206,11 @@ struct LookupTables {
 
     let waiting = items.filter { !$0.isFailed }
     for item in waiting {
+      if case .saveDiveSite(let site) = item.operation,
+        !diveSites.contains(where: { $0.ref == site.ref })
+      {
+        diveSites.append(site)
+      }
       guard let ref = item.creates else { continue }
       switch item.operation {
       case .createDiveSite(let body): diveSites.append(body.lookupRow(ref))

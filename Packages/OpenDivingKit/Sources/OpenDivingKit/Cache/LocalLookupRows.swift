@@ -7,11 +7,14 @@ import Foundation
 extension DiveSiteCreate {
   func lookupRow(_ ref: RecordRef) -> DiveSiteLookupItem {
     DiveSiteLookupItem(
-      ref: ref, name: name,
+      ref: ref, name: name, otherNames: otherNames, latitude: latitude, longitude: longitude,
       location: location.map {
         LocationRead(
           name: $0.name, latitude: $0.latitude, longitude: $0.longitude, bboxSouth: $0.bboxSouth,
           bboxNorth: $0.bboxNorth, bboxWest: $0.bboxWest, bboxEast: $0.bboxEast)
+      },
+      externalIds: externalIds.map {
+        ExternalIdRead(registry: $0.registry, identifier: $0.identifier)
       }, waterType: waterType, altitude: altitude, entryTypes: entryTypes)
   }
 }

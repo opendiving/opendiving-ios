@@ -80,7 +80,7 @@ enum OfflineFixtures {
     + #""max_dive_depth":46.41,"species_count":0,"average_rating":null,"other_names":[],"#
     + #""external_ids":[],"depth_from":null,"depth_to":null,"water_type":null,"altitude":null,"#
     + #""entry_types":[],"name":"Tiger Reef","latitude":null,"longitude":null,"notes":"","#
-    + #""location":null,"tags":[],"user_uuid":"01a0a51f-afe3-7363-a0bc-b0d634c35923","#
+    + #""location":null,"tags":[],"owner":"account","saved":true,"attribution":null,"#
     + #""created_at":"2026-09-15T12:53:28.901059Z"}"#
 
   static let start = DiveTimestamp(wireValue: "2026-10-25T09:30:00+03:00")!

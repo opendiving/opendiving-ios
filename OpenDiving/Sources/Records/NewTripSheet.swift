@@ -21,7 +21,7 @@ struct NewTripSheet: View {
         outbox: OutboxModel(session: session), values: TripFormValues(),
         failedItem: failedItem),
       lookups: LookupsModel(session: session),
-      places: PlaceSearchModel(session: session, findsSites: false),
+      places: PlaceSearchModel(session: session, finds: .tripPlaces),
       map: MapStyleModel(session: session), units: session.units, onCreated: onCreated)
   }
 }
@@ -59,7 +59,7 @@ struct TripFormView: View {
   private func form(_ model: RecordSheetModel<TripFormValues>) -> some View {
     TripSheetForm(
       model: model, lookups: LookupsModel(session: session),
-      places: PlaceSearchModel(session: session, findsSites: false),
+      places: PlaceSearchModel(session: session, finds: .tripPlaces),
       map: MapStyleModel(session: session), units: session.units, isPushed: true,
       onCreated: { _ in }, onDeleted: onDeleted)
   }

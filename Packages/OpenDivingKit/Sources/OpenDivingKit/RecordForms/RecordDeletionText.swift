@@ -7,4 +7,7 @@ public enum RecordDeletionText {
     "Deleting removes this trip from every dive logged on it. The dives themselves are not touched."
   public static let diveSite =
     "Deleting removes this site from every dive logged here. The dives themselves are not touched."
+  public static let commonsSite =
+    "The site stays in OpenDiving Commons. Your notes and tags on it go, and your dives there no "
+    + "longer name it. The dives themselves are not touched."
 }

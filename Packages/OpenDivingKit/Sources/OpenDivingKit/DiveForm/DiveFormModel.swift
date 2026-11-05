@@ -77,6 +77,8 @@ public final class DiveFormModel: AccountStoresObserver {
   private(set) var knownRows: [RecordRef: FormPickerRow] = [:]
   private(set) var knownGear: [RecordRef: GearItemInfo] = [:]
   private(set) var knownSpecies: [UUID: String] = [:]
+  /// The sites a search found, whole, for what picking one of them keeps.
+  @ObservationIgnored var sitesFound: [RecordRef: DiveSiteLookupItem] = [:]
   /// The people a search found, among the rows the form remembers.
   @ObservationIgnored private(set) var peopleFound: Set<RecordRef> = []
 
@@ -174,7 +176,8 @@ public final class DiveFormModel: AccountStoresObserver {
 
   /// The drafts *Log a dive* offers before a new form is touched.
   public var draftRows: [DiveDraftRowContent] {
-    DiveDraftRowContent.rows(outbox.drafts, sites: lookups.diveSites, timeZone: timeZone)
+    DiveDraftRowContent.rows(
+      outbox.drafts, sites: lookups.diveSites + lookups.namedSites, timeZone: timeZone)
   }
 
   /// Whether the form can ask the server: signed in, with a route believed to exist. It decides

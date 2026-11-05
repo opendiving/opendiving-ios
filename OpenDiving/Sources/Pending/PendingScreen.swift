@@ -231,7 +231,7 @@ struct PendingScreen: View {
       return ref.serverUUID.map { .diveSite(.failed(item: item.id, record: $0)) }
     case .updateTrip(let ref, _):
       return ref.serverUUID.map { .trip(.failed(item: item.id, record: $0)) }
-    case .deleteDive, .deleteDiveSite, .deleteTrip:
+    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deleteTrip:
       return nil
     case .createDiveDraft, .updateDiveDraft, .deleteDiveDraft:
       return (item.creates ?? item.operation.target).map { .form(.draft($0)) }

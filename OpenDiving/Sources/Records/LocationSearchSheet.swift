@@ -1,37 +1,42 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What *Use location* hands the site sheet: the position, the place and its credit, and the
-/// catalogue site last picked, which names the site and carries its registry entry.
+/// What *Use location* hands the site sheet: the position, and the place and its credit.
 struct SearchedLocation {
   var latitude: String
   var longitude: String
   var location: LocationWrite?
   var credit: String?
-  var site: DiveSiteSuggestion?
+}
+
+/// What a Commons record picked in the search becomes, which follows where the site form was
+/// opened. Choosing it creates nothing.
+struct CommonsOffer {
+  let label: (DiveSiteLookupItem) -> String
+  let take: (DiveSiteLookupItem) -> Void
 }
 
 /// The web's *Search location* dialog: finds where a site is — by a dive site's or a place's
 /// name, by coordinates, or on the map where there is one — without touching the site sheet
-/// until *Use location*. A catalogue row the diver already has a site for offers that site first.
+/// until *Use location*. A Commons row offers that record instead of a new site.
 struct LocationSearchSheet: View {
   let latitude: String
   let longitude: String
   let location: LocationWrite?
   let onUse: (SearchedLocation) -> Void
-  /// The diver took the site they already have; nothing is created. Nil offers no held site: a
-  /// sheet reopened on a refused create has a queued record to correct, which taking another
-  /// site would not resolve.
-  let onTakeHeldSite: ((UUID) -> Void)?
+  /// Nil lists places alone: an edit, or a form reopened on a refused create, has a record of
+  /// the diver's to place, which a Commons record neither fills nor replaces.
+  let commonsOffer: CommonsOffer?
 
   @Environment(Session.self) private var session
 
   var body: some View {
     LocationSearchForm(
-      search: PlaceSearchModel(session: session, findsSites: true),
+      search: PlaceSearchModel(
+        session: session, finds: commonsOffer == nil ? .sitePlaces : .commonsAndPlaces),
       map: MapStyleModel(session: session), session: session,
       initial: SearchedLocation(latitude: latitude, longitude: longitude, location: location),
-      onUse: onUse, onTakeHeldSite: onTakeHeldSite)
+      onUse: onUse, commonsOffer: commonsOffer)
   }
 }
 
@@ -40,23 +45,23 @@ private struct LocationSearchForm: View {
   @State var map: MapStyleModel
   let session: Session
   let onUse: (SearchedLocation) -> Void
-  let onTakeHeldSite: ((UUID) -> Void)?
+  let commonsOffer: CommonsOffer?
 
   @State private var picked: SearchedLocation
   @State private var query: String
-  @State private var offer: DiveSiteSuggestion?
+  @State private var offered: DiveSiteLookupItem?
   @State private var lookup = PositionLookup()
   @Environment(\.dismiss) private var dismiss
 
   init(
     search: PlaceSearchModel, map: MapStyleModel, session: Session, initial: SearchedLocation,
-    onUse: @escaping (SearchedLocation) -> Void, onTakeHeldSite: ((UUID) -> Void)?
+    onUse: @escaping (SearchedLocation) -> Void, commonsOffer: CommonsOffer?
   ) {
     _search = State(initialValue: search)
     _map = State(initialValue: map)
     self.session = session
     self.onUse = onUse
-    self.onTakeHeldSite = onTakeHeldSite
+    self.commonsOffer = commonsOffer
     _picked = State(initialValue: initial)
     // A site with no position yet searches for its Location's name straight away.
     let placed = PlaceSearch.position(latitude: initial.latitude, longitude: initial.longitude)
@@ -73,16 +78,18 @@ private struct LocationSearchForm: View {
           model: search, query: $query, position: position, units: session.units,
           hasMap: map.hasMap, onPick: pick,
           onTypeName: { picked.location = PlaceSearch.typedLocation($0) })
-        if let offer, let held = offer.heldSite, let onTakeHeldSite {
+        if let offered, let commonsOffer {
           Section {
-            Text("You already have **\(held.name)** for this site.")
-            Button("Use \(held.name)") {
-              onTakeHeldSite(held.uuid)
+            PickerRowLabel(row: FormPickerRow(offered))
+            Button(commonsOffer.label(offered)) {
+              commonsOffer.take(offered)
               dismiss()
             }
             .accentRow()
-            Button("Make a new site") { fill(from: offer) }
-              .accentRow()
+          } footer: {
+            if let attribution = offered.attribution {
+              AttributionLine(credits: [attribution])
+            }
           }
         }
         Section {
@@ -140,28 +147,12 @@ private struct LocationSearchForm: View {
   private func pick(_ pick: PlacePick) {
     switch pick {
     case .geocode(let result):
-      offer = nil
-      picked.site = nil
+      offered = nil
       setPosition(result.latitude, result.longitude)
       picked.location = PlaceSearch.location(of: result)
       adopt(credit: result.attribution)
-    case .catalog(let site) where site.heldSite != nil && onTakeHeldSite != nil:
-      offer = site
-    case .catalog(let site):
-      fill(from: site)
-    }
-  }
-
-  /// The catalogue already resolved the place; a record with none leaves Location as it is.
-  private func fill(from site: DiveSiteSuggestion) {
-    offer = nil
-    picked.site = site
-    setPosition(site.latitude, site.longitude)
-    if let place = PlaceSearch.location(of: site) {
-      picked.location = place
-      adopt(credit: site.attribution)
-    } else {
-      adopt(credit: nil)
+    case .commons(let site):
+      offered = site
     }
   }
 
@@ -195,7 +186,7 @@ private struct LocationSearchForm: View {
 #Preview {
   LocationSearchSheet(
     latitude: "", longitude: "", location: LocationWrite(name: "Dahab"), onUse: { _ in },
-    onTakeHeldSite: { _ in }
+    commonsOffer: CommonsOffer(label: { "Use \($0.name)" }, take: { _ in })
   )
   .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

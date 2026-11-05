@@ -219,17 +219,22 @@ struct APIClientWriteTests {
     #expect(harness.transport.requests.first?.url?.query == "lat=28.5&lon=34.5")
   }
 
-  @Test func placeSearchAndSiteSuggestions() async throws {
+  @Test func placeSearchAndCommonsSearch() async throws {
     let harness = harness([
       "GET geocode/search": .json(try KitFixture.text("geocode-search")),
-      "GET dive-sites/suggest": .json(try KitFixture.text("dive-site-suggest")),
+      "GET dive-sites/lookup": .json(try KitFixture.text("lookup-dive-sites")),
     ])
     #expect(try await harness.client.geocodeSearch(query: "dahab").count == 1)
-    _ = try await harness.client.diveSiteSuggestions(query: "thistle")
-    _ = try await harness.client.diveSiteSuggestions(
-      query: "thistle", latitude: 27.8, longitude: 33.9)
+    _ = try await harness.client.lookupDiveSites(search: "thistle", page: 1)
+    _ = try await harness.client.lookupDiveSites(
+      search: "thistle", near: DeviceLocation(latitude: 27.8, longitude: 33.9), commonsOnly: true,
+      page: 1, itemsPerPage: 10)
     let queries = harness.transport.requests.map { $0.url?.query }
-    #expect(queries == ["q=dahab", "q=thistle", "q=thistle&latitude=27.8&longitude=33.9"])
+    #expect(
+      queries == [
+        "q=dahab", "page=1&items_per_page=50&search=thistle",
+        "page=1&items_per_page=10&search=thistle&latitude=27.8&longitude=33.9&commons_only=true",
+      ])
   }
 }
 
