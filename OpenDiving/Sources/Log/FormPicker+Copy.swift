@@ -50,7 +50,7 @@ extension FormPicker {
   /// The record sheet the + opens, handing back the new record's ref, or the Commons record a
   /// site's sheet took instead.
   @ViewBuilder func addSheet(
-    onCommonsSite: @escaping (DiveSiteLookupItem) -> Void,
+    onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
     onCreated: @escaping (RecordRef) -> Void
   ) -> some View {
     switch self {
