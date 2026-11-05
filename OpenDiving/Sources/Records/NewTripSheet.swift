@@ -26,18 +26,60 @@ struct NewTripSheet: View {
   }
 }
 
+/// The trip form as a screen of its own: the *Trips* tab's new trip, a trip's page's edit, or a
+/// queued edit the server refused.
+struct TripFormView: View {
+  let mode: RecordFormMode<TripRead>
+  /// The trip was deleted from the form, which leaves the page it was opened from nothing to show.
+  var onDeleted: () -> Void = {}
+
+  @Environment(Session.self) private var session
+
+  var body: some View {
+    switch mode {
+    case .create:
+      form(RecordSheetModel(outbox: OutboxModel(session: session), values: TripFormValues()))
+    case .edit(let trip):
+      form(edit(trip, failedItem: nil))
+    case .failed(let item, let uuid):
+      RecordFormLoader {
+        try await session.requireClient().trip(uuid)
+      } content: { trip in
+        form(edit(trip, failedItem: item))
+      }
+    }
+  }
+
+  private func edit(_ trip: TripRead, failedItem: UUID?) -> RecordSheetModel<TripFormValues> {
+    RecordSheetModel(
+      outbox: OutboxModel(session: session), editing: .server(trip.uuid),
+      read: TripFormValues(editing: trip), failedItem: failedItem)
+  }
+
+  private func form(_ model: RecordSheetModel<TripFormValues>) -> some View {
+    TripSheetForm(
+      model: model, lookups: LookupsModel(session: session),
+      places: PlaceSearchModel(session: session, findsSites: false),
+      map: MapStyleModel(session: session), units: session.units, isPushed: true,
+      onCreated: { _ in }, onDeleted: onDeleted)
+  }
+}
+
 private struct TripSheetForm: View {
   @State var model: RecordSheetModel<TripFormValues>
   @State var lookups: LookupsModel
   @State var places: PlaceSearchModel
   @State var map: MapStyleModel
   let units: UnitSystem
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   var body: some View {
     RecordSheetForm(
-      title: "New Trip", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
+      title: model.isEditing ? "Edit Trip" : "New Trip", isReopened: model.isReopened,
+      createLabel: "Create trip", isPushed: isPushed, failure: model.failure,
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
       Section {
         TextBox(
@@ -109,6 +151,15 @@ private struct TripSheetForm: View {
   }
 
   private var isFull: Bool { model.values.parts.count >= TripFormValues.maxParts }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    return RecordDeletion(title: "Delete trip", message: RecordDeletionText.trip) {
+      guard model.delete() else { return false }
+      onDeleted()
+      return true
+    }
+  }
 
   private func save() -> Bool {
     guard let ref = model.save() else { return false }

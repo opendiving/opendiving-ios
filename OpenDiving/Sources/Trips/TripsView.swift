@@ -1,7 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Trips* tab: the diver's trips, the latest first, each opening its page.
+/// The *Trips* tab: the diver's trips, the latest first, each opening its page, and the `+` that
+/// adds one.
 struct TripsView: View {
   @Environment(Session.self) private var session
 
@@ -9,6 +10,15 @@ struct TripsView: View {
     NavigationStack {
       TripList(session: session)
         .navigationTitle("Trips")
+        .toolbar {
+          ToolbarItem(placement: .primaryAction) {
+            NavigationLink {
+              TripFormView(mode: .create)
+            } label: {
+              Label("Add trip", systemImage: "plus")
+            }
+          }
+        }
     }
   }
 }
@@ -43,7 +53,7 @@ private struct TripList: View {
         EmptyOrErrorView(
           status: .empty(
             icon: .luggage, title: "No trips yet",
-            message: "Trips you add on the web, or when logging a dive, appear here."))
+            message: "Add one with +, or when logging a dive."))
       case .loaded:
         ScrollView {
           LazyVStack(spacing: 12) {

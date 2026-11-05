@@ -79,6 +79,8 @@ struct PendingScreen: View {
     .navigationDestination(item: $route) { route in
       switch route {
       case .form(let mode): DiveFormView(mode: mode)
+      case .trip(let mode): TripFormView(mode: mode)
+      case .diveSite(let mode): DiveSiteFormView(mode: mode)
       case .importFiles: ImportView()
       }
     }
@@ -225,6 +227,12 @@ struct PendingScreen: View {
     switch item.operation {
     case .createDive, .updateDive, .logDive:
       return .form(.failed(item.id))
+    case .updateDiveSite(let ref, _):
+      return ref.serverUUID.map { .diveSite(.failed(item: item.id, record: $0)) }
+    case .updateTrip(let ref, _):
+      return ref.serverUUID.map { .trip(.failed(item: item.id, record: $0)) }
+    case .deleteDive, .deleteDiveSite, .deleteTrip:
+      return nil
     case .createDiveDraft, .updateDiveDraft, .deleteDiveDraft:
       return (item.creates ?? item.operation.target).map { .form(.draft($0)) }
     case .createDiveSite: return .sheet(.diveSite(item.id))
@@ -244,6 +252,8 @@ struct PendingScreen: View {
   private func open(_ edit: PendingEdit) {
     switch edit {
     case .form(let mode): route = .form(mode)
+    case .trip(let mode): route = .trip(mode)
+    case .diveSite(let mode): route = .diveSite(mode)
     case .sheet(let target): sheet = target
     }
   }
@@ -277,12 +287,16 @@ struct PendingScreen: View {
 /// Where the pending screen pushes.
 private enum PendingRoute: Hashable {
   case form(DiveFormMode)
+  case trip(RecordFormMode<TripRead>)
+  case diveSite(RecordFormMode<DiveSiteRead>)
   case importFiles
 }
 
 /// What *Edit* on a queued write opens.
 enum PendingEdit: Hashable {
   case form(DiveFormMode)
+  case trip(RecordFormMode<TripRead>)
+  case diveSite(RecordFormMode<DiveSiteRead>)
   case sheet(PendingSheet)
 }
 

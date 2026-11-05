@@ -8,6 +8,46 @@ public protocol RecordSheetValues: Hashable, Sendable {
   init?(reopening operation: OutboxOperation)
 }
 
+/// A record form that also edits a record the account has.
+public protocol RecordEditValues: RecordSheetValues {
+  /// The write taking `ref` from `baseline` to these values; nil when they agree.
+  func update(of ref: RecordRef, from baseline: Self) throws(FormInvalid) -> OutboxOperation?
+  /// These values with `operation` laid over, where it is a queued update of this kind.
+  func applying(_ operation: OutboxOperation) -> Self
+  /// The write that deletes `ref`.
+  static func delete(_ ref: RecordRef) -> OutboxOperation
+}
+
+extension TripFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: TripFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updateTrip(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> TripFormValues {
+    if case .updateTrip(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteTrip(ref) }
+}
+
+extension DiveSiteFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: DiveSiteFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updateDiveSite(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> DiveSiteFormValues {
+    if case .updateDiveSite(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteDiveSite(ref) }
+}
+
 /// Each record form as a sheet queues it, and reads a refused create back. A body keeps less
 /// than the form did — a blank box left out, a website given its scheme — so what reopens is
 /// what was sent, which saves to the same body again.

@@ -36,10 +36,7 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
     changedAt = now
     self.sequence = sequence
     self.operation = operation
-    switch operation {
-    case .updateDive, .updateGearSet, .updateDiveDraft, .deleteDiveDraft: creates = nil
-    default: creates = .local(UUID())
-    }
+    creates = operation.isCreate ? .local(UUID()) : nil
     idempotencyKey = UUID()
     state = .pending(lastAnswer: nil)
     attempted = false
@@ -80,9 +77,10 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
   public var isEditable: Bool {
     if state == .inFlight || failure?.kind == .wrongAccount { return false }
     switch operation {
-    case .updateDive, .updateGearSet: return failure?.status != 404
+    case .updateDive, .updateDiveSite, .updateTrip, .updateGearSet:
+      return failure?.status != 404
     case .updateDiveDraft: return true
-    case .deleteDiveDraft: return false
+    case .deleteDive, .deleteDiveSite, .deleteTrip, .deleteDiveDraft: return false
     default: return holdsNothing
     }
   }

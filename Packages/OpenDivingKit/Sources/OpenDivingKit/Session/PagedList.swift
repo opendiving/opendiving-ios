@@ -15,6 +15,9 @@ import Observation
 /// A list that has loaded fetches every page it shows again, behind the items shown, when the
 /// account's records change under it — an import applied, a queued write landed — rather than
 /// waiting for a pull, and rather than dropping back to page 1 under a diver scrolled past it.
+///
+/// A list that names its rows' records leaves out a record whose delete is queued, offline too,
+/// and shows it again if the delete is discarded or refused.
 @MainActor
 @Observable
 public final class PagedList<Item: Codable & Sendable> {
@@ -30,6 +33,7 @@ public final class PagedList<Item: Codable & Sendable> {
     case failed(APIError)
   }
 
+  /// The rows shown: what was fetched, less what is being deleted.
   public private(set) var items: [Item] = []
   public private(set) var phase: Phase = .idle
   public private(set) var hasMore = false
@@ -43,6 +47,7 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private let itemsPerPage: Int
   @ObservationIgnored private let fetch: Fetch
   @ObservationIgnored private let cacheKey: PageCacheKey<Item>?
+  @ObservationIgnored private var fetched: [Item] = []
   @ObservationIgnored private var nextPage = 1
   @ObservationIgnored private var generation = 0
   /// A refresh of a list already on screen leaves its items and its phase alone while its pages
@@ -83,7 +88,8 @@ public final class PagedList<Item: Codable & Sendable> {
       let stores = AccountStores.current(session)
       let response = try await fetch(client, nextPage, itemsPerPage)
       guard generation == self.generation else { return }
-      items += response.data
+      fetched += response.data
+      showFetched()
       hasMore = response.hasMore && !response.data.isEmpty
       nextPage += 1
       pageError = nil
@@ -106,7 +112,7 @@ public final class PagedList<Item: Codable & Sendable> {
       try await session.loadAccount()
     } catch {
       pageError = APIError(error)
-      if items.isEmpty { phase = .failed(APIError(error)) }
+      if fetched.isEmpty { phase = .failed(APIError(error)) }
       return
     }
     await loadFirstPage()
@@ -122,22 +128,26 @@ public final class PagedList<Item: Codable & Sendable> {
     let generation = generation
     isReloadingPages = true
     defer { if generation == self.generation { isReloadingPages = false } }
-    if items.isEmpty { phase = .loading }
+    if fetched.isEmpty { phase = .loading }
     let stores = AccountStores.current(session)
-    if let stores { OutboxHub.hub(for: stores.directory).observeLists(self) }
+    if let stores {
+      OutboxHub.hub(for: stores.directory).observeLists(self)
+      OutboxHub.hub(for: stores.directory).observe(self)
+    }
     do {
       let client = try session.requireClient()
-      var fetched: [Item] = []
+      var pages: [Item] = []
       var page = 1
       var more = true
       while more, page <= last {
         let response = try await fetch(client, page, itemsPerPage)
         guard generation == self.generation else { return }
-        fetched += response.data
+        pages += response.data
         more = response.hasMore && !response.data.isEmpty
         page += 1
       }
-      items = fetched
+      fetched = pages
+      showFetched()
       hasMore = more
       nextPage = page
       pageError = nil
@@ -146,7 +156,7 @@ public final class PagedList<Item: Codable & Sendable> {
       keep(fetchedUnder: stores, firstPage: true)
     } catch {
       guard generation == self.generation else { return }
-      if items.isEmpty {
+      if fetched.isEmpty {
         phase = .failed(APIError(error))
       } else {
         pageError = APIError(error)
@@ -157,24 +167,39 @@ public final class PagedList<Item: Codable & Sendable> {
   /// The kept pages, shown as loaded while page 1 is on its way. No more is asked for until
   /// it lands, so a later page never follows a stale one.
   private func showCached() {
-    guard items.isEmpty, let cacheKey, let stores = AccountStores.current(session),
+    guard fetched.isEmpty, let cacheKey, let stores = AccountStores.current(session),
       let entry = stores.cache.pages(cacheKey.name, of: Item.self), !entry.value.items.isEmpty
     else { return }
-    items = entry.value.items
+    fetched = entry.value.items
+    showFetched()
     hasMore = false
     lastUpdated = entry.fetchedAt
     phase = .loaded
+  }
+
+  private func showFetched() {
+    guard let record = cacheKey?.record, let stores = AccountStores.current(session) else {
+      items = fetched
+      return
+    }
+    let gone = OutboxHub.hub(for: stores.directory).deleted.union(
+      stores.outbox.items().filter { !$0.isFailed }.compactMap(\.operation.deletedRecord))
+    items = gone.isEmpty ? fetched : fetched.filter { !gone.contains(record($0)) }
   }
 
   private func keep(fetchedUnder stores: AccountStores?, firstPage: Bool) {
     guard let cacheKey, let cache = cacheForAnswer(fetchedUnder: stores, session: session)
     else { return }
     cache.writePages(
-      AccountCache.Pages(items: items, hasMore: hasMore, nextPage: nextPage), key: cacheKey.name)
-    if firstPage, let number = cacheKey.highestDiveNumber?(items) {
+      AccountCache.Pages(items: fetched, hasMore: hasMore, nextPage: nextPage), key: cacheKey.name)
+    if firstPage, let number = cacheKey.highestDiveNumber?(fetched) {
       cache.setHighestDiveNumber(number)
     }
   }
+}
+
+extension PagedList: AccountStoresObserver {
+  func accountStoresChanged() { showFetched() }
 }
 
 extension PagedList: AccountListsObserver {

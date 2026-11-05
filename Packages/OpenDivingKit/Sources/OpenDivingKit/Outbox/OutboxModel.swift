@@ -126,8 +126,21 @@ public final class OutboxModel: AccountStoresObserver {
     switch operation {
     case .createDiveDraft, .updateDiveDraft, .deleteDiveDraft, .logDive:
       throw OutboxError.draftOperation
+    case .deleteDive(let ref), .deleteDiveSite(let ref), .deleteTrip(let ref):
+      withdrawWrites(to: ref)
+      return try append(operation, flush: true)
     default:
       return try append(operation, flush: true)
+    }
+  }
+
+  /// A record being deleted needs no write still waiting for it, least of all a refused one the
+  /// delete would wait behind. The one being sent stays, and the delete follows it.
+  private func withdrawWrites(to ref: RecordRef) {
+    guard let stores = AccountStores.current(session) else { return }
+    let sending = OutboxHub.hub(for: stores.directory).sending
+    for item in stores.outbox.items() where item.operation.target == ref && item.id != sending {
+      stores.outbox.remove(item.id)
     }
   }
 
@@ -405,6 +418,8 @@ public final class OutboxModel: AccountStoresObserver {
       return true
     case (.logDive(let x, _), .logDive(let y, _)): return x == y
     case (.updateDive(let x, _), .updateDive(let y, _)): return x == y
+    case (.updateDiveSite(let x, _), .updateDiveSite(let y, _)): return x == y
+    case (.updateTrip(let x, _), .updateTrip(let y, _)): return x == y
     case (.updateGearSet(let x, _), .updateGearSet(let y, _)): return x == y
     case (.updateDiveDraft(let x, _), .updateDiveDraft(let y, _)): return x == y
     default: return false

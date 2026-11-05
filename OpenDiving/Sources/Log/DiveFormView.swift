@@ -6,12 +6,15 @@ import SwiftUI
 /// onto a navigation stack and pops itself once its work is queued.
 struct DiveFormView: View {
   let mode: DiveFormMode
+  /// The dive was deleted from the form, which leaves the page it was opened from nothing to show.
+  let onDeleted: () -> Void
 
   @Environment(Session.self) private var session
   @State private var model: DiveFormModel?
 
-  init(mode: DiveFormMode) {
+  init(mode: DiveFormMode, onDeleted: @escaping () -> Void = {}) {
     self.mode = mode
+    self.onDeleted = onDeleted
   }
 
   var body: some View {
@@ -42,7 +45,7 @@ struct DiveFormView: View {
     case .ready:
       // The drafts sit above a new form rather than in place of it, so a drafts list that
       // arrives while the form is open adds a section instead of tearing the form down.
-      DiveFormScreen(model: model) { ref in
+      DiveFormScreen(model: model, onDeleted: onDeleted) { ref in
         Task { await open(.draft(ref)) }
       }
       .id(ObjectIdentifier(model))

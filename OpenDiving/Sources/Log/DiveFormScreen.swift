@@ -2,10 +2,11 @@ import OpenDivingKit
 import SwiftUI
 
 /// The form, ready: its sections as the account shows them, a menu that jumps between them,
-/// *Discard draft* once there is one, and *Log dive* or *Save changes* fixed under it all, where
-/// the tab bar was.
+/// *Discard draft* once there is one, *Delete dive* at the end of an edit, and *Log dive* or *Save
+/// changes* fixed under it all, where the tab bar was.
 struct DiveFormScreen: View {
   @Bindable var model: DiveFormModel
+  var onDeleted: () -> Void = {}
   /// Opens a draft in place of a new form that has not been touched.
   var onContinueDraft: ((RecordRef) -> Void)?
 
@@ -58,6 +59,10 @@ struct DiveFormScreen: View {
             )
           }
         }
+        if model.canDelete {
+          DeleteRecordSection(
+            title: "Delete dive", message: RecordDeletionText.dive, action: model.deleteDive)
+        }
       }
       // A list scrolls to a section's first row, takes no anchor but top, centre and bottom, and
       // aligns to the safe area, so only this keeps a jumped-to section's title in view.
@@ -95,32 +100,18 @@ struct DiveFormScreen: View {
     .sheet(isPresented: $model.isChecklistOpen) {
       GearChecklistSheet(model: model)
     }
-    .onChange(of: model.isDone) { _, done in if done { dismiss() } }
+    .onChange(of: model.isDone) { _, done in
+      guard done else { return }
+      dismiss()
+      if model.isDeleted { onDeleted() }
+    }
     .onDisappear { model.leave() }
   }
 
   /// The save button, the screen's width inside its margins, and what stopped the last save above
   /// it, since the end of the form may be far from view.
   private func saveBar(_ proxy: ScrollViewProxy) -> some View {
-    VStack(spacing: 8) {
-      if let error = model.saveError {
-        FieldMessage(error)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(8)
-          .background(.bar, in: RoundedRectangle(cornerRadius: 8))
-      }
-      Button {
-        submit(proxy)
-      } label: {
-        Text(model.submitLabel)
-          .bold()
-          .frame(maxWidth: .infinity)
-      }
-      .brandProminentButton()
-      .controlSize(.large)
-    }
-    .padding(.horizontal)
-    .padding(.vertical, 8)
+    FormSaveBar(label: model.submitLabel, error: model.saveError) { submit(proxy) }
   }
 
   /// Saves, or scrolls to the first section a sentence landed in.

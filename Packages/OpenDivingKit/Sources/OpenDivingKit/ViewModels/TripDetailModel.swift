@@ -5,7 +5,7 @@ import Observation
 /// information card names — each part's accommodation and the trip's dive centres.
 @MainActor
 @Observable
-public final class TripDetailModel {
+public final class TripDetailModel: AccountStoresObserver, AccountListsObserver {
   public let tripUUID: UUID
   public private(set) var phase: DetailPhase<TripRead> = .loading
   /// The contacts read so far, by uuid. One that failed to read is left out, and the card
@@ -15,7 +15,12 @@ public final class TripDetailModel {
   /// covers — are not among them.
   public let dives: PagedList<DiveListItem>
 
+  /// The queue holds an edit of this trip, which the page shows once it lands.
+  public private(set) var hasPendingEdit = false
+
   @ObservationIgnored private let session: Session
+  /// The read a queued edit landing started.
+  @ObservationIgnored var reloading: Task<Void, Never>?
 
   public init(session: Session, tripUUID: UUID) {
     self.session = session
@@ -52,9 +57,36 @@ public final class TripDetailModel {
     do {
       let trip = try await session.requireClient().trip(tripUUID)
       phase = .loaded(trip)
+      watchStores()
     } catch {
       let next = DetailPhase<TripRead>.failure(error)
       if !wasLoaded || next == .notFound { phase = next }
+    }
+  }
+
+  private func watchStores() {
+    guard let stores = AccountStores.current(session) else { return }
+    let hub = OutboxHub.hub(for: stores.directory)
+    hub.observe(self)
+    hub.observeLists(self)
+    accountStoresChanged()
+  }
+
+  func accountStoresChanged() {
+    let ref = RecordRef.server(tripUUID)
+    hasPendingEdit =
+      AccountStores.current(session)?.outbox.items().contains { item in
+        if case .updateTrip(ref, _) = item.operation { !item.isFailed } else { false }
+      } ?? false
+  }
+
+  /// A write landed, perhaps this trip's edit: the page reads the trip again. Its dives are a
+  /// list, which reads itself.
+  func accountListsChanged() {
+    guard phase.isLoaded else { return }
+    reloading = Task {
+      await readTrip()
+      if case .loaded(let trip) = phase { await readContacts(trip) }
     }
   }
 

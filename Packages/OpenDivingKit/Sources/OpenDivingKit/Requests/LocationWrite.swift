@@ -23,6 +23,14 @@ public struct LocationWrite: Codable, Hashable, Sendable {
     self.bboxEast = bboxEast
   }
 
+  /// A place as the server read it back, for a form to send again whole.
+  public init(_ read: LocationRead) {
+    self.init(
+      name: read.name, latitude: read.latitude, longitude: read.longitude,
+      bboxSouth: read.bboxSouth, bboxNorth: read.bboxNorth, bboxWest: read.bboxWest,
+      bboxEast: read.bboxEast)
+  }
+
   /// The place on a map, with its footprint where it has one; nil for a name with no position.
   public var mapPoint: MapPoint? {
     guard let latitude, let longitude else { return nil }

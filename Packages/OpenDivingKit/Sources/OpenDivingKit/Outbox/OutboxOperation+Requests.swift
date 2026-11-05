@@ -14,9 +14,16 @@ extension OutboxOperation {
     case .createDive(let body): return ("POST", "dive", try APIClient.json(body))
     case .updateDive(let ref, let body):
       return ("PATCH", try path("dive", ref), try APIClient.json(body))
+    case .deleteDive(let ref): return ("DELETE", try path("dive", ref), nil)
     case .createDiveSite(let body): return ("POST", "dive-site", try APIClient.json(body))
+    case .updateDiveSite(let ref, let body):
+      return ("PATCH", try path("dive-site", ref), try APIClient.json(body))
+    case .deleteDiveSite(let ref): return ("DELETE", try path("dive-site", ref), nil)
     case .createPerson(let body): return ("POST", "person", try APIClient.json(body))
     case .createTrip(let body): return ("POST", "trip", try APIClient.json(body))
+    case .updateTrip(let ref, let body):
+      return ("PATCH", try path("trip", ref), try APIClient.json(body))
+    case .deleteTrip(let ref): return ("DELETE", try path("trip", ref), nil)
     case .createCourse(let body): return ("POST", "course", try APIClient.json(body))
     case .createContact(let body): return ("POST", "contact", try APIClient.json(body))
     case .createGearItem(let body): return ("POST", "gear-item", try APIClient.json(body))
@@ -48,7 +55,9 @@ extension OutboxOperation {
     case .createContact: return .record(try decoder.decode(ContactRead.self, from: data).uuid)
     case .createGearItem: return .record(try decoder.decode(GearItemRead.self, from: data).uuid)
     case .createGearSet: return .gearSet(try decoder.decode(GearSetRead.self, from: data))
-    case .updateDive, .updateGearSet, .updateDiveDraft, .deleteDiveDraft: return nil
+    case .updateDive, .deleteDive, .updateDiveSite, .deleteDiveSite, .updateTrip, .deleteTrip,
+      .updateGearSet, .updateDiveDraft, .deleteDiveDraft:
+      return nil
     }
   }
 
@@ -90,12 +99,16 @@ extension OutboxOperation {
     case .createTrip(let body):
       return body.parts.compactMap(\.accommodation).map { ($0, .contact) }
         + body.people.map { ($0.person, .person) }
+    case .updateTrip(_, let body):
+      return (body.parts ?? []).compactMap(\.accommodation).map { ($0, .contact) }
+        + (body.people ?? []).map { ($0.person, .person) }
     case .createCourse(let body):
       return (body.contact.map { [($0, OutboxRecordKind.contact)] } ?? [])
         + body.people.map { ($0.person, .person) }
     case .createGearSet(let body): return body.gearItems.map { ($0, .gearItem) }
     case .updateGearSet(_, let body): return (body.gearItems ?? []).map { ($0, .gearItem) }
-    case .createDiveSite, .createPerson, .createContact, .createGearItem, .deleteDiveDraft:
+    case .createDiveSite, .updateDiveSite, .createPerson, .createContact, .createGearItem,
+      .deleteDive, .deleteDiveSite, .deleteTrip, .deleteDiveDraft:
       return []
     }
   }
