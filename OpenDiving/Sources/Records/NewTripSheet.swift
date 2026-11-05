@@ -86,6 +86,8 @@ private struct TripSheetForm: View {
           label: "Name *", placeholder: "e.g. Red Sea Liveaboard 2024", text: $model.values.name,
           message: model.message("name"))
       }
+      // Named, or the section takes the spacing of the last part after it.
+      .listSectionSpacing(.default)
       if model.values.parts.isEmpty {
         Section("Parts") {
           Text(
@@ -94,6 +96,7 @@ private struct TripSheetForm: View {
           .font(.footnote)
           .foregroundStyle(.secondary)
         }
+        .listSectionSpacing(.custom(8))
       }
       ForEach(model.values.parts.indices, id: \.self) { index in
         TripPartSection(
@@ -101,7 +104,10 @@ private struct TripSheetForm: View {
           contacts: lookups.contacts, places: places, units: units, hasMap: map.hasMap,
           locationMessage: model.message("parts", index: index, member: "location"),
           datesMessage: model.message("parts", index: index, member: "end_date"),
-          remove: { model.values.parts.remove(at: index) })
+          remove: { model.values.parts.remove(at: index) }
+        )
+        // *Add a part* stays by the last part, where the next one appears.
+        .listSectionSpacing(index == model.values.parts.count - 1 ? .custom(8) : .default)
       }
       Section {
         Button("Add a part", systemImage: "plus") {
@@ -154,11 +160,9 @@ private struct TripSheetForm: View {
 
   private var deletion: RecordDeletion? {
     guard model.canDelete else { return nil }
-    return RecordDeletion(title: "Delete trip", message: RecordDeletionText.trip) {
-      guard model.delete() else { return false }
-      onDeleted()
-      return true
-    }
+    return RecordDeletion(
+      title: "Delete trip", message: RecordDeletionText.trip, delete: model.delete,
+      onDeleted: onDeleted)
   }
 
   private func save() -> Bool {

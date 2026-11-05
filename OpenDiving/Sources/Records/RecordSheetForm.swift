@@ -68,7 +68,11 @@ struct RecordSheetForm<Content: View>: View {
       }
       if let deletion {
         DeleteRecordSection(title: deletion.title, message: deletion.message) {
-          if deletion.delete() { dismiss() }
+          guard deletion.delete() else { return }
+          // The form first: the page under it asked to go first leaves the form's pop unheard,
+          // and the diver on the deleted record's page.
+          dismiss()
+          deletion.onDeleted()
         }
       }
     }
@@ -77,11 +81,12 @@ struct RecordSheetForm<Content: View>: View {
 }
 
 /// What an edit form's delete says, and does. `delete` returns whether it was queued, which
-/// closes the form.
+/// closes the form and then tells the page it was opened from.
 struct RecordDeletion {
   let title: String
   let message: String
   let delete: () -> Bool
+  let onDeleted: () -> Void
 }
 
 #Preview {

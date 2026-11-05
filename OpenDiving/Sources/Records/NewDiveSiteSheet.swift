@@ -186,11 +186,11 @@ private struct DiveSiteSheetForm: View {
             onRemove: { model.values.removeTag($0) }
           )
           .id(Self.tagsField)
-        }
-        Section {
           NotesField(
             placeholder: "Any notes about this dive site...", text: $model.values.notes,
             error: model.message("notes"))
+        } header: {
+          DiveFormSectionHeader(group: .notes)
         }
       }
       .followsAddedTags(count: model.values.tags.count, id: Self.tagsField, proxy: proxy)
@@ -272,11 +272,9 @@ private struct DiveSiteSheetForm: View {
 
   private var deletion: RecordDeletion? {
     guard model.canDelete else { return nil }
-    return RecordDeletion(title: "Delete dive site", message: RecordDeletionText.diveSite) {
-      guard model.delete() else { return false }
-      onDeleted()
-      return true
-    }
+    return RecordDeletion(
+      title: "Delete dive site", message: RecordDeletionText.diveSite, delete: model.delete,
+      onDeleted: onDeleted)
   }
 }
 
