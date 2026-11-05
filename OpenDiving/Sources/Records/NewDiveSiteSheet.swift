@@ -137,6 +137,8 @@ private struct DiveSiteSheetForm: View {
             credit: lookup.credit(
               latitude: model.values.latitude, longitude: model.values.longitude),
             onPick: place)
+        } header: {
+          FormSectionHeader(group: .location)
         }
         if !model.values.externalIds.isEmpty {
           Section {
@@ -169,6 +171,8 @@ private struct DiveSiteSheetForm: View {
             invalid: $invalid,
             message: model.message("altitude"), onToggle: { units.toggle(.altitude) },
             allowsNegative: true)
+        } header: {
+          FormSectionHeader(title: "Depth & Water", icon: .waves)
         }
         Section {
           ForEach(FormVocabulary.entryTypes, id: \.self) { entry in

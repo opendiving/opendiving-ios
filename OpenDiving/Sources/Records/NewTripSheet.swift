@@ -142,6 +142,8 @@ private struct TripSheetForm: View {
         NotesField(
           placeholder: "Any notes about this trip...", text: $model.values.notes,
           error: model.message("notes"))
+      } header: {
+        FormSectionHeader(group: .notes)
       }
     }
     .showsMapStyle(map)
