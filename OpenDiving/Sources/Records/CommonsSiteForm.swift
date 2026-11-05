@@ -65,3 +65,24 @@ struct SiteNotesSection: View {
     }
   }
 }
+
+#Preview {
+  let json = """
+    {"uuid":"01a0a521-28c5-7e34-a572-4d7324f5033b","name":"Quarry","notes":"",
+     "other_names":["Old Quarry"],"external_ids":[],"entry_types":["shore"],"tags":[],
+     "dive_count":0,"species_count":0,"owner":"opendivingcommons","saved":true,
+     "attribution":"[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)",
+     "created_at":"2026-09-15T12:53:28.901059Z"}
+    """
+  let site = try! APICoding.decoder().decode(DiveSiteRead.self, from: Data(json.utf8))
+  NavigationStack { DiveSiteFormView(mode: .edit(site)) }
+    .environment(Session.stub(transport: StubTransport(routes: [:])))
+}
+
+#Preview("Notes") {
+  let session = Session.stub(transport: StubTransport(routes: [:]))
+  Form {
+    SiteNotesSection(
+      model: RecordSheetModel(outbox: OutboxModel(session: session), values: DiveSiteFormValues()))
+  }
+}
