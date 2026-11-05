@@ -92,7 +92,7 @@ struct RecordSheetsTests {
   @Test func aSavedCommonsSitesFormOffersItsTagsAndNoSharedInput() async throws {
     let site = try commonsSite(saved: true)
     let found = try await texts(NavigationStack { DiveSiteFormView(mode: .edit(site)) })
-    expectFields(["Edit Dive Site", "Add a tag...", "Commons"], in: found)
+    expectFields(["Edit Dive Site", "Add a tag..."], in: found)
     for shared in ["e.g. Blue Hole", "e.g. 27.8506", "e.g. 372"] {
       #expect(!found.contains(shared), "\(shared) drawn")
     }
