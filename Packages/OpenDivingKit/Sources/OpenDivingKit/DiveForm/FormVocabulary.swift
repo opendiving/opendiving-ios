@@ -33,8 +33,8 @@ public enum FormVocabulary {
   public static let defaultCourseStatus = "completed"
   public static let certificationAgencies = [
     "padi", "ssi", "naui", "sdi", "tdi", "cmas", "raid", "bsac", "gue", "iantd", "psai", "dan",
-    "efr", "andi", "snsi", "acuc", "pss", "ida", "ndl", "utd", "saa", "scotsac", "iac", "protec",
-    "pdic", "nase", "sei", "ymca", "erdi", "aida", "molchanovs", "pfi", "apnea_academy", "fii",
-    "nss_cds", "nacd", "idea", "diwa", "other",
+    "andi", "snsi", "acuc", "pss", "ida", "ndl", "utd", "scotsac", "iac", "protec", "pdic", "nase",
+    "sei", "ymca", "erdi", "aida", "molchanovs", "pfi", "apnea_academy", "fii", "nss_cds", "nacd",
+    "idea", "diwa", "cdaa", "isc", "ise", "other",
   ]
 }

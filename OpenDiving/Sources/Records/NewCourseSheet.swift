@@ -51,8 +51,8 @@ private struct CourseSheetForm: View {
         }
         if model.values.agency == "other" {
           TextBox(
-            label: "Agency name *", placeholder: "e.g. FFESSM", text: $model.values.agencyOther,
-            message: model.message("agency_other"))
+            label: "Agency name *", placeholder: "e.g. SwedTech Diving",
+            text: $model.values.agencyOther, message: model.message("agency_other"))
         }
       }
       Section {
