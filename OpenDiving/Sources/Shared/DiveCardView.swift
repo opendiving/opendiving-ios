@@ -19,25 +19,26 @@ struct DiveCardView: View {
         hasOutline
         ? coveredBottom + Self.silhouetteGap + Self.silhouetteHeight
         : content.chips.isEmpty ? coveredBottom : coveredBottom + Self.chipsHeight
-      ZStack(alignment: .bottom) {
+      ZStack {
         UnplacedBackdropView(icon: .tabDive, coveredBottom: aboveProfile)
         if !content.points.isEmpty || !content.fixes.isEmpty {
           MapBackdropView(
             points: content.points, fixes: content.fixes, coveredBottom: aboveProfile)
         }
+      }
+    } details: {
+      CardDetailLines(
+        title: content.title, isCourse: content.isCourse, rating: content.rating,
+        facts: content.facts, figures: content.figures
+      )
+      .frame(maxWidth: .infinity, alignment: .leading)
+      // With the details rather than in the backdrop, or the glass would blur the curve away.
+      .background(alignment: .top) {
         if hasOutline {
           DiveSilhouetteView(depths: content.outline)
             .frame(height: Self.silhouetteHeight)
-            .padding(.horizontal, 12)
-            .padding(.bottom, coveredBottom + Self.silhouetteGap)
+            .offset(y: -Self.silhouetteHeight - Self.silhouetteGap)
         }
-      }
-    } details: {
-      VStack(alignment: .leading, spacing: 6) {
-        TitleLine(title: content.title, isCourse: content.isCourse, rating: content.rating)
-        FactsLine(facts: content.facts)
-        FiguresRow(figures: content.figures)
-          .padding(.top, 2)
       }
       // Over the foot of the band rather than above the title in the flow, so a dive with
       // chips is as tall as one without.
