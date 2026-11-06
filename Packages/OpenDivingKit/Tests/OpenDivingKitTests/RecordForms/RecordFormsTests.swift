@@ -197,6 +197,59 @@ struct RecordFormsTests {
     #expect(trip.people.isEmpty)
   }
 
+  // MARK: Date ranges
+
+  private static let early = CalendarDate(year: 2019, month: 3, day: 12)
+  private static let late = CalendarDate(year: 2019, month: 3, day: 15)
+
+  /// date-picker.render.test.tsx:331-344, on a course and on a trip's part.
+  @Test(arguments: [
+    (start: early, end: late, kept: late),
+    (start: late, end: late, kept: late),
+    (start: CalendarDate(year: 2019, month: 3, day: 16), end: late, kept: nil),
+    (start: nil, end: late, kept: late),
+    (start: early, end: nil, kept: nil),
+  ])
+  func aStartMovedPastItsEndEmptiesTheEnd(
+    start: CalendarDate?, end: CalendarDate?, kept: CalendarDate?
+  ) {
+    var course = CourseFormValues(startDate: Self.early, endDate: end)
+    course.pickStartDate(start)
+    #expect(course.startDate == start)
+    #expect(course.endDate == kept)
+    var part = TripPartFormValues(startDate: Self.early, endDate: end)
+    part.pickStartDate(start)
+    #expect(part.startDate == start)
+    #expect(part.endDate == kept)
+  }
+
+  @Test func aDayOnItsOwnOpensOnItselfOrToday() {
+    let held = CalendarDateWheels(held: Self.early)
+    #expect(held.opensOn == Self.early)
+    #expect(held.earliest == nil)
+    #expect(held.note == nil)
+    #expect(CalendarDateWheels(held: nil).opensOn == nil)
+  }
+
+  @Test func anEndStopsAtItsStartAndNamesIt() {
+    let empty = CalendarDateWheels(held: nil, rangeStart: Self.early)
+    #expect(empty.opensOn == Self.early)
+    #expect(empty.earliest == Self.early)
+    #expect(empty.note == "Starts Mar 12, 2019")
+    #expect(CalendarDateWheels(held: Self.late, rangeStart: Self.early).opensOn == Self.late)
+    // An end the server or a queued form already holds before its start.
+    #expect(CalendarDateWheels(held: Self.early, rangeStart: Self.late).opensOn == Self.late)
+    #expect(CalendarDateWheels(held: Self.late, rangeStart: nil).note == nil)
+  }
+
+  @Test func aStartTurnsFreelyAndNamesItsEnd() {
+    let empty = CalendarDateWheels(held: nil, rangeEnd: Self.late)
+    #expect(empty.opensOn == Self.late)
+    #expect(empty.earliest == nil)
+    #expect(empty.note == "Ends Mar 15, 2019")
+    #expect(CalendarDateWheels(held: Self.early, rangeEnd: Self.late).opensOn == Self.early)
+  }
+
   // MARK: Course
 
   /// course.test.ts:16-160.

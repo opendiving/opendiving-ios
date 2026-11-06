@@ -2,10 +2,13 @@ import OpenDivingKit
 import SwiftUI
 
 /// A day that may be left unset, as the web's date picker leaves it: *Set* opens the wheels on
-/// today, the day opens them on itself, and the cross takes it out again.
+/// today, the day opens them on itself, and the cross takes it out again. Half of a start and end
+/// pair names the other half: `rangeStart` on the end, `rangeEnd` on the start.
 struct CalendarDateField: View {
   let label: String
   @Binding var date: CalendarDate?
+  var rangeStart: CalendarDate?
+  var rangeEnd: CalendarDate?
 
   @State private var picking = false
 
@@ -36,8 +39,17 @@ struct CalendarDateField: View {
       }
     }
     .sheet(isPresented: $picking) {
-      CalendarDateSheet(label: label, date: date) { date = $0 }
+      CalendarDateSheet(
+        label: label,
+        wheels: CalendarDateWheels(held: date, rangeStart: rangeStart, rangeEnd: rangeEnd)
+      ) { date = $0 }
     }
+  }
+
+  /// The instant the phone's calendar starts `day` at.
+  static func instant(_ day: CalendarDate) -> Date? {
+    Calendar.current.date(
+      from: DateComponents(year: day.year, month: day.month, day: day.day))
   }
 
   /// The day the phone's calendar shows `instant` on.
@@ -48,26 +60,29 @@ struct CalendarDateField: View {
   }
 }
 
-/// The wheels, on the day held or today. *Done* sets the day and a swipe down leaves it as it was.
+/// The wheels, on the day they open on. *Done* sets the day and a swipe down leaves it as it was.
 private struct CalendarDateSheet: View {
   let label: String
+  let note: String?
+  let earliest: Date
   let onDone: (CalendarDate?) -> Void
 
   @State private var day: Date
 
-  init(label: String, date: CalendarDate?, onDone: @escaping (CalendarDate?) -> Void) {
+  init(label: String, wheels: CalendarDateWheels, onDone: @escaping (CalendarDate?) -> Void) {
     self.label = label
+    self.note = wheels.note
+    self.earliest = wheels.earliest.flatMap(CalendarDateField.instant) ?? .distantPast
     self.onDone = onDone
-    let components = date.map { DateComponents(year: $0.year, month: $0.month, day: $0.day) }
-    _day = State(initialValue: components.flatMap(Calendar.current.date(from:)) ?? Date())
+    _day = State(initialValue: wheels.opensOn.flatMap(CalendarDateField.instant) ?? Date())
   }
 
   var body: some View {
     let picked = CalendarDateField.calendarDate(day)
-    WheelSheet(title: label, value: picked.map(DateText.date) ?? "") {
+    WheelSheet(title: label, value: picked.map(DateText.date) ?? "", note: note) {
       onDone(picked)
     } wheels: {
-      DatePicker(label, selection: $day, displayedComponents: .date)
+      DatePicker(label, selection: $day, in: earliest..., displayedComponents: .date)
         .datePickerStyle(.wheel)
         .labelsHidden()
     }
@@ -75,8 +90,10 @@ private struct CalendarDateSheet: View {
 }
 
 #Preview {
-  @Previewable @State var date: CalendarDate?
+  @Previewable @State var start = CalendarDate(year: 2024, month: 6, day: 1)
+  @Previewable @State var end: CalendarDate?
   Form {
-    CalendarDateField(label: "Start date", date: $date)
+    CalendarDateField(label: "Start date", date: $start, rangeEnd: end)
+    CalendarDateField(label: "End date", date: $end, rangeStart: start)
   }
 }

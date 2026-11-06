@@ -125,6 +125,12 @@ public struct TripPartFormValues: Codable, Hashable, Sendable {
       accommodation: write.accommodation)
   }
 
+  /// Moves the start, taking the end with it where the two would run backwards.
+  public mutating func pickStartDate(_ day: CalendarDate?) {
+    startDate = day
+    endDate = RecordFormRules.rangeEnd(endDate, after: day)
+  }
+
   var holdsSomething: Bool {
     location != nil || startDate != nil || endDate != nil || accommodation != nil
   }
