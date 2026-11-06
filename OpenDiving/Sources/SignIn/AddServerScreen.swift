@@ -25,9 +25,11 @@ struct AddServerScreen: View {
         }
       }
       Section {
+        // Verbatim, because a literal address is parsed into a link and drawn in the link colour.
         TextField(
-          "https://dive.example.org",
-          text: Binding(get: { flow.serverText }, set: { flow.setServerText($0) })
+          "Server address",
+          text: Binding(get: { flow.serverText }, set: { flow.setServerText($0) }),
+          prompt: Text(verbatim: "https://dive.example.org")
         )
         .keyboardType(.URL)
         .textContentType(.URL)
@@ -37,7 +39,6 @@ struct AddServerScreen: View {
         .onSubmit(proceed)
         .disabled(flow.isValidating)
         .focused($focused)
-        .accessibilityLabel("Server address")
       } header: {
         Text("Server").focusesOnTap($focused)
       } footer: {
@@ -60,6 +61,7 @@ struct AddServerScreen: View {
             Text("Continue")
           }
         }
+        .accentRow()
         .disabled(flow.isValidating)
       }
       if let origin = flow.forgettableOrigin,

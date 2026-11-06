@@ -34,6 +34,7 @@ struct ImportResultSections: View {
     ImportReportSections(report: result, archive: true)
     Section {
       Button("Done", action: onDone)
+        .accentRow()
     }
   }
 }

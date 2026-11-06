@@ -66,6 +66,7 @@ struct PendingScreen: View {
               Text(PendingText.syncNow)
             }
           }
+          .accentRow()
           .disabled(isSyncing)
         }
       }

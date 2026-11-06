@@ -18,7 +18,7 @@ struct VolumePresetsMenu: View {
         }
       }
     } label: {
-      Image(systemName: "chevron.down.circle")
+      Image(systemName: "chevron.down.circle").accentRow()
     }
     .buttonStyle(.borderless)
     .accessibilityLabel("Volume presets")

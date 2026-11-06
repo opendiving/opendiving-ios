@@ -137,6 +137,7 @@ private struct DiveSiteSheetForm: View {
                 Label("Search location", icon: .mapSearch)
               }
               .labelStyle(.iconOnly)
+              .accentRow()
               .buttonStyle(.borderless)
             }
             FieldMessage(model.message("location", member: "name"))
