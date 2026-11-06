@@ -46,24 +46,26 @@ struct DiveComputerDownloadButtonLabel: View {
 
   var body: some View {
     Button(action: action) {
-      ZStack {
-        if let content {
-          Group {
-            Circle()
-              .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
-            ring(content)
+      // The size of the bar's own symbols: the `+` stands as tall.
+      DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
+        .frame(width: 22, height: 22)
+        .frame(width: Self.size, height: Self.size)
+        .contentShape(Circle())
+        .glass()
+        // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
+        // the coral nearly to white over a bright one.
+        .overlay {
+          if let content {
+            ZStack {
+              Circle()
+                .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
+              ring(content)
+            }
+            // On the circle's edge, its stroke inside it.
+            .padding(Self.ringWidth / 2)
           }
-          // On the circle's edge, its stroke inside it.
-          .padding(Self.ringWidth / 2)
         }
-        // The size of the bar's own symbols: the `+` stands as tall.
-        DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
-          .frame(width: 22, height: 22)
-      }
-      .frame(width: Self.size, height: Self.size)
-      .contentShape(Circle())
-      .animation(.easeOut(duration: 0.2), value: content == nil)
-      .glass()
+        .animation(.easeOut(duration: 0.2), value: content == nil)
     }
     .buttonStyle(.plain)
     .accessibilityLabel(DiveComputerText.connect)
