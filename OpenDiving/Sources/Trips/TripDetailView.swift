@@ -59,7 +59,8 @@ private struct TripDetailContent: View {
     .toolbar(removing: .title)
     .toolbar {
       if case .loaded(let trip) = model.phase {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          RecordInfoButton(title: "Trip Information", sections: TripSummary.recordInfo(trip))
           NavigationLink {
             TripFormView(mode: .edit(trip)) { dismiss() }
           } label: {

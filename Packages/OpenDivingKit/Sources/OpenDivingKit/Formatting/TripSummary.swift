@@ -36,6 +36,26 @@ public enum TripSummary {
       points: points(trip))
   }
 
+  /// The trip's own fields in the trip form's order, a section per part. A part's accommodation
+  /// and the trip's people link other records, so they stay with the page's cards.
+  public static func recordInfo(_ trip: TripRead) -> [RecordInfoSection] {
+    let parts = trip.parts.enumerated().map { index, part in
+      RecordInfoSection(
+        heading: trip.parts.count > 1 ? "Part \(index + 1)" : "Part",
+        facts: [
+          RecordInfoFact(label: "Location", value: part.location?.name),
+          RecordInfoFact(label: "Start date", value: part.startDate.map { DateText.date($0) }),
+          RecordInfoFact(label: "End date", value: part.endDate.map { DateText.date($0) }),
+        ])
+    }
+    return [RecordInfoSection(facts: [RecordInfoFact(label: "Name", value: trip.name)])]
+      + (parts.isEmpty
+        ? [RecordInfoSection(facts: [RecordInfoFact(label: "Parts", value: nil)])] : parts)
+      + [
+        RecordInfoSection(facts: [RecordInfoFact(label: "Notes", value: trip.notes, isWide: true)])
+      ]
+  }
+
   /// The span of the trip's dated parts, then its places, each only where there is one —
   /// never the trip's creation date in place of a span.
   public static func facts(_ trip: TripRead) -> [Fact] {

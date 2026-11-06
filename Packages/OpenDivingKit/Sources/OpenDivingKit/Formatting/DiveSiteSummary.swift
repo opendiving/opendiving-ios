@@ -133,6 +133,34 @@ public enum DiveSiteSummary {
       })
   }
 
+  /// The site's own fields in the site form's order. A registry entry reads as plain text here;
+  /// the page's information card holds its link.
+  public static func recordInfo(_ site: DiveSiteRead, units: UnitSystem) -> [RecordInfoSection] {
+    let depth = { (meters: Double?) in meters.map { UnitFormat.depth($0, units) } }
+    let registries = info(site).registries.map { $0.label + " " + $0.identifier }
+    return [
+      RecordInfoSection(facts: [
+        RecordInfoFact(label: "Name", value: site.name),
+        RecordInfoFact(label: "Other names", value: site.otherNames.joined(separator: ", ")),
+        RecordInfoFact(label: "Location", value: site.location?.name),
+        RecordInfoFact(label: "Latitude", value: CoordinateEntry.text(site.latitude)),
+        RecordInfoFact(label: "Longitude", value: CoordinateEntry.text(site.longitude)),
+        RecordInfoFact(
+          label: "In other registries", value: registries.joined(separator: "\n"), isWide: true),
+        RecordInfoFact(label: "Depth from", value: depth(site.depthFrom)),
+        RecordInfoFact(label: "Depth to", value: depth(site.depthTo)),
+        RecordInfoFact(label: "Water type", value: site.waterType.map(VocabularyLabels.waterType)),
+        RecordInfoFact(
+          label: "Altitude", value: site.altitude.map { UnitFormat.altitude(Double($0), units) }),
+        RecordInfoFact(
+          label: "Entry types",
+          value: site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", ")),
+        RecordInfoFact(label: "Tags", value: site.tags.joined(separator: ", ")),
+        RecordInfoFact(label: "Notes", value: site.notes, isWide: true),
+      ])
+    ]
+  }
+
   /// A Commons record's facts, each only where it records it.
   public static func sharedMembers(_ site: DiveSiteRead, units: UnitSystem) -> [SharedMember] {
     let info = info(site)
