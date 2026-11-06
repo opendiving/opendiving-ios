@@ -1,11 +1,9 @@
 import SwiftUI
 
 /// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
-/// water standing in for one — above the details, which sit over its foot as it fades into
-/// the card, in the page head's colours: the map fades into the card as the head's into the
-/// page. However tall the details grow,
-/// the band shows as much of itself. The backdrop is handed how many points of its foot the
-/// details cover.
+/// water standing in for one — above the details, which sit over its foot on frosted glass.
+/// However tall the details grow, the band shows as much of itself. The backdrop is handed how
+/// many points of its foot the details cover.
 struct BackdropCardView<Backdrop: View, Details: View>: View {
   @ViewBuilder let backdrop: (_ coveredBottom: CGFloat) -> Backdrop
   @ViewBuilder let details: () -> Details
@@ -14,6 +12,9 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
 
   /// The band of backdrop above the details, the web's.
   private static var band: CGFloat { 132 }
+  /// How far above the details the glass starts coming in. It is whole where they start, sooner
+  /// than the web's: a material blurs harder, so a map's labels would ghost behind the name.
+  private static var glassRise: CGFloat { 48 }
 
   var body: some View {
     details()
@@ -26,17 +27,31 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
       }
       .padding(.top, Self.band)
       .background {
-        ZStack {
+        ZStack(alignment: .bottom) {
           backdrop(detailsHeight)
-          LinearGradient(
-            colors: [.clear, Color(.systemBackground)], startPoint: .center,
-            endPoint: .bottom)
+          glass
         }
         .allowsHitTesting(false)
       }
       .background(Color(.systemBackground))
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .accessibilityElement(children: .combine)
+  }
+
+  /// A material rather than `glassEffect`, which is iOS 26's and for controls over the content
+  /// rather than the content: one path for every iOS the app runs on, and its own tint lands on
+  /// the colours of the web's glass, so nothing is laid over it.
+  private var glass: some View {
+    Rectangle()
+      .fill(.thinMaterial)
+      .frame(height: detailsHeight + Self.glassRise)
+      .mask(alignment: .top) {
+        VStack(spacing: 0) {
+          LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+            .frame(height: Self.glassRise)
+          Color.black
+        }
+      }
   }
 }
 
