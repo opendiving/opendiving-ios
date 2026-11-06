@@ -1,3 +1,4 @@
+import OpenDivingKit
 import SwiftUI
 
 /// The credit the instance's map owes, as a chip to lay over it: legible, and quieter than the
@@ -6,7 +7,7 @@ struct MapCredit: View {
   let credit: String
 
   var body: some View {
-    AttributionLine(credits: [credit], underline: false)
+    AttributionLine(credits: [MapAttribution.display(credit)], underline: false)
       .font(.system(size: 10))
       .padding(.horizontal, 6)
       .padding(.vertical, 1)

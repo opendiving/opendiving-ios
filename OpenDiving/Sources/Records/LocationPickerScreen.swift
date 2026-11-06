@@ -57,7 +57,8 @@ private struct LocationPickerForm: View {
           }
         if let credit = map.shown?.credit {
           MapCredit(credit: credit)
-            .padding(8)
+            .padding(.trailing, 16)
+            .padding(.bottom, 8)
         }
       }
       .safeAreaInset(edge: .bottom, spacing: 0) {
