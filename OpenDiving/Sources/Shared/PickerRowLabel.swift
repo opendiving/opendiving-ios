@@ -14,7 +14,9 @@ struct PickerRowLabel: View {
         HStack(spacing: 6) {
           Text(row.title).foregroundStyle(Color.primary)
           if row.isPending { PendingMark() }
-          if row.isCommons { BadgeView(DiveSiteSummary.commonsLabel, style: .outline) }
+          if row.isCommons {
+            BadgeView(DiveSiteSummary.commonsLabel, style: .outline) { CommonsMark() }
+          }
         }
         if let subtitle = row.subtitle {
           Text(subtitle).font(.subheadline).foregroundStyle(Color.secondary)

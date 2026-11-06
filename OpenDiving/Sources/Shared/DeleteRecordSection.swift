@@ -6,6 +6,8 @@ import SwiftUI
 struct DeleteRecordSection: View {
   let title: String
   let message: String
+  /// What the confirming button says, where the form's action is not a delete.
+  var confirmation = "Delete"
   let action: () -> Void
 
   @State private var confirms = false
@@ -22,7 +24,7 @@ struct DeleteRecordSection: View {
       .dangerRow()
       .listRowBackground(Color.clear)
       .confirmationDialog(title, isPresented: $confirms, titleVisibility: .visible) {
-        Button("Delete", role: .destructive, action: action)
+        Button(confirmation, role: .destructive, action: action)
       } message: {
         Text(message)
       }

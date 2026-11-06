@@ -20,7 +20,7 @@ struct CommonsSiteForm: View {
             LabeledContent(member.label, value: member.value)
           }
         } header: {
-          BadgeView(DiveSiteSummary.commonsLabel, style: .outline)
+          BadgeView(DiveSiteSummary.commonsLabel, style: .outline) { CommonsMark() }
             .textCase(nil)
         } footer: {
           if let attribution = site.attribution {
@@ -38,7 +38,7 @@ struct CommonsSiteForm: View {
     guard model.canDelete else { return nil }
     return RecordDeletion(
       title: "Remove from your sites", message: RecordDeletionText.commonsSite,
-      delete: model.delete, onDeleted: onDeleted)
+      confirmation: "Remove", delete: model.delete, onDeleted: onDeleted)
   }
 }
 
