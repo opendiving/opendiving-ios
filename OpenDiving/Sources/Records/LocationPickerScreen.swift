@@ -48,8 +48,7 @@ private struct LocationPickerForm: View {
 
   var body: some View {
     NavigationStack {
-      // Up here because the panel below grows with its card, and a sheet opens from there.
-      ZStack(alignment: .topTrailing) {
+      ZStack(alignment: .bottomTrailing) {
         backdrop
           .onGeometryChange(for: CGSize.self) {
             $0.size
@@ -70,7 +69,16 @@ private struct LocationPickerForm: View {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
         }
-        confirmItem
+        ToolbarItem(placement: .confirmationAction) {
+          ToolbarConfirmButton(
+            title: model.isEmpty ? "No location" : "Use location",
+            fill: model.isEmpty ? .dangerFill : .brandTeal
+          ) {
+            onUse(model.used)
+            dismiss()
+          }
+          .disabled(!model.canUse)
+        }
       }
     }
     .sheet(isPresented: $isSearchOpen) {
@@ -93,45 +101,17 @@ private struct LocationPickerForm: View {
     }
   }
 
-  /// Flat, because prominent glass draws a bright rim that over a map outshines the button.
-  @ToolbarContentBuilder private var confirmItem: some ToolbarContent {
-    if #available(iOS 26, *) {
-      ToolbarItem(placement: .confirmationAction) { confirmButton }
-        .sharedBackgroundVisibility(.hidden)
-    } else {
-      ToolbarItem(placement: .confirmationAction) { confirmButton }
-    }
-  }
-
-  private var confirmButton: some View {
-    ToolbarConfirmButton(
-      title: model.isEmpty ? "No location" : "Use location",
-      fill: model.isEmpty ? .dangerFill : .brandTeal, isFlat: true
-    ) {
-      onUse(model.used)
-      dismiss()
-    }
-    .disabled(!model.canUse)
-  }
-
-  private var backdrop: some View {
-    surface
-      .overlay(alignment: .top) {
-        EdgeShade(edge: .top)
-          .frame(height: 150)
-      }
-      .ignoresSafeArea()
-  }
-
-  @ViewBuilder private var surface: some View {
+  @ViewBuilder private var backdrop: some View {
     if let style = map.shown {
       MapLibreView(
         styleJSON: style.styleJSON, pins: model.pin.map { [$0] } ?? [], camera: model.camera,
         onCameraChange: { model.moved(to: $0) }, onTap: place
       )
       .accessibilityLabel("Map. Tap to place the location.")
+      .ignoresSafeArea()
     } else {
       Color(.systemGroupedBackground)
+        .ignoresSafeArea()
     }
   }
 
@@ -151,11 +131,6 @@ private struct LocationPickerForm: View {
     }
     .padding(.horizontal, 16)
     .padding(.bottom, 8)
-    .background {
-      EdgeShade(edge: .bottom)
-        .padding(.top, -48)
-        .ignoresSafeArea(edges: .bottom)
-    }
   }
 
   /// Looks like the box, which is in the sheet it opens.
@@ -372,25 +347,6 @@ private struct LocationSearchSheet: View {
 
   private func note(_ text: String) -> some View {
     Text(text).font(.footnote).foregroundStyle(.secondary)
-  }
-}
-
-/// The fade a scrolling page gets under its bars from the system, which a map does not. Taps go
-/// through it to the map.
-private struct EdgeShade: View {
-  let edge: VerticalEdge
-
-  var body: some View {
-    LinearGradient(
-      stops: [
-        .init(color: Color(.systemBackground).opacity(0.85), location: 0),
-        .init(color: Color(.systemBackground).opacity(0.45), location: 0.55),
-        .init(color: Color(.systemBackground).opacity(0), location: 1),
-      ],
-      startPoint: edge == .top ? .top : .bottom, endPoint: edge == .top ? .bottom : .top
-    )
-    .allowsHitTesting(false)
-    .accessibilityHidden(true)
   }
 }
 
