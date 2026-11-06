@@ -12,9 +12,6 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
 
   /// The band of backdrop above the details, the web's.
   private static var band: CGFloat { 132 }
-  /// How far above the details the glass starts coming in. It is whole where they start, sooner
-  /// than the web's: a material blurs harder, so a map's labels would ghost behind the name.
-  private static var glassRise: CGFloat { 48 }
 
   var body: some View {
     details()
@@ -27,7 +24,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
       }
       .padding(.top, Self.band)
       .background {
-        ZStack(alignment: .bottom) {
+        ZStack {
           backdrop(detailsHeight)
           glass
         }
@@ -44,13 +41,8 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
   private var glass: some View {
     Rectangle()
       .fill(.thinMaterial)
-      .frame(height: detailsHeight + Self.glassRise)
-      .mask(alignment: .top) {
-        VStack(spacing: 0) {
-          LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-            .frame(height: Self.glassRise)
-          Color.black
-        }
+      .mask {
+        LinearGradient(colors: [.clear, .black], startPoint: .center, endPoint: .bottom)
       }
   }
 }

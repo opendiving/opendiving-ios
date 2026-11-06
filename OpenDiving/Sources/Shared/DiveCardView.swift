@@ -27,12 +27,10 @@ struct DiveCardView: View {
         }
       }
     } details: {
-      VStack(alignment: .leading, spacing: 6) {
-        TitleLine(title: content.title, isCourse: content.isCourse, rating: content.rating)
-        FactsLine(facts: content.facts)
-        FiguresRow(figures: content.figures)
-          .padding(.top, 2)
-      }
+      CardDetailLines(
+        title: content.title, isCourse: content.isCourse, rating: content.rating,
+        facts: content.facts, figures: content.figures
+      )
       .frame(maxWidth: .infinity, alignment: .leading)
       // With the details rather than in the backdrop, or the glass would blur the curve away.
       .background(alignment: .top) {
