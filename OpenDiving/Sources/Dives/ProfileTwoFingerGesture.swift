@@ -42,6 +42,13 @@ struct ProfileTwoFingerGesture: UIGestureRecognizerRepresentable {
   }
 
   func handleUIGestureRecognizerAction(_ recognizer: UIGestureRecognizer, context: Context) {
+    // A pinch outlives its first finger to lift, and goes on reporting the one left as though
+    // it were the midpoint. Cancelling ends it there, before that can move the window.
+    if recognizer.state == .changed, recognizer.numberOfTouches < 2 {
+      recognizer.isEnabled = false
+      recognizer.isEnabled = isEnabled
+      return
+    }
     let x = context.converter.localLocation.x
     switch recognizer.state {
     case .began: began(x)
