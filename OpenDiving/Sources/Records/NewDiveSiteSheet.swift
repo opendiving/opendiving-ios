@@ -99,8 +99,8 @@ private struct DiveSiteSheetForm: View {
   @State private var invalid: Set<String> = []
   @State private var lookup = PositionLookup()
   @State private var searching = false
-  /// A position typed or pasted into the boxes, waiting for its place's name.
-  @State private var enteredPosition: DeviceLocation?
+  /// Bumped for each position that wants its place's name, the latest replacing any still out.
+  @State private var nameRequests = 0
   /// A Commons record went on the list from the search: the form leaves once it has closed.
   @State private var savedFromSearch = false
   @Environment(\.dismiss) private var dismiss
@@ -195,13 +195,13 @@ private struct DiveSiteSheetForm: View {
         count: model.values.tags.count, id: SiteNotesSection.tagsField, proxy: proxy)
     }
     .showsMapStyle(map)
-    .onChange(of: position) { _, position in
+    .onChange(of: position) {
       let isAnswered = lookup.answers(
         latitude: model.values.latitude, longitude: model.values.longitude)
-      enteredPosition = isAnswered ? nil : position
+      if !isAnswered { nameRequests += 1 }
     }
-    .task(id: enteredPosition) {
-      guard enteredPosition != nil else { return }
+    .task(id: nameRequests) {
+      guard nameRequests > 0 else { return }
       try? await Task.sleep(for: PlaceSearch.debounce)
       guard !Task.isCancelled else { return }
       await nameEnteredPosition()
@@ -263,9 +263,11 @@ private struct DiveSiteSheetForm: View {
 
   /// What the picker settled on fills the position and the Location wholesale, and is answered
   /// before the boxes change so the change asks nothing. A pin used before its name came back is
-  /// left unanswered, so the change asks for it here.
+  /// asked for here, the picker's answer going with it, and the position may not have changed.
   private func use(_ picked: PickedLocation) {
-    if !picked.awaitsName {
+    if picked.awaitsName {
+      nameRequests += 1
+    } else {
       lookup.adopt(latitude: picked.latitude, longitude: picked.longitude, credit: picked.credit)
     }
     model.values.latitude = picked.latitude
