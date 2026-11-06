@@ -48,7 +48,7 @@ private struct LocationPickerForm: View {
 
   var body: some View {
     NavigationStack {
-      ZStack(alignment: .bottomTrailing) {
+      ZStack(alignment: .bottomLeading) {
         backdrop
           .onGeometryChange(for: CGSize.self) {
             $0.size
@@ -57,7 +57,7 @@ private struct LocationPickerForm: View {
           }
         if let credit = map.shown?.credit {
           MapCredit(credit: credit)
-            .padding(.trailing, 16)
+            .padding(.leading, 16)
             .padding(.bottom, 8)
         }
       }
