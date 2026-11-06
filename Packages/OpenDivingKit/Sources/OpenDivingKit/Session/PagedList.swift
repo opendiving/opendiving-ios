@@ -55,6 +55,7 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private var isReloadingPages = false
   /// The reload a change to the account's records started.
   @ObservationIgnored var reloading: Task<Void, Never>?
+  @ObservationIgnored private var watchesAccount = false
 
   public init(
     session: Session, itemsPerPage: Int = APIClient.listPageSize,
@@ -130,10 +131,7 @@ public final class PagedList<Item: Codable & Sendable> {
     defer { if generation == self.generation { isReloadingPages = false } }
     if fetched.isEmpty { phase = .loading }
     let stores = AccountStores.current(session)
-    if let stores {
-      OutboxHub.hub(for: stores.directory).observeLists(self)
-      OutboxHub.hub(for: stores.directory).observe(self)
-    }
+    observeAccount()
     do {
       let client = try session.requireClient()
       var pages: [Item] = []
@@ -160,6 +158,26 @@ public final class PagedList<Item: Codable & Sendable> {
         phase = .failed(APIError(error))
       } else {
         pageError = APIError(error)
+      }
+    }
+  }
+
+  /// Joins the hub of the account the session names, and joins again each time the session
+  /// comes to know its account: the first page after a sign-in is asked for before the account
+  /// has loaded, when a phone new to the server has no account, and so no hub, to join.
+  private func observeAccount() {
+    if let stores = AccountStores.current(session) {
+      OutboxHub.hub(for: stores.directory).observeLists(self)
+      OutboxHub.hub(for: stores.directory).observe(self)
+    }
+    guard !watchesAccount else { return }
+    watchesAccount = true
+    withObservationTracking {
+      _ = session.accountLoaded
+    } onChange: { [weak self] in
+      Task { @MainActor in
+        self?.watchesAccount = false
+        self?.observeAccount()
       }
     }
   }

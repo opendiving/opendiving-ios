@@ -31,24 +31,55 @@ struct DiveDetailContentTests {
 
   // MARK: - Hero
 
-  @Test func heroDropsTheAverageAtFourFigures() throws {
+  @Test func heroDrawsTheFiguresInTheWebsOrder() throws {
     let hero = content(try dive("dive-two-recordings")).hero
     #expect(hero.title == "#212 Blue Hole")
     #expect(
       hero.figures == [
         Figure(label: "Dive time", value: "54min"), Figure(label: "Max depth", value: "23 m"),
         Figure(label: "Water temp", value: "27°C"), Figure(label: "Visibility", value: "30 m"),
+        Figure(label: "Species seen", value: "2"),
       ])
     #expect(hero.points.map(\.name) == ["Blue Hole"])
     #expect(hero.fixes.map(\.name) == ["Entry", "Exit"])
-    #expect(hero.facts.last?.icon == .paperclip)
+    #expect(
+      hero.facts.last
+        == Fact(icon: .diveComputer, iconCount: 2, accessibilityLabel: "2 dive computers"))
   }
 
-  @Test func heroPutsTheAverageBeforeTheReadings() throws {
+  @Test func heroShowsNoAverageAndNoSpeciesOnADiveThatSawNone() throws {
     let hero = content(try dive("dive-detail")).hero
+    #expect(hero.figures.map(\.label) == ["Dive time", "Max depth", "Water temp"])
+  }
+
+  @Test func heroTagsADiveWhoseFirstProfileReachedACeiling() throws {
+    let plain = try dive("dive-detail")
+    #expect(content(plain).hero.chips.allSatisfy { $0.text != "Deco" })
+    let fixture = try #require(
+      JSONSerialization.jsonObject(with: KitFixture.data("dive-detail")) as? [String: Any])
+    var recording = try #require((fixture["recordings"] as? [[String: Any]])?.first)
+    var profile = try #require(recording["profile"] as? [String: Any])
+    profile["max_ceiling"] = 3.2
+    recording["profile"] = profile
+    let owed = try dive("dive-detail", ["recordings": [recording]])
+    #expect(content(owed).hero.chips.contains { $0.text == "Deco" })
+  }
+
+  @Test func infoListsEveryFieldInTheFormsOrder() throws {
+    let info = content(try dive("dive-detail")).info
+    #expect(info.map(\.heading) == ["Location", "Dive Info", "Environment", "Gear", "Notes"])
     #expect(
-      hero.figures.map(\.label) == ["Dive time", "Max depth", "Avg depth", "Water temp"])
-    #expect(hero.figures[2].value == "14 m")
+      info[1].facts.map(\.label) == [
+        "Dive type", "Start time", "Dive number", "Dive time", "Maximum depth", "Average depth",
+      ])
+    #expect(info[1].facts[5].value == "13.62 m")
+    #expect(info[2].facts.count == 8)
+  }
+
+  @Test func infoLeavesAnUnrecordedFieldWithoutAValue() throws {
+    let info = content(try dive("dive-detail", ["avg_depth": NSNull(), "notes": ""])).info
+    #expect(info[1].facts[5] == RecordInfoFact(label: "Average depth", value: nil))
+    #expect(info[4].facts[2] == RecordInfoFact(label: "Notes", value: nil, isWide: true))
   }
 
   @Test func heroLeavesOutWhatTheDiveDoesNotRecord() throws {

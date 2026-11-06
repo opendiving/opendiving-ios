@@ -19,7 +19,8 @@ extension DiveDetailContent {
   ) {
     let recordings = dive.recordings.sorted { $0.ordinal < $1.ordinal }
     navigationTitle = "#\(dive.diveNumber)"
-    hero = Self.hero(dive, hasRecording: !recordings.isEmpty, units: units)
+    hero = Self.hero(dive, recordings: recordings, units: units)
+    info = Self.info(dive, units: units)
     profile = Self.profile(dive, recordings: recordings, units: units)
     tanks = Self.tanks(dive, units: units)
     gasConsumption = Self.gasConsumption(dive, units: units)
@@ -39,41 +40,44 @@ extension DiveDetailContent {
   // MARK: - Hero
 
   /// The card's chips, title and facts, over the dive's figures in the web's order: the
-  /// dive time, the max depth, the average only while fewer than four figures would show,
-  /// then the water temperature and the visibility.
-  static func hero(_ dive: DiveReadWithMixtures, hasRecording: Bool, units: UnitSystem)
-    -> HeroContent
-  {
+  /// dive time, the max depth, the water temperature, the visibility and the species seen,
+  /// each but the dive time only where the dive records it. The dive owed decompression
+  /// where the first recording with a profile reached a ceiling, the question a list row's
+  /// `deco` answers.
+  static func hero(
+    _ dive: DiveReadWithMixtures, recordings: [RecordingRead], units: UnitSystem
+  ) -> HeroContent {
+    let charted = recordings.first { $0.profile != nil }
     let card = DiveCardContent.dive(
       number: dive.diveNumber, siteNames: dive.diveSites.map(\.name),
       isCourse: dive.courseUuid != nil, rating: dive.rating, waterType: dive.waterType,
       diveType: dive.type, tags: dive.tags, start: dive.startTime,
       locationName: dive.diveSites.first?.location?.name, boatName: dive.boatName,
-      hasRecording: hasRecording, submergedSeconds: dive.submergedTime,
-      maxDepth: dive.maxDepth, avgDepth: dive.avgDepth,
-      waterTemperature: dive.bottomTemperature, outline: [], units: units)
+      recordingCount: recordings.count, owedDeco: charted?.profile?.maxCeiling != nil,
+      submergedSeconds: dive.submergedTime, maxDepth: dive.maxDepth,
+      waterTemperature: dive.bottomTemperature, speciesCount: dive.sightings.count, outline: [],
+      units: units)
 
-    let wholeDepth = { (meters: Double) in UnitFormat.depth(meters, units, decimals: 0) }
     var figures = [
       Figure(label: "Dive time", value: DateText.hoursMinutes(seconds: dive.submergedTime))
     ]
     if let maxDepth = dive.maxDepth {
-      figures.append(Figure(label: "Max depth", value: wholeDepth(maxDepth)))
+      figures.append(
+        Figure(label: "Max depth", value: UnitFormat.depth(maxDepth, units, decimals: 0)))
     }
-    var readings: [Figure] = []
     if let temperature = dive.bottomTemperature {
-      readings.append(
+      figures.append(
         Figure(
           label: "Water temp", value: UnitFormat.temperature(temperature, units, decimals: 0)))
     }
     if let visibility = dive.visibility {
-      readings.append(
+      figures.append(
         Figure(label: "Visibility", value: UnitFormat.visibility(Double(visibility), units)))
     }
-    if let avgDepth = dive.avgDepth, figures.count + readings.count < 4 {
-      figures.append(Figure(label: "Avg depth", value: wholeDepth(avgDepth)))
+    if !dive.sightings.isEmpty {
+      // A dive lists each species once, so its sightings are its species.
+      figures.append(Figure(label: "Species seen", value: String(dive.sightings.count)))
     }
-    figures += readings
 
     let places = DiveCardContent.mapPlaces(
       sites: dive.diveSites, entry: (dive.entryLatitude, dive.entryLongitude),

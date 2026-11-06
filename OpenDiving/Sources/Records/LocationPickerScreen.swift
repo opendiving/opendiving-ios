@@ -186,7 +186,7 @@ private struct LocationPickerForm: View {
     if let offered = model.offered, let commonsOffer {
       selectionCard(removeLabel: "Dismiss \(offered.name)") {
         VStack(alignment: .leading, spacing: 8) {
-          PickerRowLabel(row: FormPickerRow(offered), showsCredit: true)
+          PickerRowLabel(row: FormPickerRow(offered))
           Button(commonsOffer.label(offered)) {
             commonsOffer.take(offered)
             dismiss()

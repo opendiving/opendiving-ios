@@ -252,6 +252,10 @@ struct CommonsSiteTests {
     #expect(DiveSiteSummary.card(site, units: .metric).chips.map(\.text) == ["Commons"])
     #expect(DiveSiteSummary.hero(site, units: .metric).chips.map(\.text) == ["Commons"])
     #expect(
+      DiveSiteSummary.chips(site) == [
+        Chip(text: "Commons", accessibilityLabel: "OpenDiving Commons site", kind: .commons)
+      ])
+    #expect(
       DiveSiteSummary.sharedMembers(site, units: .metric).map(\.label) == [
         "Name", "Also known as", "Location", "Depth", "Water type", "Altitude", "Entry types",
         "OpenStreetMap",

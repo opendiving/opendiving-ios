@@ -42,7 +42,7 @@ public enum DiveSiteSummary {
   public static func chips(_ site: DiveSiteRead) -> [Chip] {
     guard site.isCommons else { return [] }
     return [
-      Chip(text: commonsLabel, accessibilityLabel: "OpenDiving Commons site", kind: .vocabulary)
+      Chip(text: commonsLabel, accessibilityLabel: "OpenDiving Commons site", kind: .commons)
     ]
   }
 
