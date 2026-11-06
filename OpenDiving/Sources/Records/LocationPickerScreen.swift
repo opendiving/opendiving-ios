@@ -70,16 +70,7 @@ private struct LocationPickerForm: View {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
         }
-        ToolbarItem(placement: .confirmationAction) {
-          ToolbarConfirmButton(
-            title: model.isEmpty ? "No location" : "Use location",
-            fill: model.isEmpty ? .dangerFill : .brandTeal
-          ) {
-            onUse(model.used)
-            dismiss()
-          }
-          .disabled(!model.canUse)
-        }
+        confirmItem
       }
     }
     .sheet(isPresented: $isSearchOpen) {
@@ -100,6 +91,27 @@ private struct LocationPickerForm: View {
         if await model.queryChanged(from: old, to: new) { isSearchOpen = false }
       }
     }
+  }
+
+  /// Flat, because prominent glass draws a bright rim that over a map outshines the button.
+  @ToolbarContentBuilder private var confirmItem: some ToolbarContent {
+    if #available(iOS 26, *) {
+      ToolbarItem(placement: .confirmationAction) { confirmButton }
+        .sharedBackgroundVisibility(.hidden)
+    } else {
+      ToolbarItem(placement: .confirmationAction) { confirmButton }
+    }
+  }
+
+  private var confirmButton: some View {
+    ToolbarConfirmButton(
+      title: model.isEmpty ? "No location" : "Use location",
+      fill: model.isEmpty ? .dangerFill : .brandTeal, isFlat: true
+    ) {
+      onUse(model.used)
+      dismiss()
+    }
+    .disabled(!model.canUse)
   }
 
   @ViewBuilder private var backdrop: some View {
@@ -365,14 +377,13 @@ extension View {
     }
   }
 
-  /// A card over the map, in the glass of the controls under it and with the corners of a form's
-  /// section, which each system draws its own and neither names: measured, 26 and 10.
-  @ViewBuilder fileprivate func pickerCard() -> some View {
-    if #available(iOS 26, *) {
-      glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26))
-    } else {
-      background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
-    }
+  /// A card over the map: a material rather than glass, which iOS 26 draws close to opaque over
+  /// dark tiles, with the corners of a form's section, which each system draws its own and neither
+  /// names: measured, 26 and 10.
+  fileprivate func pickerCard() -> some View {
+    let radius: Double
+    if #available(iOS 26, *) { radius = 26 } else { radius = 10 }
+    return background(.thinMaterial, in: RoundedRectangle(cornerRadius: radius))
   }
 }
 
