@@ -4,7 +4,7 @@ import Testing
 
 /// Every table against the web's own at `opendiving-web` `ec014ff9` — `src/lib/api/dives.ts`,
 /// `dive-mixtures.ts`, `people.ts`, `gear.ts`, `logbook-import.ts`, `certifications.ts` —
-/// and against a value it lacks.
+/// and against a value it lacks. The agency table is the one at `72bbb4f1`.
 struct VocabularyLabelsTests {
   private typealias Labels = VocabularyLabels
 
@@ -162,11 +162,5 @@ struct VocabularyLabelsTests {
     #expect(Labels.certificationAgency("cdaa") == "CDAA")
     #expect(Labels.certificationAgency("isc") == "ISC")
     #expect(Labels.certificationAgency("ise") == "ISE")
-  }
-
-  /// A stored row keeps a value the vocabulary gave up, and reads through the fallback.
-  @Test func aRetiredAgencyReadsThroughTheFallback() {
-    #expect(Labels.certificationAgency("efr") == "Efr")
-    #expect(Labels.certificationAgency("saa") == "Saa")
   }
 }
