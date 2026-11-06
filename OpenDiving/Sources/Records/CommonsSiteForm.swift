@@ -38,7 +38,7 @@ struct CommonsSiteForm: View {
     guard model.canDelete else { return nil }
     return RecordDeletion(
       title: "Remove from your sites", message: RecordDeletionText.commonsSite,
-      delete: model.delete, onDeleted: onDeleted)
+      confirmation: "Remove", delete: model.delete, onDeleted: onDeleted)
   }
 }
 

@@ -86,10 +86,6 @@ private struct LocationSearchForm: View {
               dismiss()
             }
             .accentRow()
-          } footer: {
-            if let attribution = offered.attribution {
-              AttributionLine(credits: [attribution])
-            }
           }
         }
         Section {
