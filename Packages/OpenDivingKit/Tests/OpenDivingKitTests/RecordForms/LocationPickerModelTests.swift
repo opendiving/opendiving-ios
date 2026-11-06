@@ -106,12 +106,14 @@ struct LocationPickerModelTests {
   }
 
   @Test func aSearchPickOutrunsTheLookupStillOut() async {
+    var isOut = false
     let picker = model(reverse: { _, _ in
+      isOut = true
       try await Task.sleep(for: .milliseconds(20))
       return .named(self.result("Somewhere else"))
     })
     async let tapped: Void = picker.tapped(latitude: 1, longitude: 2)
-    await Task.yield()
+    while !isOut { await Task.yield() }
     picker.pick(.geocode(result("Dahab")))
     await tapped
     #expect(picker.placeName == "Dahab")
@@ -239,12 +241,14 @@ struct LocationPickerModelTests {
     #expect(!picker.isEmpty)
     #expect(!picker.canUse)
 
+    var isOut = false
     let naming = model(reverse: { _, _ in
+      isOut = true
       try await Task.sleep(for: .milliseconds(20))
       return .unknown
     })
     async let tapped: Void = naming.tapped(latitude: 1, longitude: 2)
-    await Task.yield()
+    while !isOut { await Task.yield() }
     #expect(!naming.isEmpty)
     await tapped
   }
@@ -258,12 +262,14 @@ struct LocationPickerModelTests {
   }
 
   @Test func removingOutrunsTheLookupStillOut() async {
+    var isOut = false
     let picker = model(reverse: { _, _ in
+      isOut = true
       try await Task.sleep(for: .milliseconds(20))
       return .named(self.result("Somewhere"))
     })
     async let tapped: Void = picker.tapped(latitude: 1, longitude: 2)
-    await Task.yield()
+    while !isOut { await Task.yield() }
     picker.clear()
     await tapped
     #expect(picker.pin == nil)

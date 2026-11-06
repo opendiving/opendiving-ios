@@ -10,8 +10,8 @@ struct CommonsOffer {
 }
 
 /// Where a place is found, full screen: a map to tap, and under it a search that also takes
-/// pasted coordinates and a button for the phone's own position. Focusing the search slides it up
-/// over the map, as Maps does. Without a map the search and the button still place it. The form
+/// pasted coordinates and a button for the phone's own position. The search itself is a sheet, as
+/// in Maps, which is what drags and closes smoothly over a live map. Without a map the search and the button still place it. The form
 /// is touched only by the top bar's button: *Use location*, or *No location* once nothing is
 /// picked.
 struct LocationPickerScreen: View {
@@ -43,35 +43,29 @@ private struct LocationPickerForm: View {
   let commonsOffer: CommonsOffer?
   let onUse: (PickedLocation) -> Void
 
-  /// The search has slid up over the map. Apart from `typing`, since the search key puts the
-  /// keyboard away and leaves the list to read.
   @State private var isSearchOpen = false
-  @GestureState(resetTransaction: Transaction(animation: Self.slide))
-  private var dragged = 0.0
-  @FocusState private var typing: Bool
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
     NavigationStack {
-      ZStack(alignment: .bottom) {
-        // Up here because the panel below grows with the search, and the keyboard lifts it.
-        ZStack(alignment: .topTrailing) {
-          backdrop
-            .onGeometryChange(for: CGSize.self) {
-              $0.size
-            } action: {
-              model.viewport = (width: $0.width, height: $0.height)
-            }
-          if let credit = map.shown?.credit {
-            MapCredit(credit: credit)
-              .padding(8)
+      // Up here because the panel below grows with its card, and a sheet opens from there.
+      ZStack(alignment: .topTrailing) {
+        backdrop
+          .onGeometryChange(for: CGSize.self) {
+            $0.size
+          } action: {
+            model.viewport = (width: $0.width, height: $0.height)
           }
+        if let credit = map.shown?.credit {
+          MapCredit(credit: credit)
+            .padding(8)
         }
+      }
+      .safeAreaInset(edge: .bottom, spacing: 0) {
         panel
       }
       .navigationBarTitleDisplayMode(.inline)
       .toolbarBackground(.visible, for: .navigationBar)
-      .toolbar(isSearchOpen ? .hidden : .visible, for: .navigationBar)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button("Cancel") { dismiss() }
@@ -88,6 +82,11 @@ private struct LocationPickerForm: View {
         }
       }
     }
+    .sheet(isPresented: $isSearchOpen) {
+      LocationSearchSheet(model: model, hasMap: map.hasMap) { isSearchOpen = false }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
     .task {
       // A name with no position opens on its own search.
       if !model.query.isEmpty { isSearchOpen = true }
@@ -98,11 +97,8 @@ private struct LocationPickerForm: View {
     }
     .onChange(of: model.query) { old, new in
       Task {
-        if await model.queryChanged(from: old, to: new) { closeSearch() }
+        if await model.queryChanged(from: old, to: new) { isSearchOpen = false }
       }
-    }
-    .onChange(of: typing) { _, typing in
-      if typing { withAnimation(Self.slide) { isSearchOpen = true } }
     }
   }
 
@@ -120,106 +116,48 @@ private struct LocationPickerForm: View {
     }
   }
 
-  /// One panel that grows rather than a sheet over it, so the box keeps its focus on the way up.
   private var panel: some View {
     VStack(spacing: 8) {
-      if isSearchOpen {
-        grabber
-      } else {
-        selection
-        if let failure = model.failure {
-          FieldMessage(failure.message(hasMap: map.hasMap))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .pickerCard()
-        }
+      selection
+      if let failure = model.failure {
+        FieldMessage(failure.message(hasMap: map.hasMap))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(12)
+          .pickerCard()
       }
       HStack(spacing: 8) {
-        searchField
-        if isSearchOpen {
-          closeButton
-        } else {
-          locateButton
-        }
-      }
-      if isSearchOpen {
-        results
-          .transition(.opacity)
+        searchButton
+        locateButton
       }
     }
     .padding(.horizontal, 16)
     .padding(.bottom, 8)
-    .frame(maxHeight: isSearchOpen ? .infinity : nil, alignment: .top)
-    .background {
-      UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24)
-        .fill(.thickMaterial)
-        .opacity(isSearchOpen ? 1 : 0)
-        .ignoresSafeArea(edges: .bottom)
-    }
-    .offset(y: max(dragged, 0))
   }
 
-  private var grabber: some View {
-    Capsule()
-      .fill(.tertiary)
-      .frame(width: 36, height: 5)
-      .frame(maxWidth: .infinity, minHeight: 20)
-      .contentShape(Rectangle())
-      .gesture(
-        DragGesture()
-          .updating($dragged) { value, dragged, _ in
-            dragged = value.translation.height
-          }
-          .onEnded { value in
-            if value.translation.height > Self.closingDrag { closeSearch() }
-          }
-      )
-      .accessibilityHidden(true)
-  }
-
-  private var closeButton: some View {
+  /// Looks like the box, which is in the sheet it opens.
+  private var searchButton: some View {
     Button {
-      model.query = ""
-      closeSearch()
+      isSearchOpen = true
     } label: {
-      Image(systemName: "xmark")
-        .frame(width: Self.controlHeight, height: Self.controlHeight)
-        .contentShape(Circle())
-    }
-    .accessibilityLabel("Close search")
-    .buttonStyle(.plain)
-    .pickerControl(in: Circle())
-  }
-
-  private var searchField: some View {
-    @Bindable var model = model
-    return HStack(spacing: 8) {
-      Image(Icon.mapSearch)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
-      TextField("Search", text: $model.query, prompt: Text(model.search.text.placeholder))
-        .autocorrectionDisabled()
-        .submitLabel(.search)
-        .focused($typing)
-        .onSubmit {
-          Task {
-            if await model.submit() { closeSearch() }
-          }
-        }
-      if !model.query.isEmpty {
-        Button("Clear search", systemImage: "xmark.circle.fill") { model.query = "" }
-          .labelStyle(.iconOnly)
-          .foregroundStyle(.secondary)
+      HStack(spacing: 8) {
+        Image(Icon.search)
+          .foregroundStyle(.primary)
+          .accessibilityHidden(true)
+        Text(model.query.isEmpty ? model.search.text.placeholder : model.query)
+          .foregroundStyle(model.query.isEmpty ? .secondary : .primary)
+          .lineLimit(1)
+        Spacer(minLength: 0)
       }
+      .padding(.horizontal, 14)
+      .frame(height: LocationPickerMetrics.controlHeight)
+      .contentShape(Capsule())
     }
-    .padding(.horizontal, 14)
-    .frame(height: Self.controlHeight)
+    .buttonStyle(.plain)
     .pickerControl(in: Capsule())
   }
 
   private var locateButton: some View {
     Button {
-      typing = false
       Task { await model.useMyLocation() }
     } label: {
       Group {
@@ -229,64 +167,16 @@ private struct LocationPickerForm: View {
           Image(Icon.locateFixed)
         }
       }
-      .frame(width: Self.controlHeight, height: Self.controlHeight)
+      .frame(
+        width: LocationPickerMetrics.controlHeight, height: LocationPickerMetrics.controlHeight
+      )
       .contentShape(Circle())
     }
     .accessibilityLabel(model.isLocating ? "Finding your location" : "Use my location")
-    .accentRow()
+    .foregroundStyle(.primary)
     .buttonStyle(.plain)
     .disabled(model.isLocating)
     .pickerControl(in: Circle())
-  }
-
-  /// The search's rows, or the line saying why there are none, with the credits they owe.
-  private var results: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 12) {
-        switch model.search.state {
-        case .idle: EmptyView()
-        case .tooLong: note(model.search.text.queryTooLong)
-        case .searching: ProgressView().frame(maxWidth: .infinity)
-        case .noMatches: note(model.search.text.noMatches(hasMap: map.hasMap))
-        case .failed: note(model.search.text.searchError(hasMap: map.hasMap))
-        case .results(let rows, let hasMore):
-          resultRows(rows)
-          if hasMore { note("More matches than shown - keep typing to narrow.") }
-        }
-        if !model.search.attributions.isEmpty {
-          AttributionLine(credits: model.search.attributions)
-        }
-      }
-      .padding(.top, 8)
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .scrollDismissesKeyboard(.immediately)
-    .scrollBounceBehavior(.basedOnSize)
-  }
-
-  private func resultRows(_ rows: [PlaceSearchRow]) -> some View {
-    VStack(alignment: .leading, spacing: 0) {
-      ForEach(rows) { row in
-        if row.id != rows.first?.id { Divider() }
-        Button {
-          closeSearch()
-          model.pick(row.pick)
-        } label: {
-          VStack(alignment: .leading) {
-            Text(row.name).foregroundStyle(Color.primary)
-            if let hint = row.hint {
-              Text(hint).font(.footnote).foregroundStyle(Color.secondary)
-            }
-          }
-          .padding(.vertical, 12)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-      }
-    }
-    .padding(.horizontal, 14)
-    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 16))
   }
 
   /// What the pin says, or the Commons record on offer, and what can be done about it.
@@ -327,7 +217,7 @@ private struct LocationPickerForm: View {
   private func selectionCard<Content: View>(
     removeLabel: String, @ViewBuilder content: () -> Content
   ) -> some View {
-    HStack(alignment: .top, spacing: 8) {
+    HStack(spacing: 8) {
       content()
         .frame(maxWidth: .infinity, alignment: .leading)
       Button {
@@ -348,29 +238,121 @@ private struct LocationPickerForm: View {
     .pickerCard()
   }
 
+  private func place(_ coordinate: CLLocationCoordinate2D) {
+    Task { await model.tapped(latitude: coordinate.latitude, longitude: coordinate.longitude) }
+  }
+}
+
+/// The search over the map: the box, focused, and what it found. A pick, pasted coordinates or the
+/// close button end it, and so does dragging it down, which keeps the query for next time.
+private struct LocationSearchSheet: View {
+  let model: LocationPickerModel
+  let hasMap: Bool
+  let onClose: () -> Void
+
+  @FocusState private var typing: Bool
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 8) {
+        searchField
+        closeButton
+      }
+      .padding(.horizontal, 16)
+      .padding(.top, 24)
+      .padding(.bottom, 8)
+      results
+    }
+    .task { typing = true }
+  }
+
+  private var searchField: some View {
+    @Bindable var model = model
+    return HStack(spacing: 8) {
+      Image(Icon.search)
+        .foregroundStyle(.primary)
+        .accessibilityHidden(true)
+      TextField("Search", text: $model.query, prompt: Text(model.search.text.placeholder))
+        .autocorrectionDisabled()
+        .submitLabel(.search)
+        .focused($typing)
+        .onSubmit {
+          Task {
+            if await model.submit() { onClose() }
+          }
+        }
+      if !model.query.isEmpty {
+        Button("Clear search", systemImage: "xmark.circle.fill") { model.query = "" }
+          .labelStyle(.iconOnly)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .padding(.horizontal, 14)
+    .frame(height: LocationPickerMetrics.controlHeight)
+    .pickerControl(in: Capsule())
+  }
+
+  private var closeButton: some View {
+    Button {
+      model.query = ""
+      onClose()
+    } label: {
+      Image(systemName: "xmark")
+        .frame(
+          width: LocationPickerMetrics.controlHeight, height: LocationPickerMetrics.controlHeight
+        )
+        .contentShape(Circle())
+    }
+    .accessibilityLabel("Close search")
+    .buttonStyle(.plain)
+    .pickerControl(in: Circle())
+  }
+
+  /// The search's rows, or the line saying why there are none, with the credits they owe.
+  private var results: some View {
+    List {
+      Section {
+        switch model.search.state {
+        case .idle: EmptyView()
+        case .tooLong: note(model.search.text.queryTooLong)
+        case .searching: ProgressView().frame(maxWidth: .infinity)
+        case .noMatches: note(model.search.text.noMatches(hasMap: hasMap))
+        case .failed: note(model.search.text.searchError(hasMap: hasMap))
+        case .results(let rows, let hasMore):
+          ForEach(rows) { row in
+            Button {
+              onClose()
+              model.pick(row.pick)
+            } label: {
+              VStack(alignment: .leading) {
+                Text(row.name).foregroundStyle(Color.primary)
+                if let hint = row.hint {
+                  Text(hint).font(.footnote).foregroundStyle(Color.secondary)
+                }
+              }
+            }
+          }
+          if hasMore { note("More matches than shown - keep typing to narrow.") }
+        }
+      } footer: {
+        if !model.search.attributions.isEmpty {
+          AttributionLine(credits: model.search.attributions)
+        }
+      }
+    }
+    // The sheet's own background, or the list's meets it in a line under the box.
+    .scrollContentBackground(.hidden)
+    .contentMargins(.top, 8, for: .scrollContent)
+    .scrollDismissesKeyboard(.immediately)
+  }
+
   private func note(_ text: String) -> some View {
     Text(text).font(.footnote).foregroundStyle(.secondary)
   }
+}
 
-  /// A tap on the map ends a search before it places anything.
-  private func place(_ coordinate: CLLocationCoordinate2D) {
-    guard !isSearchOpen else {
-      closeSearch()
-      return
-    }
-    Task { await model.tapped(latitude: coordinate.latitude, longitude: coordinate.longitude) }
-  }
-
-  /// Back down to the map. The query stays, and focusing the box brings its list back.
-  private func closeSearch() {
-    typing = false
-    withAnimation(Self.slide) { isSearchOpen = false }
-  }
-
-  private static let controlHeight = 48.0
-  /// How far down the grabber has to come for the search to close.
-  private static let closingDrag = 80.0
-  private static let slide = Animation.spring(duration: 0.35)
+private enum LocationPickerMetrics {
+  static let controlHeight = 48.0
 }
 
 extension View {
@@ -383,9 +365,9 @@ extension View {
     }
   }
 
-  /// A card of text over the map, opaque enough to read on any tile.
+  /// A card of text over the map, opaque enough to read on any tile, shaped as ``SectionCard`` is.
   fileprivate func pickerCard() -> some View {
-    background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+    background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
   }
 }
 
