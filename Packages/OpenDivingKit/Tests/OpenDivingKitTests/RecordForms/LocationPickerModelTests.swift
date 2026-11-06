@@ -51,7 +51,7 @@ struct LocationPickerModelTests {
       return .named(self.result("Dahab, Egypt"))
     })
     picker.query = "27.8506, 34.3136"
-    await picker.queryChanged(from: "", to: picker.query)
+    #expect(await picker.queryChanged(from: "", to: picker.query))
     #expect(asked == [27.8506, 34.3136])
     #expect(picker.picked.latitude == "27.8506")
     #expect(picker.picked.longitude == "34.3136")
@@ -65,18 +65,18 @@ struct LocationPickerModelTests {
   @Test func onlyAPasteOrTheSearchKeyReadsCoordinates() async {
     let picker = model()
     picker.query = "27.8 3"
-    await picker.queryChanged(from: "27.8 ", to: picker.query)
+    #expect(await !picker.queryChanged(from: "27.8 ", to: picker.query))
     #expect(picker.position == nil)
     #expect(picker.query == "27.8 3")
 
-    await picker.submit()
+    #expect(await picker.submit())
     #expect(picker.position == DeviceLocation(latitude: 27.8, longitude: 3))
   }
 
   @Test func aPairOutOfRangeIsLeftToTheSearch() async {
     let picker = model()
     picker.query = "95, 34"
-    await picker.queryChanged(from: "", to: picker.query)
+    #expect(await !picker.queryChanged(from: "", to: picker.query))
     #expect(picker.position == nil)
     #expect(picker.query == "95, 34")
   }
@@ -203,14 +203,82 @@ struct LocationPickerModelTests {
     await picker.start()
     #expect(!asked)
     #expect(picker.query.isEmpty)
-    #expect(picker.canClear)
   }
 
   @Test func opensOnANameWithNoPositionBySearchingForIt() {
     let picker = model(initial: PickedLocation(location: LocationWrite(name: "Dahab")))
     #expect(picker.query == "Dahab")
-    #expect(picker.canClear)
-    #expect(!model().canClear)
+  }
+
+  @Test func removingWhatTheFormHeldLeavesNoLocationToUse() {
+    let picker = model(
+      initial: PickedLocation(
+        latitude: "28", longitude: "34", location: LocationWrite(name: "Dahab")))
+    picker.clear()
+    #expect(picker.pin == nil)
+    #expect(picker.placeName == nil)
+    #expect(picker.isEmpty)
+    #expect(picker.canUse)
+    #expect(picker.used == PickedLocation())
+  }
+
+  @Test func removingAFreshPickGoesBackToNoLocation() {
+    let picker = model()
+    #expect(picker.isEmpty)
+    picker.pick(.geocode(result("Dahab")))
+    #expect(!picker.isEmpty)
+    picker.clear()
+    #expect(picker.pin == nil)
+    #expect(picker.isEmpty)
+    #expect(picker.used == PickedLocation())
+  }
+
+  @Test func anOfferOrAPinBeingNamedIsNotNoLocation() async {
+    let picker = model()
+    picker.pick(.commons(commons()))
+    #expect(!picker.isEmpty)
+    #expect(!picker.canUse)
+
+    let naming = model(reverse: { _, _ in
+      try await Task.sleep(for: .milliseconds(20))
+      return .unknown
+    })
+    async let tapped: Void = naming.tapped(latitude: 1, longitude: 2)
+    await Task.yield()
+    #expect(!naming.isEmpty)
+    await tapped
+  }
+
+  @Test func aTripPartCanHaveItsPlaceRemoved() {
+    let held = LocationWrite(name: "Dahab", latitude: 28, longitude: 34)
+    let picker = model(initial: PickedLocation(place: held), needsPlace: true)
+    picker.clear()
+    #expect(picker.canUse)
+    #expect(picker.used.location == nil)
+  }
+
+  @Test func removingOutrunsTheLookupStillOut() async {
+    let picker = model(reverse: { _, _ in
+      try await Task.sleep(for: .milliseconds(20))
+      return .named(self.result("Somewhere"))
+    })
+    async let tapped: Void = picker.tapped(latitude: 1, longitude: 2)
+    await Task.yield()
+    picker.clear()
+    await tapped
+    #expect(picker.pin == nil)
+    #expect(picker.placeName == nil)
+    #expect(!picker.isNaming)
+  }
+
+  @Test func dismissingAnOfferGoesBackToThePin() async {
+    let picker = model(reverse: { _, _ in .named(self.result("Dahab")) })
+    await picker.tapped(latitude: 1, longitude: 2)
+    picker.pick(.commons(commons()))
+    picker.clear()
+    #expect(picker.offered == nil)
+    #expect(picker.placeName == "Dahab")
+    #expect(picker.canUse)
   }
 
   @Test func aPartsPlaceOpensWhereItSaysItIs() {

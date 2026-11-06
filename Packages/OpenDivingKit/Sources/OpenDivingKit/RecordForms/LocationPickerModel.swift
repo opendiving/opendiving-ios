@@ -16,8 +16,6 @@ public final class LocationPickerModel {
   public private(set) var failure: LocationFailure?
   public var query: String
   public let search: PlaceSearchModel
-  /// Whether the form opened with something the diver can take off.
-  public let canClear: Bool
   /// The map's size in points, which a place's footprint is fitted to.
   @ObservationIgnored public var viewport = (width: 0.0, height: 0.0)
 
@@ -42,7 +40,6 @@ public final class LocationPickerModel {
     picked = initial
     let position = PlaceSearch.position(latitude: initial.latitude, longitude: initial.longitude)
     camera = PinCamera(position: position).camera
-    canClear = position != nil || initial.location != nil
     // A name with no position searches for itself straight away.
     query = position == nil ? initial.location?.name ?? "" : ""
   }
@@ -88,7 +85,13 @@ public final class LocationPickerModel {
       ? "No place name found here. Search for one instead." : nil
   }
 
+  /// Nothing is picked, which is itself an answer the form can take: no location.
+  public var isEmpty: Bool {
+    offered == nil && !isNaming && position == nil && picked.location == nil
+  }
+
   public var canUse: Bool {
+    guard !isEmpty else { return true }
     guard offered == nil, !isNaming else { return false }
     return needsPlace ? !isUnnamed && picked.location != nil : position != nil
   }
@@ -117,24 +120,28 @@ public final class LocationPickerModel {
   }
 
   /// Typing adds a character at a time, so only a change of several at once is a paste, as in the
-  /// forms' coordinate boxes. Anything else is left to the search.
-  public func queryChanged(from old: String, to new: String) async {
-    guard new.count - old.count > 1 else { return }
-    await placeCoordinates(in: new)
+  /// forms' coordinate boxes. Anything else is left to the search. Returns whether a pin was
+  /// placed, which ends the search.
+  @discardableResult
+  public func queryChanged(from old: String, to new: String) async -> Bool {
+    guard new.count - old.count > 1 else { return false }
+    return await placeCoordinates(in: new)
   }
 
-  /// The keyboard's search key: coordinates typed by hand place the pin.
-  public func submit() async {
+  /// The keyboard's search key: coordinates typed by hand place the pin. Returns whether they did.
+  @discardableResult
+  public func submit() async -> Bool {
     await placeCoordinates(in: query)
   }
 
-  private func placeCoordinates(in text: String) async {
+  private func placeCoordinates(in text: String) async -> Bool {
     guard let pair = PlaceSearch.coordinatePair(text),
       let position = PlaceSearch.position(latitude: pair.latitude, longitude: pair.longitude)
-    else { return }
+    else { return false }
     clearSearch()
     focus(on: position)
     await place(latitude: pair.latitude, longitude: pair.longitude)
+    return true
   }
 
   /// A tap, which the map is already looking at.
@@ -187,6 +194,21 @@ public final class LocationPickerModel {
         focus(on: DeviceLocation(latitude: latitude, longitude: longitude))
       }
     }
+  }
+
+  /// The card's remove button: an offered record goes back to the pin behind it, and the pin
+  /// goes altogether, any lookup still out with it.
+  public func clear() {
+    if offered != nil {
+      offered = nil
+      return
+    }
+    failure = nil
+    isNaming = false
+    isUnnamed = false
+    placing += 1
+    picked = PickedLocation()
+    lookup.adopt(latitude: "", longitude: "", credit: nil)
   }
 
   /// A position that arrived without a name, and the geocoder asked what is there.
