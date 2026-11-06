@@ -365,9 +365,14 @@ extension View {
     }
   }
 
-  /// A card of text over the map, opaque enough to read on any tile, shaped as ``SectionCard`` is.
-  fileprivate func pickerCard() -> some View {
-    background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+  /// A card over the map, in the glass of the controls under it and with the corners of a form's
+  /// section, which each system draws its own and neither names: measured, 26 and 10.
+  @ViewBuilder fileprivate func pickerCard() -> some View {
+    if #available(iOS 26, *) {
+      glassEffect(.regular, in: RoundedRectangle(cornerRadius: 26))
+    } else {
+      background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
   }
 }
 
