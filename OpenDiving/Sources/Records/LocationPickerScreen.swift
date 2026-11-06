@@ -42,6 +42,8 @@ private struct LocationPickerForm: View {
   let onUse: (PickedLocation) -> Void
 
   @State private var resultsHeight = 0.0
+  /// A tap on the map put the list away. The query stays, and focusing the box brings it back.
+  @State private var resultsClosed = false
   @FocusState private var typing: Bool
   @Environment(\.dismiss) private var dismiss
 
@@ -62,7 +64,6 @@ private struct LocationPickerForm: View {
       .safeAreaInset(edge: .bottom, spacing: 0) {
         panel
       }
-      .navigationTitle("Location")
       .navigationBarTitleDisplayMode(.inline)
       .toolbarBackground(.visible, for: .navigationBar)
       .toolbar {
@@ -82,7 +83,11 @@ private struct LocationPickerForm: View {
       await model.search.search(model.query, near: model.position, units: units)
     }
     .onChange(of: model.query) { old, new in
+      resultsClosed = false
       Task { await model.queryChanged(from: old, to: new) }
+    }
+    .onChange(of: typing) { _, typing in
+      if typing { resultsClosed = false }
     }
   }
 
@@ -102,10 +107,10 @@ private struct LocationPickerForm: View {
 
   private var panel: some View {
     VStack(spacing: 8) {
-      if model.search.state == .idle {
-        selection
-      } else {
+      if showsResults {
         results
+      } else {
+        selection
       }
       if let failure = model.failure {
         FieldMessage(failure.message(hasMap: map.hasMap))
@@ -264,8 +269,15 @@ private struct LocationPickerForm: View {
     Text(text).font(.footnote).foregroundStyle(.secondary)
   }
 
+  private var showsResults: Bool { !resultsClosed && model.search.state != .idle }
+
+  /// A tap on the map ends a search before it places anything.
   private func place(_ coordinate: CLLocationCoordinate2D) {
-    typing = false
+    guard !typing, !showsResults else {
+      typing = false
+      resultsClosed = true
+      return
+    }
     Task { await model.tapped(latitude: coordinate.latitude, longitude: coordinate.longitude) }
   }
 

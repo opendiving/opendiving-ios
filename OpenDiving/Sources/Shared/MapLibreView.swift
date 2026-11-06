@@ -30,8 +30,6 @@ struct MapLibreView: UIViewRepresentable {
     map.attributionButton.isHidden = true
     map.minimumZoomLevel = MapCamera.minZoom
     map.maximumZoomLevel = MapCamera.maxZoom
-    // A pan ends when the finger lifts, so a tap never lands on a gliding map.
-    map.decelerationRate = MLNMapViewDecelerationRate.immediate.rawValue
     map.isUserInteractionEnabled = isInteractive
     context.coordinator.styleJSON = styleJSON
     context.coordinator.listenForTaps(on: map)
