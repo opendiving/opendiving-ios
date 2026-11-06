@@ -1,5 +1,6 @@
-/// A held pin, in the map's points: it rides above the finger so the finger does not hide it, and
-/// drops where it is drawn. A hold released without a drag is no move at all, so nothing is
+/// A held pin, in the map's points: it rises straight up so the finger does not hide it, follows
+/// the finger's movement from there, wherever on it the finger landed, and drops where it is
+/// drawn. A hold released without a drag is no move at all, so nothing is
 /// dropped and the pin goes back.
 public struct PinDrag: Hashable, Sendable {
   public struct Point: Hashable, Sendable {
@@ -16,7 +17,7 @@ public struct PinDrag: Hashable, Sendable {
     }
   }
 
-  /// How far above the finger the pin rides.
+  /// How far the pin rises when held.
   static let lift = 56.0
   /// How far a finger strays in a still hold.
   static let dragDistance = 8.0
@@ -46,7 +47,9 @@ public struct PinDrag: Hashable, Sendable {
   }
 
   /// Where the pin is drawn while it is held.
-  public var held: Point { Point(x: finger.x, y: finger.y - Self.lift) }
+  public var held: Point {
+    Point(x: pin.x + finger.x - start.x, y: pin.y + finger.y - start.y - Self.lift)
+  }
 
   /// `held` from the pin's own place.
   public var offset: Point { Point(x: held.x - pin.x, y: held.y - pin.y) }

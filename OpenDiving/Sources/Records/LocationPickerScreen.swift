@@ -241,7 +241,9 @@ private struct LocationPickerForm: View {
       .padding(-10)
     }
     .padding(.vertical, 12)
-    .padding(.horizontal, LocationPickerMetrics.cardInset)
+    .padding(.leading, LocationPickerMetrics.cardInset)
+    // A round mark reads as further from the edge than text the same distance away.
+    .padding(.trailing, LocationPickerMetrics.cardInset - 4)
     .pickerCard()
   }
 
