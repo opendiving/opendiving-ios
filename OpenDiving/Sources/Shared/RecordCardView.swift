@@ -21,10 +21,7 @@ struct RecordCardView: View {
     } details: {
       VStack(alignment: .leading, spacing: 6) {
         ChipsRow(chips: content.chips)
-        TitleLine(title: content.title)
-        FactsLine(facts: content.facts)
-        FiguresRow(figures: content.figures)
-          .padding(.top, 2)
+        CardDetailLines(title: content.title, facts: content.facts, figures: content.figures)
       }
     }
   }

@@ -4,6 +4,7 @@ import SwiftUI
 /// The dot-separated line under a title.
 struct FactsLine: View {
   let facts: [Fact]
+  var color = Color.secondary
 
   var body: some View {
     if !facts.isEmpty {
@@ -18,7 +19,7 @@ struct FactsLine: View {
         }
       }
       .font(.caption)
-      .foregroundStyle(.secondary)
+      .foregroundStyle(color)
     }
   }
 }
