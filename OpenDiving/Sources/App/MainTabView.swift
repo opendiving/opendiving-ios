@@ -14,9 +14,10 @@ struct MainTabView: View {
     Self.styleTabBar
   }
 
-  /// The brand coral, #FF7F50 as on the web, as the bar draws it. Its glass darkens the selected
-  /// tab in the light appearance and lightens it in the dark, so the colour passed is offset each
-  /// way — in the light, red past sRGB's range — for what lands on screen to be #FF7F50.
+  /// The brand coral, #FF7F50 as on the web, as the bar draws a selected label. Its glass mixes in
+  /// what lies behind it, darkening the label in the light appearance and lightening it in the
+  /// dark, so the colour passed is offset each way — in the light, red past sRGB's range — to land
+  /// on #FF7F50 over a white backdrop in the light and a black one in the dark.
   static let coral = UIColor { traits in
     traits.userInterfaceStyle == .dark
       ? UIColor(red: 0.976, green: 0.474, blue: 0.29, alpha: 1)
@@ -44,22 +45,47 @@ struct MainTabView: View {
     UITabBar.appearance().tintColor = coral
   }()
 
+  /// The selected icon is coloured rather than tinted: the glass mixes its backdrop into a tinted
+  /// icon pixel by pixel, which washes it out over a map, and leaves an original-rendered one alone.
+  /// A label has no such rendering mode.
+  private func tabLabel(_ title: LocalizedStringKey, _ icon: Icon, for tab: AppTab) -> some View {
+    Label {
+      Text(title)
+    } icon: {
+      if selection == tab, let symbol = UIImage(named: icon.rawValue) {
+        Image(uiImage: symbol.withTintColor(UIColor(.brandCoral), renderingMode: .alwaysOriginal))
+      } else {
+        Image(icon.rawValue)
+      }
+    }
+  }
+
   var body: some View {
     TabView(selection: $selection) {
-      Tab("Dives", image: Icon.tabDive.rawValue, value: AppTab.dives) {
+      Tab(value: AppTab.dives) {
         DivesView()
+      } label: {
+        tabLabel("Dives", .tabDive, for: .dives)
       }
-      Tab("Trips", image: Icon.tabLuggage.rawValue, value: AppTab.trips) {
+      Tab(value: AppTab.trips) {
         TripsView()
+      } label: {
+        tabLabel("Trips", .tabLuggage, for: .trips)
       }
-      Tab("Sites", image: Icon.tabDiveSite.rawValue, value: AppTab.sites) {
+      Tab(value: AppTab.sites) {
         SitesView()
+      } label: {
+        tabLabel("Sites", .tabDiveSite, for: .sites)
       }
-      Tab("Cards", image: Icon.tabIdCard.rawValue, value: AppTab.cards) {
+      Tab(value: AppTab.cards) {
         CardsView()
+      } label: {
+        tabLabel("Cards", .tabIdCard, for: .cards)
       }
-      Tab("Settings", image: Icon.tabSettings.rawValue, value: AppTab.settings) {
+      Tab(value: AppTab.settings) {
         SettingsView()
+      } label: {
+        tabLabel("Settings", .tabSettings, for: .settings)
       }
     }
   }
