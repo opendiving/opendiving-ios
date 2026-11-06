@@ -6,6 +6,8 @@ public struct DiveDetailContent: Hashable, Sendable {
   /// `#212`.
   public var navigationTitle: String
   public var hero: HeroContent
+  /// The dive's own fields, behind the page's Info button.
+  public var info: [RecordInfoSection]
   public var profile: Profile?
   public var tanks: Tanks?
   public var gasConsumption: GasConsumption?

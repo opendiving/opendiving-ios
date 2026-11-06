@@ -65,7 +65,7 @@ struct DiveCardView: View {
           facts: [
             Fact(text: "Apr 4, 2021, 10:04"), Fact(text: "Dahab, Egypt"),
             Fact(text: "Ocean Star", icon: .ship, accessibilityLabel: "Boat"),
-            Fact(icon: .paperclip, accessibilityLabel: "Recording attached"),
+            Fact(icon: .diveComputer, accessibilityLabel: "1 dive computer"),
           ],
           figures: [
             Figure(label: "Dive time", value: "48 min"), Figure(label: "Max depth", value: "31 m"),

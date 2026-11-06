@@ -36,8 +36,13 @@ private struct FactView: View {
       Text(text)
         .accessibilityLabel(fact.accessibilityLabel ?? text)
     case (nil, let image?):
-      Image(image)
-        .accessibilityLabel(fact.accessibilityLabel ?? "")
+      HStack(spacing: 2) {
+        ForEach(0..<fact.iconCount, id: \.self) { _ in
+          Image(image)
+        }
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(fact.accessibilityLabel ?? "")
     case (nil, nil):
       EmptyView()
     }
@@ -49,7 +54,7 @@ private struct FactView: View {
     Fact(text: "Apr 4, 2021, 10:04"),
     Fact(text: "Dahab, Egypt"),
     Fact(text: "Legend", icon: .ship, accessibilityLabel: "Boat"),
-    Fact(icon: .paperclip, accessibilityLabel: "Recording attached"),
+    Fact(icon: .diveComputer, iconCount: 2, accessibilityLabel: "2 dive computers"),
   ])
   .padding()
 }

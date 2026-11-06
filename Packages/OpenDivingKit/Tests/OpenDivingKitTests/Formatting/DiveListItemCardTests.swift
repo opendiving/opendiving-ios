@@ -23,13 +23,13 @@ struct DiveListItemCardTests {
     let row = try item([
       "dive_sites": [site, second], "course_uuid": "01a0e2ed-0000-7000-8000-000000000003",
       "rating": 4, "water_type": "fresh", "type": "closed_circuit", "tags": ["wreck"],
-      "boat_name": "Blue Seas",
+      "boat_name": "Blue Seas", "deco": true, "species_count": 3,
     ])
     let expected = DiveCardContent.dive(
       number: 532, siteNames: ["Blue Hole", "Canyon"], isCourse: true, rating: 4,
       waterType: "fresh", diveType: "closed_circuit", tags: ["wreck"], start: row.startTime,
-      locationName: "Dahab", boatName: "Blue Seas", hasRecording: true, submergedSeconds: 3243,
-      maxDepth: 23.41, avgDepth: 13.62, waterTemperature: 27.2,
+      locationName: "Dahab", boatName: "Blue Seas", recordingCount: 1, owedDeco: true,
+      submergedSeconds: 3243, maxDepth: 23.41, waterTemperature: 27.2, speciesCount: 3,
       outline: [321, 449, 685, 972, 1346, 1643, 1690, 1727, 1987, 2269, 2341, 2177],
       places: (
         [],
@@ -60,11 +60,27 @@ struct DiveListItemCardTests {
     #expect(card.fixes == [MapPoint(name: "Entry", latitude: 0, longitude: 34.5)])
   }
 
+  @Test func aRowWithoutDecoOrSpeciesReadsAsNeither() throws {
+    let row = try item(["bottom_temperature": NSNull()])
+    #expect(!row.deco)
+    #expect(row.speciesCount == 0)
+    let card = DiveCardContent.dive(row, units: .metric)
+    #expect(card.chips.allSatisfy { $0.text != "Deco" })
+    #expect(card.figures.map(\.label) == ["Dive time", "Max depth"])
+  }
+
+  @Test func aRowKeepsDecoAndSpeciesThroughACopy() throws {
+    let row = try item(["deco": true, "species_count": 3])
+    let copy = try APICoding.decoder().decode(
+      DiveListItem.self, from: APICoding.encoder().encode(row))
+    #expect(copy == row)
+  }
+
   @Test func noRecordingAndNoOutline() throws {
     let card = DiveCardContent.dive(
       try item(["recording_count": 0, "depth_outline": NSNull()]), units: .metric)
     #expect(card.outline.isEmpty)
-    #expect(!card.facts.contains { $0.icon == .paperclip })
+    #expect(!card.facts.contains { $0.icon == .diveComputer })
     #expect(card.title == "Dive #532")
     #expect(!card.isCourse)
   }

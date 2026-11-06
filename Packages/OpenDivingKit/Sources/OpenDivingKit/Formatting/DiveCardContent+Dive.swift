@@ -3,11 +3,12 @@ extension DiveCardContent {
   /// card from the same fields.
   ///
   /// - The chips: the water type's and the dive type's abbreviations, labelled in full —
-  ///   none for salt water, open circuit or a value without one — then the tags.
+  ///   none for salt water, open circuit or a value without one — then *Deco* for a dive
+  ///   that owed decompression, then the tags.
   /// - The facts: the start in the dive's own spelling, the first site's place, the boat
-  ///   with its ship, and a paperclip when a recording is attached.
+  ///   with its ship, and a dive computer for each recording.
   /// - The figures: *Dive time*; *Max depth* at whole metres, a dash when unrecorded
-  ///   and 0 m a reading; *Water temp* at whole degrees when recorded; and *Avg depth*
+  ///   and 0 m a reading; *Water temp* at whole degrees when recorded; and *Species seen*
   ///   only while fewer than three figures show.
   /// - The outline: each depth as a fraction of the deepest, empty for a dive that never
   ///   left the surface.
@@ -23,11 +24,12 @@ extension DiveCardContent {
     start: DiveTimestamp,
     locationName: String?,
     boatName: String?,
-    hasRecording: Bool,
+    recordingCount: Int,
+    owedDeco: Bool,
     submergedSeconds: Int,
     maxDepth: Double?,
-    avgDepth: Double?,
     waterTemperature: Double?,
+    speciesCount: Int,
     outline: [Int],
     places: (points: [MapPoint], fixes: [MapPoint]) = ([], []),
     units: UnitSystem
@@ -45,6 +47,9 @@ extension DiveCardContent {
           text: text, accessibilityLabel: VocabularyLabels.diveType(diveType), kind: .vocabulary
         ))
     }
+    if owedDeco {
+      chips.append(Chip(text: "Deco", accessibilityLabel: "Decompression dive", kind: .vocabulary))
+    }
     chips += tags.map(Chip.tag)
 
     var facts = [Fact(text: DateText.diveDateTime(start))]
@@ -52,8 +57,12 @@ extension DiveCardContent {
     if let boatName, !boatName.isEmpty {
       facts.append(Fact(text: boatName, icon: .ship, accessibilityLabel: "Boat"))
     }
-    if hasRecording {
-      facts.append(Fact(icon: .paperclip, accessibilityLabel: "Recording attached"))
+    if recordingCount > 0 {
+      facts.append(
+        Fact(
+          icon: .diveComputer, iconCount: recordingCount,
+          accessibilityLabel: recordingCount == 1
+            ? "1 dive computer" : "\(recordingCount) dive computers"))
     }
 
     let depth = { (meters: Double?) in meters.map { UnitFormat.depth($0, units, decimals: 0) } }
@@ -67,8 +76,8 @@ extension DiveCardContent {
           label: "Water temp", value: UnitFormat.temperature(waterTemperature, units, decimals: 0)
         ))
     }
-    if figures.count < 3, let avgDepth {
-      figures.append(Figure(label: "Avg depth", value: depth(avgDepth)))
+    if figures.count < 3, speciesCount > 0 {
+      figures.append(Figure(label: "Species seen", value: String(speciesCount)))
     }
 
     return DiveCardContent(
