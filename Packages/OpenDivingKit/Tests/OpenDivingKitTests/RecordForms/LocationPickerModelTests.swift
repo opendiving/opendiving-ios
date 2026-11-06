@@ -237,6 +237,14 @@ struct LocationPickerModelTests {
     #expect(picker.position == nil)
   }
 
+  @Test func aFixEndsASearchLeftBehind() async {
+    let picker = model(locator: FakeLocator(.success(here)))
+    picker.query = "Dahab"
+    await picker.useMyLocation()
+    #expect(picker.query.isEmpty)
+    #expect(picker.position == here)
+  }
+
   @Test func aFixLeavesWhatIsBeingTyped() async {
     let locator = FakeLocator(.success(here))
     let picker = model(locator: locator)

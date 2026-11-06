@@ -168,6 +168,7 @@ public final class LocationPickerModel {
     isLocating = true
     failure = nil
     let asked = choices
+    let queryAsked = query
     let here: DeviceLocation
     do {
       here = try await locator.currentLocation()
@@ -178,6 +179,7 @@ public final class LocationPickerModel {
     }
     isLocating = false
     guard asked == choices else { return }
+    if query == queryAsked { clearSearch() }
     focus(on: here)
     await place(
       latitude: PlaceSearch.placedText(here.latitude),
