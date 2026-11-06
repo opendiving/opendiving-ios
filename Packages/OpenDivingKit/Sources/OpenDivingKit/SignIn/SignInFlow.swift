@@ -82,17 +82,15 @@ public final class SignInFlow {
   }
 
   /// Exactly what the sign-in screen offers besides signing in: everything while a server is
-  /// active — the pending screen only once an account has loaded there, since it is that
-  /// account's, and *Forget* for every server but the flagship — and nothing on the server
-  /// screen with none.
+  /// active — the dive form and the pending screen only once an account has loaded there,
+  /// since they are that account's — and nothing on the server screen with none.
   public var signedOutEntries: [SignedOutEntry] {
     guard case .signingIn(let origin) = session.state else { return [] }
     let hasAccount = session.store.lastAccount(for: origin) != nil
     return SignedOutEntry.allCases.filter { entry in
       switch entry {
+      case .logDive, .waitingToSync: hasAccount
       case .checkInSheet: true
-      case .waitingToSync: hasAccount
-      case .forgetServer: !origin.isFlagship
       }
     }
   }

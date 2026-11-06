@@ -36,6 +36,20 @@ public enum PendingText {
     return capitalized(list(phrases)) + " waiting to sync"
   }
 
+  /// The sign-in screen's row: *3 dives waiting to sync*, drafts and dives to create alike, or
+  /// *2 items waiting to sync* when what waits is only other records and files, which the row
+  /// still has to reach. Nil when nothing waits.
+  public static func signedOutWaiting(
+    drafts: Int, items: [OutboxItem], unreadable: Int, files: Int
+  ) -> String? {
+    let creates = items.filter { $0.operation.diveCreate != nil }.count
+    let dives = drafts + creates
+    if dives > 0 { return dives == 1 ? "1 dive waiting to sync" : "\(dives) dives waiting to sync" }
+    let others = items.count + unreadable + files
+    if others == 0 { return nil }
+    return others == 1 ? "1 item waiting to sync" : "\(others) items waiting to sync"
+  }
+
   /// *1 could not be saved*.
   public static func failed(_ count: Int) -> String {
     "\(count) could not be saved"

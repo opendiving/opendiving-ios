@@ -167,9 +167,14 @@ struct PendingTests {
 
     let session = F.signedOut(directory)
     let flow = SignInFlow(session: session)
+    #expect(flow.signedOutEntries.contains(.logDive))
     #expect(flow.signedOutEntries.contains(.waitingToSync))
     let outbox = OutboxModel(session: session)
     let inbox = InboxModel(session: session)
+    #expect(
+      PendingText.signedOutWaiting(
+        drafts: outbox.drafts.count, items: outbox.items, unreadable: outbox.unreadable.count,
+        files: inbox.files.count) == "1 dive waiting to sync")
     #expect(
       PendingSection.summary(outbox, inbox).rows.map(\.text) == ["A dive waiting to sync"])
     #expect(outbox.items.allSatisfy { !$0.writtenBeforeAccountKnown })
@@ -181,7 +186,7 @@ struct PendingTests {
     #expect(window != nil)
 
     let fresh = Session.signedOutStub(transport: StubTransport(routes: [:]))
-    #expect(!SignInFlow(session: fresh).signedOutEntries.contains(.waitingToSync))
+    #expect(SignInFlow(session: fresh).signedOutEntries == [.checkInSheet])
   }
 
   @Test func theForgetConfirmationCountsEveryAccountsDives() async throws {

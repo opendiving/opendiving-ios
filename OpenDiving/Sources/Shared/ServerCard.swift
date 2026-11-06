@@ -35,7 +35,7 @@ struct ServerCard<Actions: View>: View {
         }
       }
       if !content.isEncrypted {
-        Label("The connection to this server is not encrypted.", systemImage: "lock.open")
+        Label("Connection is not encrypted.", systemImage: "lock.open")
           .foregroundStyle(.orange)
       }
       actions

@@ -7,7 +7,7 @@ import SwiftUI
 /// with where its read stands.
 ///
 /// Signed in it ends in *Sync now*, which also reads files no read covers. Signed out — a sheet off the email screen, over the stores
-/// of the account last loaded here — it offers *Log a dive* and says that signing in syncs.
+/// of the account last loaded here — it says that signing in syncs.
 struct PendingScreen: View {
   @Environment(Session.self) private var session
   @Environment(OutboxModel.self) private var outbox
@@ -33,11 +33,6 @@ struct PendingScreen: View {
     List {
       if !signedIn {
         Section {
-          Button {
-            route = .form(.create)
-          } label: {
-            Label("Log a dive", icon: .dive)
-          }
         } footer: {
           VStack(alignment: .leading, spacing: 4) {
             Text(PendingText.signInToSync).font(.footnote.weight(.semibold))
