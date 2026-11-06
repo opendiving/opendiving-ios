@@ -114,17 +114,24 @@ private struct LocationPickerForm: View {
     .disabled(!model.canUse)
   }
 
-  @ViewBuilder private var backdrop: some View {
+  private var backdrop: some View {
+    surface
+      .overlay(alignment: .top) {
+        EdgeShade(edge: .top)
+          .frame(height: 150)
+      }
+      .ignoresSafeArea()
+  }
+
+  @ViewBuilder private var surface: some View {
     if let style = map.shown {
       MapLibreView(
         styleJSON: style.styleJSON, pins: model.pin.map { [$0] } ?? [], camera: model.camera,
         onCameraChange: { model.moved(to: $0) }, onTap: place
       )
       .accessibilityLabel("Map. Tap to place the location.")
-      .ignoresSafeArea()
     } else {
       Color(.systemGroupedBackground)
-        .ignoresSafeArea()
     }
   }
 
@@ -144,6 +151,11 @@ private struct LocationPickerForm: View {
     }
     .padding(.horizontal, 16)
     .padding(.bottom, 8)
+    .background {
+      EdgeShade(edge: .bottom)
+        .padding(.top, -48)
+        .ignoresSafeArea(edges: .bottom)
+    }
   }
 
   /// Looks like the box, which is in the sheet it opens.
@@ -360,6 +372,25 @@ private struct LocationSearchSheet: View {
 
   private func note(_ text: String) -> some View {
     Text(text).font(.footnote).foregroundStyle(.secondary)
+  }
+}
+
+/// The fade a scrolling page gets under its bars from the system, which a map does not. Taps go
+/// through it to the map.
+private struct EdgeShade: View {
+  let edge: VerticalEdge
+
+  var body: some View {
+    LinearGradient(
+      stops: [
+        .init(color: Color(.systemBackground).opacity(0.85), location: 0),
+        .init(color: Color(.systemBackground).opacity(0.45), location: 0.55),
+        .init(color: Color(.systemBackground).opacity(0), location: 1),
+      ],
+      startPoint: edge == .top ? .top : .bottom, endPoint: edge == .top ? .bottom : .top
+    )
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
   }
 }
 
