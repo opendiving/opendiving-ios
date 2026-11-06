@@ -209,6 +209,9 @@ private struct LocationPickerForm: View {
           if let message = model.unnamedMessage {
             Text(message).font(.footnote).foregroundStyle(.secondary)
           }
+          if let credit = model.placeCredit {
+            AttributionLine(credits: [credit])
+          }
         }
       }
     }

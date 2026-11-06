@@ -141,6 +141,23 @@ struct LocationPickerModelTests {
     #expect(picker.canUse)
   }
 
+  @Test func thePlacesCreditIsShownWhileItNamesThePin() async {
+    let picker = model(reverse: { latitude, _ in
+      latitude == 1 ? .named(self.result("Dahab")) : .unknown
+    })
+    await picker.tapped(latitude: 1, longitude: 2)
+    #expect(picker.placeCredit == Self.osm)
+
+    await picker.tapped(latitude: 3, longitude: 4)
+    #expect(picker.placeCredit == nil)
+
+    picker.pick(.geocode(result("Dahab")))
+    #expect(picker.placeCredit == Self.osm)
+
+    picker.clear()
+    #expect(picker.placeCredit == nil)
+  }
+
   @Test func reopeningOnAPlaceKeepsTheCreditItOwes() {
     let held = PickedLocation(
       latitude: "28", longitude: "34", location: LocationWrite(name: "Dahab"), credit: Self.osm)

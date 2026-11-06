@@ -87,6 +87,11 @@ public final class LocationPickerModel {
     return picked.location?.name
   }
 
+  /// What the place's name owes, while it still names the pin.
+  public var placeCredit: String? {
+    lookup.credit(latitude: picked.latitude, longitude: picked.longitude)
+  }
+
   /// The line saying why a pin cannot be used.
   public var unnamedMessage: String? {
     needsPlace && isUnnamed && !isNaming
@@ -109,7 +114,7 @@ public final class LocationPickerModel {
   /// no other position.
   public var used: PickedLocation {
     var used = picked
-    used.credit = lookup.credit(latitude: picked.latitude, longitude: picked.longitude)
+    used.credit = placeCredit
     used.awaitsName = isNaming
     if needsPlace, used.location?.latitude == nil, let position {
       used.location?.latitude = position.latitude
