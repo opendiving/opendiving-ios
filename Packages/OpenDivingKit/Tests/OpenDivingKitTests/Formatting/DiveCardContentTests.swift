@@ -2,9 +2,8 @@ import OpenDivingKit
 import Testing
 
 /// Transcribed from `src/components/dives/dive-card.render.test.tsx` and
-/// `dive-title.render.test.tsx` at `opendiving-web` `ec014ff9`, over the same fixture: dive
-/// #212 at `2026-04-04T10:04:47+02:00`, 2700 s in the water, 30.52 m deep, 18.2 m on
-/// average, 24.4 °C.
+/// `dive-title.render.test.tsx` at `opendiving-web` `8d8f6187`, over the same fixture: dive
+/// #212 at `2026-04-04T10:04:47+02:00`, 2700 s in the water, 30.52 m deep, 24.4 °C.
 struct DiveCardContentTests {
   private func card(
     siteNames: [String] = [],
@@ -15,50 +14,61 @@ struct DiveCardContentTests {
     tags: [String] = [],
     locationName: String? = nil,
     boatName: String? = nil,
-    hasRecording: Bool = false,
+    recordingCount: Int = 0,
+    owedDeco: Bool = false,
     maxDepth: Double? = 30.52,
-    avgDepth: Double? = 18.2,
     waterTemperature: Double? = 24.4,
+    speciesCount: Int = 0,
     outline: [Int] = [],
     units: UnitSystem = .metric
   ) -> DiveCardContent {
     .dive(
       number: 212, siteNames: siteNames, isCourse: isCourse, rating: rating, waterType: waterType,
       diveType: diveType, tags: tags, start: DiveTimestamp(wireValue: "2026-04-04T10:04:47+02:00")!,
-      locationName: locationName, boatName: boatName, hasRecording: hasRecording,
-      submergedSeconds: 2700, maxDepth: maxDepth, avgDepth: avgDepth,
-      waterTemperature: waterTemperature, outline: outline, units: units)
+      locationName: locationName, boatName: boatName, recordingCount: recordingCount,
+      owedDeco: owedDeco, submergedSeconds: 2700, maxDepth: maxDepth,
+      waterTemperature: waterTemperature, speciesCount: speciesCount, outline: outline,
+      units: units)
   }
 
   private func figures(_ content: DiveCardContent) -> [[String?]] {
     content.figures.map { [$0.label, $0.value] }
   }
 
-  /// `dive-card.render.test.tsx:203`.
+  /// `dive-card.render.test.tsx:205`.
   @Test func titlesItsFigures() {
     #expect(
       figures(card()) == [["Dive time", "45min"], ["Max depth", "31 m"], ["Water temp", "24°C"]])
   }
 
-  /// `:211`.
-  @Test func averageDepthInPlaceOfAMissingTemperature() {
-    #expect(
-      figures(card(waterTemperature: nil))
-        == [["Dive time", "45min"], ["Max depth", "31 m"], ["Avg depth", "18 m"]])
-  }
-
-  /// `:221` — the web prints `-`; a nil value is drawn as the same muted dash.
+  /// `:213` — the web prints `-`; a nil value is drawn as the same muted dash.
   @Test func twoFiguresWithNothingElseRecorded() {
     #expect(
-      figures(card(maxDepth: nil, avgDepth: nil, waterTemperature: nil))
+      figures(card(maxDepth: nil, waterTemperature: nil))
         == [["Dive time", "45min"], ["Max depth", nil]])
   }
 
-  /// `:236`, `:248`.
-  @Test func zeroIsAReading() {
+  /// `:235`.
+  @Test func speciesInTheSlotAMissingTemperatureLeaves() {
     #expect(
-      figures(card(maxDepth: 0, avgDepth: 0, waterTemperature: nil))
-        == [["Dive time", "45min"], ["Max depth", "0 m"], ["Avg depth", "0 m"]])
+      figures(card(waterTemperature: nil, speciesCount: 3))
+        == [["Dive time", "45min"], ["Max depth", "31 m"], ["Species seen", "3"]])
+  }
+
+  /// `:247`.
+  @Test func noSpeciesOnACardWhoseSlotsAreFull() {
+    #expect(
+      figures(card(speciesCount: 3)).map { $0[0] } == ["Dive time", "Max depth", "Water temp"])
+  }
+
+  /// `:255`.
+  @Test func noSpeciesOnADiveThatSawNone() {
+    #expect(figures(card(waterTemperature: nil, speciesCount: 0)).count == 2)
+  }
+
+  /// `:224`, `:266`.
+  @Test func zeroIsAReading() {
+    #expect(figures(card(maxDepth: 0, waterTemperature: nil))[1] == ["Max depth", "0 m"])
     #expect(figures(card(waterTemperature: 0))[2] == ["Water temp", "0°C"])
   }
 
@@ -68,7 +78,7 @@ struct DiveCardContentTests {
         == [["Dive time", "45min"], ["Max depth", "100 ft"], ["Water temp", "76°F"]])
   }
 
-  /// `:254`; `dive-title.render.test.tsx:77-87`.
+  /// `:272`; `dive-title.render.test.tsx:77-87`.
   @Test func titleAndFacts() {
     let content = card(siteNames: ["Blue Hole"], locationName: "Dahab, Egypt")
     #expect(content.title == "#212 Blue Hole")
@@ -78,7 +88,7 @@ struct DiveCardContentTests {
     #expect(card().title == "Dive #212")
   }
 
-  /// `:274`.
+  /// `:292`.
   @Test func courseChipsAndBoat() {
     let content = card(
       isCourse: true, waterType: "fresh", diveType: "closed_circuit", boatName: "Legend")
@@ -92,7 +102,7 @@ struct DiveCardContentTests {
       content.facts.last == Fact(text: "Legend", icon: .ship, accessibilityLabel: "Boat"))
   }
 
-  /// `:290`.
+  /// `:308`.
   @Test func tagsFollowTheKindAndTheRatingIsKept() {
     let content = card(rating: 4, diveType: "closed_circuit", tags: ["night", "Wreck"])
     #expect(content.chips.map(\.text) == ["CCR", "night", "Wreck"])
@@ -106,15 +116,27 @@ struct DiveCardContentTests {
     #expect(card(waterType: "lake", diveType: "sidemount").chips.isEmpty)
   }
 
-  /// `:306`, `:312`.
-  @Test func paperclipWhereARecordingIsAttached() {
+  /// `:324`.
+  @Test func decoChipAfterTheKindAndBeforeTheTags() {
     #expect(
-      card(hasRecording: true).facts.last
-        == Fact(icon: .paperclip, accessibilityLabel: "Recording attached"))
-    #expect(card(hasRecording: false).facts.count == 1)
+      card(diveType: "closed_circuit", tags: ["wreck"], owedDeco: true).chips.map(\.text)
+        == ["CCR", "Deco", "wreck"])
+    #expect(card(owedDeco: true).chips.first?.accessibilityLabel == "Decompression dive")
+    #expect(card(owedDeco: false).chips.isEmpty)
   }
 
-  /// `:179`, `:191`; `dive-profile-silhouette.tsx`: each depth over the deepest.
+  /// `:334`, `:340`, `:346`.
+  @Test func aDiveComputerForEachRecording() {
+    #expect(
+      card(recordingCount: 1).facts.last
+        == Fact(icon: .diveComputer, accessibilityLabel: "1 dive computer"))
+    #expect(
+      card(recordingCount: 2).facts.last
+        == Fact(icon: .diveComputer, iconCount: 2, accessibilityLabel: "2 dive computers"))
+    #expect(card(recordingCount: 0).facts.count == 1)
+  }
+
+  /// `:181`, `:193`; `dive-profile-silhouette.tsx`: each depth over the deepest.
   @Test func outline() {
     #expect(card(outline: [300, 3052, 500]).outline == [300.0 / 3052, 1, 500.0 / 3052])
     #expect(card(outline: []).outline.isEmpty)
