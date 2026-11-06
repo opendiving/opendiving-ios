@@ -16,7 +16,7 @@ struct MapBackdropView: View {
   /// Draw a record with no place too, as the whole world.
   var worldWhenEmpty = false
   /// Where a page head carries the credit on its details: the credit the instance's tiles owe,
-  /// whether or not a set is on screen yet. Without it the map hands ``ShownCredit`` up to the
+  /// whether or not a set is on screen yet. Without it the map hands ``CardCredit`` up to the
   /// card it sits in.
   var credit: Binding<String?>?
 
@@ -50,9 +50,7 @@ struct MapBackdropView: View {
       }
       .animation(.easeOut(duration: 0.3), value: model?.shown != nil)
       .clipped()
-      .preference(
-        key: ShownCredit.self, value: credit == nil && model?.shown != nil ? model?.credit : nil
-      )
+      .preference(key: CardCredit.Key.self, value: cardCredit)
       .onScrollVisibilityChange(threshold: 0.01) { isOnScreen = $0 }
       .task(id: Shown(layout: layout, isOnScreen: isOnScreen)) {
         guard isOnScreen else { return }
@@ -67,14 +65,26 @@ struct MapBackdropView: View {
       }
   }
 
-  /// The credit a map on screen owes, for the surface over it to carry: a card's glass would blur
-  /// anything drawn with the map, and bare text cannot be read on the map's own labels.
-  struct ShownCredit: PreferenceKey {
-    static let defaultValue: String? = nil
+  /// The credit a map owes, for the card over it to carry: a card's glass would blur anything
+  /// drawn with the map, and bare text cannot be read on the map's own labels. Handed up whether
+  /// or not a set is on screen, as ``MapBackdropModel/credit`` is kept, so a credit that wraps
+  /// does not refit the map each time a set comes and goes.
+  struct CardCredit: Equatable {
+    let text: String
+    let isShown: Bool
 
-    static func reduce(value: inout String?, nextValue: () -> String?) {
-      value = value ?? nextValue()
+    struct Key: PreferenceKey {
+      static let defaultValue: CardCredit? = nil
+
+      static func reduce(value: inout CardCredit?, nextValue: () -> CardCredit?) {
+        value = value ?? nextValue()
+      }
     }
+  }
+
+  private var cardCredit: CardCredit? {
+    guard credit == nil, let text = model?.credit else { return nil }
+    return CardCredit(text: text, isShown: model?.shown != nil)
   }
 
   private struct Shown: Hashable {
