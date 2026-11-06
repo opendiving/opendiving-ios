@@ -20,7 +20,7 @@ struct CommonsSiteForm: View {
             LabeledContent(member.label, value: member.value)
           }
         } header: {
-          BadgeView(DiveSiteSummary.commonsLabel, style: .outline)
+          BadgeView(DiveSiteSummary.commonsLabel, style: .outline) { CommonsMark() }
             .textCase(nil)
         } footer: {
           if let attribution = site.attribution {
