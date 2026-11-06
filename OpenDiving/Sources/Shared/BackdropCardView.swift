@@ -1,38 +1,64 @@
+import OpenDivingKit
 import SwiftUI
 
 /// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
 /// water standing in for one — above the details, which sit over its foot on frosted glass.
 /// However tall the details grow, the band shows as much of itself. The backdrop is handed how
-/// many points of its foot the details cover.
+/// many points of its foot the details cover. A map's credit closes the details, as it does a
+/// page head's, on the whole of the glass. Its line is kept on a card without one, so a list's
+/// cards are one height whichever of them has a map, and it is laid out unseen until the map
+/// shows.
 struct BackdropCardView<Backdrop: View, Details: View>: View {
   @ViewBuilder let backdrop: (_ coveredBottom: CGFloat) -> Backdrop
   @ViewBuilder let details: () -> Details
 
   @State private var detailsHeight: CGFloat = 0
+  @State private var credit: MapBackdropView.CardCredit?
 
   /// The band of backdrop above the details, the web's.
   private static var band: CGFloat { 132 }
 
   var body: some View {
-    details()
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding([.horizontal, .bottom], 12)
-      .onGeometryChange(for: CGFloat.self) {
-        $0.size.height
-      } action: {
-        detailsHeight = $0
+    VStack(alignment: .leading, spacing: 4) {
+      details()
+      creditLine
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding([.horizontal, .bottom], 12)
+    .onGeometryChange(for: CGFloat.self) {
+      $0.size.height
+    } action: {
+      detailsHeight = $0
+    }
+    .padding(.top, Self.band)
+    .background {
+      ZStack {
+        backdrop(detailsHeight)
+        glass
       }
-      .padding(.top, Self.band)
-      .background {
-        ZStack {
-          backdrop(detailsHeight)
-          glass
-        }
-        .allowsHitTesting(false)
+      .allowsHitTesting(false)
+    }
+    .background(Color(.systemBackground))
+    .onPreferenceChange(MapBackdropView.CardCredit.Key.self) { credit = $0 }
+    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .accessibilityElement(children: .combine)
+  }
+
+  private var creditLine: some View {
+    ZStack {
+      Text(verbatim: " ")
+        .font(.caption2)
+        .hidden()
+      if let credit {
+        AttributionLine(credits: [MapAttribution.display(credit.text)], underline: false)
+          .multilineTextAlignment(.trailing)
+          .opacity(credit.isShown ? 1 : 0)
+          .accessibilityHidden(!credit.isShown)
       }
-      .background(Color(.systemBackground))
-      .clipShape(RoundedRectangle(cornerRadius: 12))
-      .accessibilityElement(children: .combine)
+    }
+    .frame(maxWidth: .infinity, alignment: .trailing)
+    .animation(.easeOut(duration: 0.3), value: credit)
+    .allowsHitTesting(false)
   }
 
   /// A material rather than `glassEffect`, which is iOS 26's and for controls over the content

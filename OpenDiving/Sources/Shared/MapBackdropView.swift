@@ -16,8 +16,8 @@ struct MapBackdropView: View {
   /// Draw a record with no place too, as the whole world.
   var worldWhenEmpty = false
   /// Where a page head carries the credit on its details: the credit the instance's tiles owe,
-  /// whether or not a set is on screen yet. Without it the map carries its own, over its top
-  /// corner, as a card's does.
+  /// whether or not a set is on screen yet. Without it the map hands ``CardCredit`` up to the
+  /// card it sits in.
   var credit: Binding<String?>?
 
   @Environment(Session.self) private var session
@@ -26,16 +26,12 @@ struct MapBackdropView: View {
   @State private var size = CGSize.zero
   @State private var images: [MapTileAddress: UIImage] = [:]
   @State private var isOnScreen = false
-  @State private var creditBottom: CGFloat = 0
-
-  /// The credit's inset from the map's corner.
-  private static let creditInset: CGFloat = 4
 
   private var layout: MapBackdropLayout? {
     MapBackdropLayout(
       points: points, fixes: fixes, theme: colorScheme == .dark ? .dark : .light,
       width: size.width, height: size.height, overflowTop: overflowTop,
-      coveredTop: max(coveredTop, creditBottom), coveredBottom: coveredBottom,
+      coveredTop: coveredTop, coveredBottom: coveredBottom,
       worldWhenEmpty: worldWhenEmpty)
   }
 
@@ -54,11 +50,7 @@ struct MapBackdropView: View {
       }
       .animation(.easeOut(duration: 0.3), value: model?.shown != nil)
       .clipped()
-      .overlay(alignment: .topLeading) {
-        if credit == nil, let named = model?.credit {
-          creditLine(named)
-        }
-      }
+      .preference(key: CardCredit.Key.self, value: cardCredit)
       .onScrollVisibilityChange(threshold: 0.01) { isOnScreen = $0 }
       .task(id: Shown(layout: layout, isOnScreen: isOnScreen)) {
         guard isOnScreen else { return }
@@ -71,6 +63,28 @@ struct MapBackdropView: View {
       .onChange(of: model?.credit, initial: true) { _, named in
         credit?.wrappedValue = named
       }
+  }
+
+  /// The credit a map owes, for the card over it to carry: a card's glass would blur anything
+  /// drawn with the map, and bare text cannot be read on the map's own labels. Handed up whether
+  /// or not a set is on screen, as ``MapBackdropModel/credit`` is kept, so a credit that wraps
+  /// does not refit the map each time a set comes and goes.
+  struct CardCredit: Equatable {
+    let text: String
+    let isShown: Bool
+
+    struct Key: PreferenceKey {
+      static let defaultValue: CardCredit? = nil
+
+      static func reduce(value: inout CardCredit?, nextValue: () -> CardCredit?) {
+        value = value ?? nextValue()
+      }
+    }
+  }
+
+  private var cardCredit: CardCredit? {
+    guard credit == nil, let text = model?.credit else { return nil }
+    return CardCredit(text: text, isShown: model?.shown != nil)
   }
 
   private struct Shown: Hashable {
@@ -94,20 +108,6 @@ struct MapBackdropView: View {
       }
     }
     .frame(width: size.width, height: size.height, alignment: .topLeading)
-  }
-
-  /// Laid out but unseen until the map shows, as the web's is, since where the pins' band
-  /// starts depends on its height.
-  private func creditLine(_ named: String) -> some View {
-    MapCredit(credit: named)
-      .opacity(model?.shown == nil ? 0 : 1)
-      .padding([.top, .leading], Self.creditInset)
-      .onGeometryChange(for: CGFloat.self) {
-        $0.size.height
-      } action: {
-        creditBottom = $0
-      }
-      .accessibilityHidden(model?.shown == nil)
   }
 }
 

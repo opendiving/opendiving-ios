@@ -56,8 +56,9 @@ private struct CourseSheetForm: View {
         }
       }
       Section {
-        CalendarDateField(label: "Start date", date: $model.values.startDate)
-        CalendarDateField(label: "End date", date: $model.values.endDate)
+        CalendarDateField(label: "Start date", date: startDate, rangeEnd: model.values.endDate)
+        CalendarDateField(
+          label: "End date", date: $model.values.endDate, rangeStart: model.values.startDate)
         FieldMessage(model.message("end_date"))
       }
       Section {
@@ -95,6 +96,11 @@ private struct CourseSheetForm: View {
   /// Picking the instructor takes them off the people below.
   private var instructor: Binding<RecordRef?> {
     Binding(get: { model.values.instructor }, set: { model.values.pickInstructor($0) })
+  }
+
+  /// Moving the start past the end empties the end.
+  private var startDate: Binding<CalendarDate?> {
+    Binding(get: { model.values.startDate }, set: { model.values.pickStartDate($0) })
   }
 
   private func save() -> Bool {
