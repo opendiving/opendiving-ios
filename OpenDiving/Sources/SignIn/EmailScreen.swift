@@ -22,8 +22,10 @@ struct EmailScreen: View {
         }
       }
       Section {
+        // Verbatim, because a literal address is parsed into a link and drawn in the link colour.
         TextField(
-          "you@example.com", text: Binding(get: { flow.email }, set: { flow.setEmail($0) })
+          "Email", text: Binding(get: { flow.email }, set: { flow.setEmail($0) }),
+          prompt: Text(verbatim: "you@example.com")
         )
         .keyboardType(.emailAddress)
         .textContentType(.emailAddress)
@@ -32,7 +34,6 @@ struct EmailScreen: View {
         .submitLabel(.send)
         .onSubmit(send)
         .focused($focused)
-        .accessibilityLabel("Email")
       } header: {
         Text("Email").focusesOnTap($focused)
       } footer: {
@@ -46,16 +47,24 @@ struct EmailScreen: View {
       }
       Section {
         Button(action: send) {
-          if flow.isRequestingCode {
-            HStack {
-              ProgressView()
-              Text("Sending…")
+          Group {
+            if flow.isRequestingCode {
+              HStack {
+                ProgressView().tint(.white)
+                Text("Sending…")
+              }
+            } else {
+              Text("Send code")
             }
-          } else {
-            Text("Send code")
           }
+          .bold()
+          .frame(maxWidth: .infinity)
         }
+        .brandProminentButton(.brandCoral)
+        .controlSize(.large)
         .disabled(!flow.canSendCode)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
       }
       ServerCard(content: flow.session.card(for: origin)) {
         NavigationLink("Change server") {
@@ -74,10 +83,12 @@ struct EmailScreen: View {
             Button(action: showSheet) {
               Label("Your check-in sheet", icon: .idCard)
             }
+            .accentRow()
           case .waitingToSync:
             Button(action: showPending) {
               Label("Your dives waiting to sync", systemImage: "arrow.triangle.2.circlepath")
             }
+            .accentRow()
           case .forgetServer:
             Button("Forget this server", role: .destructive) { forgetting = origin }
               .dangerRow()

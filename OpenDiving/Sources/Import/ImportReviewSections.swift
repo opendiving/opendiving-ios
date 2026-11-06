@@ -39,6 +39,7 @@ struct ImportReviewSections: View {
           Text(ImportText.buttonLabel(preview.dives)).fontWeight(.semibold)
         }
       }
+      .accentRow()
       .disabled(isImporting)
     }
   }

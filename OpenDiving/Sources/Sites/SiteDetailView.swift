@@ -182,6 +182,7 @@ private struct RegistryLine: View {
         Label(text, systemImage: "arrow.up.right.square")
           .labelStyle(TrailingIconLabelStyle())
       }
+      .accentRow()
     } else {
       Text(text)
     }

@@ -38,6 +38,7 @@ struct PendingScreen: View {
           } label: {
             Label("Log a dive", icon: .dive)
           }
+          .accentRow()
         } footer: {
           VStack(alignment: .leading, spacing: 4) {
             Text(PendingText.signInToSync).font(.footnote.weight(.semibold))
@@ -71,6 +72,7 @@ struct PendingScreen: View {
               Text(PendingText.syncNow)
             }
           }
+          .accentRow()
           .disabled(isSyncing)
         }
       }

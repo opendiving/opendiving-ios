@@ -103,6 +103,7 @@ private struct ContactSheetForm: View {
             } label: {
               Label("Show map", icon: .mapPin)
             }
+            .accentRow()
           }
         }
       }
