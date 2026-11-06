@@ -1,14 +1,14 @@
+import OpenDivingKit
 import SwiftUI
 
-/// The credit the instance's map owes, as a chip to lay over it.
+/// The credit the instance's map owes, to lay over it: bare text, quieter than the map it sits on.
 struct MapCredit: View {
   let credit: String
 
   var body: some View {
-    AttributionLine(credits: [credit], underline: false)
+    AttributionLine(credits: [MapAttribution.display(credit)], underline: false)
       .font(.system(size: 10))
-      .padding(.horizontal, 4)
-      .background(Color(.systemBackground).opacity(0.8), in: RoundedRectangle(cornerRadius: 2))
+      .opacity(0.8)
   }
 }
 

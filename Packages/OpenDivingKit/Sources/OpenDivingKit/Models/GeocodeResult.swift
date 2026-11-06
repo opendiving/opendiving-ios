@@ -22,9 +22,9 @@ public struct GeocodeResult: Codable, Hashable, Sendable {
 /// What `GET /geocode/reverse` learned about a position.
 public enum ReverseGeocode: Hashable, Sendable {
   case named(GeocodeResult)
-  /// The position was looked up and has no name: a location typed for it may be cleared.
+  /// The position was looked up and has no name: a location held for it may be cleared.
   case nameless
   /// The instance could not ask — geocoding off, over its cap, the provider unreachable —
-  /// so nothing was learned, and nothing typed should be cleared.
+  /// so nothing was learned, and nothing held should be cleared.
   case unknown
 }

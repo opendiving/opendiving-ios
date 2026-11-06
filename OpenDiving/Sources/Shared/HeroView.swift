@@ -30,7 +30,7 @@ struct HeroView: View {
       FiguresRow(figures: content.figures)
         .padding(.top, 4)
       if let credit {
-        AttributionLine(credits: [credit], underline: false)
+        AttributionLine(credits: [MapAttribution.display(credit)], underline: false)
           .frame(maxWidth: .infinity, alignment: .trailing)
       }
     }

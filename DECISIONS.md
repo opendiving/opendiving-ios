@@ -410,11 +410,21 @@ offline. The tiles stop at zoom 9, too coarse to place a pin, so a form draws th
 
 ## A form's map is the instance's style, and a form with no style has no map
 
-`PinMap` and `PlacesMapView` draw `GET /map-style/{theme}` with MapLibre, as the web's forms draw
-theirs, by the gate a page head keeps. The renderer resolves the style and the API passes it on,
-so the app keeps one server address, and an instance without the renderer has no form map:
-coordinates, search and *Use my location* still place the pin, and no sentence offers a map.
+`PinMap`, `PlacesMapView` and the location picker draw `GET /map-style/{theme}` with MapLibre, as
+the web's forms draw theirs, by the gate a page head keeps. The renderer resolves the style and the
+API passes it on, so the app keeps one server address, and an instance without the renderer has no
+form map: coordinates, search and *Use my location* still place the pin, and no sentence offers a
+map.
 Rejected: `/config` naming the web's address, a second origin needing a credit from elsewhere;
 shipping the Liberty pair and its credit, false for an operator's own style; MapKit as the
 fallback, two looks and two code paths. MapLibre's ambient cache stays at its default and
 outlives `forget`: public tiles, the same for every server.
+
+## A site's or a trip part's Location is found, never typed
+
+Both forms open one full-screen picker, and its name comes only from a search pick or the
+geocoder, so a place always carries what a search or a position can vouch for. The web still takes
+a typed name; the phone departs from it here by the owner's call. A name typed before this keeps
+showing and saving. A trip part's place is a name first, so a pin nothing names cannot be used
+there, and with no network a part gets no location; a site keeps its coordinates either way.
+Rejected: falling back to the coordinates as a part's name, which reads as a place and is not one.
