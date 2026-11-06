@@ -58,6 +58,7 @@ struct ImportView: View {
       } label: {
         Label("Import files", icon: .upload)
       }
+      .accentRow()
       .disabled(inbox.phase != .idle)
     } footer: {
       if inbox.files.isEmpty {
