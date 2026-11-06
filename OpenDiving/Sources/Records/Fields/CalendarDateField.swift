@@ -2,8 +2,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// A day that may be left unset, as the web's date picker leaves it: *Set* opens the wheels on
-/// today, the day opens them on itself, and the cross takes it out again. Half of a start and end
-/// pair names the other half: `rangeStart` on the end, `rangeEnd` on the start.
+/// today, or on the other half of a start and end pair, the day opens them on itself, and the
+/// cross takes it out again. A half names the other: `rangeStart` on the end, `rangeEnd` on the
+/// start.
 struct CalendarDateField: View {
   let label: String
   @Binding var date: CalendarDate?
