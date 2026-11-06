@@ -99,8 +99,6 @@ private struct DiveSiteSheetForm: View {
   @State private var invalid: Set<String> = []
   @State private var lookup = PositionLookup()
   @State private var searching = false
-  /// Bumped for each position that wants its place's name, the latest replacing any still out.
-  @State private var nameRequests = 0
   /// A Commons record went on the list from the search: the form leaves once it has closed.
   @State private var savedFromSearch = false
   @Environment(\.dismiss) private var dismiss
@@ -196,15 +194,15 @@ private struct DiveSiteSheetForm: View {
     }
     .showsMapStyle(map)
     .onChange(of: position) {
-      let isAnswered = lookup.answers(
-        latitude: model.values.latitude, longitude: model.values.longitude)
-      if !isAnswered { nameRequests += 1 }
+      lookup.positionChanged(latitude: model.values.latitude, longitude: model.values.longitude)
     }
-    .task(id: nameRequests) {
-      guard nameRequests > 0 else { return }
+    .task(id: lookup.request) {
+      guard lookup.request != nil else { return }
       try? await Task.sleep(for: PlaceSearch.debounce)
       guard !Task.isCancelled else { return }
       await nameEnteredPosition()
+      // A cancelled task's request has been replaced, and the new one is still to be made.
+      if !Task.isCancelled { lookup.finishRequest() }
     }
     .fullScreenCover(
       isPresented: $searching,
@@ -266,7 +264,7 @@ private struct DiveSiteSheetForm: View {
   /// asked for here, the picker's answer going with it, and the position may not have changed.
   private func use(_ picked: PickedLocation) {
     if picked.awaitsName {
-      nameRequests += 1
+      lookup.ask()
     } else {
       lookup.adopt(latitude: picked.latitude, longitude: picked.longitude, credit: picked.credit)
     }

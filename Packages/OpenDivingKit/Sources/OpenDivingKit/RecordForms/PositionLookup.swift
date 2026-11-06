@@ -11,6 +11,10 @@ public final class PositionLookup {
   public typealias Reverse =
     @MainActor (_ latitude: Double, _ longitude: Double) async throws -> ReverseGeocode
 
+  /// A lookup the form should make after the pause typing takes: a new value for each, and nil
+  /// for none. Withdrawn by a position that needs none.
+  public private(set) var request: UUID?
+
   private var credit: String?
   private var placed: Placed?
   @ObservationIgnored private var generation = 0
@@ -27,9 +31,22 @@ public final class PositionLookup {
     placed == Placed(latitude: latitude, longitude: longitude) ? credit : nil
   }
 
-  /// Whether this position already has its answer, so a change to it needs no lookup.
-  public func answers(latitude: String, longitude: String) -> Bool {
-    placed == Placed(latitude: latitude, longitude: longitude)
+  /// The form's position changed: a usable one with no answer yet wants a lookup, and one that has
+  /// its answer, or reads as no position, takes back any request still waiting.
+  public func positionChanged(latitude: String, longitude: String) {
+    let isAnswered = placed == Placed(latitude: latitude, longitude: longitude)
+    let isUsable = PlaceSearch.position(latitude: latitude, longitude: longitude) != nil
+    request = isUsable && !isAnswered ? UUID() : nil
+  }
+
+  /// A lookup wanted whether or not the position changed.
+  public func ask() {
+    request = UUID()
+  }
+
+  /// The request was made, and must not be made again.
+  public func finishRequest() {
+    request = nil
   }
 
   /// A pick that brought its own place, a search result, and so needs no lookup; any lookup
