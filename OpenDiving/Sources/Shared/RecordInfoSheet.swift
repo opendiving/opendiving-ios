@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A record's own fields under its form's headings, read-only, a field with nothing recorded
-/// showing a dash.
+/// A record's own fields in its form's groups, read-only, a field with nothing recorded showing
+/// a dash.
 struct RecordInfoSheet: View {
   let title: String
   let sections: [RecordInfoSection]
@@ -12,8 +12,8 @@ struct RecordInfoSheet: View {
   var body: some View {
     NavigationStack {
       List {
-        ForEach(sections, id: \.heading) { section in
-          Section(section.heading) {
+        ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
+          Section {
             ForEach(section.facts, id: \.label) { fact in
               if fact.isWide, let value = fact.value {
                 VStack(alignment: .leading, spacing: 4) {
@@ -24,6 +24,10 @@ struct RecordInfoSheet: View {
               } else {
                 LabeledContent(fact.label, value: fact.value ?? "-")
               }
+            }
+          } header: {
+            if let heading = section.heading {
+              Text(heading)
             }
           }
         }

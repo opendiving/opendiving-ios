@@ -103,4 +103,33 @@ struct DiveSiteSummaryTests {
     #expect(family.scientificName == "Muraenidae (Family)")
     #expect(family.figures.last == Figure(label: "Last seen", value: "Jun 18, 2002"))
   }
+
+  // MARK: - Info
+
+  @Test func recordInfoListsEveryFieldInTheFormsOrder() throws {
+    let site = try Self.site([
+      "other_names": ["Bells", "The Bells"], "latitude": 28.5722, "longitude": 34.5372,
+      "external_ids": [["registry": "wikidata", "identifier": "Q123"]], "depth_from": 5,
+      "depth_to": 30.5, "water_type": "fresh", "altitude": 420, "entry_types": ["shore", "boat"],
+      "tags": ["wall", "deep"], "notes": "Mind the current.",
+    ])
+    let info = DiveSiteSummary.recordInfo(site, units: .metric)
+    #expect(info.count == 1)
+    #expect(info[0].heading == nil)
+    #expect(
+      info[0].facts.map { [$0.label, $0.value] } == [
+        ["Name", "Tiger Reef"], ["Other names", "Bells, The Bells"], ["Location", "Dahab, Egypt"],
+        ["Latitude", "28.5722"], ["Longitude", "34.5372"],
+        ["In other registries", "Wikidata Q123"], ["Depth from", "5 m"], ["Depth to", "30.5 m"],
+        ["Water type", "Fresh water"], ["Altitude", "420 m"], ["Entry types", "Shore, Boat"],
+        ["Tags", "wall, deep"], ["Notes", "Mind the current."],
+      ])
+    #expect(info[0].facts.filter(\.isWide).map(\.label) == ["In other registries", "Notes"])
+  }
+
+  @Test func recordInfoLeavesWhatTheSiteDoesNotRecordWithoutAValue() throws {
+    let facts = DiveSiteSummary.recordInfo(try Self.site(), units: .metric)[0].facts
+    #expect(facts.count == 13)
+    #expect(facts.filter { $0.value != nil }.map(\.label) == ["Name", "Location"])
+  }
 }

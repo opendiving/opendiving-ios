@@ -48,10 +48,8 @@ extension DiveDetailContent {
         heading: DiveFormGroup.notes.rawValue,
         facts: [
           fact("Rating", dive.rating) { "\($0) / 5" },
-          RecordInfoFact(
-            label: "Tags", value: dive.tags.isEmpty ? nil : dive.tags.joined(separator: ", ")),
-          RecordInfoFact(
-            label: "Notes", value: dive.notes.isEmpty ? nil : dive.notes, isWide: true),
+          RecordInfoFact(label: "Tags", value: dive.tags.joined(separator: ", ")),
+          RecordInfoFact(label: "Notes", value: dive.notes, isWide: true),
         ]),
     ]
   }

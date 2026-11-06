@@ -32,7 +32,6 @@ private struct DiveDetailScreen: View {
   let model: DiveDetailModel
 
   @Environment(\.dismiss) private var dismiss
-  @State private var showsInfo = false
 
   var body: some View {
     page
@@ -48,10 +47,8 @@ private struct DiveDetailScreen: View {
         if case .loaded(let dive) = model.phase {
           ToolbarIslandGap()
           ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
-              showsInfo = true
-            } label: {
-              Label("Info", systemImage: "info.circle")
+            if let content = model.content {
+              RecordInfoButton(title: "Dive Information", sections: content.info)
             }
             NavigationLink {
               DiveFormView(mode: .edit(dive.uuid)) { dismiss() }
@@ -59,11 +56,6 @@ private struct DiveDetailScreen: View {
               Label("Edit dive", systemImage: "pencil")
             }
           }
-        }
-      }
-      .sheet(isPresented: $showsInfo) {
-        if let content = model.content {
-          RecordInfoSheet(title: "Dive Information", sections: content.info)
         }
       }
   }

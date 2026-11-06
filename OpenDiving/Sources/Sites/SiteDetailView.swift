@@ -68,12 +68,17 @@ private struct SiteDetailContent: View {
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
     .toolbar {
-      if case .loaded(let site) = model.phase, !site.isUnsavedCommons {
-        ToolbarItem(placement: .topBarTrailing) {
-          NavigationLink {
-            DiveSiteFormView(mode: .edit(site)) { dismiss() }
-          } label: {
-            Label("Edit dive site", systemImage: "pencil")
+      if case .loaded(let site) = model.phase {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          RecordInfoButton(
+            title: "Dive Site Information",
+            sections: DiveSiteSummary.recordInfo(site, units: session.units))
+          if !site.isUnsavedCommons {
+            NavigationLink {
+              DiveSiteFormView(mode: .edit(site)) { dismiss() }
+            } label: {
+              Label("Edit dive site", systemImage: "pencil")
+            }
           }
         }
       }
