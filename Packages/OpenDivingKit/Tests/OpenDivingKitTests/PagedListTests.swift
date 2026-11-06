@@ -85,6 +85,25 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
   }
 
+  @Test func aListLoadedBeforeTheAccountHearsWhatLandsAfterIt() async throws {
+    let transport = try transport()
+    let session = Session.stub(transport: transport)
+    let list = trips(session)
+    await list.load()
+    #expect(AccountStores.current(session) == nil)
+
+    try await session.loadAccount()
+    let stores = try #require(AccountStores.current(session))
+    let hub = OutboxHub.hub(for: stores.directory)
+    let before = transport.requests.count
+    for _ in 0..<100 where list.reloading == nil {
+      hub.listsChanged()
+      await Task.yield()
+    }
+    await list.reloading?.value
+    #expect(transport.requests.count > before)
+  }
+
   @Test func noLaterPageIsAskedForWhileARefreshWaitsForPageOne() async throws {
     let gate = Gate()
     let transport = GatedTransport(inner: try transport(), gate: gate)

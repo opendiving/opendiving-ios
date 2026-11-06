@@ -67,7 +67,9 @@ struct RecordSheetForm<Content: View>: View {
         }
       }
       if let deletion {
-        DeleteRecordSection(title: deletion.title, message: deletion.message) {
+        DeleteRecordSection(
+          title: deletion.title, message: deletion.message, confirmation: deletion.confirmation
+        ) {
           guard deletion.delete() else { return }
           // The form first: the page under it asked to go first leaves the form's pop unheard,
           // and the diver on the deleted record's page.
@@ -85,6 +87,7 @@ struct RecordSheetForm<Content: View>: View {
 struct RecordDeletion {
   let title: String
   let message: String
+  var confirmation = "Delete"
   let delete: () -> Bool
   let onDeleted: () -> Void
 }
