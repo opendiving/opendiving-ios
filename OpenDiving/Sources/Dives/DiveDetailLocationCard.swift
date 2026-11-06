@@ -25,6 +25,7 @@ struct DiveDetailLocationCard: View {
             if let phone = center.phone {
               if let url = center.phoneURL {
                 Link(destination: url) { Label(phone, icon: .phone) }
+                  .accentRow()
               } else {
                 Label(phone, icon: .phone)
               }
@@ -32,6 +33,7 @@ struct DiveDetailLocationCard: View {
             if let website = center.website {
               if let url = center.websiteURL {
                 Link(destination: url) { Label(website, icon: .globe).lineLimit(1) }
+                  .accentRow()
               } else {
                 Label(website, icon: .globe).lineLimit(1)
               }

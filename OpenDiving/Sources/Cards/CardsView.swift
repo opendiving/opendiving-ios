@@ -118,6 +118,7 @@ private struct CheckinSheetScreen: View {
       if !model.isSignedIn {
         Button("Sign in to refresh") { dismiss() }
           .font(.footnote)
+          .accentRow()
       }
     }
   }
