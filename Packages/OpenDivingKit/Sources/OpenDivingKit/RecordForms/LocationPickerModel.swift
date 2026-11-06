@@ -28,6 +28,8 @@ public final class LocationPickerModel {
   @ObservationIgnored private let reverse: PositionLookup.Reverse
   @ObservationIgnored private let locator: any LocationProvider
   @ObservationIgnored private var placing = 0
+  /// Every choice the diver makes, which a fix that took its time must not undo.
+  @ObservationIgnored private var choices = 0
   /// The lookup coordinates set off, which outlives the search that placed them.
   @ObservationIgnored private(set) var naming: Task<Void, Never>?
 
@@ -160,9 +162,12 @@ public final class LocationPickerModel {
       longitude: PlaceSearch.placedText(folded.longitude))
   }
 
+  /// A fix can take a while, so one that lands after the diver chose something else is dropped,
+  /// and one that lands while they type in the search leaves what they typed.
   public func useMyLocation() async {
     isLocating = true
     failure = nil
+    let asked = choices
     let here: DeviceLocation
     do {
       here = try await locator.currentLocation()
@@ -172,7 +177,7 @@ public final class LocationPickerModel {
       return
     }
     isLocating = false
-    clearSearch()
+    guard asked == choices else { return }
     focus(on: here)
     await place(
       latitude: PlaceSearch.placedText(here.latitude),
@@ -180,6 +185,7 @@ public final class LocationPickerModel {
   }
 
   public func pick(_ pick: PlacePick) {
+    choices += 1
     clearSearch()
     failure = nil
     switch pick {
@@ -212,6 +218,7 @@ public final class LocationPickerModel {
   /// The card's remove button: an offered record goes back to the pin behind it, and the pin
   /// goes altogether, any lookup still out with it.
   public func clear() {
+    choices += 1
     if offered != nil {
       offered = nil
       return
@@ -231,6 +238,7 @@ public final class LocationPickerModel {
 
   /// Returns the placing the pin's name will answer.
   private func movePin(latitude: String, longitude: String) -> Int {
+    choices += 1
     offered = nil
     failure = nil
     picked.latitude = latitude

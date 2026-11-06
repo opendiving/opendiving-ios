@@ -10,14 +10,33 @@ struct LocationPickerModelTests {
 
   private final class FakeLocator: LocationProvider {
     var outcome: Result<DeviceLocation, LocationFailure>
+    /// Holds the fix back until the test has done what comes first.
+    var isHeld = false
+    private(set) var isAsked = false
 
     init(_ outcome: Result<DeviceLocation, LocationFailure>) {
       self.outcome = outcome
     }
 
     func currentLocation() async throws(LocationFailure) -> DeviceLocation {
-      try outcome.get()
+      isAsked = true
+      while isHeld { await Task.yield() }
+      return try outcome.get()
     }
+  }
+
+  private let here = DeviceLocation(latitude: 10, longitude: 20)
+
+  /// A fix on its way, the test's `choice` made before it lands.
+  private func locating(
+    _ picker: LocationPickerModel, _ locator: FakeLocator, choice: () async -> Void
+  ) async {
+    locator.isHeld = true
+    async let located: Void = picker.useMyLocation()
+    while !locator.isAsked { await Task.yield() }
+    await choice()
+    locator.isHeld = false
+    await located
   }
 
   private func result(_ location: String, bounds: Bool = false) -> GeocodeResult {
@@ -184,6 +203,46 @@ struct LocationPickerModelTests {
     #expect(picker.placeName == "Dahab")
     #expect(picker.camera.zoom == MapCamera.placedZoom)
     #expect(!picker.isLocating)
+  }
+
+  @Test func aFixDoesNotUndoATapMadeWhileItWasComing() async {
+    let locator = FakeLocator(.success(here))
+    let picker = model(locator: locator)
+    await locating(picker, locator) { await picker.tapped(latitude: 1, longitude: 2) }
+    #expect(picker.position == DeviceLocation(latitude: 1, longitude: 2))
+    #expect(!picker.isLocating)
+  }
+
+  @Test func aFixDoesNotUndoASearchPick() async {
+    let locator = FakeLocator(.success(here))
+    let picker = model(locator: locator)
+    await locating(picker, locator) { picker.pick(.geocode(result("Dahab"))) }
+    #expect(picker.placeName == "Dahab")
+    #expect(picker.position == DeviceLocation(latitude: 28.5, longitude: 34.5))
+  }
+
+  @Test func aFixDoesNotUndoARemoval() async {
+    let locator = FakeLocator(.success(here))
+    let picker = model(
+      initial: PickedLocation(latitude: "28", longitude: "34"), locator: locator)
+    await locating(picker, locator) { picker.clear() }
+    #expect(picker.isEmpty)
+  }
+
+  @Test func aFixDoesNotReplaceAnOffer() async {
+    let locator = FakeLocator(.success(here))
+    let picker = model(locator: locator)
+    await locating(picker, locator) { picker.pick(.commons(commons())) }
+    #expect(picker.offered != nil)
+    #expect(picker.position == nil)
+  }
+
+  @Test func aFixLeavesWhatIsBeingTyped() async {
+    let locator = FakeLocator(.success(here))
+    let picker = model(locator: locator)
+    await locating(picker, locator) { picker.query = "Dah" }
+    #expect(picker.query == "Dah")
+    #expect(picker.position == here)
   }
 
   @Test func aRefusedLocationSaysSoAndMovesNothing() async {
