@@ -100,7 +100,9 @@ struct ProfileChartPlot: View {
         color: readout.channel.color)
     }
 
-    return Chart {
+    let domain = Double(window.start)...Double(max(window.end, 1))
+
+    let marks = Chart {
       ForEach(fills(layout, bands)) { fill in
         AreaPlot(
           fill.points, x: .value("Time", \.time), yStart: .value("Surface", \.surface),
@@ -152,7 +154,7 @@ struct ProfileChartPlot: View {
         }
       }
     }
-    .chartXScale(domain: Double(window.start)...Double(max(window.end, 1)))
+    .chartXScale(domain: domain)
     .chartYScale(domain: 0...bands.total)
     .chartXAxis {
       AxisMarks(values: ticks.map(\.position)) { value in
@@ -187,20 +189,28 @@ struct ProfileChartPlot: View {
       }
     }
     .chartXSelection(value: $selected)
-    // Zoomed, the curves run on past both ends of the plot. Whole, nothing does, and a dot at
-    // the plot's edge keeps its outer half. An inset rather than a condition, so the plot
-    // keeps its identity as a pinch leaves the whole dive.
-    .chartPlotStyle { $0.clipShape(Rectangle().inset(by: isZoomed ? 0 : -8)) }
-    .chartBackground { proxy in
-      GeometryReader { geometry in
-        let frame = proxy.plotFrame.map { geometry[$0] } ?? .zero
-        Color.clear.onChange(of: frame, initial: true) { plotFrame = frame }
+
+    return zoomable(marks)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(layout.summary(events: markersShown ? chart.events : []))
+  }
+
+  /// The chart's zoom, on its own because in the chain above it takes the expression past what
+  /// the type-checker in the oldest Xcode CI builds with will finish.
+  private func zoomable(_ chart: some View) -> some View {
+    chart
+      // Zoomed, the curves run on past both ends of the plot. Whole, nothing does, and a dot at
+      // the plot's edge keeps its outer half. An inset rather than a condition, so the plot
+      // keeps its identity as a pinch leaves the whole dive.
+      .chartPlotStyle { $0.clipShape(Rectangle().inset(by: isZoomed ? 0 : -8)) }
+      .chartBackground { proxy in
+        GeometryReader { geometry in
+          let frame = proxy.plotFrame.map { geometry[$0] } ?? .zero
+          Color.clear.onChange(of: frame, initial: true) { plotFrame = frame }
+        }
       }
-    }
-    .gesture(twoFingers(.pinch))
-    .gesture(twoFingers(.slide, isEnabled: isZoomed))
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(layout.summary(events: markersShown ? chart.events : []))
+      .gesture(twoFingers(.pinch))
+      .gesture(twoFingers(.slide, isEnabled: isZoomed))
   }
 
   /// The water column under the depth curve and the band above the ceiling, each filled
