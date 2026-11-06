@@ -161,6 +161,7 @@ struct DiveComputerScreen: View {
             } label: {
               Image(systemName: "info.circle")
             }
+            .accentRow()
             .buttonStyle(.borderless)
             .accessibilityLabel(DiveComputerText.about(paired.title))
           }

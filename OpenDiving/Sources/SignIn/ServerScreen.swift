@@ -38,6 +38,7 @@ struct ServerScreen: View {
             } label: {
               Image(systemName: "info.circle")
             }
+            .accentRow()
             .buttonStyle(.borderless)
             .accessibilityLabel("About \(server.origin.description)")
           }

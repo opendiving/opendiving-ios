@@ -57,6 +57,7 @@ struct ImportFileRow: View {
         }
       }
       .labelStyle(.iconOnly)
+      .dangerRow()
       .buttonStyle(.borderless)
       .disabled(inbox.phase != .idle)
     }
