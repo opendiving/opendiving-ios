@@ -3,8 +3,8 @@ import Observation
 
 /// The place looked up for a position the diver placed, and the credit it owes while it still
 /// names that position (`useGeocodedLocation`). An answer is dropped when a newer placing or
-/// pick came first, when the position moved meanwhile, or when the diver typed over the
-/// Location: none of those is the question the lookup answered.
+/// pick came first, or when the position or the Location moved meanwhile: none of those is the
+/// question the lookup answered.
 @MainActor
 @Observable
 public final class PositionLookup {
@@ -25,6 +25,11 @@ public final class PositionLookup {
   /// The credit for the place at this position, if it is still the one looked up.
   public func credit(latitude: String, longitude: String) -> String? {
     placed == Placed(latitude: latitude, longitude: longitude) ? credit : nil
+  }
+
+  /// Whether this position already has its answer, so a change to it needs no lookup.
+  public func answers(latitude: String, longitude: String) -> Bool {
+    placed == Placed(latitude: latitude, longitude: longitude)
   }
 
   /// A pick that brought its own place, a search result, and so needs no lookup; any lookup

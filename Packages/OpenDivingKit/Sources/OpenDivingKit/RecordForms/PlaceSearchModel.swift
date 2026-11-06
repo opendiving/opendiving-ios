@@ -4,47 +4,43 @@ import Observation
 /// The words a place search shows, which differ by what it finds.
 public struct PlaceSearchText: Hashable, Sendable {
   public let placeholder: String
-  public let noItems: String
   public let queryTooLong: String
   private let noMatches: String
   private let searchError: String
-  /// How the two sentences above go on where the form has a map to place on.
-  private let onTheMap: String?
+  /// How the two sentences above go on where the picker has a map to place on.
+  private let onTheMap: String
 
   public func noMatches(hasMap: Bool) -> String { sentence(noMatches, hasMap: hasMap) }
 
   public func searchError(hasMap: Bool) -> String { sentence(searchError, hasMap: hasMap) }
 
   private func sentence(_ start: String, hasMap: Bool) -> String {
-    start + (hasMap ? onTheMap ?? "" : "") + "."
+    start + (hasMap ? onTheMap : "") + "."
   }
 
-  /// The dive site's *Search location*: Commons records and the geocoder's places.
+  /// A dive site's location picker: Commons records and the geocoder's places.
   public static let diveSite = PlaceSearchText(
-    placeholder: "e.g. Thistlegorm",
-    noItems: "Type to search dive sites and places.",
+    placeholder: "Search sites or paste coordinates",
     queryTooLong: "Too long to search for a dive site.",
-    noMatches: "Nothing found - press Enter to use it as typed",
-    searchError: "Couldn't reach the search - press Enter to use it as typed",
-    onTheMap: ", or place the site on the map")
+    noMatches: "Nothing found",
+    searchError: "Couldn't reach the search",
+    onTheMap: ", place the site on the map instead")
 
   /// The same search where a form has no use for a Commons record: the places alone.
   public static let diveSitePlace = PlaceSearchText(
-    placeholder: "e.g. Dahab",
-    noItems: "Type to search places.",
+    placeholder: "Search or paste coordinates",
     queryTooLong: "Too long to search for a place.",
-    noMatches: "Nothing found - press Enter to use it as typed",
-    searchError: "Couldn't reach the search - press Enter to use it as typed",
-    onTheMap: ", or place the site on the map")
+    noMatches: "Nothing found",
+    searchError: "Couldn't reach the search",
+    onTheMap: ", place the site on the map instead")
 
   /// A trip part's place.
   public static let tripPart = PlaceSearchText(
-    placeholder: "Search for a place...",
-    noItems: "Type to search places.",
-    queryTooLong: "Too long to search - press Enter to add as text.",
-    noMatches: "No places found - press Enter to add as text",
-    searchError: "Couldn't reach the place search - press Enter to add as text",
-    onTheMap: nil)
+    placeholder: "Search or paste coordinates",
+    queryTooLong: "Too long to search for a place.",
+    noMatches: "No places found",
+    searchError: "Couldn't reach the place search",
+    onTheMap: ", tap the map instead")
 }
 
 /// One place search box's state: the rows for what was typed, or the line saying why there
@@ -164,9 +160,7 @@ public final class PlaceSearchModel {
         units: units)
     let credits =
       (records?.data.compactMap(\.attribution) ?? []) + (places ?? []).map(\.attribution)
-    for credit in credits where !credit.isEmpty && !attributions.contains(credit) {
-      attributions.append(credit)
-    }
+    credits.forEach(owe)
     state = rows.isEmpty ? .noMatches : .results(rows, hasMore: records?.hasMore ?? false)
   }
 
@@ -174,6 +168,11 @@ public final class PlaceSearchModel {
     -> Result<Value, any Error>
   {
     do { return .success(try await work()) } catch { return .failure(error) }
+  }
+
+  /// A credit from outside the search, a looked-up position's, kept with the rest.
+  public func owe(_ credit: String) {
+    if !credit.isEmpty && !attributions.contains(credit) { attributions.append(credit) }
   }
 
   /// The box emptied, or a pick made: no list until the next query.

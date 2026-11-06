@@ -2,37 +2,20 @@ import CoreLocation
 import OpenDivingKit
 import SwiftUI
 
-/// The form's pin on the instance's map, placed by a tap, and nothing where there is no map. The
-/// credit for the place's name, where one was looked up, sits under it either way.
+/// The form's pin on the instance's map, placed by a tap.
 struct PinMap: View {
-  let style: MapStyleModel.Shown?
+  let style: MapStyleModel.Shown
   let name: String
   let latitude: String
   let longitude: String
-  var credit: String?
   let onPick: (String, String) -> Void
 
   var body: some View {
-    // Nothing at all where there is nothing to show, which a form's row would otherwise draw.
-    if style != nil || credit != nil {
-      VStack(alignment: .leading, spacing: 4) {
-        if let style {
-          PinMapFrame(style: style, name: name, position: position, onPick: onPick)
-        }
-        if let credit {
-          AttributionLine(credits: [credit])
-        }
-      }
-    }
+    PinMapFrame(style: style, name: name, position: position, onPick: onPick)
   }
 
   private var position: DeviceLocation? {
     PlaceSearch.position(latitude: latitude, longitude: longitude)
-  }
-
-  /// Six decimals: about ten centimetres, finer than a tap can aim.
-  static func text(_ value: Double) -> String {
-    PlaceSearch.coordinateText((value * 1_000_000).rounded() / 1_000_000)
   }
 }
 
@@ -79,8 +62,8 @@ private struct PinMapFrame: View {
 
   private func place(_ coordinate: CLLocationCoordinate2D) {
     let folded = PinCamera.folded(latitude: coordinate.latitude, longitude: coordinate.longitude)
-    let latitude = PinMap.text(folded.latitude)
-    let longitude = PinMap.text(folded.longitude)
+    let latitude = PlaceSearch.placedText(folded.latitude)
+    let longitude = PlaceSearch.placedText(folded.longitude)
     if let returning = PlaceSearch.position(latitude: latitude, longitude: longitude) {
       camera.picked(returning)
     }

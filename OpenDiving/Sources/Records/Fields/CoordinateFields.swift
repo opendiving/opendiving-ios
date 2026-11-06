@@ -2,16 +2,14 @@ import OpenDivingKit
 import SwiftUI
 
 /// A latitude and a longitude box and the hint they share. A `27.8506, 34.3136` pair pasted
-/// into either fills both and is reported as a placed position, as the web's paste handler
-/// does; the full keyboard, since the decimal keypad has no minus.
+/// into either fills both, as the web's paste handler does; the full keyboard, since the decimal
+/// keypad has no minus.
 struct CoordinateFields: View {
   @Binding var latitude: String
   @Binding var longitude: String
   var latitudeMessage: String?
   var longitudeMessage: String?
   let hint: String
-  /// A pair arrived whole, by paste.
-  var onPlaced: ((String, String) -> Void)?
 
   var body: some View {
     CoordinateBox(
@@ -29,7 +27,6 @@ struct CoordinateFields: View {
     guard new.count - old.count > 1, let pair = PlaceSearch.coordinatePair(new) else { return }
     latitude = pair.latitude
     longitude = pair.longitude
-    onPlaced?(pair.latitude, pair.longitude)
   }
 }
 

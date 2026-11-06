@@ -1,15 +1,14 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The web's *New Dive Site* dialog, plus *Use my location*: queues the site and hands back its
-/// ref, or reopens a queued create the server refused (`failedItem`) and queues it again. Its
-/// *Search location* can hand back a Commons record instead, and nothing is made.
+/// The web's *New Dive Site* dialog: queues the site and hands back its ref, or reopens a queued
+/// create the server refused (`failedItem`) and queues it again. Its location picker can hand
+/// back a Commons record instead, and nothing is made.
 struct NewDiveSiteSheet: View {
   let failedItem: UUID?
   /// Nil where a Commons record has nothing to go on.
   var onCommonsSite: ((DiveSiteLookupItem) -> Void)?
   let onCreated: (RecordRef) -> Void
-  var locator: any LocationProvider = CoreLocationProvider()
 
   @Environment(Session.self) private var session
 
@@ -28,7 +27,7 @@ struct NewDiveSiteSheet: View {
         outbox: OutboxModel(session: session), values: DiveSiteFormValues(),
         failedItem: failedItem),
       units: RecordEntryUnits(session: session), map: MapStyleModel(session: session),
-      session: session, locator: locator, onCommonsSite: onCommonsSite, onCreated: onCreated)
+      session: session, onCommonsSite: onCommonsSite, onCreated: onCreated)
   }
 }
 
@@ -82,8 +81,8 @@ struct DiveSiteFormView: View {
   private func form(_ model: RecordSheetModel<DiveSiteFormValues>) -> some View {
     DiveSiteSheetForm(
       model: model, units: RecordEntryUnits(session: session),
-      map: MapStyleModel(session: session), session: session, locator: CoreLocationProvider(),
-      isPushed: true, onCreated: { _ in }, onDeleted: onDeleted)
+      map: MapStyleModel(session: session), session: session, isPushed: true,
+      onCreated: { _ in }, onDeleted: onDeleted)
   }
 }
 
@@ -92,7 +91,6 @@ private struct DiveSiteSheetForm: View {
   @State var units: RecordEntryUnits
   @State var map: MapStyleModel
   let session: Session
-  let locator: any LocationProvider
   var isPushed = false
   var onCommonsSite: ((DiveSiteLookupItem) -> Void)?
   let onCreated: (RecordRef) -> Void
@@ -101,12 +99,11 @@ private struct DiveSiteSheetForm: View {
   @State private var invalid: Set<String> = []
   @State private var lookup = PositionLookup()
   @State private var searching = false
-  @State private var locating = false
-  @State private var locationFailure: LocationFailure?
+  /// A position typed or pasted into the boxes, waiting for its place's name.
+  @State private var enteredPosition: DeviceLocation?
   /// A Commons record went on the list from the search: the form leaves once it has closed.
   @State private var savedFromSearch = false
   @Environment(\.dismiss) private var dismiss
-  @FocusState private var locationFocused: Bool
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -122,43 +119,26 @@ private struct DiveSiteSheetForm: View {
         }
         OtherNamesField(names: $model.values.otherNames)
         Section {
-          VStack(alignment: .leading, spacing: 6) {
-            FieldLabel("Location")
-              .focusesOnTap($locationFocused)
-            HStack {
-              TextField(
-                "Location", text: locationName, prompt: Text("e.g. Dahab, South Sinai, Egypt")
-              )
-              .labelsHidden()
-              .focused($locationFocused)
-              Button {
-                searching = true
-              } label: {
-                Label("Search location", icon: .mapSearch)
-              }
-              .labelStyle(.iconOnly)
-              .accentRow()
-              .buttonStyle(.borderless)
-            }
-            FieldMessage(model.message("location", member: "name"))
+          LocationField(
+            name: model.values.location?.name,
+            message: model.message("location", member: "name")
+          ) {
+            searching = true
           }
           CoordinateFields(
             latitude: $model.values.latitude, longitude: $model.values.longitude,
             latitudeMessage: model.message("latitude"),
-            longitudeMessage: model.message("longitude"),
-            hint: CoordinateHint.diveSite(hasMap: map.hasMap), onPlaced: place)
-          Button(locating ? "Finding your location…" : "Use my location", systemImage: "location") {
-            Task { await useMyLocation() }
+            longitudeMessage: model.message("longitude"), hint: CoordinateHint.diveSite)
+          if let style = map.shown {
+            PlacesMapView(style: style, points: pins, label: "Map of the dive site")
+              .frame(height: 200)
+              .clipShape(RoundedRectangle(cornerRadius: 8))
           }
-          .accentRow()
-          .disabled(locating)
-          FieldMessage(locationFailure?.message(hasMap: map.hasMap))
-          PinMap(
-            style: map.shown, name: "the dive site", latitude: model.values.latitude,
-            longitude: model.values.longitude,
-            credit: lookup.credit(
-              latitude: model.values.latitude, longitude: model.values.longitude),
-            onPick: place)
+          if let credit = lookup.credit(
+            latitude: model.values.latitude, longitude: model.values.longitude)
+          {
+            AttributionLine(credits: [credit])
+          }
         } header: {
           FormSectionHeader(group: .location)
         }
@@ -215,16 +195,41 @@ private struct DiveSiteSheetForm: View {
         count: model.values.tags.count, id: SiteNotesSection.tagsField, proxy: proxy)
     }
     .showsMapStyle(map)
-    .sheet(
+    .onChange(of: position) { _, position in
+      let isAnswered = lookup.answers(
+        latitude: model.values.latitude, longitude: model.values.longitude)
+      enteredPosition = isAnswered ? nil : position
+    }
+    .task(id: enteredPosition) {
+      guard enteredPosition != nil else { return }
+      try? await Task.sleep(for: PlaceSearch.debounce)
+      guard !Task.isCancelled else { return }
+      await nameEnteredPosition()
+    }
+    .fullScreenCover(
       isPresented: $searching,
       onDismiss: {
         if savedFromSearch { dismiss() }
       },
       content: {
-        LocationSearchSheet(
-          latitude: model.values.latitude, longitude: model.values.longitude,
-          location: model.values.location, onUse: use, commonsOffer: commonsOffer)
+        LocationPickerScreen(
+          initial: PickedLocation(
+            latitude: model.values.latitude, longitude: model.values.longitude,
+            location: model.values.location),
+          search: PlaceSearchModel(
+            session: session, finds: commonsOffer == nil ? .sitePlaces : .commonsAndPlaces),
+          map: map, commonsOffer: commonsOffer, onUse: use)
       })
+  }
+
+  private var position: DeviceLocation? {
+    PlaceSearch.position(latitude: model.values.latitude, longitude: model.values.longitude)
+  }
+
+  private var pins: [MapPoint] {
+    position.map {
+      [MapPoint(name: "The dive site", latitude: $0.latitude, longitude: $0.longitude)]
+    } ?? []
   }
 
   /// From a dive's picker the record goes on the dive, and from the *Sites* tab on the diver's
@@ -246,52 +251,21 @@ private struct DiveSiteSheetForm: View {
     }
   }
 
-  /// The box shows the place's name; typing replaces the place with a name alone, and
-  /// emptying it clears the place.
-  private var locationName: Binding<String> {
-    Binding(
-      get: { model.values.location?.name ?? "" },
-      set: { text in
-        let typed = String(text.prefix(PlaceSearch.maxLocationNameLength))
-        model.values.location =
-          typed.trimmingCharacters(in: .whitespaces).isEmpty ? nil : LocationWrite(name: typed)
-      })
+  /// The boxes' position, and the geocoder asked what is there.
+  private func nameEnteredPosition() async {
+    await lookup.lookUp(
+      session: session, latitude: model.values.latitude, longitude: model.values.longitude,
+      current: { (model.values.latitude, model.values.longitude, model.values.location) },
+      apply: { model.values.location = $0 })
   }
 
-  /// A position that arrived without a name — tapped, pasted, or the phone's own — and the
-  /// geocoder asked what is there.
-  private func place(_ latitude: String, _ longitude: String) {
-    model.values.latitude = latitude
-    model.values.longitude = longitude
-    Task {
-      await lookup.lookUp(
-        session: session, latitude: latitude, longitude: longitude,
-        current: { (model.values.latitude, model.values.longitude, model.values.location) },
-        apply: { model.values.location = $0 })
-    }
-  }
-
-  private func useMyLocation() async {
-    locating = true
-    locationFailure = nil
-    defer { locating = false }
-    do {
-      let here = try await locator.currentLocation()
-      place(PinMap.text(here.latitude), PinMap.text(here.longitude))
-    } catch {
-      locationFailure = error
-    }
-  }
-
-  /// What *Search location* settled on fills the position and the Location wholesale.
-  private func use(_ searched: SearchedLocation) {
-    model.values.latitude = searched.latitude
-    model.values.longitude = searched.longitude
-    let location = searched.location
-    lookup.adopt(
-      latitude: searched.latitude, longitude: searched.longitude,
-      credit: location == nil ? nil : searched.credit)
-    model.values.location = location
+  /// What the picker settled on fills the position and the Location wholesale, and is answered
+  /// before the boxes change so the change asks nothing.
+  private func use(_ picked: PickedLocation) {
+    lookup.adopt(latitude: picked.latitude, longitude: picked.longitude, credit: picked.credit)
+    model.values.latitude = picked.latitude
+    model.values.longitude = picked.longitude
+    model.values.location = picked.location
   }
 
   private func save() -> Bool {

@@ -1,5 +1,6 @@
 /// The *New Dive Site* dialog's values and rules (`diveSiteFormSchema`). The pin's coordinates
-/// are text as typed; the locality is the whole place a search found, or a name typed by hand.
+/// are text as typed; the locality is the whole place a search found, or the name looked up for
+/// the position.
 public struct DiveSiteFormValues: Codable, Hashable, Sendable {
   public var name: String
   /// A box per name; a blank one is a row the diver added and left, dropped on save.

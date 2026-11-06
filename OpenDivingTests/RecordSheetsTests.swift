@@ -73,8 +73,8 @@ struct RecordSheetsTests {
     let found = try await texts(NewDiveSiteSheet { _ in })
     expectFields(
       [
-        "New Dive Site", "e.g. Blue Hole", "e.g. Dahab, South Sinai, Egypt", "e.g. 27.8506",
-        "e.g. 34.3136", "e.g. 5", "e.g. 30", "e.g. 372", "Not recorded", "Add a tag...",
+        "New Dive Site", "e.g. Blue Hole", "e.g. 27.8506", "e.g. 34.3136", "e.g. 5", "e.g. 30",
+        "e.g. 372", "Not recorded", "Add a tag...",
       ], in: found)
   }
 

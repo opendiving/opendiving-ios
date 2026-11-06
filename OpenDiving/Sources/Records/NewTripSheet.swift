@@ -22,7 +22,7 @@ struct NewTripSheet: View {
         failedItem: failedItem),
       lookups: LookupsModel(session: session),
       places: PlaceSearchModel(session: session, finds: .tripPlaces),
-      map: MapStyleModel(session: session), units: session.units, onCreated: onCreated)
+      map: MapStyleModel(session: session), onCreated: onCreated)
   }
 }
 
@@ -60,8 +60,8 @@ struct TripFormView: View {
     TripSheetForm(
       model: model, lookups: LookupsModel(session: session),
       places: PlaceSearchModel(session: session, finds: .tripPlaces),
-      map: MapStyleModel(session: session), units: session.units, isPushed: true,
-      onCreated: { _ in }, onDeleted: onDeleted)
+      map: MapStyleModel(session: session), isPushed: true, onCreated: { _ in },
+      onDeleted: onDeleted)
   }
 }
 
@@ -70,10 +70,12 @@ private struct TripSheetForm: View {
   @State var lookups: LookupsModel
   @State var places: PlaceSearchModel
   @State var map: MapStyleModel
-  let units: UnitSystem
   var isPushed = false
   let onCreated: (RecordRef) -> Void
   var onDeleted: () -> Void = {}
+
+  /// The part whose place is being found.
+  @State private var placing: PartIndex?
 
   var body: some View {
     RecordSheetForm(
@@ -102,10 +104,13 @@ private struct TripSheetForm: View {
       }
       ForEach(model.values.parts.indices, id: \.self) { index in
         TripPartSection(
-          part: part(index), index: index,
-          contacts: lookups.contacts, places: places, units: units, hasMap: map.hasMap,
+          part: part(index), index: index, contacts: lookups.contacts, hasMap: map.hasMap,
           locationMessage: model.message("parts", index: index, member: "location"),
           datesMessage: model.message("parts", index: index, member: "end_date"),
+          findLocation: {
+            places.clear()
+            placing = PartIndex(id: index)
+          },
           remove: { model.values.parts.remove(at: index) }
         )
         // *Add a part* stays by the last part, where the next one appears.
@@ -147,6 +152,15 @@ private struct TripSheetForm: View {
       }
     }
     .showsMapStyle(map)
+    .fullScreenCover(item: $placing) { index in
+      LocationPickerScreen(
+        initial: PickedLocation(place: part(index.id).wrappedValue.location), search: places,
+        map: map, needsPlace: true
+      ) { picked in
+        part(index.id).wrappedValue.location = picked.location
+        if let credit = picked.credit { places.owe(credit) }
+      }
+    }
   }
 
   /// A part by position, read safely: a removed part's section may draw once more after the
@@ -176,35 +190,26 @@ private struct TripSheetForm: View {
   }
 }
 
-/// One part of the trip: its place, found or typed; where the diver stayed; its dates.
+private struct PartIndex: Identifiable {
+  let id: Int
+}
+
+/// One part of the trip: its place; where the diver stayed; its dates.
 private struct TripPartSection: View {
   @Binding var part: TripPartFormValues
   let index: Int
   let contacts: [ContactLookupItem]
-  let places: PlaceSearchModel
-  let units: UnitSystem
   let hasMap: Bool
   let locationMessage: String?
   let datesMessage: String?
+  let findLocation: () -> Void
   let remove: () -> Void
 
   var body: some View {
     Section {
-      VStack(alignment: .leading, spacing: 6) {
-        FieldLabel("Location")
-        NavigationLink {
-          TripPartPlaceScreen(places: places, units: units) { location in
-            part.location = location
-          }
-        } label: {
-          Text(part.location?.name ?? "Search for a place...")
-            .foregroundStyle(part.location == nil ? .secondary : .primary)
-        }
-        if hasMap, let location = part.location, location.mapPoint == nil {
-          Text("Not on the map").font(.caption).foregroundStyle(.secondary)
-        }
-        FieldMessage(locationMessage)
-      }
+      LocationField(
+        name: part.location?.name, note: offTheMapNote, message: locationMessage,
+        action: findLocation)
       RecordPicker(
         label: "Accommodation", placeholder: "Select accommodation...",
         searchPrompt: "Search accommodation...",
@@ -220,39 +225,11 @@ private struct TripPartSection: View {
       RemovableSectionHeader(title: "Part \(index + 1)", icon: .mapPin, onRemove: remove)
     }
   }
-}
 
-/// The search a part's Location pushes: a place picked, or a name taken as typed.
-private struct TripPartPlaceScreen: View {
-  let places: PlaceSearchModel
-  let units: UnitSystem
-  let onUse: (LocationWrite?) -> Void
-
-  @Environment(\.dismiss) private var dismiss
-  @State private var query = ""
-
-  var body: some View {
-    List {
-      PlaceSearchSection(
-        model: places, query: $query, units: units,
-        onPick: { pick in
-          if case .geocode(let result) = pick { onUse(PlaceSearch.location(of: result)) }
-          dismiss()
-        },
-        onTypeName: { name in
-          onUse(PlaceSearch.typedLocation(name))
-          dismiss()
-        })
-      Section {
-        Button("No location", role: .destructive) {
-          onUse(nil)
-          dismiss()
-        }
-        .dangerRow()
-      }
-    }
-    .navigationTitle("Location")
-    .navigationBarTitleDisplayMode(.inline)
+  /// A name saved with no position, from before a place had to be found.
+  private var offTheMapNote: String? {
+    guard hasMap, let location = part.location, location.mapPoint == nil else { return nil }
+    return "Not on the map"
   }
 }
 
