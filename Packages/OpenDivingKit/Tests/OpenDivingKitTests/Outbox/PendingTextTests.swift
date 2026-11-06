@@ -57,6 +57,20 @@ struct PendingTextTests {
       ])
   }
 
+  @Test func theSignInRowCountsDivesThenAnythingElseThenHides() {
+    func row(drafts: Int = 0, items: [OutboxItem] = [], unreadable: Int = 0, files: Int = 0)
+      -> String?
+    {
+      PendingText.signedOutWaiting(
+        drafts: drafts, items: items, unreadable: unreadable, files: files)
+    }
+    #expect(row() == nil)
+    #expect(row(items: [Self.dive]) == "1 dive waiting to sync")
+    #expect(row(drafts: 1, items: [Self.dive, Self.site], files: 2) == "2 dives waiting to sync")
+    #expect(row(items: [Self.site]) == "1 item waiting to sync")
+    #expect(row(items: [Self.site], unreadable: 1, files: 1) == "3 items waiting to sync")
+  }
+
   @Test func anItemIsNamedByItsRecord() {
     #expect(PendingText.title(of: Self.dive) == "Dive 42, Oct 25, 2026, 09:30")
     #expect(PendingText.title(of: Self.site) == "Dive site: Blue Hole")

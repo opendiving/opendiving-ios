@@ -59,19 +59,18 @@ struct SignInFlowTests {
     #expect(flow.signedOutEntries.isEmpty)
   }
 
-  @Test func signingInOffersExactlyTheSheetAndForgetting() {
+  @Test func signingInOffersExactlyTheSheet() {
     let flow = SignInFlow(
       session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
     #expect(flow.step == .email)
     // The server is on the saved list, so the field is left for another.
     #expect(flow.serverText.isEmpty)
-    #expect(flow.signedOutEntries == [.checkInSheet, .forgetServer])
+    #expect(flow.signedOutEntries == [.checkInSheet])
   }
 
   @Test func signingInToTheFlagshipOffersNoForget() async {
     let session = session(pointer: .flagship, transport: Self.failing(.notConnectedToInternet))
     let flow = SignInFlow(session: session)
-    #expect(flow.signedOutEntries == [.checkInSheet])
     flow.setServerText(ServerOrigin.flagship.description)
     #expect(flow.forgettableOrigin == nil)
     #expect(await flow.forget(.flagship) != nil)
@@ -79,7 +78,7 @@ struct SignInFlowTests {
     #expect(session.savedServers == [.flagship])
   }
 
-  @Test func signedOutOfAnAccountItAlsoOffersWhatIsWaitingToSync() async throws {
+  @Test func signedOutOfAnAccountItAlsoOffersLoggingAndWhatIsWaitingToSync() async throws {
     let signedIn = Session(
       transport: StubTransport(routes: [
         "GET user": .json(try KitFixture.text("user")),
@@ -92,7 +91,7 @@ struct SignInFlowTests {
     let flow = SignInFlow(
       session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
     #expect(
-      flow.signedOutEntries == [.checkInSheet, .waitingToSync, .forgetServer])
+      flow.signedOutEntries == [.logDive, .waitingToSync, .checkInSheet])
   }
 
   @Test func signedInOffersNothingSignedOut() {

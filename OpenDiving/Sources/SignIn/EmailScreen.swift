@@ -1,15 +1,17 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Signing in to the active server: the email field, the server card with another server, and
-/// what is reachable signed out — the cached check-in sheet, what is waiting to sync for the
-/// account last signed in here, and forgetting this server.
+/// Signing in to the active server: the email field, what is reachable signed out — logging a
+/// dive and what is waiting to sync for the account last signed in here, and the cached check-in
+/// sheet — and the server card with another server.
 struct EmailScreen: View {
   let flow: SignInFlow
   let origin: ServerOrigin
   let showSheet: () -> Void
   let showPending: () -> Void
-  @State private var forgetting: ServerOrigin?
+  @Environment(OutboxModel.self) private var outbox
+  @Environment(InboxModel.self) private var inbox
+  @State private var logsDive = false
 
   @FocusState private var focused: Bool
 
@@ -66,6 +68,35 @@ struct EmailScreen: View {
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
       }
+      Section {
+        ForEach(flow.signedOutEntries) { entry in
+          switch entry {
+          case .logDive:
+            Button {
+              logsDive = true
+            } label: {
+              Label("Log a dive offline", icon: .dive)
+            }
+            .accentRow()
+          case .waitingToSync:
+            if let waiting {
+              Button(action: showPending) {
+                Label(waiting, systemImage: "arrow.triangle.2.circlepath")
+              }
+              .accentRow()
+            }
+          case .checkInSheet:
+            Button(action: showSheet) {
+              Label("Your check-in sheet", icon: .idCard)
+            }
+            .accentRow()
+          }
+        }
+      } footer: {
+        Text(KeptText.signedOutFooter(origin))
+      }
+      // A form row's automatic style draws an app symbol's label as its title alone.
+      .labelStyle(.titleAndIcon)
       ServerCard(content: flow.session.card(for: origin)) {
         NavigationLink("Change server") {
           // A notice from an earlier visit is not this one's, though one set while here, by a
@@ -76,34 +107,19 @@ struct EmailScreen: View {
             .onDisappear { if flow.origin == origin { flow.dismissNotice() } }
         }
       }
-      Section {
-        ForEach(flow.signedOutEntries) { entry in
-          switch entry {
-          case .checkInSheet:
-            Button(action: showSheet) {
-              Label("Your check-in sheet", icon: .idCard)
-            }
-            .accentRow()
-          case .waitingToSync:
-            Button(action: showPending) {
-              Label("Your dives waiting to sync", systemImage: "arrow.triangle.2.circlepath")
-            }
-            .accentRow()
-          case .forgetServer:
-            Button("Forget this server", role: .destructive) { forgetting = origin }
-              .dangerRow()
-          }
-        }
-      } footer: {
-        Text(KeptText.signedOutFooter(origin))
-      }
     }
     .background(TapEndsTyping())
     .navigationTitle("Sign In")
+    .navigationDestination(isPresented: $logsDive) { DiveFormView(mode: .create) }
     .task { await flow.session.loadServerInfo() }
-    .forgetServerConfirmation(origin: $forgetting) { origin in
-      Task { await flow.forget(origin) }
-    }
+    // Whenever the row is shown; the outbox refreshes nothing before the account loads.
+    .task { await outbox.refreshDrafts() }
+  }
+
+  private var waiting: String? {
+    PendingText.signedOutWaiting(
+      drafts: outbox.drafts.count, items: outbox.items, unreadable: outbox.unreadable.count,
+      files: inbox.files.count)
   }
 
   private func send() {
@@ -120,4 +136,6 @@ struct EmailScreen: View {
       showPending: {})
   }
   .environment(session)
+  .environment(OutboxModel(session: session))
+  .environment(InboxModel(session: session))
 }
