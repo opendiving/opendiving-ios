@@ -287,6 +287,28 @@ struct LocationPickerModelTests {
     #expect(picker.canUse)
   }
 
+  @Test func centeringMovesTheCameraAndNothingElse() {
+    let held = PickedLocation(
+      latitude: "28", longitude: "34", location: LocationWrite(name: "Dahab"))
+    let picker = model(initial: held)
+    picker.moved(to: MapCamera(latitude: 1, longitude: 2, zoom: 5))
+    picker.centerOnPin()
+    #expect(picker.camera == MapCamera(latitude: 28, longitude: 34, zoom: 5))
+    #expect(picker.picked == held)
+  }
+
+  @Test func centeringFollowsAnOfferAndHasNothingToDoWithNoPin() {
+    let picker = model()
+    let camera = picker.camera
+    picker.centerOnPin()
+    #expect(picker.camera == camera)
+
+    picker.pick(.commons(commons()))
+    picker.moved(to: MapCamera(latitude: 1, longitude: 2, zoom: 5))
+    picker.centerOnPin()
+    #expect(picker.camera.latitude == 28.5722)
+  }
+
   @Test func aPartsPlaceOpensWhereItSaysItIs() {
     let picked = PickedLocation(place: LocationWrite(name: "Dahab", latitude: 28.5, longitude: 34))
     #expect(picked.latitude == "28.5")

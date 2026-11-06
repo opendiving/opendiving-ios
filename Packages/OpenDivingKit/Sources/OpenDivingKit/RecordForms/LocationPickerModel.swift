@@ -196,6 +196,12 @@ public final class LocationPickerModel {
     }
   }
 
+  /// The card tapped: the map comes back to what it marks, at the zoom the diver left it.
+  public func centerOnPin() {
+    guard let pin else { return }
+    camera = MapCamera(latitude: pin.latitude, longitude: pin.longitude, zoom: camera.zoom)
+  }
+
   /// The card's remove button: an offered record goes back to the pin behind it, and the pin
   /// goes altogether, any lookup still out with it.
   public func clear() {

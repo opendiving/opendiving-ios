@@ -57,7 +57,7 @@ private struct LocationPickerForm: View {
           }
         if let credit = map.shown?.credit {
           MapCredit(credit: credit)
-            .padding(.leading, 16)
+            .padding(.leading, LocationPickerMetrics.textMargin)
             .padding(.bottom, 8)
         }
       }
@@ -106,7 +106,8 @@ private struct LocationPickerForm: View {
     if let style = map.shown {
       MapLibreView(
         styleJSON: style.styleJSON, pins: model.pin.map { [$0] } ?? [], camera: model.camera,
-        onCameraChange: { model.moved(to: $0) }, onTap: place
+        onCameraChange: { model.moved(to: $0) }, onTap: place,
+        onPinDrop: pinDrop
       )
       .accessibilityLabel("Map. Tap to place the location.")
       .ignoresSafeArea()
@@ -122,7 +123,8 @@ private struct LocationPickerForm: View {
       if let failure = model.failure {
         FieldMessage(failure.message(hasMap: map.hasMap))
           .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(12)
+          .padding(.vertical, 12)
+          .padding(.horizontal, LocationPickerMetrics.cardInset)
           .pickerCard()
       }
       HStack(spacing: 8) {
@@ -148,7 +150,7 @@ private struct LocationPickerForm: View {
           .lineLimit(1)
         Spacer(minLength: 0)
       }
-      .padding(.horizontal, 14)
+      .padding(.horizontal, LocationPickerMetrics.fieldInset)
       .frame(height: LocationPickerMetrics.controlHeight)
       .contentShape(Capsule())
     }
@@ -220,6 +222,10 @@ private struct LocationPickerForm: View {
     HStack(spacing: 8) {
       content()
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { model.centerOnPin() }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Centers the map on it.")
       Button {
         model.clear()
       } label: {
@@ -234,8 +240,15 @@ private struct LocationPickerForm: View {
       // A full target that does not make the card taller.
       .padding(-10)
     }
-    .padding(12)
+    .padding(.vertical, 12)
+    .padding(.horizontal, LocationPickerMetrics.cardInset)
     .pickerCard()
+  }
+
+  /// A Commons record on offer is not the diver's to move.
+  private var pinDrop: ((CLLocationCoordinate2D) -> Void)? {
+    guard model.offered == nil else { return nil }
+    return { place($0) }
   }
 
   private func place(_ coordinate: CLLocationCoordinate2D) {
@@ -287,7 +300,7 @@ private struct LocationSearchSheet: View {
           .foregroundStyle(.secondary)
       }
     }
-    .padding(.horizontal, 14)
+    .padding(.horizontal, LocationPickerMetrics.fieldInset)
     .frame(height: LocationPickerMetrics.controlHeight)
     .pickerControl(in: Capsule())
   }
@@ -353,6 +366,12 @@ private struct LocationSearchSheet: View {
 
 private enum LocationPickerMetrics {
   static let controlHeight = 48.0
+  /// The column the screen's text keeps: where the bar draws *Cancel*, which nothing here sets.
+  static let textMargin = 32.0
+  /// `textMargin` from inside the panel, which starts 16 in.
+  static let cardInset = 16.0
+  /// The same for the field, whose symbol sits a little inside its own frame.
+  static let fieldInset = 15.0
 }
 
 extension View {
