@@ -23,8 +23,6 @@ public enum PlaceSearch {
   public static let maxQueryLength = 200
   /// How long typing pauses before a search goes out.
   public static let debounce: Duration = .milliseconds(450)
-  /// The API's ceiling on a place's name.
-  public static let maxLocationNameLength = 255
 
   /// The dive site search's two sources in one list, Commons records first, a geocoded row
   /// dropped where it is an OpenStreetMap object a listed record names.
@@ -140,13 +138,6 @@ public enum PlaceSearch {
       bboxEast: result.bboxEast)
   }
 
-  /// A typed place: its name alone, cut to the API's ceiling; nil for a blank box.
-  public static func typedLocation(_ text: String) -> LocationWrite? {
-    let trimmed = text.trimmedOfWhitespace
-    guard !trimmed.isEmpty else { return nil }
-    return LocationWrite(name: String(trimmed.prefix(maxLocationNameLength)))
-  }
-
   /// What the location looks like after the place at a newly placed position was looked up
   /// (`useGeocodedLocation`): the place's name and its credit; cleared where the position has
   /// no name and a name was there; nil — leave everything — where nothing was learned.
@@ -175,6 +166,12 @@ public enum PlaceSearch {
   /// none (`formatCoordinateForForm`).
   public static func coordinateText(_ value: Double?) -> String {
     value.map(NumberText.plain) ?? ""
+  }
+
+  /// A position the map or the phone reported as the form's text. Six decimals: about ten
+  /// centimetres, finer than a tap can aim.
+  public static func placedText(_ value: Double) -> String {
+    coordinateText((value * 1_000_000).rounded() / 1_000_000)
   }
 
   /// A pasted `27.8506, 34.3136` as the two boxes' text: separated by a comma, a semicolon or

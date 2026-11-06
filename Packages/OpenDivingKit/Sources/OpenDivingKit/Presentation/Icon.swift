@@ -20,12 +20,13 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case globe
   case graduationCap = "graduation-cap"
   case idCard = "id-card"
+  case locateFixed = "locate-fixed"
   case luggage
   case mapPin = "map-pin"
-  case mapSearch = "map-search"
   case mountain
   case paperclip
   case phone
+  case search
   case settings
   case ship
   case tabDive = "tab-dive"

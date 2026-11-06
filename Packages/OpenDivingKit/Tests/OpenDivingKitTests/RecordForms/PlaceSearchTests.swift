@@ -105,46 +105,34 @@ struct PlaceSearchTests {
     #expect(PlaceSearch.adopting(.unknown, current: LocationWrite(name: "Dahab")) == nil)
   }
 
-  @Test func onlyAFormWithAMapOffersIt() {
+  @Test func onlyAPickerWithAMapOffersIt() {
     let site = PlaceSearchText.diveSite
-    #expect(
-      site.noMatches(hasMap: true)
-        == "Nothing found - press Enter to use it as typed, or place the site on the map.")
-    #expect(site.noMatches(hasMap: false) == "Nothing found - press Enter to use it as typed.")
+    #expect(site.noMatches(hasMap: true) == "Nothing found, place the site on the map instead.")
+    #expect(site.noMatches(hasMap: false) == "Nothing found.")
     #expect(
       site.searchError(hasMap: true)
-        == "Couldn't reach the search - press Enter to use it as typed, or place the site on the map."
-    )
-    #expect(
-      site.searchError(hasMap: false)
-        == "Couldn't reach the search - press Enter to use it as typed.")
+        == "Couldn't reach the search, place the site on the map instead.")
+    #expect(site.searchError(hasMap: false) == "Couldn't reach the search.")
 
     let part = PlaceSearchText.tripPart
-    #expect(part.noMatches(hasMap: true) == "No places found - press Enter to add as text.")
-    #expect(part.noMatches(hasMap: false) == part.noMatches(hasMap: true))
+    #expect(part.noMatches(hasMap: true) == "No places found, tap the map instead.")
+    #expect(part.noMatches(hasMap: false) == "No places found.")
     #expect(
-      part.searchError(hasMap: true)
-        == "Couldn't reach the place search - press Enter to add as text.")
+      part.searchError(hasMap: true) == "Couldn't reach the place search, tap the map instead.")
 
     #expect(
       LocationFailure.unavailable.message(hasMap: true)
-        == "Your location could not be found. Type the coordinates, or place the site on the map.")
+        == "Your location could not be found. Search for a place, or tap the map.")
     #expect(
       LocationFailure.unavailable.message(hasMap: false)
-        == "Your location could not be found. Type the coordinates.")
+        == "Your location could not be found. Search for a place.")
     #expect(
       LocationFailure.denied.message(hasMap: true) == LocationFailure.denied.message(hasMap: false))
 
     let paste = "Paste a “27.8506, 34.3136” pair into either field to fill both"
-    #expect(
-      CoordinateHint.diveSite(hasMap: true) == paste + ", or place the site on the map below.")
-    #expect(CoordinateHint.diveSite(hasMap: false) == paste + ".")
+    #expect(CoordinateHint.diveSite == paste + ".")
     #expect(CoordinateHint.contact(hasMap: true) == paste + ", or place the contact on the map.")
     #expect(CoordinateHint.contact(hasMap: false) == paste + ".")
-    #expect(
-      CoordinateHint.searchedSite(hasMap: true)
-        == "Coordinates of the site, or place it on the map below.")
-    #expect(CoordinateHint.searchedSite(hasMap: false) == "Coordinates of the site.")
   }
 
   @Test func aPastedPairFillsBothBoxes() {
@@ -168,6 +156,19 @@ struct PlaceSearchTests {
     #expect(PlaceSearch.coordinateText(28.5722) == "28.5722")
     #expect(PlaceSearch.coordinateText(0.00001) == "0.00001")
     #expect(PlaceSearch.coordinateText(nil) == "")
+  }
+
+  @Test func aPlacedPositionStopsAtSixDecimals() {
+    #expect(PlaceSearch.placedText(28.123456789) == "28.123457")
+    #expect(PlaceSearch.placedText(-34.5) == "-34.5")
+  }
+
+  @Test func aLookedUpCreditIsKeptOnce() {
+    let model = PlaceSearchModel(text: .tripPart, commons: nil, geocode: { _ in [] })
+    model.owe(Self.osm)
+    model.owe(Self.osm)
+    model.owe("")
+    #expect(model.attributions == [Self.osm])
   }
 
   // MARK: The search box

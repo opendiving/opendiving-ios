@@ -1,4 +1,4 @@
-/// Where the phone is, for *Use my location* on a new dive site. A protocol because the Kit
+/// Where the phone is, for the location picker's *Use my location*. A protocol because the Kit
 /// builds where CoreLocation does not exist: the app target conforms it over the device's
 /// location services, and a view model's tests over a fake.
 @MainActor
@@ -25,14 +25,14 @@ public enum LocationFailure: Error, Hashable, Sendable {
   /// No fix could be had: location services are off, or the phone could not tell.
   case unavailable
 
-  /// The sentence the site sheet shows under *Use my location*.
+  /// The sentence the location picker shows over its search.
   public func message(hasMap: Bool) -> String {
     switch self {
     case .denied:
       "OpenDiving may not use your location. You can allow it in Settings."
     case .unavailable:
-      "Your location could not be found. Type the coordinates"
-        + (hasMap ? ", or place the site on the map." : ".")
+      "Your location could not be found. Search for a place"
+        + (hasMap ? ", or tap the map." : ".")
     }
   }
 }

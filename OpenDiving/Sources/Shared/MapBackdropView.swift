@@ -26,16 +26,16 @@ struct MapBackdropView: View {
   @State private var size = CGSize.zero
   @State private var images: [MapTileAddress: UIImage] = [:]
   @State private var isOnScreen = false
-  @State private var chipBottom: CGFloat = 0
+  @State private var creditBottom: CGFloat = 0
 
-  /// The credit chip's inset from the map's corner.
-  private static let chipInset: CGFloat = 4
+  /// The credit's inset from the map's corner.
+  private static let creditInset: CGFloat = 4
 
   private var layout: MapBackdropLayout? {
     MapBackdropLayout(
       points: points, fixes: fixes, theme: colorScheme == .dark ? .dark : .light,
       width: size.width, height: size.height, overflowTop: overflowTop,
-      coveredTop: max(coveredTop, chipBottom), coveredBottom: coveredBottom,
+      coveredTop: max(coveredTop, creditBottom), coveredBottom: coveredBottom,
       worldWhenEmpty: worldWhenEmpty)
   }
 
@@ -56,7 +56,7 @@ struct MapBackdropView: View {
       .clipped()
       .overlay(alignment: .topLeading) {
         if credit == nil, let named = model?.credit {
-          creditChip(named)
+          creditLine(named)
         }
       }
       .onScrollVisibilityChange(threshold: 0.01) { isOnScreen = $0 }
@@ -98,14 +98,14 @@ struct MapBackdropView: View {
 
   /// Laid out but unseen until the map shows, as the web's is, since where the pins' band
   /// starts depends on its height.
-  private func creditChip(_ named: String) -> some View {
+  private func creditLine(_ named: String) -> some View {
     MapCredit(credit: named)
-      .opacity(model?.shown == nil ? 0 : 0.75)
-      .padding([.top, .leading], Self.chipInset)
+      .opacity(model?.shown == nil ? 0 : 1)
+      .padding([.top, .leading], Self.creditInset)
       .onGeometryChange(for: CGFloat.self) {
         $0.size.height
       } action: {
-        chipBottom = $0
+        creditBottom = $0
       }
       .accessibilityHidden(model?.shown == nil)
   }
