@@ -43,6 +43,12 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
     if let person { people.removeAll { $0.person == person } }
   }
 
+  /// Moves the start, taking the end with it where the two would run backwards.
+  public mutating func pickStartDate(_ day: CalendarDate?) {
+    startDate = day
+    endDate = RecordFormRules.rangeEnd(endDate, after: day)
+  }
+
   public var issues: [FormIssue] {
     var list = FormIssueList()
     list.add("name", FormText.requiredName(name, "Course name", max: 255))

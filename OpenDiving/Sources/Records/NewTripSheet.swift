@@ -217,13 +217,18 @@ private struct TripPartSection: View {
       ) { made in
         NewContactSheet(roles: ["accommodation"], onCreated: made)
       }
-      CalendarDateField(label: "Start date", date: $part.startDate)
-      CalendarDateField(label: "End date", date: $part.endDate)
+      CalendarDateField(label: "Start date", date: startDate, rangeEnd: part.endDate)
+      CalendarDateField(label: "End date", date: $part.endDate, rangeStart: part.startDate)
       FieldMessage(datesMessage)
     } header: {
       // Parts are sections, which do not drag; putting them in order stays with the web.
       RemovableSectionHeader(title: "Part \(index + 1)", icon: .mapPin, onRemove: remove)
     }
+  }
+
+  /// Moving the start past the end empties the end.
+  private var startDate: Binding<CalendarDate?> {
+    Binding(get: { part.startDate }, set: { part.pickStartDate($0) })
   }
 
   /// A name saved with no position, from before a place had to be found.

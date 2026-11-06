@@ -1,5 +1,12 @@
 /// The checks the record forms share beyond ``FormText``'s.
 enum RecordFormRules {
+  /// The end of a range once its start has moved: kept unless the start is now after it, when a
+  /// range that runs backwards is emptied rather than left for the form to object to.
+  static func rangeEnd(_ end: CalendarDate?, after start: CalendarDate?) -> CalendarDate? {
+    guard let start, let end, end < start else { return end }
+    return nil
+  }
+
   /// An address that may be blank, checked as it is sent — trimmed (`optionalEmailField`).
   static func optionalEmail(_ value: String) -> String? {
     if let tooLong = FormText.length(value, "Email", max: 255) { return tooLong }

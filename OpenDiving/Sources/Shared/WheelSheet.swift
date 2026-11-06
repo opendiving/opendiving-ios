@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// A short sheet of wheels: what they set and the value on them, the wheels, and *Done*, the one
-/// way a turn reaches the form. Swiping the sheet down leaves the form as it was.
+/// A short sheet of wheels: what they set and the value on them, a note on what bounds them, the
+/// wheels, and *Done*, the one way a turn reaches the form. Swiping the sheet down leaves the form
+/// as it was.
 struct WheelSheet<Wheels: View>: View {
   let title: String
   let value: String
+  var note: String?
   let onDone: () -> Void
   @ViewBuilder let wheels: () -> Wheels
 
@@ -12,10 +14,15 @@ struct WheelSheet<Wheels: View>: View {
 
   var body: some View {
     VStack(spacing: 16) {
-      HStack {
-        Text(title).font(.headline)
-        Spacer()
-        Text(value).foregroundStyle(Color.accentText)
+      VStack(alignment: .leading, spacing: 4) {
+        HStack {
+          Text(title).font(.headline)
+          Spacer()
+          Text(value).foregroundStyle(Color.accentText)
+        }
+        if let note {
+          Text(note).font(.footnote).foregroundStyle(.secondary)
+        }
       }
       wheels()
       Button {
