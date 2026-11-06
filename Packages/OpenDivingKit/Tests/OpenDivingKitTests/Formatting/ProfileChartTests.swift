@@ -530,6 +530,20 @@ struct ProfileChartTests {
     #expect(drawn.count == 12)
   }
 
+  @Test func aWindowBetweenTwoSamplesStillDrawsTheLineAcrossIt() throws {
+    let line = try depthLine([1000, 1000], every: 600_000)
+    let window = ProfileTimeWindow(duration: 600_000)
+      .scaled(by: 6, from: 0.5, to: 0.5, duration: 600_000)
+    #expect(line.paths(in: window, plotWidth: 300) == line.paths)
+  }
+
+  @Test func anEmptyAxisDrawsItsSamples() throws {
+    let built = chart(
+      try profile(duration: 0, depth: Series(times: [0, 0], values: [1000, 1000])))
+    let line = try #require(built.layout(hiding: []).plotted(.depth))
+    #expect(line.paths(in: ProfileTimeWindow(duration: 0), plotWidth: 300) == line.paths)
+  }
+
   @Test func aRunOutsideTheWindowIsNotDrawn() throws {
     let times = [0, 10_000, 20_000, 500_000, 510_000, 520_000]
     let built = chart(

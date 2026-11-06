@@ -175,16 +175,17 @@ public struct ProfilePlottedLine: Hashable, Sendable, Identifiable {
   }
 
   /// ``paths`` as `window` draws them on a plot `plotWidth` points wide. A run keeps a sample
-  /// past each end of the window, so it reaches the plot's edge, and a run outside it goes.
+  /// past each end of the window, so it reaches the plot's edge even with no sample inside,
+  /// and a run wholly to one side goes.
   /// Each two points across keep at most their first, last, highest and lowest samples, so a
   /// dense recording costs what the plot can show, every peak included: Swift Charts redraws
   /// each mark on every frame of a pinch, and is far too slow for a sample a second.
   public func paths(in window: ProfileTimeWindow, plotWidth: Double) -> [[ProfilePoint]] {
+    guard window.span > 0 else { return paths }
     let cell = Double(window.span) / plotWidth * Self.pointsPerCell
     return paths.compactMap { run -> [ProfilePoint]? in
       let visible = Self.visible(run, in: window)
-      guard !visible.isEmpty else { return nil }
-      return cell > 0 ? Self.thinned(visible, cell: cell) : Array(visible)
+      return visible.isEmpty ? nil : Self.thinned(visible, cell: cell)
     }
   }
 
@@ -198,10 +199,13 @@ public struct ProfilePlottedLine: Hashable, Sendable, Identifiable {
   private static func visible(_ run: [ProfilePoint], in window: ProfileTimeWindow)
     -> ArraySlice<ProfilePoint>
   {
-    guard let first = run.firstIndex(where: { $0.time >= Double(window.start) }),
-      let last = run.lastIndex(where: { $0.time <= Double(window.end) }), first <= last
+    let start = Double(window.start)
+    let end = Double(window.end)
+    guard let head = run.first, let tail = run.last, head.time <= end, tail.time >= start
     else { return [] }
-    return run[max(first - 1, 0)...min(last + 1, run.count - 1)]
+    let first = run.lastIndex { $0.time <= start } ?? 0
+    let last = run.firstIndex { $0.time >= end } ?? run.count - 1
+    return run[first...last]
   }
 
   /// `run`, each `cell` milliseconds of it reduced to the samples that shape the line.
