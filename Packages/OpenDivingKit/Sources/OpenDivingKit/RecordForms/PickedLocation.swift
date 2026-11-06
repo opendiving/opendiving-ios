@@ -5,6 +5,8 @@ public struct PickedLocation: Hashable, Sendable {
   public var longitude: String
   public var location: LocationWrite?
   public var credit: String?
+  /// The position was used before the geocoder answered, so its name is still the form's to find.
+  public var awaitsName = false
 
   public init(
     latitude: String = "", longitude: String = "", location: LocationWrite? = nil,

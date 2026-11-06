@@ -96,9 +96,7 @@ private struct LocationPickerForm: View {
       await model.search.search(model.query, near: model.position, units: units)
     }
     .onChange(of: model.query) { old, new in
-      Task {
-        if await model.queryChanged(from: old, to: new) { isSearchOpen = false }
-      }
+      if model.queryChanged(from: old, to: new) { isSearchOpen = false }
     }
   }
 
@@ -292,9 +290,7 @@ private struct LocationSearchSheet: View {
         .submitLabel(.search)
         .focused($typing)
         .onSubmit {
-          Task {
-            if await model.submit() { onClose() }
-          }
+          if model.submit() { onClose() }
         }
       if !model.query.isEmpty {
         Button("Clear search", systemImage: "xmark.circle.fill") { model.query = "" }

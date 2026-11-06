@@ -51,7 +51,8 @@ struct LocationPickerModelTests {
       return .named(self.result("Dahab, Egypt"))
     })
     picker.query = "27.8506, 34.3136"
-    #expect(await picker.queryChanged(from: "", to: picker.query))
+    #expect(picker.queryChanged(from: "", to: picker.query))
+    await picker.naming?.value
     #expect(asked == [27.8506, 34.3136])
     #expect(picker.picked.latitude == "27.8506")
     #expect(picker.picked.longitude == "34.3136")
@@ -65,18 +66,72 @@ struct LocationPickerModelTests {
   @Test func onlyAPasteOrTheSearchKeyReadsCoordinates() async {
     let picker = model()
     picker.query = "27.8 3"
-    #expect(await !picker.queryChanged(from: "27.8 ", to: picker.query))
+    #expect(!picker.queryChanged(from: "27.8 ", to: picker.query))
     #expect(picker.position == nil)
     #expect(picker.query == "27.8 3")
 
-    #expect(await picker.submit())
+    #expect(picker.submit())
     #expect(picker.position == DeviceLocation(latitude: 27.8, longitude: 3))
+  }
+
+  @Test func aPasteMovesThePinBeforeTheGeocoderAnswers() async {
+    var isOut = false
+    let picker = model(reverse: { _, _ in
+      isOut = true
+      try await Task.sleep(for: .milliseconds(20))
+      return .named(self.result("Dahab"))
+    })
+    picker.query = "27.8506, 34.3136"
+    #expect(picker.queryChanged(from: "", to: picker.query))
+    #expect(picker.position == DeviceLocation(latitude: 27.8506, longitude: 34.3136))
+    #expect(picker.query.isEmpty)
+    #expect(!isOut)
+    await picker.naming?.value
+    #expect(picker.placeName == "Dahab")
+  }
+
+  @Test func aSitesPinCanBeUsedWhileItsNameIsOut() async {
+    var isOut = false
+    let picker = model(reverse: { _, _ in
+      isOut = true
+      try await Task.sleep(for: .milliseconds(20))
+      return .unknown
+    })
+    async let tapped: Void = picker.tapped(latitude: 1, longitude: 2)
+    while !isOut { await Task.yield() }
+    #expect(picker.isNaming)
+    #expect(picker.canUse)
+    #expect(picker.used.awaitsName)
+    await tapped
+    #expect(!picker.used.awaitsName)
+  }
+
+  @Test func aTripPartsPinWaitsForItsName() async {
+    var isOut = false
+    let picker = model(
+      needsPlace: true,
+      reverse: { _, _ in
+        isOut = true
+        try await Task.sleep(for: .milliseconds(20))
+        return .named(self.result("Dahab"))
+      })
+    async let tapped: Void = picker.tapped(latitude: 1, longitude: 2)
+    while !isOut { await Task.yield() }
+    #expect(!picker.canUse)
+    await tapped
+    #expect(picker.canUse)
+  }
+
+  @Test func reopeningOnAPlaceKeepsTheCreditItOwes() {
+    let held = PickedLocation(
+      latitude: "28", longitude: "34", location: LocationWrite(name: "Dahab"), credit: Self.osm)
+    #expect(model(initial: held).used == held)
   }
 
   @Test func aPairOutOfRangeIsLeftToTheSearch() async {
     let picker = model()
     picker.query = "95, 34"
-    #expect(await !picker.queryChanged(from: "", to: picker.query))
+    #expect(!picker.queryChanged(from: "", to: picker.query))
     #expect(picker.position == nil)
     #expect(picker.query == "95, 34")
   }

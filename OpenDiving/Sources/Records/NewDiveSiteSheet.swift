@@ -215,7 +215,9 @@ private struct DiveSiteSheetForm: View {
         LocationPickerScreen(
           initial: PickedLocation(
             latitude: model.values.latitude, longitude: model.values.longitude,
-            location: model.values.location),
+            location: model.values.location,
+            credit: lookup.credit(
+              latitude: model.values.latitude, longitude: model.values.longitude)),
           search: PlaceSearchModel(
             session: session, finds: commonsOffer == nil ? .sitePlaces : .commonsAndPlaces),
           map: map, commonsOffer: commonsOffer, onUse: use)
@@ -260,9 +262,12 @@ private struct DiveSiteSheetForm: View {
   }
 
   /// What the picker settled on fills the position and the Location wholesale, and is answered
-  /// before the boxes change so the change asks nothing.
+  /// before the boxes change so the change asks nothing. A pin used before its name came back is
+  /// left unanswered, so the change asks for it here.
   private func use(_ picked: PickedLocation) {
-    lookup.adopt(latitude: picked.latitude, longitude: picked.longitude, credit: picked.credit)
+    if !picked.awaitsName {
+      lookup.adopt(latitude: picked.latitude, longitude: picked.longitude, credit: picked.credit)
+    }
     model.values.latitude = picked.latitude
     model.values.longitude = picked.longitude
     model.values.location = picked.location

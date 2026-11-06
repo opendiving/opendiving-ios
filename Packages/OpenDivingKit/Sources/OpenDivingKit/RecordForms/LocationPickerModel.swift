@@ -28,6 +28,8 @@ public final class LocationPickerModel {
   @ObservationIgnored private let reverse: PositionLookup.Reverse
   @ObservationIgnored private let locator: any LocationProvider
   @ObservationIgnored private var placing = 0
+  /// The lookup coordinates set off, which outlives the search that placed them.
+  @ObservationIgnored private(set) var naming: Task<Void, Never>?
 
   public init(
     search: PlaceSearchModel, initial: PickedLocation, needsPlace: Bool = false,
@@ -42,6 +44,10 @@ public final class LocationPickerModel {
     camera = PinCamera(position: position).camera
     // A name with no position searches for itself straight away.
     query = position == nil ? initial.location?.name ?? "" : ""
+    // What the form already owes for this place, which nothing here would otherwise know.
+    if let credit = initial.credit {
+      lookup.adopt(latitude: initial.latitude, longitude: initial.longitude, credit: credit)
+    }
   }
 
   /// Over the session's client.
@@ -92,8 +98,9 @@ public final class LocationPickerModel {
 
   public var canUse: Bool {
     guard !isEmpty else { return true }
-    guard offered == nil, !isNaming else { return false }
-    return needsPlace ? !isUnnamed && picked.location != nil : position != nil
+    guard offered == nil else { return false }
+    // A site has its position whatever the geocoder says, and with no route that is a minute off.
+    return needsPlace ? !isNaming && !isUnnamed && picked.location != nil : position != nil
   }
 
   /// What the form takes: a looked-up name goes where the pin is, since a trip part's place has
@@ -101,6 +108,7 @@ public final class LocationPickerModel {
   public var used: PickedLocation {
     var used = picked
     used.credit = lookup.credit(latitude: picked.latitude, longitude: picked.longitude)
+    used.awaitsName = isNaming
     if needsPlace, used.location?.latitude == nil, let position {
       used.location?.latitude = position.latitude
       used.location?.longitude = position.longitude
@@ -121,26 +129,25 @@ public final class LocationPickerModel {
 
   /// Typing adds a character at a time, so only a change of several at once is a paste, as in the
   /// forms' coordinate boxes. Anything else is left to the search. Returns whether a pin was
-  /// placed, which ends the search.
-  @discardableResult
-  public func queryChanged(from old: String, to new: String) async -> Bool {
+  /// placed, which ends the search there and then, its name coming later.
+  public func queryChanged(from old: String, to new: String) -> Bool {
     guard new.count - old.count > 1 else { return false }
-    return await placeCoordinates(in: new)
+    return placeCoordinates(in: new)
   }
 
   /// The keyboard's search key: coordinates typed by hand place the pin. Returns whether they did.
-  @discardableResult
-  public func submit() async -> Bool {
-    await placeCoordinates(in: query)
+  public func submit() -> Bool {
+    placeCoordinates(in: query)
   }
 
-  private func placeCoordinates(in text: String) async -> Bool {
+  private func placeCoordinates(in text: String) -> Bool {
     guard let pair = PlaceSearch.coordinatePair(text),
       let position = PlaceSearch.position(latitude: pair.latitude, longitude: pair.longitude)
     else { return false }
     clearSearch()
     focus(on: position)
-    await place(latitude: pair.latitude, longitude: pair.longitude)
+    let mine = movePin(latitude: pair.latitude, longitude: pair.longitude)
+    naming = Task { await namePin(mine) }
     return true
   }
 
@@ -219,6 +226,11 @@ public final class LocationPickerModel {
 
   /// A position that arrived without a name, and the geocoder asked what is there.
   private func place(latitude: String, longitude: String) async {
+    await namePin(movePin(latitude: latitude, longitude: longitude))
+  }
+
+  /// Returns the placing the pin's name will answer.
+  private func movePin(latitude: String, longitude: String) -> Int {
     offered = nil
     failure = nil
     picked.latitude = latitude
@@ -226,9 +238,14 @@ public final class LocationPickerModel {
     isUnnamed = true
     isNaming = true
     placing += 1
-    let mine = placing
+    return placing
+  }
+
+  private func namePin(_ mine: Int) async {
+    guard mine == placing else { return }
     await lookup.lookUp(
-      latitude: latitude, longitude: longitude, location: picked.location, reverse: reverse,
+      latitude: picked.latitude, longitude: picked.longitude, location: picked.location,
+      reverse: reverse,
       current: { (picked.latitude, picked.longitude, picked.location) },
       apply: { location in
         picked.location = location
