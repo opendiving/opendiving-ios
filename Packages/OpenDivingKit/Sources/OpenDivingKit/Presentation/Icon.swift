@@ -41,4 +41,5 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case waves
   case wavesArrowDown = "waves-arrow-down"
   case weight
+  case zoomOut = "zoom-out"
 }

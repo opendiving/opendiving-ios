@@ -174,9 +174,57 @@ public struct ProfilePlottedLine: Hashable, Sendable, Identifiable {
     }
   }
 
+  /// ``paths`` as `window` draws them on a plot `plotWidth` points wide. A run keeps a sample
+  /// past each end of the window, so it reaches the plot's edge even with no sample inside,
+  /// and a run wholly to one side goes.
+  /// Each two points across keep at most their first, last, highest and lowest samples, so a
+  /// dense recording costs what the plot can show, every peak included: Swift Charts redraws
+  /// each mark on every frame of a pinch, and is far too slow for a sample a second.
+  public func paths(in window: ProfileTimeWindow, plotWidth: Double) -> [[ProfilePoint]] {
+    guard window.span > 0 else { return paths }
+    let cell = Double(window.span) / plotWidth * Self.pointsPerCell
+    return paths.compactMap { run -> [ProfilePoint]? in
+      let visible = Self.visible(run, in: window)
+      return visible.isEmpty ? nil : Self.thinned(visible, cell: cell)
+    }
+  }
+
   /// The domain's gridline values, each with its number.
   var tickLabels: [ProfileAxisLabel] {
     domain.ticks.map { ProfileAxisLabel(position: offset($0), text: NumberText.plain($0)) }
+  }
+
+  private static let pointsPerCell = 2.0
+
+  private static func visible(_ run: [ProfilePoint], in window: ProfileTimeWindow)
+    -> ArraySlice<ProfilePoint>
+  {
+    let start = Double(window.start)
+    let end = Double(window.end)
+    guard let head = run.first, let tail = run.last, head.time <= end, tail.time >= start
+    else { return [] }
+    let first = run.lastIndex { $0.time <= start } ?? 0
+    let last = run.firstIndex { $0.time >= end } ?? run.count - 1
+    return run[first...last]
+  }
+
+  /// `run`, each `cell` milliseconds of it reduced to the samples that shape the line.
+  private static func thinned(_ run: ArraySlice<ProfilePoint>, cell: Double) -> [ProfilePoint] {
+    var kept: [ProfilePoint] = []
+    var start = run.startIndex
+    while start < run.endIndex {
+      let bucket = (run[start].time / cell).rounded(.down)
+      let end =
+        run[start...].firstIndex { ($0.time / cell).rounded(.down) != bucket } ?? run.endIndex
+      let samples = run.indices[start..<end]
+      let extremes = [
+        samples.min { run[$0].offset < run[$1].offset },
+        samples.max { run[$0].offset < run[$1].offset },
+      ].compactMap { $0 }
+      kept += Set(extremes + [start, end - 1]).sorted().map { run[$0] }
+      start = end
+    }
+    return kept
   }
 
   /// A polyline cut to the band `0...1`, a segment that crosses an edge ending on it.

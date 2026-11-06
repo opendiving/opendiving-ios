@@ -7,8 +7,10 @@ public enum DiveProfileMath {
   public static let startingGasMilliseconds = 30_000
   /// The least gap that breaks a line, however fast the cadence.
   public static let minimumGapMilliseconds = 15_000.0
-  /// Steps the time axis may take, minute-shaped throughout.
-  static let elapsedSteps = [1, 2, 5, 10, 15, 30, 60, 120].map { $0 * 60_000 }
+  /// Steps the time axis may take, clock-shaped throughout; the seconds are for a plot zoomed
+  /// in to a minute or two.
+  static let elapsedSteps =
+    [10, 15, 30].map { $0 * 1000 } + [1, 2, 5, 10, 15, 30, 60, 120].map { $0 * 60_000 }
   /// How many elapsed-time steps the axis aims for.
   public static let elapsedTickTarget = 6
 
@@ -137,15 +139,19 @@ public enum DiveProfileMath {
       readoutTolerance: tolerance, segments: segments, drawn: Set(segments.joined()))
   }
 
-  /// The elapsed-time gridlines for `duration` milliseconds, from 0 and never past the
-  /// end: the first minute-shaped step giving at most `target` ticks, doubled past the
-  /// longest step until one does.
-  public static func elapsedTicks(duration: Int, target: Int = elapsedTickTarget) -> [Int] {
-    guard duration > 0 else { return [0] }
-    let fits = { (step: Int) in Double(duration) / Double(step) <= Double(target) }
+  /// The elapsed-time gridlines for the stretch from `start` to `end` milliseconds, whole
+  /// multiples of the step and never outside it: the first clock-shaped step giving at most
+  /// `target` ticks, doubled past the longest step until one does.
+  public static func elapsedTicks(from start: Int, to end: Int, target: Int = elapsedTickTarget)
+    -> [Int]
+  {
+    let span = end - start
+    guard span > 0 else { return [start] }
+    let fits = { (step: Int) in Double(span) / Double(step) <= Double(target) }
     var step = elapsedSteps.first(where: fits) ?? elapsedSteps[elapsedSteps.count - 1]
     while !fits(step) { step *= 2 }
-    return Array(stride(from: 0, through: duration, by: step))
+    let first = (start + step - 1) / step * step
+    return Array(stride(from: first, through: end, by: step))
   }
 
   /// An axis instant as `M:SS`, rounded to the second, minutes unpadded: `66:40`.

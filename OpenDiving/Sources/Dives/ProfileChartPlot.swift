@@ -12,23 +12,37 @@ struct ProfileChartPlot: View {
   @Binding var markersHidden: Bool
 
   @State private var selected: Double?
-  @State private var width = 0.0
+  @State private var plotFrame = CGRect.zero
+  /// The stretch on screen, nil until a first pinch. The card's load between recordings takes
+  /// this view away, so a new recording starts whole.
+  @State private var zoom: ProfileTimeWindow?
+  /// Two fingers on the plot: the window they landed on, and how far across it.
+  @State private var fingers: (window: ProfileTimeWindow, from: Double)?
 
   var body: some View {
     let layout = chart.layout(hiding: hidden)
     let markersShown = !markersHidden && !chart.events.isEmpty
     let bands = Bands(panelCount: layout.placement.panels.count)
-    let at = selected.map { min(Double(chart.duration), max(0, $0)) }
+    // Two fingers move the plot and take the crosshair off it, though the first to land has
+    // already started the readout.
+    let at =
+      fingers == nil ? selected.map { min(Double(window.end), max(Double(window.start), $0)) } : nil
 
     VStack(alignment: .trailing, spacing: 4) {
-      ProfileChannelMenu(chart: chart, hidden: $hidden, markersHidden: $markersHidden)
+      HStack(spacing: 0) {
+        if isZoomed {
+          Button {
+            zoom = nil
+          } label: {
+            Image(.zoomOut)
+              .frame(minWidth: 44, minHeight: 44)
+          }
+          .accessibilityLabel("Zoom out")
+        }
+        ProfileChannelMenu(chart: chart, hidden: $hidden, markersHidden: $markersHidden)
+      }
       plot(layout: layout, bands: bands, markersShown: markersShown, at: at)
         .frame(height: bands.total + 28)
-        .onGeometryChange(for: Double.self) {
-          $0.size.width
-        } action: {
-          width = $0
-        }
         .overlay {
           if layout.shown.isEmpty && !markersShown {
             Text("Every channel is hidden. Pick one from the menu to plot it.")
@@ -39,7 +53,8 @@ struct ProfileChartPlot: View {
           }
         }
         .overlay(
-          alignment: at.map { $0 < Double(chart.duration) / 2 } ?? true ? .topTrailing : .topLeading
+          alignment: at.map { $0 < Double(window.start + window.end) / 2 } ?? true
+            ? .topTrailing : .topLeading
         ) {
           if let at {
             ProfileReadoutCard(
@@ -59,7 +74,7 @@ struct ProfileChartPlot: View {
   private func plot(layout: ProfileChartLayout, bands: Bands, markersShown: Bool, at: Double?)
     -> some View
   {
-    let ticks = chart.timeTicks(plotWidth: plotWidth)
+    let ticks = chart.timeTicks(plotWidth: plotWidth, window: window)
     let left = layout.leftLabels.map { label in
       AxisLabel(y: bands.y(label.position, panel: nil), text: label.text, under: nil)
     }
@@ -76,14 +91,18 @@ struct ProfileChartPlot: View {
     let rightColor = layout.placement.right?.color ?? .secondary
     let underColor = layout.placement.underRight?.color ?? .secondary
     let dots = (at.map(layout.readouts(at:)) ?? []).compactMap { readout -> Dot? in
-      guard let sample = readout.sample, !sample.offScale else { return nil }
+      guard let sample = readout.sample, !sample.offScale,
+        (window.start...window.end).contains(sample.time)
+      else { return nil }
       return Dot(
         id: readout.id, time: Double(sample.time),
         y: bands.y(sample.offset, panel: readout.panelIndex),
         color: readout.channel.color)
     }
 
-    return Chart {
+    let domain = Double(window.start)...Double(max(window.end, 1))
+
+    let marks = Chart {
       ForEach(fills(layout, bands)) { fill in
         AreaPlot(
           fill.points, x: .value("Time", \.time), yStart: .value("Surface", \.surface),
@@ -135,7 +154,7 @@ struct ProfileChartPlot: View {
         }
       }
     }
-    .chartXScale(domain: 0...Double(max(chart.duration, 1)))
+    .chartXScale(domain: domain)
     .chartYScale(domain: 0...bands.total)
     .chartXAxis {
       AxisMarks(values: ticks.map(\.position)) { value in
@@ -170,8 +189,28 @@ struct ProfileChartPlot: View {
       }
     }
     .chartXSelection(value: $selected)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(layout.summary(events: markersShown ? chart.events : []))
+
+    return zoomable(marks)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(layout.summary(events: markersShown ? chart.events : []))
+  }
+
+  /// The chart's zoom, on its own because in the chain above it takes the expression past what
+  /// the type-checker in the oldest Xcode CI builds with will finish.
+  private func zoomable(_ chart: some View) -> some View {
+    chart
+      // Zoomed, the curves run on past both ends of the plot. Whole, nothing does, and a dot at
+      // the plot's edge keeps its outer half. An inset rather than a condition, so the plot
+      // keeps its identity as a pinch leaves the whole dive.
+      .chartPlotStyle { $0.clipShape(Rectangle().inset(by: isZoomed ? 0 : -8)) }
+      .chartBackground { proxy in
+        GeometryReader { geometry in
+          let frame = proxy.plotFrame.map { geometry[$0] } ?? .zero
+          Color.clear.onChange(of: frame, initial: true) { plotFrame = frame }
+        }
+      }
+      .gesture(twoFingers(.pinch))
+      .gesture(twoFingers(.slide, isEnabled: isZoomed))
   }
 
   /// The water column under the depth curve and the band above the ceiling, each filled
@@ -190,7 +229,7 @@ struct ProfileChartPlot: View {
     let surface = bands.top(plotted.panelIndex)
     // Series names are global to a chart, so each run is named after its line as well:
     // a bare run index would join one channel's run to another's and draw both in one style.
-    return plotted.paths.enumerated().flatMap { run, path in
+    return plotted.paths(in: window, plotWidth: plotWidth).enumerated().flatMap { run, path in
       path.map {
         PlotPoint(
           time: $0.time, y: bands.y($0.offset, panel: plotted.panelIndex), surface: surface,
@@ -199,10 +238,39 @@ struct ProfileChartPlot: View {
     }
   }
 
-  private var plotWidth: Double { max(width - 90, 1) }
+  private var plotWidth: Double { max(plotFrame.width, 1) }
 
   /// How near the finger a marker is named: 8 points, in the axis's milliseconds.
-  private var eventReach: Double { Double(chart.duration) / plotWidth * 8 }
+  private var eventReach: Double { Double(window.span) / plotWidth * 8 }
+
+  // MARK: Zoom
+
+  private var window: ProfileTimeWindow { zoom ?? ProfileTimeWindow(duration: chart.duration) }
+
+  private var isZoomed: Bool { window.isZoomed(duration: chart.duration) }
+
+  /// How far across the plot `x` is, in the chart's own points.
+  private func fraction(_ x: Double) -> Double {
+    min(1, max(0, (x - plotFrame.minX) / plotWidth))
+  }
+
+  /// A slide is a pinch that does not spread, so both carry the instant under the fingers.
+  private func twoFingers(_ kind: ProfileTwoFingerGesture.Kind, isEnabled: Bool = true)
+    -> ProfileTwoFingerGesture
+  {
+    ProfileTwoFingerGesture(
+      kind: kind, isEnabled: isEnabled,
+      began: { fingers = (window, fraction($0)) },
+      changed: { x, scale in
+        guard let fingers else { return }
+        zoom = fingers.window.scaled(
+          by: scale, from: fingers.from, to: fraction(x), duration: chart.duration)
+      },
+      ended: {
+        fingers = nil
+        selected = nil
+      })
+  }
 
   // MARK: Geometry
 

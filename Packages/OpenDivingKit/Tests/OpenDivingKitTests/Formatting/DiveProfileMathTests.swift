@@ -285,20 +285,31 @@ struct DiveProfileMathTests {
   @Test func elapsedTicksAreRoundMinutes() {
     let minute = 60_000
     #expect(
-      Math.elapsedTicks(duration: 12 * minute) == [0, 2, 4, 6, 8, 10, 12].map { $0 * minute })
+      Math.elapsedTicks(from: 0, to: 12 * minute) == [0, 2, 4, 6, 8, 10, 12].map { $0 * minute })
     #expect(
-      Math.elapsedTicks(duration: 50 * minute) == [0, 10, 20, 30, 40, 50].map { $0 * minute })
+      Math.elapsedTicks(from: 0, to: 50 * minute) == [0, 10, 20, 30, 40, 50].map { $0 * minute })
     #expect(
-      Math.elapsedTicks(duration: 180 * minute)
+      Math.elapsedTicks(from: 0, to: 180 * minute)
         == [0, 30, 60, 90, 120, 150, 180].map { $0 * minute })
-    #expect(Math.elapsedTicks(duration: 2_781_000).max()! <= 2_781_000)
+    #expect(Math.elapsedTicks(from: 0, to: 2_781_000).max()! <= 2_781_000)
     for duration in [720_000, 2_781_000, 3_000_000, 4_401_160, 10_800_000] {
-      #expect(Math.elapsedTicks(duration: duration).allSatisfy { $0 % minute == 0 })
+      #expect(Math.elapsedTicks(from: 0, to: duration).allSatisfy { $0 % minute == 0 })
     }
-    #expect(Math.elapsedTicks(duration: 0) == [0])
+    #expect(Math.elapsedTicks(from: 0, to: 0) == [0])
     #expect(
-      Math.elapsedTicks(duration: 720 * minute, target: 4)
+      Math.elapsedTicks(from: 0, to: 720 * minute, target: 4)
         == [0, 240, 480, 720].map { $0 * minute })
+  }
+
+  @Test func elapsedTicksOfAStretchAreWholeStepsInsideIt() {
+    let second = 1000
+    #expect(
+      Math.elapsedTicks(from: 90 * second, to: 150 * second)
+        == [90, 100, 110, 120, 130, 140, 150].map { $0 * second })
+    #expect(
+      Math.elapsedTicks(from: 95 * second, to: 245 * second, target: 5)
+        == [120, 150, 180, 210, 240].map { $0 * second })
+    #expect(Math.elapsedTicks(from: 1234, to: 1234) == [1234])
   }
 
   @Test(

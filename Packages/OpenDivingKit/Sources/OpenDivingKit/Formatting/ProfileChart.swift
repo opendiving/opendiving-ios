@@ -118,13 +118,13 @@ public struct ProfileChart: Hashable, Sendable {
     return best
   }
 
-  /// The elapsed-time gridlines for a plot `plotWidth` points wide, each with its `M:SS`
-  /// label: at most six, and fewer where 44 points a label do not fit.
-  public func timeTicks(plotWidth: Double) -> [ProfileAxisLabel] {
+  /// The elapsed-time gridlines for `window` on a plot `plotWidth` points wide, each with its
+  /// `M:SS` label: at most six, and fewer where 44 points a label do not fit.
+  public func timeTicks(plotWidth: Double, window: ProfileTimeWindow) -> [ProfileAxisLabel] {
     let target = Swift.min(
       DiveProfileMath.elapsedTickTarget,
       AxisDomain.labelCapacity(plotWidth, spacing: Self.elapsedLabelSpacing))
-    return DiveProfileMath.elapsedTicks(duration: duration, target: target).map {
+    return DiveProfileMath.elapsedTicks(from: window.start, to: window.end, target: target).map {
       ProfileAxisLabel(
         position: Double($0), text: DiveProfileMath.formatElapsed(milliseconds: Double($0)))
     }

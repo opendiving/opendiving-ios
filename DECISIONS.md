@@ -428,3 +428,10 @@ a typed name; the phone departs from it here by the owner's call. A name typed b
 showing and saving. A trip part's place is a name first, so a pin nothing names cannot be used
 there, and with no network a part gets no location; a site keeps its coordinates either way.
 Rejected: falling back to the coordinates as a part's name, which reads as a place and is not one.
+
+## One finger reads the profile, two move it
+
+The readout follows one finger at any zoom, and two fingers pinch or slide the window. The web's
+drag pans a zoomed plot unless it lands on the crosshair, which relies on a crosshair that stays
+after the finger lifts. `chartXSelection` clears it on lift, so there is nothing to land on, and a
+drag that panned would leave a zoomed plot with no drag to read it by.

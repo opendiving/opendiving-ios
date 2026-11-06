@@ -483,11 +483,88 @@ struct ProfileChartTests {
   @Test func timeTicksThinOnANarrowPlot() throws {
     let built = chart(
       try profile(duration: 3_600_000, depth: Series(times: [0, 3_600_000], values: [0, 0])))
+    let whole = ProfileTimeWindow(duration: built.duration)
     #expect(
-      built.timeTicks(plotWidth: 600).map(\.text) == [
+      built.timeTicks(plotWidth: 600, window: whole).map(\.text) == [
         "0:00", "10:00", "20:00", "30:00", "40:00", "50:00", "60:00",
       ])
-    #expect(built.timeTicks(plotWidth: 140).map(\.text) == ["0:00", "30:00", "60:00"])
+    #expect(
+      built.timeTicks(plotWidth: 140, window: whole).map(\.text) == ["0:00", "30:00", "60:00"])
+  }
+
+  private func depthLine(_ values: [Int], every step: Int) throws -> ProfilePlottedLine {
+    let times = values.indices.map { $0 * step }
+    let built = chart(
+      try profile(duration: times.last!, depth: Series(times: times, values: values)))
+    return try #require(built.layout(hiding: []).plotted(.depth))
+  }
+
+  @Test func aSparseLineDrawsEverySample() throws {
+    let line = try depthLine(
+      Array(repeating: 0, count: 50).enumerated().map { $0.offset * 10 }, every: 10_000)
+    let whole = ProfileTimeWindow(duration: line.line.series.times.last!)
+    #expect(line.paths(in: whole, plotWidth: 300) == line.paths)
+  }
+
+  @Test func aDenseLineThinsToThePlotAndKeepsItsPeak() throws {
+    var values = (0..<3600).map { 1000 + $0 % 7 }
+    values[1234] = 4000
+    let line = try depthLine(values, every: 1000)
+    let whole = ProfileTimeWindow(duration: line.line.series.times.last!)
+    let drawn = try #require(line.paths(in: whole, plotWidth: 300).first)
+    #expect(drawn.count <= 600)
+    #expect(drawn.first == line.paths[0].first)
+    #expect(drawn.last == line.paths[0].last)
+    #expect(drawn.contains { $0.time == 1_234_000 })
+    #expect(zip(drawn, drawn.dropFirst()).allSatisfy { $0.time < $1.time })
+  }
+
+  @Test func theWindowDrawsItsSamplesAndOneEachSide() throws {
+    let line = try depthLine(Array(repeating: 1000, count: 100), every: 10_000)
+    let duration = line.line.series.times.last!
+    let window = ProfileTimeWindow(duration: duration)
+      .scaled(by: 10, from: 0.5, to: 0.5, duration: duration)
+    let drawn = try #require(line.paths(in: window, plotWidth: 3000).first)
+    #expect(drawn.first!.time < Double(window.start))
+    #expect(drawn.last!.time > Double(window.end))
+    #expect(drawn.count == 12)
+  }
+
+  @Test func aWindowBetweenTwoSamplesStillDrawsTheLineAcrossIt() throws {
+    let line = try depthLine([1000, 1000], every: 600_000)
+    let window = ProfileTimeWindow(duration: 600_000)
+      .scaled(by: 6, from: 0.5, to: 0.5, duration: 600_000)
+    #expect(line.paths(in: window, plotWidth: 300) == line.paths)
+  }
+
+  @Test func anEmptyAxisDrawsItsSamples() throws {
+    let built = chart(
+      try profile(duration: 0, depth: Series(times: [0, 0], values: [1000, 1000])))
+    let line = try #require(built.layout(hiding: []).plotted(.depth))
+    #expect(line.paths(in: ProfileTimeWindow(duration: 0), plotWidth: 300) == line.paths)
+  }
+
+  @Test func aRunOutsideTheWindowIsNotDrawn() throws {
+    let times = [0, 10_000, 20_000, 500_000, 510_000, 520_000]
+    let built = chart(
+      try profile(
+        duration: 520_000, depth: Series(times: times, values: times.map { _ in 1000 })))
+    let line = try #require(built.layout(hiding: []).plotted(.depth))
+    #expect(line.paths.count == 2)
+    let window = ProfileTimeWindow(duration: 520_000)
+      .scaled(by: 8, from: 1, to: 1, duration: 520_000)
+    #expect(line.paths(in: window, plotWidth: 300).count == 1)
+  }
+
+  @Test func timeTicksFollowTheWindow() throws {
+    let built = chart(
+      try profile(duration: 3_600_000, depth: Series(times: [0, 3_600_000], values: [0, 0])))
+    let zoomed = ProfileTimeWindow(duration: built.duration)
+      .scaled(by: 60, from: 0.5, to: 0.5, duration: built.duration)
+    #expect(
+      built.timeTicks(plotWidth: 600, window: zoomed).map(\.text) == [
+        "29:30", "29:40", "29:50", "30:00", "30:10", "30:20", "30:30",
+      ])
   }
 
   @Test func theSummarySaysWhatIsShown() throws {
