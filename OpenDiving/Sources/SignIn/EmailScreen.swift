@@ -39,6 +39,7 @@ struct EmailScreen: View {
           .onSubmit(send)
           .focused($focused)
       }
+      .listSectionSpacing(12)
       if let error = flow.emailError {
         Section {
           Label(error, systemImage: "exclamationmark.triangle")
