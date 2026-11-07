@@ -125,11 +125,6 @@ public enum ImportText {
     return when + " " + sign + pad(magnitude / 60) + ":" + pad(magnitude % 60)
   }
 
-  /// `49:00`: minutes and seconds, as the web's import rows print a dive time.
-  public static func diveTime(_ seconds: Int) -> String {
-    "\(seconds / 60):\(pad(seconds % 60))"
-  }
-
   /// The sentence under a dive's notes when the API cut its list.
   public static func truncatedDiveNotes(_ truncated: Int) -> String? {
     guard truncated > 0 else { return nil }
