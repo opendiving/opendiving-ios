@@ -1,10 +1,10 @@
 import Foundation
 
-/// Every sentence that says what the phone keeps for a server, in one place, so that a new
-/// thing kept is named by all of them at once: the sign-in, the account, the check-in sheet,
-/// the drafts, the writes waiting to sync, the files waiting to be read, the dive computer
-/// download history and the copies of the logbook kept for offline. The paired dive computers
-/// are the phone's, kept for no server, so none of these names them.
+/// What the phone keeps for a server, as a whole: ``held(_:)`` names every kept thing, so a new
+/// one goes there: the sign-in, the account, the check-in sheet, the drafts, the writes waiting
+/// to sync, the files waiting to be read, the dive computer download history and the copies of
+/// the logbook kept for offline. The paired dive computers are the phone's, kept for no server,
+/// so it does not name them. ``SignedOutEntry/info(on:)`` says what stays of one entry alone.
 public enum KeptText {
   /// Under the saved servers.
   public static let savedServersFooter =
