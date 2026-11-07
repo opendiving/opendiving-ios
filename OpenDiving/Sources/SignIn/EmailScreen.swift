@@ -123,10 +123,8 @@ struct EmailScreen: View {
   }
 
   private var logo: some View {
-    HStack(spacing: 8) {
-      Image(OpenDivingKit.Icon.dive)
-        .font(.largeTitle)
-        .foregroundStyle(Color.brandCoral)
+    VStack(spacing: 12) {
+      BrandMark(side: 72)
       // The web's wordmark, Outfit Bold, as outlines: the app carries no copy of the font.
       Image("Wordmark")
         .resizable()
