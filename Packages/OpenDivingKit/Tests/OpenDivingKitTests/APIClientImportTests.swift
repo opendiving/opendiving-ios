@@ -35,55 +35,92 @@ struct APIClientImportTests {
     }
   }
 
-  @Test func thePreviewAndTheApplySendTheSameFilesInTheSameOrderUnderTheSameNames() async throws {
-    let preview = try KitFixture.text("import-preview")
-    let result = try KitFixture.text("import-result")
-    let harness = ClientHarness(accessToken: "live") { request in
-      request.route == "POST import/logbook/preview" ? .json(preview) : .json(result)
-    }
+  @Test func anUploadSendsTheFilesInOrderUnderTheirNames() async throws {
+    let pending = try KitFixture.text("import-pending")
+    let harness = ClientHarness(accessToken: "live") { _ in .json(pending, status: 201) }
     let files = try files()
-    let read = try await harness.client.importPreview(files: files)
-    _ = try await harness.client.importApply(files: files, token: read.token)
+    let read = try await harness.client.uploadImport(files: files)
 
     let requests = harness.transport.requests
-    #expect(requests.map(\.route) == ["POST import/logbook/preview", "POST import/logbook"])
-    let previewParts = try ReceivedPart.parts(of: requests[0])
-    let applyParts = try ReceivedPart.parts(of: requests[1])
-    #expect(previewParts == (try expected(files)))
-    #expect(
-      applyParts.first
-        == ReceivedPart(
-          name: "token", filename: nil, contentType: nil, bytes: Data(read.token.utf8)))
-    #expect(Array(applyParts.dropFirst()) == previewParts)
+    #expect(requests.map(\.route) == ["POST imports"])
+    #expect(try ReceivedPart.parts(of: requests[0]) == (try expected(files)))
     #expect(requests[0].bearer == "live")
+    #expect(read.status == "pending")
   }
 
-  @Test func theApplyCarriesTheDiversAnswersWhenGiven() async throws {
-    let harness = ClientHarness(accessToken: "live") { _ in
-      .json(try KitFixture.text("import-result"))
+  @Test func theFamilyReadsItsRoutes() async throws {
+    let uuid = try #require(UUID(uuidString: "01a1b5d5-0182-786a-bc62-ed7fe7907b7d"))
+    let path = "import/01a1b5d5-0182-786a-bc62-ed7fe7907b7d"
+    let pending = try KitFixture.text("import-pending")
+    let notes = try KitFixture.text("import-notes")
+    let page = try KitFixture.text("imports-page")
+    let harness = ClientHarness(accessToken: "live") { request in
+      switch request.route {
+      case "GET \(path)/notes": .json(notes)
+      case "GET imports": .json(page)
+      default: .json(pending)
+      }
     }
-    _ = try await harness.client.importApply(
-      files: try files(), token: "t",
-      checkInDetails: ImportCheckInSubmission(email: .value("desk@example.org"), phone: .null),
-      portrait: ImportPortraitChoice(take: false, accountSha256: nil))
-    let parts = try ReceivedPart.parts(of: try #require(harness.transport.requests.first))
-    #expect(parts.map(\.name) == ["token", "check_in_details", "portrait", "file", "file"])
+    _ = try await harness.client.pendingImport()
+    _ = try await harness.client.logbookImport(uuid)
+    #expect(try await harness.client.importNotes(uuid).dives.count == 2)
+    #expect(try await harness.client.imports(page: 2).data.count == 2)
+    let requests = harness.transport.requests
     #expect(
-      try JSONValue.parse(parts[1].bytes)
-        == JSONValue.parse(Data(#"{"email":"desk@example.org","phone":null}"#.utf8)))
+      requests.map(\.route) == [
+        "GET imports/pending", "GET \(path)", "GET \(path)/notes", "GET imports",
+      ])
+    #expect(requests[3].url?.query?.contains("page=2") == true)
+  }
+
+  @Test func theApplyCarriesTheDiversAnswersAndNoFiles() async throws {
+    let applied = try KitFixture.text("import-applied")
+    let harness = ClientHarness(accessToken: "live") { _ in .json(applied) }
+    let uuid = UUID()
+    _ = try await harness.client.applyImport(
+      uuid,
+      LogbookImportApply(
+        checkInDetails: ImportCheckInSubmission(email: .value("desk@example.org"), phone: .null),
+        portrait: ImportPortraitChoice(take: false, accountSha256: nil)))
+    let request = try #require(harness.transport.requests.first)
+    #expect(request.route == "POST import/\(uuid.uuidString.lowercased())/apply")
     #expect(
-      try JSONValue.parse(parts[2].bytes)
-        == JSONValue.parse(Data(#"{"choice":"keep","account_sha256":null}"#.utf8)))
+      try JSONValue.parse(try #require(request.httpBody))
+        == JSONValue.parse(
+          Data(
+            #"""
+            {"check_in_details":{"email":"desk@example.org","phone":null},
+             "portrait":{"choice":"keep","account_sha256":null}}
+            """#.utf8)))
+  }
+
+  @Test func theApplySendsNothingTheDiverDidNotAnswer() async throws {
+    let applied = try KitFixture.text("import-applied")
+    let harness = ClientHarness(accessToken: "live") { _ in .json(applied) }
+    _ = try await harness.client.applyImport(UUID(), LogbookImportApply())
+    let body = try #require(harness.transport.requests.first?.httpBody)
+    #expect(try JSONValue.parse(body) == JSONValue.parse(Data("{}".utf8)))
+  }
+
+  @Test func aDeleteNamesTheStatusItMeans() async throws {
+    let harness = ClientHarness(accessToken: "live") { _ in
+      StubTransport.Response(status: 204, body: Data())
+    }
+    let uuid = UUID()
+    try await harness.client.deleteImport(uuid, status: "pending")
+    let request = try #require(harness.transport.requests.first)
+    #expect(request.route == "DELETE import/\(uuid.uuidString.lowercased())")
+    #expect(request.url?.query == "status=pending")
   }
 
   @Test func theBodyGoesUpFromAFileAndTheFileIsGoneAfterwards() async throws {
-    let transport = FileOnlyTransport(answer: try KitFixture.data("import-preview"))
+    let transport = FileOnlyTransport(answer: try KitFixture.data("import-pending"))
     let client = APIClient(
       origin: ClientHarness.origin, transport: transport,
       secrets: InMemorySecretStore([ClientHarness.origin.description: "refresh-0"]),
       background: NoBackgroundExecution(), userAgent: ClientHarness.userAgent,
       accessToken: "live")
-    _ = try await client.importPreview(files: try files())
+    _ = try await client.uploadImport(files: try files())
     let upload = try #require(transport.uploads.first)
     #expect(transport.uploads.count == 1)
     #expect(upload.hadBody == false)
@@ -98,7 +135,7 @@ struct APIClientImportTests {
     }
     await #expect(
       throws: APIError.http(status: 415, message: "No reader here claims these bytes.")
-    ) { try await harness.client.importPreview(files: try files()) }
+    ) { try await harness.client.uploadImport(files: try files()) }
   }
 }
 

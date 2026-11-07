@@ -1,0 +1,60 @@
+{
+  "notes": [
+    {
+      "code": "tags_created",
+      "kind": null,
+      "collection": "dives",
+      "message": "1 tag is new to your logbook: drift.",
+      "count": 1,
+      "wheres": []
+    }
+  ],
+  "notes_truncated": 1,
+  "dives": [
+    {
+      "uuid": "194fec2e-7413-58a1-a610-13cbe01b3cd4",
+      "start_time": "2026-09-08T15:17:38+03:00",
+      "device": {
+        "brand": "suunto",
+        "model": "Suunto Ocean",
+        "serial": "D0000000",
+        "firmware": "2.51.28",
+        "name": "Ocean",
+        "dive_number": 3
+      },
+      "outcome": "modified",
+      "reason": null,
+      "notes": [
+        {
+          "code": "recording_filled",
+          "kind": null,
+          "collection": "dives",
+          "message": "A recording of this dive is one your logbook already has - the same device, the same start - so it filled in what that record was missing rather than being added again. Dive 1 kept everything it already recorded."
+        }
+      ],
+      "notes_truncated": 0
+    },
+    {
+      "uuid": null,
+      "start_time": null,
+      "device": null,
+      "outcome": "skipped",
+      "reason": "This dive's file could no longer be read when the import was applied, so nothing was written for it.",
+      "notes": [
+        {
+          "code": "review_unshown",
+          "kind": null,
+          "collection": "dives",
+          "message": "The review did not show this dive, because your logbook changed after it."
+        },
+        {
+          "code": "a_code_from_a_newer_reader",
+          "kind": "something_new",
+          "collection": null,
+          "message": "A sentence from a newer reader."
+        }
+      ],
+      "notes_truncated": 2
+    }
+  ]
+}

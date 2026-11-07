@@ -60,22 +60,20 @@ public enum PendingText {
     count == 1 ? OutboxText.unreadableItem : "\(count) saved by another version of the app"
   }
 
-  /// *2 files waiting*, to be read and imported.
+  /// *2 files waiting*, to be imported.
   public static func filesWaiting(_ count: Int) -> String {
     count == 1 ? "1 file waiting" : "\(count) files waiting"
   }
 
   public static let filesHeader = "Files to Import"
   public static let openImport = "Go to Import"
-  public static let filesReady = "Read and ready to import on the Import screen."
 
-  /// One waiting file's line beneath its name.
+  /// One file's line beneath its name.
   public static func fileStage(_ stage: InboxFileStage) -> String {
     switch stage {
-    case .unread: "Not read yet"
-    case .reading: "Reading…"
-    case .toReadAgain: "To be read again on the Import screen"
-    case .ready(let status): status
+    case .waiting: "Waiting to upload"
+    case .uploading: "Uploading…"
+    case .uploaded: "Uploaded, waiting for the import to be finished"
     case .refused(let reason): "Refused: " + reason
     }
   }

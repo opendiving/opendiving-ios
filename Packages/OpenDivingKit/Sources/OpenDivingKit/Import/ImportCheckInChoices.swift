@@ -1,6 +1,6 @@
 import Foundation
 
-/// The diver's answers to the check-in details and the portrait a preview offers: each
+/// The diver's answers to the check-in details and the portrait a review offers: each
 /// detail the import's unless kept, the portrait the import's unless kept. A kept detail is
 /// left out of the apply, which leaves the account's alone.
 public struct ImportCheckInChoices: Hashable, Sendable {
@@ -36,6 +36,13 @@ public struct ImportCheckInChoices: Hashable, Sendable {
       any = true
     }
     return any ? submission : nil
+  }
+
+  /// The apply's body over what `pending` offers.
+  public func apply(for pending: LogbookImportRead) -> LogbookImportApply {
+    LogbookImportApply(
+      checkInDetails: submission(for: pending.checkInDetails),
+      portrait: portrait(for: pending.portrait))
   }
 
   /// The apply's `portrait`, sent whichever way it went once one was offered.

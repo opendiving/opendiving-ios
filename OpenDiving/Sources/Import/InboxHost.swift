@@ -3,8 +3,8 @@ import SwiftUI
 
 extension View {
   /// Where files shared to the app arrive, for the window's whole life: the inbox model in the
-  /// environment, its reads on the connectivity seam's moments and on the session changing,
-  /// and the import screen shown when a file arrives signed in.
+  /// environment, told when the session changes, and the import screen shown when a file arrives
+  /// signed in.
   func inboxHost(_ inbox: InboxModel, session: Session) -> some View {
     modifier(InboxHost(inbox: inbox, session: session))
   }
@@ -28,7 +28,6 @@ private struct InboxHost: ViewModifier {
       // SwiftUI hands a document iOS opens in the app to `onOpenURL`, as it does a link; see
       // DECISIONS.md, "Shared files are imported types, copied in".
       .onOpenURL { receive($0) }
-      .task { await inbox.watch() }
       .onChange(of: session.state) { inbox.sessionChanged() }
       .onChange(of: session.accountLoaded) { inbox.sessionChanged() }
       .sheet(isPresented: $showingImport) {
@@ -65,7 +64,7 @@ private struct InboxHost: ViewModifier {
       showingImport = true
     case .kept(_, signedIn: false):
       notice = Notice(
-        title: "The file is waiting", message: "It is read for import once you sign in.")
+        title: "The file is waiting", message: "You can upload it once you sign in.")
     case .notKept(let reason):
       try? FileManager.default.removeItem(at: staged)
       notice = Notice(title: "The file was not kept", message: reason)

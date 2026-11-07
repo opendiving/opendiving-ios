@@ -1,29 +1,31 @@
 import Foundation
 import Observation
 
-/// The import screen's model over the inbox of the account the session names: files in, the
-/// reads, the apply.
+/// The import screen's model over the inbox of the account the session names and the import the
+/// server holds for it: files in, the upload, the apply and the discard.
 ///
-/// **When a read runs.** Every read sends every waiting file, against a counter of imports an
-/// hour the apply shares, so the app reads on its own only to cover an inbox no read covers —
-/// once the account has loaded in this process, when a file arrives into it, and at the
-/// connectivity seam's moments — and never while the account is unknown, when the inbox it
-/// would read could be another account's, nor while the session's connectivity reports no
-/// route: the files wait for the moment one appears. A change to a covered inbox marks its read
-/// stale and the next read is the diver's tap, which tries with or without a route. One read
-/// runs at a time; a file arriving during one is covered by one more when it is answered, and a
-/// read that never reached the server leaves nothing and starts nothing, and says so only
-/// when the diver tapped it.
+/// **An upload is a tap.** It creates a pending import, sealed against more files and blocking
+/// every other device, so nothing uploads on an arrival, on the account loading or on a
+/// connectivity moment; the tap tries with or without a route.
+///
+/// **The phone keeps what it sent until the import is seen applied.** A download archive is the
+/// only copy of its dives, and a pending import can be discarded on any device or expire. A
+/// pending read that does not name the import a file recorded says nothing about it, since
+/// another device's apply and a discard or an expiry answer alike, so that import is read itself:
+/// `applied` removes its files, a 404 returns them to waiting. A server's answer that is neither
+/// leaves everything as it was.
+///
+/// One upload, apply or discard runs at a time, and a pending read in flight gives way to it.
 @MainActor
 @Observable
 public final class InboxModel {
   public enum Phase: Hashable, Sendable {
-    case idle, reading, importing
+    case idle, uploading, importing, discarding
   }
 
   /// Where a file handed to the app went.
   public enum Intake: Hashable, Sendable {
-    /// Into the inbox of `account`; `signedIn` says whether the session can read it now.
+    /// Into the inbox of `account`; `signedIn` says whether the session can upload it now.
     case kept(account: UUID, signedIn: Bool)
     /// Nowhere, and why, in a sentence for the diver.
     case notKept(String)
@@ -32,23 +34,26 @@ public final class InboxModel {
   public static let noAccountSentence = "Choose a server and sign in, then share the file again."
   public static let accountLoadingSentence = "Your account is still loading; share the file again."
 
+  /// Every file the phone keeps: the ones waiting to upload, and the ones an import holds.
   public private(set) var files: [InboxFile] = []
-  public private(set) var read: InboxRead?
+  /// The account's pending import as last read, whichever device uploaded it.
+  public private(set) var pending: LogbookImportRead?
   public private(set) var phase = Phase.idle
   /// The last apply's answer, shown in place of the review until ``dismissResult()``.
-  public private(set) var result: ImportResult?
+  public private(set) var result: LogbookImportRead?
   /// The result's numbering sentence, where the import tangled the log's numbering.
   public private(set) var resultNumbering: String?
-  /// Why the last apply failed.
+  /// Why the last apply or discard failed.
   public private(set) var applyError: String?
-  /// Why the read the diver last tapped never reached the server, until the next read starts.
-  public private(set) var readError: String?
+  /// Why the last upload failed, until the next starts.
+  public private(set) var uploadError: String?
 
+  /// The files the upload in flight sent.
+  private var sending: Set<UUID> = []
   @ObservationIgnored private let session: Session
+  /// The upload, the apply or the discard in flight.
+  @ObservationIgnored private var workTask: Task<Void, Never>?
   @ObservationIgnored private var readTask: Task<Void, Never>?
-  @ObservationIgnored private var applyTask: Task<Void, Never>?
-  /// A file arrived during the read in flight.
-  @ObservationIgnored private var followUp = false
   @ObservationIgnored private var shownAccount: UUID?
 
   public init(session: Session) {
@@ -61,7 +66,7 @@ public final class InboxModel {
 
   // MARK: - What the screen shows
 
-  /// Whether the account has loaded in this process, so reads and imports can run.
+  /// Whether the account has loaded in this process, so files can be uploaded and imported.
   public var isAccountLoaded: Bool { session.accountLoaded }
 
   /// The units the rows print in: the account's, or as last read while it is unknown.
@@ -73,62 +78,54 @@ public final class InboxModel {
     return settings.units
   }
 
-  /// Why one file is left out of every read, or nil.
+  /// Why one file is left out of every upload, or nil.
   public func refusal(for file: InboxFile) -> String? {
     ImportBounds.fileRefusal(filename: file.filename, byteSize: file.byteSize)
   }
 
-  /// The files a read sends: every waiting file the bounds do not refuse.
-  public var sendable: [InboxFile] { files.filter { refusal(for: $0) == nil } }
+  /// The files no upload has taken.
+  public var waiting: [InboxFile] { files.filter { $0.uploadedInto == nil } }
+
+  /// The files an upload sends: every waiting file the bounds do not refuse.
+  public var sendable: [InboxFile] { waiting.filter { refusal(for: $0) == nil } }
 
   /// Why the files cannot go as one import, or nil.
   public var selectionRefusal: String? {
     ImportBounds.selectionRefusal(byteSizes: sendable.map(\.byteSize))
   }
 
-  /// *2 files waiting; they are read when the server can be reached*, while no read covers the
-  /// inbox, the files can go as one import and there is no route to start one over.
-  public var waitingForRoute: String? {
-    guard session.accountLoaded, phase == .idle, read == nil, !sendable.isEmpty,
-      selectionRefusal == nil, !session.connectivity.isRouteAvailable
-    else { return nil }
-    return ImportText.waitingForRoute(sendable.count)
+  /// Whether *Upload* can be tapped.
+  public var canUpload: Bool {
+    session.accountLoaded && phase == .idle && pending == nil && !sendable.isEmpty
+      && selectionRefusal == nil
   }
 
-  /// Whether *Read the files* can be tapped.
-  public var canRead: Bool {
-    session.accountLoaded && phase == .idle && !sendable.isEmpty && selectionRefusal == nil
+  /// Said beside *Upload* while files wait behind a pending import.
+  public var uploadHold: String? {
+    pending != nil && !waiting.isEmpty ? ImportText.pendingBlocksUpload : nil
   }
 
-  /// The preview *Import* applies, when one is held and nothing has changed since.
-  public var importable: ImportPreview? {
-    guard let read, read.isImportable else { return nil }
-    return read.preview
-  }
-
-  /// The row of `members` a waiting file became in the read on screen, and the rows of the
-  /// files a zip of it opened into.
+  /// The row of the pending import's `members` a kept file became, and the rows of the files a
+  /// zip of it opened into. An import's `part` is the file's place among those it sent, which
+  /// the inbox keeps in order and never removes while the import holds them.
   public func members(of file: InboxFile) -> (
     own: ImportMemberReport?, inside: [ImportMemberReport]
   ) {
-    guard let read, !read.stale, let preview = read.preview,
-      let part = read.files.firstIndex(of: file.id),
-      let row = preview.members.firstIndex(where: { $0.part == part && $0.container == nil })
+    guard let pending, file.uploadedInto == pending.uuid,
+      let part = files.filter({ $0.uploadedInto == pending.uuid }).firstIndex(of: file),
+      let row = pending.members.firstIndex(where: { $0.part == part && $0.container == nil })
     else { return (nil, []) }
-    return (preview.members[row], preview.members.filter { $0.container == row })
+    return (pending.members[row], pending.members.filter { $0.container == row })
   }
 
-  /// Where `file` stands: refused by the bounds, being read, not read yet, waiting to be read
-  /// again since the inbox changed, or read — refused, or as the server read it.
+  /// Where `file` stands: refused by the bounds or by the upload, waiting, being sent, or in an
+  /// import.
   public func stage(of file: InboxFile) -> InboxFileStage {
+    if file.uploadedInto != nil {
+      return members(of: file).own?.refusal.map(InboxFileStage.refused) ?? .uploaded
+    }
     if let refusal = refusal(for: file) { return .refused(refusal) }
-    if phase == .reading { return .reading }
-    guard let read else { return .unread }
-    guard !read.stale, read.files.contains(file.id) else { return .toReadAgain }
-    if let refusal = read.refusal { return .refused(refusal) }
-    guard let own = members(of: file).own else { return .toReadAgain }
-    if let refusal = own.refusal { return .refused(refusal) }
-    return .ready(ImportText.memberStatus(own).text)
+    return sending.contains(file.id) ? .uploading : .waiting
   }
 
   // MARK: - Files in
@@ -162,7 +159,6 @@ public final class InboxModel {
       )
     }
     contents.files += added
-    if contents.read != nil { contents.read?.stale = true }
     do {
       try store.save(contents)
     } catch {
@@ -170,7 +166,6 @@ public final class InboxModel {
       return .notKept("The file could not be kept on this phone: \(error).")
     }
     reload()
-    if !destination.marked, contents.read == nil { startRead(arrival: true) }
     let signedIn = if case .signedIn = session.state { true } else { false }
     return .kept(account: store.account, signedIn: signedIn)
   }
@@ -179,13 +174,14 @@ public final class InboxModel {
   public func removalNeedsConfirmation(_ file: InboxFile) -> Bool { file.download != nil }
 
   /// Whether *Remove all* asks first.
-  public var removeAllNeedsConfirmation: Bool { files.contains { $0.download != nil } }
+  public var removeAllNeedsConfirmation: Bool { waiting.contains { $0.download != nil } }
 
-  /// Replaces download archives waiting unimported with their union, in one save: the union
+  /// Replaces download archives waiting to upload with their union, in one save: the union
   /// taken in and recorded and the waiting files' records dropped together, their bytes
   /// discarded only after it, so a failed take leaves them where they were. Acts only while
-  /// the inbox is idle and every one of `waiting` is still in it, as a swap under a read or an
-  /// apply would pull the files out from under it; nil otherwise, for the caller to try again.
+  /// the inbox is idle and every one of `waiting` is still there and still waiting, as a swap
+  /// would otherwise pull a file out from under an upload or the import that holds it; nil
+  /// otherwise, for the caller to try again.
   func replaceDownloads(_ waiting: [InboxFile], with union: URL, download: InboxDownload)
     -> Intake?
   {
@@ -193,7 +189,9 @@ public final class InboxModel {
     let store = destination.store
     var contents = store.load()
     let ids = Set(waiting.map(\.id))
-    guard ids.isSubset(of: contents.files.map(\.id)) else { return nil }
+    guard ids.isSubset(of: contents.files.filter { $0.uploadedInto == nil }.map(\.id)) else {
+      return nil
+    }
     let taken: InboxFile
     do {
       taken = try store.take(union, moving: true, marked: destination.marked, download: download)
@@ -202,8 +200,6 @@ public final class InboxModel {
     }
     contents.files.removeAll { ids.contains($0.id) }
     contents.files.append(taken)
-    settleRead(&contents)
-    if contents.read != nil { contents.read?.stale = true }
     do {
       try store.save(contents)
     } catch {
@@ -212,7 +208,6 @@ public final class InboxModel {
     }
     store.discard(waiting)
     reload()
-    if !destination.marked, contents.read == nil { startRead(arrival: true) }
     let signedIn = if case .signedIn = session.state { true } else { false }
     return .kept(account: store.account, signedIn: signedIn)
   }
@@ -223,17 +218,24 @@ public final class InboxModel {
     destination.map { ($0.store.account, $0.marked) }
   }
 
-  /// The download archives waiting in that inbox with the given mark.
-  func waitingDownloads(marked: Bool) -> [InboxFile] {
+  /// Every download archive on the phone in that inbox with the given mark, an import's among
+  /// them: the dives a walk has no need to take again.
+  func keptDownloads(marked: Bool) -> [InboxFile] {
     guard let store = destination?.store else { return [] }
     return store.load().files.filter {
       $0.download != nil && $0.receivedBeforeAccountKnown == marked
     }
   }
 
+  /// The download archives of that mark no upload has taken: what a new download may unite
+  /// with, an uploaded archive being out of reach under the import that holds it.
+  func unitableDownloads(marked: Bool) -> [InboxFile] {
+    keptDownloads(marked: marked).filter { $0.uploadedInto == nil }
+  }
+
   /// Whether that inbox holds a full-export archive that is not a download — one the diver
   /// shared — which would make a download's the second archive of one import. Read from each
-  /// waiting zip's central directory, never from the server.
+  /// kept zip's central directory, never from the server.
   var holdsSharedArchive: Bool {
     guard let store = destination?.store else { return false }
     return store.load().files.contains {
@@ -244,59 +246,31 @@ public final class InboxModel {
   /// Where a file in that inbox keeps its bytes.
   func url(for file: InboxFile) -> URL? { destination?.store.url(for: file) }
 
-  /// Removes one waiting file. Reads nothing: the read on screen goes stale.
+  /// Removes one waiting file; a file an import holds stays until that import settles it.
   public func remove(_ file: InboxFile) {
-    guard phase == .idle, let store = destination?.store else { return }
+    guard phase == .idle, file.uploadedInto == nil, let store = destination?.store else { return }
     var contents = store.load()
     contents.files.removeAll { $0.id == file.id }
-    settleRead(&contents)
     try? store.save(contents)
     store.discard([file])
     reload()
   }
 
-  /// Empties the inbox, which leaves it uncovered: the next file is a batch's first.
+  /// Removes every waiting file.
   public func removeAll() {
     guard phase == .idle, let store = destination?.store else { return }
-    let contents = store.load()
-    try? store.save(InboxStore.Contents())
-    store.discard(contents.files)
+    var contents = store.load()
+    let removed = contents.files.filter { $0.uploadedInto == nil }
+    contents.files.removeAll { $0.uploadedInto == nil }
+    try? store.save(contents)
+    store.discard(removed)
     reload()
-  }
-
-  // MARK: - Reads
-
-  /// The diver's *Read the files* and *Read the files again*.
-  public func readAgain() {
-    guard phase == .idle else { return }
-    startRead(arrival: false, tapped: true)
-  }
-
-  /// The pending screen's *Sync now*: reads an inbox no read covers, trying with or without a
-  /// route, as the diver asked. A covered inbox is left to *Read the files again*, since every
-  /// read spends one of the hourly imports.
-  public func syncNow() {
-    guard canRead, read == nil else { return }
-    startRead(arrival: false, tapped: true)
-  }
-
-  /// A connectivity moment: reads an inbox no read covers, and nothing else.
-  public func handle(_ moment: ConnectivityMoment) {
-    guard phase == .idle, read == nil, !files.isEmpty else { return }
-    startRead(arrival: false)
-  }
-
-  /// Reads on every moment the session's connectivity reports, until cancelled.
-  public func watch() async {
-    for await moment in session.connectivity.moments() {
-      handle(moment)
-    }
   }
 
   /// The session changed — signed in or out, or the account loaded. A load moves the files
   /// received before it into the loaded account's inbox, and removes the dive computers'
   /// progress written before it for any other account; a session that ended before one leaves
-  /// them where they are. Then an uncovered inbox is read.
+  /// them where they are.
   public func sessionChanged() {
     if let origin = session.state.origin {
       let inboxes = InboxStore.all(store: session.store, origin: origin)
@@ -328,92 +302,232 @@ public final class InboxModel {
       }
     }
     reload()
-    if phase == .idle, read == nil, !files.isEmpty { startRead(arrival: false) }
   }
 
-  /// Waits for the read or the import in flight, and any read it started.
+  /// Waits for the upload, the apply or the discard in flight, and the pending read after it.
   public func settled() async {
-    while let task = readTask ?? applyTask {
+    while let task = workTask ?? readTask {
       await task.value
     }
   }
 
-  // MARK: - Import
+  // MARK: - The upload
 
-  /// The diver's *Import*: the files the preview was read from, in the order read, under the
-  /// same names, with its token and the check-in choices.
-  public func apply(_ choices: ImportCheckInChoices) {
-    guard phase == .idle, session.accountLoaded, let read, let preview = read.preview,
-      !read.stale, let store = destination?.store, let client = try? session.requireClient()
+  /// The diver's *Upload*: every waiting file the bounds admit, in one request. On the server's
+  /// 201 each records the import and the answer is the pending import; on anything else the
+  /// files stay waiting, and a 409 reads the pending import it names.
+  public func upload() {
+    guard canUpload, let store = destination?.store, let client = try? session.requireClient()
     else { return }
-    let contents = store.load()
-    let sent = read.files.compactMap { id in contents.files.first { $0.id == id } }
-    guard sent.count == read.files.count else {
-      var changed = contents
-      changed.read?.stale = true
-      try? store.save(changed)
-      reload()
-      return
-    }
-    phase = .importing
+    let sent = store.load().files.filter { $0.uploadedInto == nil && refusal(for: $0) == nil }
+    stopReading()
+    phase = .uploading
+    sending = Set(sent.map(\.id))
+    uploadError = nil
     applyError = nil
-    applyTask = Task {
-      let reread = await perform(choices, preview: preview, read: read, sent: sent, store, client)
-      phase = .idle
-      applyTask = nil
-      if reread { startRead(arrival: false) }
+    workTask = Task {
+      let reread = await send(sent, store, client)
+      sending = []
+      finishWork(reread: reread)
     }
   }
 
-  /// The apply itself; true when the files left waiting are to be read again: the API asked
-  /// for it, or a refused download archive stays.
-  private func perform(
-    _ choices: ImportCheckInChoices, preview: ImportPreview, read: InboxRead, sent: [InboxFile],
-    _ store: InboxStore, _ client: APIClient
-  ) async -> Bool {
+  /// The upload itself; true when the pending import is to be read.
+  private func send(_ sent: [InboxFile], _ store: InboxStore, _ client: APIClient) async -> Bool {
     do {
-      let result = try await client.importApply(
-        files: sent.map { ImportFile(file: store.url(for: $0), filename: $0.filename) },
-        token: preview.token, checkInDetails: choices.submission(for: preview.checkInDetails),
-        portrait: choices.portrait(for: preview.portrait))
-      let after = try? await client.diveNumbering()
-      // A download archive whose own row the import refused is the only copy of its dives,
-      // so it stays to be read again alone; every other file sent goes, another copy of a
-      // shared file existing wherever it was shared from.
-      let kept = Set(
-        sent.enumerated().filter { part, file in
-          file.download != nil
-            && result.members.contains {
-              $0.part == part && $0.container == nil && $0.refusal != nil
-            }
-        }.map(\.element.id))
-      var now = store.load()
-      let imported = Set(read.files).subtracting(kept)
-      now.files.removeAll { imported.contains($0.id) }
-      now.read = nil
-      try? store.save(now)
-      store.discard(sent.filter { !kept.contains($0.id) })
-      reload()
-      if let stores = AccountStores.current(session) {
-        OutboxHub.hub(for: stores.directory).listsChanged()
+      let held = try await client.uploadImport(
+        files: sent.map { ImportFile(file: store.url(for: $0), filename: $0.filename) })
+      let ids = Set(sent.map(\.id))
+      var contents = store.load()
+      for index in contents.files.indices where ids.contains(contents.files[index].id) {
+        contents.files[index].uploadedInto = held.uuid
       }
-      self.result = result
-      resultNumbering = ImportText.numberingSuggestion(
-        before: read.numbering, after: after, dives: result.dives)
-      return !kept.isEmpty
+      try? store.save(contents)
+      reload()
+      if shownAccount == store.account { pending = held }
     } catch let error as APIError {
-      if case .http(422, let message) = error, Self.isStalePreview(message) { return true }
-      if case .http(_, let message) = error {
-        applyError = message ?? ImportText.applyFailed
-      } else {
-        applyError = error.message
+      switch error {
+      case .http(let status, let message):
+        uploadError = status >= 500 ? ImportText.uploadFailed : message ?? ImportText.uploadFailed
+        return status == 409
+      case .unreachable: uploadError = ImportText.unreachable
+      case .secretStore: uploadError = error.message
+      case .notAnInstance, .unreadableResponse: uploadError = ImportText.uploadFailed
+      case .signedOut: break
       }
     } catch is CancellationError {
-      // The app left this server mid-import; its inbox is as it was, to import again there.
+      // The app left this server; its files wait for the next upload there.
     } catch {
+      uploadError = ImportText.uploadFailed
+    }
+    return false
+  }
+
+  // MARK: - The pending import
+
+  /// The Import screen appearing: reads the pending import and settles the imports the files
+  /// recorded. Never without a route, when it would wait a minute for nothing and hold nothing up.
+  public func readPending() {
+    guard phase == .idle, session.connectivity.isRouteAvailable else { return }
+    startReading()
+  }
+
+  private func startReading() {
+    guard readTask == nil, session.accountLoaded, let store = destination?.store,
+      let client = try? session.requireClient()
+    else { return }
+    readTask = Task {
+      await readAndSettle(store, client)
+      if !Task.isCancelled { readTask = nil }
+    }
+  }
+
+  /// A cancelled read's answers are dropped, however late they arrive.
+  private func stopReading() {
+    readTask?.cancel()
+    readTask = nil
+  }
+
+  private func readAndSettle(_ store: InboxStore, _ client: APIClient) async {
+    let held: LogbookImportRead?
+    do {
+      held = try await client.pendingImport()
+    } catch APIError.http(404, _) {
+      held = nil
+    } catch {
+      return
+    }
+    guard !Task.isCancelled else { return }
+    pending = held
+    var recorded = Set(store.load().files.compactMap(\.uploadedInto))
+    if let held { recorded.remove(held.uuid) }
+    for uuid in recorded {
+      do {
+        let found = try await client.logbookImport(uuid)
+        guard !Task.isCancelled else { return }
+        if found.isApplied { seenApplied(found, store) }
+      } catch APIError.http(404, _) {
+        guard !Task.isCancelled else { return }
+        returnToWaiting(uuid, store)
+      } catch {
+        return
+      }
+    }
+  }
+
+  /// An applied import's files leave the inbox, whichever device applied it. A download archive
+  /// whose own row the upload refused is the only copy of its dives, so it returns to waiting,
+  /// to go up alone; every other file goes, another copy of a shared file existing wherever it
+  /// was shared from.
+  private func seenApplied(_ read: LogbookImportRead, _ store: InboxStore) {
+    var contents = store.load()
+    let sent = contents.files.filter { $0.uploadedInto == read.uuid }
+    let kept = Set(
+      sent.enumerated().filter { part, file in
+        file.download != nil
+          && read.members.contains { $0.part == part && $0.container == nil && $0.refusal != nil }
+      }.map(\.element.id))
+    contents.files.removeAll { $0.uploadedInto == read.uuid && !kept.contains($0.id) }
+    for index in contents.files.indices where kept.contains(contents.files[index].id) {
+      contents.files[index].uploadedInto = nil
+    }
+    guard (try? store.save(contents)) != nil else { return }
+    store.discard(sent.filter { !kept.contains($0.id) })
+    reload()
+    if let stores = AccountStores.current(session) {
+      OutboxHub.hub(for: stores.directory).listsChanged()
+    }
+  }
+
+  /// The import is gone unapplied: its files wait to go up again.
+  private func returnToWaiting(_ uuid: UUID, _ store: InboxStore) {
+    var contents = store.load()
+    for index in contents.files.indices where contents.files[index].uploadedInto == uuid {
+      contents.files[index].uploadedInto = nil
+    }
+    try? store.save(contents)
+    reload()
+  }
+
+  // MARK: - Apply and discard
+
+  /// The diver's *Import*: writes the pending import as reviewed, with the check-in choices.
+  public func apply(_ choices: ImportCheckInChoices) {
+    guard phase == .idle, session.accountLoaded, let pending, let store = destination?.store,
+      let client = try? session.requireClient()
+    else { return }
+    stopReading()
+    phase = .importing
+    applyError = nil
+    workTask = Task {
+      finishWork(reread: await perform(choices, pending, store, client))
+    }
+  }
+
+  /// The apply itself; true when the pending import is to be read.
+  private func perform(
+    _ choices: ImportCheckInChoices, _ held: LogbookImportRead, _ store: InboxStore,
+    _ client: APIClient
+  ) async -> Bool {
+    do {
+      let applied = try await client.applyImport(held.uuid, choices.apply(for: held))
+      let after = try? await client.diveNumbering()
+      seenApplied(applied, store)
+      if shownAccount == store.account {
+        pending = nil
+        result = applied
+        resultNumbering = ImportText.numberingSuggestion(
+          before: applied.numbering, after: after, dives: applied.dives)
+      }
+      return true
+    } catch {
+      return refused(error)
+    }
+  }
+
+  /// The diver's *Discard*: deletes the pending import, whichever device uploaded it, and the
+  /// files it held here wait to go up again.
+  public func discard() {
+    guard phase == .idle, session.accountLoaded, let pending, let store = destination?.store,
+      let client = try? session.requireClient()
+    else { return }
+    stopReading()
+    phase = .discarding
+    applyError = nil
+    workTask = Task {
+      do {
+        try await client.deleteImport(pending.uuid, status: "pending")
+        returnToWaiting(pending.uuid, store)
+        if shownAccount == store.account { self.pending = nil }
+        finishWork(reread: true)
+      } catch {
+        finishWork(reread: refused(error))
+      }
+    }
+  }
+
+  /// Says why an apply or a discard failed; true when another device may have applied or
+  /// discarded the import, which the pending read then finds out.
+  private func refused(_ error: any Error) -> Bool {
+    switch error {
+    case APIError.http(let status, let message):
+      applyError = message ?? ImportText.applyFailed
+      return status == 404 || status == 409
+    case let error as APIError:
+      applyError = error.message
+    case is CancellationError:
+      // The app left this server mid-request; the import stands, to finish there.
+      break
+    default:
       applyError = ImportText.applyFailed
     }
     return false
+  }
+
+  private func finishWork(reread: Bool) {
+    phase = .idle
+    workTask = nil
+    if reread { startReading() }
   }
 
   /// Back from the result to the inbox.
@@ -440,123 +554,13 @@ public final class InboxModel {
     let store = destination?.store
     if store?.account != shownAccount {
       shownAccount = store?.account
+      stopReading()
+      pending = nil
       result = nil
       resultNumbering = nil
       applyError = nil
-      readError = nil
+      uploadError = nil
     }
-    let contents = store?.load() ?? InboxStore.Contents()
-    files = contents.files
-    read = contents.read
-  }
-
-  /// After a change to the files: an empty inbox holds no read, and a read of files that are
-  /// no longer all waiting is stale.
-  private func settleRead(_ contents: inout InboxStore.Contents) {
-    guard let read = contents.read else { return }
-    if contents.files.isEmpty {
-      contents.read = nil
-    } else if !Set(read.files).isSubset(of: contents.files.map(\.id)) {
-      contents.read?.stale = true
-    }
-  }
-
-  /// Starts a read, or — for a file arriving during one — asks for one more after it. With no
-  /// route only the diver's tap starts one: a read on its own would wait a minute for nothing.
-  private func startRead(arrival: Bool, tapped: Bool = false) {
-    guard session.accountLoaded, let store = destination?.store,
-      let client = try? session.requireClient()
-    else { return }
-    if readTask != nil {
-      if arrival { followUp = true }
-      return
-    }
-    guard tapped || session.connectivity.isRouteAvailable else { return }
-    phase = .reading
-    applyError = nil
-    readError = nil
-    readTask = Task {
-      defer {
-        phase = .idle
-        readTask = nil
-      }
-      repeat {
-        followUp = false
-        switch await readOnce(store, client) {
-        case .answered:
-          continue
-        case .nothingSent:
-          return
-        case .notSent(let error):
-          // Only the diver's tap says so: a read the app started on its own is tried again at
-          // the next moment, and an ended session shows as the signed-out app.
-          guard tapped else { return }
-          switch error {
-          case .unreachable: readError = ImportText.unreachable
-          case .secretStore: readError = error.message
-          default: break
-          }
-          return
-        }
-      } while followUp
-    }
-  }
-
-  private enum ReadEnd {
-    case answered, nothingSent
-    case notSent(APIError)
-  }
-
-  /// One read over every sendable file.
-  private func readOnce(_ store: InboxStore, _ client: APIClient) async -> ReadEnd {
-    var contents = store.load()
-    let sent = contents.files.filter { refusal(for: $0) == nil }
-    guard !sent.isEmpty,
-      ImportBounds.selectionRefusal(byteSizes: sent.map(\.byteSize)) == nil
-    else { return .nothingSent }
-    // A new read supersedes the one on screen before it is sent, so a file arriving while it
-    // is in flight finds the inbox uncovered.
-    contents.read = nil
-    try? store.save(contents)
-    reload()
-
-    let ids = sent.map(\.id)
-    var answer: InboxRead
-    do {
-      let preview = try await client.importPreview(
-        files: sent.map { ImportFile(file: store.url(for: $0), filename: $0.filename) })
-      let numbering = try? await client.diveNumbering()
-      answer = InboxRead(files: ids, preview: preview, numbering: numbering)
-    } catch let error as APIError {
-      switch error {
-      case .unreachable, .signedOut, .secretStore:
-        return .notSent(error)
-      case .http(let status, let message):
-        answer = InboxRead(
-          files: ids,
-          refusal: status >= 500 ? ImportText.readFailed : message ?? ImportText.readFailed)
-      case .notAnInstance, .unreadableResponse:
-        answer = InboxRead(files: ids, refusal: ImportText.readFailed)
-      }
-    } catch is CancellationError {
-      // The app left this server; its files wait unread for the next read there.
-      return .nothingSent
-    } catch {
-      answer = InboxRead(files: ids, refusal: ImportText.readFailed)
-    }
-    var now = store.load()
-    guard !now.files.isEmpty else { return .answered }
-    answer.stale = !Set(ids).isSubset(of: now.files.map(\.id))
-    now.read = answer
-    try? store.save(now)
-    reload()
-    return .answered
-  }
-
-  /// The two 422s that ask for the files to be previewed again: the token expired, or names
-  /// other files. The API sends no code to tell them from a refused check-in detail.
-  static func isStalePreview(_ message: String?) -> Bool {
-    guard let message else { return false }
-    return message.contains("Preview the files again") || message.contains("Preview them again")
+    files = store?.load().files ?? []
   }
 }

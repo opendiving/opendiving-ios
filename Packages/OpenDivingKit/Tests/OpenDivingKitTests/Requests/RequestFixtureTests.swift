@@ -67,6 +67,9 @@ struct RequestFixtureTests {
     #expect(checkIn.phone == .null)
     let portrait = try sendsItsFixture(ImportPortraitChoice.self, "request-import-portrait")
     #expect(portrait.take)
+    let apply = try sendsItsFixture(LogbookImportApply.self, "request-import-apply")
+    #expect(apply.checkInDetails?.phone == .null)
+    #expect(apply.portrait?.take == false)
   }
 
   /// The draft's `values` carry `DiveCreate`'s members and no others, so a member added to one

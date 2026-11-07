@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "uuid": "01a1b5d5-0182-786a-bc62-ed7fe7907b7d",
+      "created_at": "2026-11-07T11:46:38.082766+00:00",
+      "applied_at": "2026-11-07T11:46:38.295363+00:00",
+      "counts": {
+        "modified": 1
+      }
+    },
+    {
+      "uuid": "01a1b5d4-ffe3-74e8-ba32-c634e2040834",
+      "created_at": "2026-11-07T11:46:37.667622+00:00",
+      "applied_at": "2026-11-07T11:46:37.870387+00:00",
+      "counts": {
+        "new": 1
+      }
+    }
+  ],
+  "total_count": 2,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 20
+}

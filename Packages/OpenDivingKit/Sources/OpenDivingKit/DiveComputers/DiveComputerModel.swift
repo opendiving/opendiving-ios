@@ -26,11 +26,14 @@ import Observation
 /// it learned, so the next walk reads no summary this one read.
 ///
 /// **A dive waiting in the import screen is not downloaded again**: the walk is told the dives of
-/// the download archives of its mark, leaves them out and does not count them new.
+/// every download archive of its mark, uploaded or not, leaves them out and does not count them
+/// new.
 ///
 /// **One download is one archive and one inbox file.** Download archives of the same mark
-/// already waiting are replaced by the union, so the inbox never holds two that one import
-/// would refuse as a second archive; a download never unites across a mark.
+/// waiting to upload are replaced by the union, so a download alone never makes two that one
+/// import would refuse as a second archive; an uploaded archive stays out of the union, and one
+/// an import returned to waiting stays beside a newer download until the next one unites them.
+/// A download never unites across a mark.
 ///
 /// **From the walk's end to the hand-off** — the digests, the zip, the record — the model holds
 /// the session's background assertion, since once the link closes no Bluetooth event keeps a
@@ -359,7 +362,7 @@ public final class DiveComputerModel {
     outcome = nil
     cancelRequested = false
     let store = DiveComputerStore(store: session.store, origin: origin, account: keeping.account)
-    let archives = inbox.waitingDownloads(marked: keeping.marked).compactMap(inbox.url(for:))
+    let archives = inbox.keptDownloads(marked: keeping.marked).compactMap(inbox.url(for:))
     downloadTask = Task {
       await walk(computer, all: all, store: store, waitingIn: archives)
       rebuildRows()
@@ -583,7 +586,7 @@ public final class DiveComputerModel {
   }
 
   /// Gives the archive to the inbox: as one arrival, or as the union with the download
-  /// archives of its mark already waiting, once the inbox is idle.
+  /// archives of its mark waiting to upload, once the inbox is idle.
   private func handOver(_ written: ComputerArchiveWriter.Written, folder: URL) async
     -> InboxModel.Intake
   {
@@ -592,7 +595,7 @@ public final class DiveComputerModel {
       guard let marked = inbox.keeping?.marked else {
         return .notKept(DiveComputerText.accountLoading)
       }
-      let waiting = inbox.waitingDownloads(marked: marked)
+      let waiting = inbox.unitableDownloads(marked: marked)
       guard !waiting.isEmpty else {
         return inbox.receive([written.url], moving: true, download: written.download)
       }

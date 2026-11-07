@@ -53,7 +53,7 @@ struct OfflineScreensTests {
     defer { window?.isHidden = true }
 
     let routes = { transport.requests.map(StubTransport.routeKey) }
-    #expect(await F.eventually { routes().contains("GET user") && path.subscriberCount >= 2 })
+    #expect(await F.eventually { routes().contains("GET user") && path.subscriberCount >= 1 })
     try await Task.sleep(for: .milliseconds(100))
     #expect(!session.accountLoaded)
     #expect(!routes().contains("POST dive-site"))

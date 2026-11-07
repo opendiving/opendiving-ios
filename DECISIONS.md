@@ -80,19 +80,21 @@ exporting one would outrank its owner's declaration. `LSSupportsOpeningDocuments
 so iOS copies the file into `Documents/Inbox` and the app moves that copy into the account's
 inbox. SwiftUI's `onOpenURL` is what delivers it — a document as well as a link. Rejected: a share extension, which needs a second bundle id.
 
-## The inbox reads on its own only when no read covers it
+## The inbox uploads on a tap alone
 
-Every preview sends every waiting file and spends one of the hourly imports the apply also
-spends, so a file arriving into a covered inbox marks the read stale and waits for the diver's
-*Read the files again*. A refusal, a 429 and a 5xx are kept like a preview, so the app never
-retries what the server answered.
+An upload creates a pending import the server seals and that blocks every other device, so the
+app never uploads on its own: files arriving from the share sheet, the picker and a download wait
+in the inbox for *Upload*, and an account load or a route appearing sends nothing. A refusal, a
+429 and a 5xx show their sentence and the files wait. Rejected: uploading on arrival, which turns
+a second computer's download into a 409.
 
 ## What the app starts on its own waits for a route
 
 Every request waits for connectivity, so that a local-network server's first request outlasts the
 Local Network prompt; offline, that is a minute's spinner and then a failure. So an outbox flush
-or an inbox read the app starts itself does not start while the path reports no route, and a
-route appearing starts it. *Sync now* and *Read the files* still try: the diver asked. A create
+the app starts itself does not start while the path reports no route, and a route appearing
+starts it; the Import screen's read of the pending import waits for its next appearance. *Sync
+now* and *Upload* still try: the diver asked. A create
 sent with no route that fails unreachable with none having appeared since waited on the phone,
 so it stays unattempted — editable, and a form's draft create still withdrawn when the dive is
 logged; one that saw a route come and go may have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a request made during
@@ -219,16 +221,17 @@ their prototypes at every pin move. Every live manifest record is taken, where l
 per-page slice drops live dives that deleted ones sit among. Rejected: a list read on a second
 connection, which rests on the Perdix surviving libdivecomputer's shutdown write.
 
-## A download's dives carry derived uuids, and waiting downloads are one union
+## A download's dives carry derived uuids, and downloads waiting to upload are one union
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint,
 so a re-download is a dive the account already holds and links. One import restores one
-full-export archive, so a download arriving beside unimported downloads of the same mark
+full-export archive, so a download arriving beside downloads of the same mark not yet uploaded
 replaces them with their union — each dive once by uuid, each unnamed member once by digest —
-in one inbox save, while the inbox is idle. A walk leaves out a new entry whose uuid is among
-the dives waiting under its mark, counting it neither new nor downloaded. Rejected: a random
-uuid, which leaves every dedupe to the recording gates; an archive per dive; downloading a
-waiting dive again for the union to drop.
+in one inbox save, while the inbox is idle. An uploaded archive is never swapped out from under
+its import, and one returned to waiting waits beside a newer download, uniting being the download
+code's alone. A walk leaves out a new entry whose uuid is among the dives kept under its mark,
+uploaded or not, counting it neither new nor downloaded. Rejected: a random uuid, which leaves
+every dedupe to the recording gates; downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 
@@ -269,12 +272,15 @@ never read and which would be an app-side mapping beside the reader's.
 
 ## The import keeps a refused download, and a union never crosses a mark
 
-A download archive is the only copy of its dives until imported, and the import refuses a second
-full-export archive as a row, not the request. So the apply discards what it sent except a
-download whose own row was refused, which waits to be read again alone; a refused shared file
-goes as before, another copy existing. A download unites only with waiting downloads of its own
-mark, so the load settles a marked one as it settles any marked file. Rejected: refusing a
-shared archive while a download waits.
+A download archive is the only copy of its dives until imported, and the computer's fingerprint
+has moved past them, while a pending import can be discarded anywhere or expire. So an uploaded
+file stays on the phone, recording its import, and leaves when that import is seen applied, from
+whichever device applied it; a 404 returns it to waiting. A pending 404 proves neither, so the
+recorded import is read itself. The import refuses a second full-export archive as a row, so a
+download whose own row was refused returns to waiting to go up alone; a refused shared file goes,
+another copy existing. A download unites only with downloads of its own mark, so the load settles
+a marked one as it settles any marked file. Rejected: deleting a sent file at the upload; refusing
+a shared archive while a download waits.
 
 ## The app's tests assert what a screen is given, not the text it draws
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// What the phone holds that the server does not have yet, above the Dives list: the drafts,
 /// the writes waiting, what could not be saved, what is done but said once, and the files
-/// waiting to be read — each row omitted when it counts nothing, and the whole section when
+/// waiting to import — each row omitted when it counts nothing, and the whole section when
 /// they all do. Tapping it opens the pending screen.
 struct PendingSection: View {
   @Environment(OutboxModel.self) private var outbox
