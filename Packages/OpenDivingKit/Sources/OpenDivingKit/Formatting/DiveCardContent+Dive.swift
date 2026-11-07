@@ -92,8 +92,7 @@ extension DiveCardContent {
       fixes: places.fixes)
   }
 
-  /// A dive read's card, where the list items' fields are the read's own and it has no outline.
-  /// It owed decompression where the first recording with a profile reached a ceiling, the
+  /// A dive read's card, which has no outline, the read carrying none. The dive owed decompression where the first recording with a profile reached a ceiling, the
   /// question a list row's `deco` answers.
   static func dive(_ dive: DiveReadWithMixtures, units: UnitSystem) -> DiveCardContent {
     let charted = dive.recordings.sorted { $0.ordinal < $1.ordinal }.first { $0.profile != nil }
