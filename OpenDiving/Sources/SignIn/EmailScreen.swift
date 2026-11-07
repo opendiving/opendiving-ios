@@ -13,6 +13,7 @@ struct EmailScreen: View {
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
   @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
+  @ScaledMetric(relativeTo: .title) private var wordmarkHeight: CGFloat = 28
 
   @FocusState private var focused: Bool
 
@@ -125,8 +126,11 @@ struct EmailScreen: View {
       Image(OpenDivingKit.Icon.dive)
         .font(.largeTitle)
         .foregroundStyle(Color.brandCoral)
-      Text(verbatim: "OpenDiving")
-        .font(.system(.title, design: .rounded, weight: .bold))
+      // The web's wordmark, Outfit Bold, as outlines: the app carries no copy of the font.
+      Image("Wordmark")
+        .resizable()
+        .scaledToFit()
+        .frame(height: wordmarkHeight)
     }
     .frame(maxWidth: .infinity)
     .padding(.top, 32)
