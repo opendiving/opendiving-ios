@@ -12,6 +12,10 @@ public struct GearItemFormValues: Codable, Hashable, Sendable {
   /// Bar.
   public var workingPressure: Double?
   public var material: String?
+  /// What the last Volume preset wrote into each, which the next pick may replace; a figure the
+  /// diver set since no longer matches and stays.
+  var presetWorkingPressure: Double?
+  var presetMaterial: String?
 
   /// `type` is the host's preset — a tank's cylinder picker opens the dialog as a cylinder —
   /// and `name` what was typed into the picker before *Add*.
