@@ -42,11 +42,12 @@ struct RecordMeasuredField: View {
     }
     .onAppear { text = RecordEntryUnits.text(value, measure, units) }
     .onChange(of: units) { text = RecordEntryUnits.text(value, measure, units) }
-    // A value set from outside while the box holds no number, a preset's rating, shows in it; a
-    // number the diver typed stays as typed, even where the field stores it rounded.
+    // A value set from outside the box, a preset's rating, shows in it; one the box just
+    // committed already reads as typed.
     .onChange(of: value) { _, new in
-      if case .success(.some) = RecordEntryUnits.value(text, measure, units) { return }
-      text = RecordEntryUnits.text(new, measure, units)
+      if RecordEntryUnits.value(text, measure, units) != .success(new) {
+        text = RecordEntryUnits.text(new, measure, units)
+      }
     }
     .onChange(of: text) { commit() }
   }
