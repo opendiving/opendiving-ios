@@ -299,13 +299,13 @@ public final class SignInFlow {
     emailError = nil
   }
 
-  public var canSendCode: Bool {
-    !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isRequestingCode
+  public var isEmailEmpty: Bool {
+    email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
   /// Mails a code to the address and moves on to entering it.
   public func sendCode() async {
-    guard canSendCode else { return }
+    guard !isEmailEmpty, !isRequestingCode else { return }
     let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
     notice = nil
     isRequestingCode = true

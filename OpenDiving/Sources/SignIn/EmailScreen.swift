@@ -12,6 +12,7 @@ struct EmailScreen: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
+  @ScaledMetric(relativeTo: .body) private var spinnerWidth: CGFloat = 20
 
   @FocusState private var focused: Bool
 
@@ -49,22 +50,23 @@ struct EmailScreen: View {
       }
       Section {
         Button(action: send) {
-          Group {
-            if flow.isRequestingCode {
-              HStack {
-                ProgressView().tint(.white)
-                Text("Sending…")
+          // Held in place under the spinner, so the button keeps its size.
+          Text("Sign in")
+            .bold()
+            .opacity(flow.isRequestingCode ? 0 : 1)
+            .overlay {
+              if flow.isRequestingCode {
+                BubbleSpinner(width: spinnerWidth).foregroundStyle(.white)
               }
-            } else {
-              Text("Send code")
             }
-          }
-          .bold()
-          .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity)
         }
-        .brandProminentButton(.brandCoral)
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(.brandCoral)
         .controlSize(.large)
-        .disabled(!flow.canSendCode)
+        .accessibilityLabel("Sign in")
+        .accessibilityValue(flow.isRequestingCode ? "Sending" : "")
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
       }
@@ -123,7 +125,11 @@ struct EmailScreen: View {
   }
 
   private func send() {
-    Task { await flow.sendCode() }
+    if flow.isEmailEmpty {
+      focused = true
+    } else {
+      Task { await flow.sendCode() }
+    }
   }
 }
 
