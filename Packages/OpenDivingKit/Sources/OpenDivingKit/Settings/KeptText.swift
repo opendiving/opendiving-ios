@@ -6,17 +6,6 @@ import Foundation
 /// download history and the copies of the logbook kept for offline. The paired dive computers
 /// are the phone's, kept for no server, so none of these names them.
 public enum KeptText {
-  private static let afterSignOut =
-    "Your check-in sheet, your drafts, the dives waiting to sync, the files waiting to be read,"
-    + " your dive computer download history and the copies of your logbook kept for"
-    + " offline stay on this phone after you sign out"
-
-  /// Behind the signed-out screen's info button, for `origin`: only a server that can be
-  /// forgotten mentions it.
-  public static func signedOutKept(_ origin: ServerOrigin) -> String {
-    afterSignOut + (origin.isFlagship ? "." : ", until you forget the server.")
-  }
-
   /// Under the saved servers.
   public static let savedServersFooter =
     "Changing server keeps you signed in to the one you leave, and everything this phone keeps"

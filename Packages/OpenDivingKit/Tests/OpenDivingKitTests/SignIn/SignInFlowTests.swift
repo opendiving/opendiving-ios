@@ -475,6 +475,13 @@ struct SignInFlowTests {
     #expect(flow.emailError == "Too many sign-in requests. Try again later.")
   }
 
+  @Test func onlyAServerThatCanBeForgottenMentionsForgetting() {
+    for entry in [SignedOutEntry.waitingToSync, .checkInSheet] {
+      #expect(entry.info(on: origin).contains("until you forget the server"))
+      #expect(!entry.info(on: .flagship).contains("forget"))
+    }
+  }
+
   @Test func aBlankEmailIsEmptyAndRequestsNoCode() async {
     let flow = SignInFlow(
       session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))

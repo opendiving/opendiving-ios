@@ -12,7 +12,6 @@ struct EmailScreen: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
-  @State private var showsKept = false
   @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
 
   @FocusState private var focused: Bool
@@ -75,46 +74,27 @@ struct EmailScreen: View {
         ForEach(flow.signedOutEntries) { entry in
           switch entry {
           case .logDive:
-            Button {
-              logsDive = true
-            } label: {
+            SignedOutEntryRow(
+              info: entry.info(on: origin), infoLabel: "About logging a dive offline",
+              action: { logsDive = true }
+            ) {
               Label("Log a dive offline", icon: .dive)
             }
-            .accentRow()
           case .waitingToSync:
             if let waiting {
-              Button(action: showPending) {
+              SignedOutEntryRow(
+                info: entry.info(on: origin), infoLabel: "About what is waiting to sync",
+                action: showPending
+              ) {
                 Label(waiting, systemImage: "arrow.triangle.2.circlepath")
               }
-              .accentRow()
             }
           case .checkInSheet:
-            HStack {
-              Button(action: showSheet) {
-                Label("Your check-in sheet", icon: .idCard)
-                  .frame(maxWidth: .infinity, alignment: .leading)
-                  .contentShape(Rectangle())
-              }
-              .accentRow()
-              // Two buttons in one row: a style other than the default gives each its own taps
-              // rather than the row's.
-              .buttonStyle(.borderless)
-              Button {
-                showsKept = true
-              } label: {
-                Image(systemName: "info.circle")
-              }
-              .accentRow()
-              .buttonStyle(.borderless)
-              .accessibilityLabel("What stays on this phone")
-              .popover(isPresented: $showsKept) {
-                Text(KeptText.signedOutKept(origin))
-                  .font(.subheadline)
-                  .fixedSize(horizontal: false, vertical: true)
-                  .padding()
-                  .frame(width: 300)
-                  .presentationCompactAdaptation(.popover)
-              }
+            SignedOutEntryRow(
+              info: entry.info(on: origin), infoLabel: "About your check-in sheet",
+              action: showSheet
+            ) {
+              Label("Your check-in sheet", icon: .idCard)
             }
           }
         }
