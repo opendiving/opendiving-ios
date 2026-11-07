@@ -1,0 +1,268 @@
+{
+  "uuid": "01a1b5d4-ffe3-74e8-ba32-c634e2040834",
+  "status": "pending",
+  "created_at": "2026-11-07T11:46:37.667622+00:00",
+  "applied_at": null,
+  "expires_at": "2026-11-08T11:46:37.667622+00:00",
+  "archive": false,
+  "members": [
+    {
+      "part": 0,
+      "container": null,
+      "name": "dive-0214.fit",
+      "byte_size": 30630,
+      "sha256": "a759a35bf9b84a0c6301e48b2fb1243e67066a05f3b5c04af30b91c61a5890d1",
+      "format": "fit",
+      "opened": null,
+      "kept": true,
+      "not_kept": null,
+      "refusal": null
+    },
+    {
+      "part": 1,
+      "container": null,
+      "name": "notes.txt",
+      "byte_size": 27,
+      "sha256": "b73d28d44d2d3d3be710b21031777eb451b166c4a42dcc08ffd97eb50f30ba54",
+      "format": null,
+      "opened": null,
+      "kept": false,
+      "not_kept": null,
+      "refusal": "This file is not one OpenDiving reads."
+    }
+  ],
+  "collections": [
+    {
+      "collection": "dives",
+      "created": 1,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "trips",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "courses",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "sites",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "species",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "gear",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "gear_sets",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "gear_service_schedules",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "gear_service_records",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "certifications",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "contacts",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    },
+    {
+      "collection": "people",
+      "created": 0,
+      "linked": 0,
+      "skipped": 0
+    }
+  ],
+  "files": {
+    "referenced": 0,
+    "restored": 0,
+    "not_contained": 0,
+    "skipped": 0
+  },
+  "dives": [
+    {
+      "uuid": "194fec2e-7413-58a1-a610-13cbe01b3cd4",
+      "outcome": "new",
+      "dive": {
+        "uuid": "194fec2e-7413-58a1-a610-13cbe01b3cd4",
+        "entry_latitude": null,
+        "entry_longitude": null,
+        "exit_latitude": 28.496523,
+        "exit_longitude": 34.516778,
+        "dive_number": 1,
+        "start_time": "2026-09-08T15:17:38+03:00",
+        "submerged_time": 3063,
+        "max_depth": 19.04,
+        "avg_depth": 10.73,
+        "bottom_temperature": 28.0,
+        "visibility": null,
+        "weight": null,
+        "water_type": null,
+        "altitude": null,
+        "type": null,
+        "rating": null,
+        "air_temperature": null,
+        "current": null,
+        "waves": null,
+        "weather": null,
+        "entry_type": null,
+        "boat_name": null,
+        "notes": "",
+        "user_uuid": "01a1b5d4-feaf-75c8-b936-068f9ad96542",
+        "trip_uuid": null,
+        "course_uuid": null,
+        "contact_uuid": null,
+        "created_at": "2026-11-07T11:46:37.547136Z",
+        "dive_sites": [],
+        "gear_items": [],
+        "mixtures": [
+          {
+            "volume": null,
+            "start_pressure": null,
+            "end_pressure": null,
+            "oxygen": 33.0,
+            "helium": 0.0,
+            "po2_limit": null,
+            "gas_number": null,
+            "role": null,
+            "usage": null,
+            "id": 1,
+            "gear_item": null
+          }
+        ],
+        "sightings": [],
+        "people": [],
+        "tags": [],
+        "recordings": [
+          {
+            "cns_start": null,
+            "cns_end": 9.0,
+            "otu_start": null,
+            "otu_end": 22.0,
+            "surface_pressure_bar": null,
+            "uuid": "01a1b5d4-ff7f-75b6-b378-c75c0563a087",
+            "ordinal": 0,
+            "device": {
+              "brand": "suunto",
+              "model": "Suunto Ocean",
+              "serial": null,
+              "firmware": null,
+              "name": null,
+              "dive_number": 3
+            },
+            "mode": null,
+            "deco_model": {
+              "algorithm": null,
+              "name": null,
+              "gf_low": 50,
+              "gf_high": 85,
+              "conservatism": null
+            },
+            "salinity": null,
+            "started_at": "2026-09-08T15:17:38+03:00",
+            "start_on_dive_axis": 0,
+            "files": [
+              {
+                "uuid": "01a1b5d4-ff85-70a2-92d4-d906d278d5df",
+                "original_filename": "dive-0214.fit",
+                "content_type": "application/vnd.ant.fit",
+                "byte_size": 30630,
+                "parser_key": "fit",
+                "updated_at": null,
+                "entry_latitude": null,
+                "entry_longitude": null,
+                "attach_order": 0
+              }
+            ],
+            "profile": {
+              "uuid": "01a1b5d4-ff91-7c80-a1a2-90ca1af1fcc9",
+              "duration": 3473000,
+              "depth_sample_count": 361,
+              "provenance": "file",
+              "channels": [
+                "depth",
+                "temperature"
+              ],
+              "event_count": 0,
+              "max_depth": 19.0,
+              "max_ceiling": null,
+              "min_temperature": 28.0,
+              "max_temperature": 30.0,
+              "min_pressure": null,
+              "max_pressure": null,
+              "max_heart_rate": null,
+              "average_heart_rate": null,
+              "updated_at": null
+            },
+            "updated_at": null
+          }
+        ],
+        "gas_use": null,
+        "conditions": null
+      },
+      "changes": [],
+      "start_time": "2026-09-08T15:17:38+03:00",
+      "device": {
+        "brand": "suunto",
+        "model": "Suunto Ocean",
+        "serial": null,
+        "firmware": null,
+        "name": null,
+        "dive_number": 3
+      },
+      "members": [
+        0
+      ],
+      "reason": null
+    }
+  ],
+  "check_in_details": [
+    {
+      "detail": "email",
+      "account": null,
+      "proposed": "desk@example.org"
+    }
+  ],
+  "portrait": null,
+  "numbering": {
+    "total_dives": 0,
+    "lowest": null,
+    "highest": null,
+    "missing_count": 0,
+    "duplicate_count": 0,
+    "out_of_date_order_count": 0,
+    "is_sequential": false
+  }
+}

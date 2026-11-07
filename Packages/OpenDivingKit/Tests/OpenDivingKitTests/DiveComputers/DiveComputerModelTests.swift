@@ -18,8 +18,7 @@ struct DiveComputerModelTests {
     .appendingPathComponent("DiveComputerModelTests-\(UUID().uuidString)", isDirectory: true)
   private let log = EventLog()
 
-  /// A session signed in, with the account loaded unless `loaded` is false. No route, so the
-  /// inbox reads nothing on its own.
+  /// A session signed in, with the account loaded unless `loaded` is false, and no route.
   private func session(_ server: ImportServer, loaded: Bool = true) async throws -> Session {
     let route = SwitchedRoute()
     route.isRouteAvailable = false
@@ -135,7 +134,7 @@ struct DiveComputerModelTests {
     await model.settled()
     #expect(link.fingerprintsSet == [nil, F.fingerprint(3), nil])
     #expect(model.outcome?.kind == .handedOver)
-    // Two download archives of one mark are one union, never two files.
+    // Two download archives of one mark, neither uploaded, are one union and not two files.
     #expect(inbox.files.count == 1)
     #expect(inbox.files.first?.download?.dives == 2)
   }
@@ -1076,6 +1075,77 @@ struct DiveComputerModelTests {
     let later = try await session(server, loaded: false)
     try await download(self.model(later, InboxModel(session: later), link))
     #expect(!link.waitingTests[2](F.perdix, F.fingerprint(3)))
+  }
+
+  private func perdix(_ fingerprint: UInt8) -> DownloadedDive {
+    DownloadedDive(
+      identity: F.perdix, fingerprint: F.fingerprint(fingerprint),
+      bytes: Data("perdix dive \(fingerprint)".utf8), reading: .dive(F.perdixDive))
+  }
+
+  /// A dive in an uploaded archive is on the phone until the import is applied, so the walk still
+  /// leaves it out; the archive itself is out of reach of the new download's union.
+  @Test func aDownloadBesideAnUploadedArchiveLeavesItAloneAndUnitesWithTheWaitingOnes()
+    async throws
+  {
+    let server = try ImportServer()
+    let session = try await session(server)
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
+      FakeDiveComputerLink.script(F.perdix, [perdix(4)]),
+      FakeDiveComputerLink.script(F.perdix, [perdix(5)]),
+    ]
+    let model = model(session, inbox, link)
+    try await download(model)
+    inbox.upload()
+    await inbox.settled()
+    let uploaded = try #require(inbox.files.first)
+    let held = try #require(uploaded.uploadedInto)
+
+    try await download(model)
+    #expect(link.waitingTests[1](F.perdix, F.fingerprint(3)))
+    #expect(inbox.files.count == 2)
+    #expect(inbox.files.first == uploaded)
+    #expect(inbox.files.last?.uploadedInto == nil)
+
+    try await download(model)
+    #expect(link.waitingTests[2](F.perdix, F.fingerprint(3)))
+    #expect(inbox.files.count == 2)
+    #expect(inbox.files.first?.uploadedInto == held)
+    #expect(inbox.files.first?.download == uploaded.download)
+    #expect(inbox.files.last?.download?.dives == 2)
+  }
+
+  /// A discard or an expiry hands an uploaded archive back; it is not a download arriving, so it
+  /// waits beside a newer one, and the next upload sends both for the api to refuse one as a row.
+  @Test func anArchiveReturnedToWaitingStaysBesideANewerDownloadAndBothGoUp() async throws {
+    let server = try ImportServer()
+    let session = try await session(server)
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
+      FakeDiveComputerLink.script(F.perdix, [perdix(4)]),
+    ]
+    let model = model(session, inbox, link)
+    try await download(model)
+    inbox.upload()
+    await inbox.settled()
+    try await download(model)
+
+    inbox.discard()
+    await inbox.settled()
+
+    #expect(inbox.files.count == 2)
+    #expect(inbox.files.map(\.uploadedInto) == [nil, nil])
+    let names = inbox.files.map(\.filename)
+    inbox.upload()
+    await inbox.settled()
+    #expect(server.uploads.last == names)
   }
 
   /// A completed walk whose every new dive already waits says so, offers *Download all dives*,

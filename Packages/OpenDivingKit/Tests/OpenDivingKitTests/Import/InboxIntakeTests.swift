@@ -44,7 +44,7 @@ struct InboxIntakeTests {
     #expect(
       try files.map { String(decoding: try Data(contentsOf: store.url(for: $0)), as: UTF8.self) }
         == ["one", "two"])
-    #expect(server.previews == [["dive.fit", "dive.fit"]])
+    #expect(server.uploads.isEmpty)
   }
 
   @Test func aFileBeforeTheLoadIsMarkedAndMovesToTheAccountTheLoadNames() async throws {
@@ -59,7 +59,6 @@ struct InboxIntakeTests {
 
     #expect(intake == .kept(account: ImportServer.accountA, signedIn: true))
     #expect(inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [true])
-    #expect(server.previews.isEmpty)
 
     server.signIn(as: ImportServer.accountB)
     try await session.loadAccount()
@@ -70,7 +69,6 @@ struct InboxIntakeTests {
     let moved = inbox(session, ImportServer.accountB).files
     #expect(moved.map(\.filename) == ["early.fit"])
     #expect(moved.map(\.receivedBeforeAccountKnown) == [false])
-    #expect(server.previews == [["early.fit"]])
   }
 
   @Test func aLoadNamingTheSameAccountClearsTheMark() async throws {
@@ -86,7 +84,6 @@ struct InboxIntakeTests {
 
     #expect(
       inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [false])
-    #expect(server.previews.count == 1)
   }
 
   @Test func withNoPointerYetAFileIsKeptNowhere() async throws {
@@ -125,7 +122,6 @@ struct InboxIntakeTests {
     #expect(intake == .kept(account: ImportServer.accountA, signedIn: false))
     #expect(
       inbox(session, ImportServer.accountA).files.map(\.receivedBeforeAccountKnown) == [false])
-    #expect(server.previews.isEmpty)
   }
 
   @Test func aSessionEndingBeforeTheLoadClearsTheMark() async throws {

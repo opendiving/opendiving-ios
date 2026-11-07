@@ -35,60 +35,86 @@ struct InboxDownloadTests {
         dives: 12)
     ], downloadedAt: DiveComputerFixtures.moment)
 
-  /// `import-result.json` with each part's own row refused or read as `refused` says.
-  private func result(refused: [Bool]) throws -> String {
-    var json = try #require(
-      try JSONSerialization.jsonObject(with: KitFixture.data("import-result")) as? [String: Any])
-    json["members"] = refused.enumerated().map { part, refused in
-      [
-        "part": part, "container": NSNull(), "name": "file-\(part)", "byte_size": 1,
-        "sha256": String(repeating: "0", count: 64), "format": refused ? NSNull() : "divejson",
-        "opened": NSNull(), "kept": false, "not_kept": NSNull(),
-        "refusal": refused
-          ? "This is a second full-export archive, and one import restores one. Import it on its own."
-          : NSNull(),
-      ] as [String: Any]
-    }
-    return String(decoding: try JSONSerialization.data(withJSONObject: json), as: UTF8.self)
-  }
+  private let archive = "shearwater-perdix-3_D9772626_2026-10-25T0920.zip"
 
-  @Test func theApplyKeepsARefusedDownloadToReadAloneAndDiscardsARefusedSharedFile() async throws {
+  @Test func anAppliedImportKeepsARefusedDownloadToGoUpAloneAndDropsARefusedSharedFile() async throws {
     let server = try ImportServer()
-    let answer = try result(refused: [true, true])
-    server.answerApply { .json(answer) }
+    server.refuse(parts: [0, 1])
     let model = try await loaded(server)
-    model.receive(
-      [try shared.make("shearwater-perdix-3_D9772626_2026-10-25T0920.zip")], moving: true,
-      download: download)
-    await model.settled()
+    model.receive([try shared.make(archive)], moving: true, download: download)
     model.receive([try shared.make("opendiving-export.zip")], moving: true)
+    model.upload()
     await model.settled()
-    model.readAgain()
-    await model.settled()
-    #expect(
-      server.previews.last
-        == ["shearwater-perdix-3_D9772626_2026-10-25T0920.zip", "opendiving-export.zip"])
+    #expect(server.uploads == [[archive, "opendiving-export.zip"]])
 
     model.apply(ImportCheckInChoices())
     await model.settled()
 
-    #expect(model.files.map(\.filename) == ["shearwater-perdix-3_D9772626_2026-10-25T0920.zip"])
+    #expect(model.files.map(\.filename) == [archive])
     #expect(model.files.first?.download == download)
+    #expect(model.files.first?.uploadedInto == nil)
     #expect(model.result != nil)
-    #expect(server.previews.last == ["shearwater-perdix-3_D9772626_2026-10-25T0920.zip"])
+
+    server.refuse(parts: [])
+    model.upload()
+    await model.settled()
+    #expect(server.uploads.last == [archive])
   }
 
-  @Test func aDownloadTheImportReadIsDiscardedLikeAnyFile() async throws {
+  @Test func anApplySeenFromElsewhereKeepsARefusedDownloadToo() async throws {
     let server = try ImportServer()
-    let answer = try result(refused: [false])
-    server.answerApply { .json(answer) }
+    server.refuse(parts: [1])
+    let model = try await loaded(server)
+    model.receive([try shared.make("first.zip")], moving: true, download: download)
+    model.receive([try shared.make("second.zip")], moving: true, download: download)
+    model.upload()
+    await model.settled()
+    server.applyElsewhere()
+
+    model.readPending()
+    await model.settled()
+
+    #expect(model.files.map(\.filename) == ["second.zip"])
+    #expect(model.files.first?.uploadedInto == nil)
+  }
+
+  @Test func aDownloadTheImportReadLeavesLikeAnyFile() async throws {
+    let server = try ImportServer()
     let model = try await loaded(server)
     model.receive([try shared.make("a.zip")], moving: true, download: download)
+    model.upload()
     await model.settled()
+    #expect(model.files.count == 1)
+
     model.apply(ImportCheckInChoices())
     await model.settled()
     #expect(model.files.isEmpty)
-    #expect(server.previews.count == 1)
+  }
+
+  @Test func theListsTellTheWalkAndTheUnionApart() async throws {
+    let server = try ImportServer()
+    let model = try await loaded(server)
+    model.receive([try shared.make("uploaded.zip")], moving: true, download: download)
+    model.upload()
+    await model.settled()
+    model.receive([try shared.make("waiting.zip")], moving: true, download: download)
+    model.receive([try shared.make("shared.fit")], moving: true)
+
+    #expect(model.keptDownloads(marked: false).map(\.filename) == ["uploaded.zip", "waiting.zip"])
+    #expect(model.unitableDownloads(marked: false).map(\.filename) == ["waiting.zip"])
+  }
+
+  @Test func aSwapNeverTakesAnArchiveAnUploadTookInTheMeantime() async throws {
+    let server = try ImportServer()
+    let model = try await loaded(server)
+    model.receive([try shared.make("a.zip")], moving: true, download: download)
+    let waiting = model.unitableDownloads(marked: false)
+    model.upload()
+    await model.settled()
+
+    let union = try shared.make("union.zip")
+    #expect(model.replaceDownloads(waiting, with: union, download: download) == nil)
+    #expect(model.files.map(\.filename) == ["a.zip"])
   }
 
   @Test func onlyADownloadAsksBeforeItIsRemoved() async throws {
