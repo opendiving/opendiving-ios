@@ -3,7 +3,7 @@ import SwiftUI
 
 /// What the import wrote: each dive it reached, opening the dive, then the rest of the report.
 struct ImportResultSections: View {
-  let result: ImportResult
+  let result: LogbookImportRead
   let numbering: String?
   let units: UnitSystem
   let onDone: () -> Void
@@ -31,7 +31,7 @@ struct ImportResultSections: View {
         Text(numbering).font(.footnote).foregroundStyle(.secondary)
       }
     }
-    ImportReportSections(report: result, archive: true)
+    ImportReportSections(report: result)
     Section {
       Button("Done", action: onDone)
         .accentRow()
@@ -43,7 +43,7 @@ struct ImportResultSections: View {
   NavigationStack {
     List {
       ImportResultSections(
-        result: ImportPreviewData.preview.report,
+        result: ImportPreviewData.pending,
         numbering: "Numbered #1–#3 — 2 dives share a number.", units: .metric
       ) {}
     }

@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One waiting file: what a download holds or the file's name, its size, and once read, what
-/// the server read it as — or why the bounds leave it out — with the files a zip of it opened
-/// into beneath it.
+/// One file the phone keeps: what a download holds or the file's name, its size, and where it
+/// stands — once uploaded, what the server read it as, with the files a zip of it opened into
+/// beneath it. A file an import holds cannot be removed until that import is settled.
 struct ImportFileRow: View {
   let file: InboxFile
 
@@ -33,11 +33,12 @@ struct ImportFileRow: View {
         )
         .font(.caption)
         .foregroundStyle(.secondary)
-        if let refusal = inbox.refusal(for: file) {
-          StatusLine(text: "Refused: " + refusal, refused: true)
-        } else if let own = members.own {
+        if let own = members.own {
           let status = ImportText.memberStatus(own)
           StatusLine(text: status.text, refused: status.refused)
+        } else {
+          let stage = inbox.stage(of: file)
+          StatusLine(text: PendingText.fileStage(stage), refused: stage.isRefused)
         }
         ForEach(Array(members.inside.enumerated()), id: \.offset) { _, child in
           let status = ImportText.memberStatus(child)
@@ -49,17 +50,19 @@ struct ImportFileRow: View {
         }
       }
       Spacer(minLength: 0)
-      Button(Self.removeLabel(file), systemImage: "trash") {
-        if inbox.removalNeedsConfirmation(file) {
-          confirming = true
-        } else {
-          inbox.remove(file)
+      if file.uploadedInto == nil {
+        Button(Self.removeLabel(file), systemImage: "trash") {
+          if inbox.removalNeedsConfirmation(file) {
+            confirming = true
+          } else {
+            inbox.remove(file)
+          }
         }
+        .labelStyle(.iconOnly)
+        .dangerRow()
+        .buttonStyle(.borderless)
+        .disabled(inbox.phase != .idle)
       }
-      .labelStyle(.iconOnly)
-      .dangerRow()
-      .buttonStyle(.borderless)
-      .disabled(inbox.phase != .idle)
     }
     .confirmationDialog(
       Self.removeLabel(file) + "?", isPresented: $confirming, titleVisibility: .visible

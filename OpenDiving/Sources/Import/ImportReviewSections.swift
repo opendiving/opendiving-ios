@@ -1,13 +1,14 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What the import would do, waiting for the diver's *Import*.
+/// What the import would do, waiting for the diver's *Import* or *Discard*.
 struct ImportReviewSections: View {
-  let preview: ImportPreview
+  let pending: LogbookImportRead
   let units: UnitSystem
   @Binding var choices: ImportCheckInChoices
-  let isImporting: Bool
+  let phase: InboxModel.Phase
   let onImport: () -> Void
+  let onDiscard: () -> Void
 
   var body: some View {
     Section {
@@ -16,31 +17,34 @@ struct ImportReviewSections: View {
         Text("Nothing has been written yet.").font(.subheadline).foregroundStyle(.secondary)
       }
     }
-    if !preview.dives.isEmpty {
-      Section("Dives (\(preview.dives.count))") {
+    if !pending.dives.isEmpty {
+      Section("Dives (\(pending.dives.count))") {
         ForEach(
-          ImportDiveRow.rows(preview.dives, members: preview.members, units: units, written: false)
+          ImportDiveRow.rows(pending.dives, members: pending.members, units: units, written: false)
         ) { row in
           ImportDiveRowView(row: row)
         }
       }
     }
-    ImportReportSections(report: preview.report, archive: preview.archive)
+    ImportReportSections(report: pending)
     ImportCheckInSection(
-      details: preview.checkInDetails, portrait: preview.portrait, choices: $choices)
+      details: pending.checkInDetails, portrait: pending.portrait, choices: $choices)
     Section {
       Button(action: onImport) {
-        if isImporting {
+        if phase == .importing {
           HStack(spacing: 8) {
             ProgressView()
             Text("Importing...")
           }
         } else {
-          Text(ImportText.buttonLabel(preview.dives)).fontWeight(.semibold)
+          Text(ImportText.buttonLabel(pending.dives)).fontWeight(.semibold)
         }
       }
       .accentRow()
-      .disabled(isImporting)
+      .disabled(phase != .idle)
+      Button("Discard", role: .destructive, action: onDiscard)
+        .dangerRow()
+        .disabled(phase != .idle)
     }
   }
 }
@@ -50,8 +54,8 @@ struct ImportReviewSections: View {
   NavigationStack {
     List {
       ImportReviewSections(
-        preview: ImportPreviewData.preview, units: .metric, choices: $choices, isImporting: false
-      ) {}
+        pending: ImportPreviewData.pending, units: .metric, choices: $choices, phase: .idle,
+        onImport: {}, onDiscard: {})
     }
   }
 }

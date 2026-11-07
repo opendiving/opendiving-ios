@@ -93,6 +93,6 @@ struct ImportCheckInSection: View {
   @Previewable @State var choices = ImportCheckInChoices()
   List {
     ImportCheckInSection(
-      details: ImportPreviewData.preview.checkInDetails, portrait: nil, choices: $choices)
+      details: ImportPreviewData.pending.checkInDetails, portrait: nil, choices: $choices)
   }
 }

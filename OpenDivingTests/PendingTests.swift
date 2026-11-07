@@ -67,22 +67,25 @@ struct PendingTests {
     #expect(window != nil)
   }
 
-  @Test func aFileTheAppReadShowsAsReadyAndSyncNowDoesNotReadItAgain() async throws {
-    let previews = Counter()
+  @Test func aFileWaitsToUploadThenShowsAsUploadedAndSyncNowSendsNothingOfTheInbox() async throws {
+    let uploads = Counter()
     let session = F.signedIn(
       F.directory(),
       transport: StubTransport { request in
         if let answer = F.account(request) { return answer }
-        guard StubTransport.routeKey(request) == "POST import/logbook/preview" else {
-          return F.notFound
-        }
-        _ = previews.next()
+        guard StubTransport.routeKey(request) == "POST imports" else { return F.notFound }
+        _ = uploads.next()
         return .json(
-          #"{"collections":[],"files":{"referenced":0,"restored":0,"not_contained":0,"skipped":0},"#
-            + #""notes":[],"notes_truncated":0,"members":[{"part":0,"container":null,"#
-            + #""name":"dive.fit","byte_size":2,"sha256":"00","format":"fit","opened":null,"#
-            + #""kept":true,"not_kept":null,"refusal":null}],"dives":[],"format":"fit","#
-            + #""version":"1","archive":false,"token":"t"}"#)
+          #"{"uuid":"01a1b5d5-0182-786a-bc62-ed7fe7907b7d","status":"pending","#
+            + #""created_at":"2026-11-07T11:46:38+00:00","applied_at":null,"expires_at":null,"#
+            + #""archive":false,"collections":[],"#
+            + #""files":{"referenced":0,"restored":0,"not_contained":0,"skipped":0},"#
+            + #""members":[{"part":0,"container":null,"name":"dive.fit","byte_size":2,"#
+            + #""sha256":"00","format":"fit","opened":null,"kept":true,"not_kept":null,"#
+            + #""refusal":null}],"dives":[],"check_in_details":[],"portrait":null,"#
+            + #""numbering":{"total_dives":0,"lowest":null,"highest":null,"missing_count":0,"#
+            + #""duplicate_count":0,"out_of_date_order_count":0,"is_sequential":false}}"#,
+          status: 201)
       })
     try await session.loadAccount()
     let outbox = OutboxModel(session: session)
@@ -93,20 +96,30 @@ struct PendingTests {
     _ = inbox.receive([file], moving: false)
     await inbox.settled()
 
+    #expect(inbox.files.map(inbox.stage(of:)).map(PendingText.fileStage) == ["Waiting to upload"])
+    #expect(PendingScreen.filesFooter(inbox) == nil)
+    outbox.syncNow()
+    await outbox.settled()
+    #expect(uploads.next() == 0)
+
+    inbox.upload()
+    await inbox.settled()
     #expect(
       inbox.files.map(inbox.stage(of:)).map(PendingText.fileStage) == [
-        "FIT · kept on its dive"
+        "Uploaded, waiting for the import to be finished"
       ])
-    #expect(PendingScreen.filesFooter(inbox) == PendingText.filesReady)
-    inbox.syncNow()
-    await inbox.settled()
-    #expect(previews.next() == 1)
+    #expect(uploads.next() == 2)
 
     let window = F.window(
       NavigationStack { PendingScreen() }
         .environment(session).environment(outbox).environment(inbox))
     defer { window?.isHidden = true }
     #expect(window != nil)
+
+    let screen = F.window(
+      NavigationStack { ImportView() }.environment(session).environment(inbox))
+    defer { screen?.isHidden = true }
+    #expect(screen != nil)
   }
 
   @Test func anEmptyOutboxDrawsNoSection() async throws {
