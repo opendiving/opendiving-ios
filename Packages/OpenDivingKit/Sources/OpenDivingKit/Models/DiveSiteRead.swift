@@ -49,4 +49,7 @@ public struct DiveSiteRead: Codable, Hashable, Sendable, Identifiable {
 
   /// A Commons record off the diver's list: its page shows it, and nothing of it can be edited.
   public var isUnsavedCommons: Bool { isCommons && !saved }
+
+  /// The reader's proposal of this site of theirs waits for a reviewer.
+  public var isWaitingForReview: Bool { proposal?.status == DiveSiteProposalStatus.waiting }
 }

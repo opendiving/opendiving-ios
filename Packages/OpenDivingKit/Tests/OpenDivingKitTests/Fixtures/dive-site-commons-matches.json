@@ -1,0 +1,28 @@
+[
+  {
+    "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f",
+    "name": "Blue Hole",
+    "other_names": ["The Blue Hole"],
+    "latitude": 28.5722,
+    "longitude": 34.5372,
+    "location_name": "Dahab",
+    "external_ids": [{ "registry": "openstreetmap", "identifier": "node/255316037" }],
+    "attribution": "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)",
+    "rule": "within_20_m",
+    "distance_metres": 12.4,
+    "qualifier_siblings": false
+  },
+  {
+    "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e70",
+    "name": "Blue Hole West",
+    "other_names": [],
+    "latitude": null,
+    "longitude": null,
+    "location_name": null,
+    "external_ids": [],
+    "attribution": null,
+    "rule": "identity",
+    "distance_metres": null,
+    "qualifier_siblings": true
+  }
+]

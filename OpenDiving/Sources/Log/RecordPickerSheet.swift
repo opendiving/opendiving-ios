@@ -25,7 +25,11 @@ struct RecordPickerSheet: View {
           onCommonsSite: { site in
             model.take(site)
             onCreated(site.ref)
-          }, onCreated: onCreated)
+          },
+          siteHandBack: SiteProposalHandBack(
+            onPlaced: { model.addSite($0) },
+            onReplaced: { model.swapSite($0, for: $1) }),
+          onCreated: onCreated)
       }, onPick: onPick)
   }
 }

@@ -41,6 +41,44 @@ struct APIClientWriteTests {
     }
   }
 
+  @Test func proposingIsAPostWithNoKeyAndAnsweredWithTheProposal() async throws {
+    let wire = uuid.uuidString.lowercased()
+    let page = try KitFixture.decode(
+      PaginatedListResponse<DiveSiteProposalRead>.self, "dive-site-proposals-page")
+    let row = try APICoding.encoder().encode(try #require(page.data.first))
+    let harness = harness([
+      "POST dive-site/\(wire)/proposals": .json(String(decoding: row, as: UTF8.self), status: 201)
+    ])
+    let body = DiveSiteProposalCreate(attestation: CommonsAttestations.newSite, message: "Hello")
+    let proposal = try await harness.client.proposeDiveSite(uuid, body)
+    #expect(proposal == page.data.first)
+    let request = try #require(harness.transport.requests.first)
+    #expect(request.idempotencyKey == nil)
+    let sent = try JSONValue.parse(try #require(request.httpBody))
+    #expect(sent.keys.sorted() == ["attestation", "message"])
+  }
+
+  @Test func replacingNamesTheRecordAndIsAnsweredWithIt() async throws {
+    let wire = uuid.uuidString.lowercased()
+    let record = UUID(uuidString: "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f")!
+    let harness = harness([
+      "POST dive-site/\(wire)/replace": .json(try KitFixture.text("dive-site-commons"))
+    ])
+    _ = try await harness.client.replaceDiveSite(uuid, with: record)
+    let body = try #require(harness.transport.requests.first?.httpBody)
+    #expect(
+      try JSONValue.parse(body)["commons_site_uuid"] == .string(record.uuidString.lowercased()))
+  }
+
+  @Test func theMatchesAreAPlainList() async throws {
+    let wire = uuid.uuidString.lowercased()
+    let harness = harness([
+      "GET dive-site/\(wire)/commons-matches": .json(
+        try KitFixture.text("dive-site-commons-matches"))
+    ])
+    #expect(try await harness.client.diveSiteCommonsMatches(uuid).count == 2)
+  }
+
   @Test func theProposalsAreAPagedRead() async throws {
     let harness = harness([
       "GET dive-site-proposals": .json(try KitFixture.text("dive-site-proposals-page"))

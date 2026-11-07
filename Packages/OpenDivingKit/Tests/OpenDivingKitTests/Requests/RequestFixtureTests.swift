@@ -31,6 +31,26 @@ struct RequestFixtureTests {
     _ = try sendsItsFixture(DiveSiteCreate.self, "request-dive-site-create")
   }
 
+  @Test func aProposalOfTheDiversOwnSiteNamesNoMembers() throws {
+    let proposal = try sendsItsFixture(
+      DiveSiteProposalCreate.self, "request-dive-site-proposal-create")
+    #expect(proposal.attestation == CommonsAttestations.newSite)
+    #expect(proposal.members == nil)
+  }
+
+  @Test func aProposedChangeNamesWhatItWantsDifferent() throws {
+    let proposal = try sendsItsFixture(
+      DiveSiteProposalCreate.self, "request-dive-site-proposal-change")
+    #expect(proposal.attestation == CommonsAttestations.change)
+    #expect(proposal.members?.locationName == .null)
+    #expect(proposal.members?.depthFrom == .value(5))
+  }
+
+  @Test func aReplaceNamesTheRecord() throws {
+    let replace = try sendsItsFixture(DiveSiteReplace.self, "request-dive-site-replace")
+    #expect(!replace.commonsSite.isLocal)
+  }
+
   @Test func tripCreate() throws {
     _ = try sendsItsFixture(TripCreate.self, "request-trip-create")
   }

@@ -7,7 +7,11 @@ struct CommonsSiteForm: View {
   let site: DiveSiteRead
   @State var model: RecordSheetModel<DiveSiteFormValues>
   let units: UnitSystem
+  /// Not over a refused edit, which Pending holds.
+  var offersChange = true
   var onDeleted: () -> Void = {}
+
+  @Environment(Session.self) private var session
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -28,10 +32,18 @@ struct CommonsSiteForm: View {
           }
         }
         SiteNotesSection(model: model)
+        if offersChange, session.isCommonsPrimary {
+          Section {
+            NavigationLink("Propose a change") {
+              ProposeChangeView(model: DiveSiteChangeModel(session: session, site: site))
+            }
+          }
+        }
       }
       .followsAddedTags(
         count: model.values.tags.count, id: SiteNotesSection.tagsField, proxy: proxy)
     }
+    .task { await session.loadServerInfo() }
   }
 
   private var deletion: RecordDeletion? {

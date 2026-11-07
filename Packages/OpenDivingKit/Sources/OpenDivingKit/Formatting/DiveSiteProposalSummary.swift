@@ -22,7 +22,65 @@ public enum DiveSiteProposalSummary {
     public var withdrawable: UUID?
   }
 
+  /// How the form for the diver's own site offers the choice between private and public.
+  public enum Choice: Hashable, Sendable {
+    /// Either can be chosen, and private is where it starts.
+    case open
+    /// A proposal waits: public, until it is withdrawn or decided.
+    case locked
+  }
+
+  /// A site of the diver's, as the form holds the choice. Public is not stored: it is what a
+  /// waiting proposal reads as, and choosing it is what starts one.
+  public enum Visibility: Hashable, Sendable, CaseIterable {
+    case `private`, `public`
+
+    public var label: String {
+      switch self {
+      case .private: "Private"
+      case .public: "Public"
+      }
+    }
+  }
+
   public static let waitingForReview = "Waiting for review"
+  public static let visibilityTitle = "Visibility"
+  public static let publicExplained =
+    "Public proposes this site to OpenDiving Commons: saving shows you what would be published, "
+    + "and a reviewer decides."
+  public static let lockedExplained =
+    "This site is waiting for review. Withdraw on the site's page is the way back to private."
+  public static let keptTitle = "Not Proposed Yet"
+  public static let keptOnThePhone =
+    "This site was kept on this phone and stays private. To propose it, choose Public again once "
+    + "it has synced."
+  public static let replaceTitle = "Replace with Commons site"
+  public static let changeExplained =
+    "Everyone goes on seeing this site as it is until a reviewer accepts the change. An accepted "
+    + "change is public and stays, whatever becomes of your account, and it is published without "
+    + "your name."
+  public static let changesNothing = "This changes nothing on the Commons site."
+  public static let replacedMessage =
+    "This site was replaced with a Commons site, so nothing of it can be changed here."
+
+  /// The choice the form offers on `site`, nil on a new site; none where the server takes no
+  /// proposals, and none on a Commons record.
+  public static func choice(_ site: DiveSiteRead?, isPrimary: Bool) -> Choice? {
+    guard isPrimary, site?.isCommons != true else { return nil }
+    return site?.isWaitingForReview == true ? .locked : .open
+  }
+
+  /// What the diver's own site being in the Commons says on its page.
+  public static func commonsMatch(_ match: DiveSiteCommonsMatch) -> String {
+    "This site is in OpenDiving Commons as \(match.name)."
+  }
+
+  /// What a replace does, said before it is done.
+  public static func replaceMessage(site: String, record: String) -> String {
+    "Your dives at \(site) will name \(record) instead, and your notes and tags move to it. "
+      + "\(site) is then deleted, with any proposal on it, and a dive draft naming it names "
+      + "\(record)."
+  }
 
   /// A waiting proposal's meaning for its kind with *Withdraw*, or a decline with its reason.
   /// A site's read carries no other status, and a later one draws no notice.

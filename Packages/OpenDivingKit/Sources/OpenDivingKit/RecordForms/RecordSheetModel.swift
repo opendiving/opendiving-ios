@@ -134,6 +134,11 @@ public final class RecordSheetModel<Values: RecordSheetValues> {
 }
 
 extension RecordSheetModel where Values == DiveSiteFormValues {
+  /// How what ``save()`` left queued for `ref` came out.
+  public func landing(of ref: RecordRef) async -> DiveSiteLanding {
+    await outbox.landing(ofSite: ref)
+  }
+
   /// Queues saving a Commons record to the diver's list instead of what the form holds. False,
   /// with the reason on screen, when the outbox refused it.
   public func saveToList(_ site: DiveSiteLookupItem) -> Bool {

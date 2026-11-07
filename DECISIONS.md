@@ -398,6 +398,22 @@ home screen and this app, so a change to the mark is made there and re-rendered 
 redrawn. A single 1024 px image is the whole set: iOS scales it, and derives the dark and tinted
 appearances from it.
 
+## Proposing is a direct call, and the flow opens once the save has landed
+
+Proposing, replacing and the matches go straight to the API through a Kit model, as a withdraw does:
+a 409, 422 or 429 belongs on the screen it was sent from, and the matches step has to be answered by
+a diver with the server's record in front of them. So choosing public queues the save like any
+site write, the form waits out the flush, and the flow opens on a fresh read; a pass ending with
+the write still queued keeps the site private and says so. The intent is not queued.
+Rejected: a queued proposal, whose attestation and answers would land in Pending, and a second kind
+of item, which has to survive a create landing under another uuid.
+
+## The attestations are a copy of the API's
+
+`CommonsAttestations` holds the words the API compares a proposal against, a third copy after the
+API's and the web's. An API rewording refuses every proposal from a phone until it is rebuilt, as a
+renamed field the Kit decodes blanks a screen, so a rewording ships with a change here.
+
 ## A page head's map is the instance's tiles, drawn only with the credit it names
 
 A dive's, a trip's or a site's head draws `GET /map-tiles` as the web composes them —

@@ -245,6 +245,13 @@ public actor APIClient {
     try await authorizedDecoded(DiveSiteRead.self, Call(path: "dive-site/\(Self.wire(uuid))"))
   }
 
+  /// `GET /dive-site/{uuid}/commons-matches`: the Commons records the diver's own site may be,
+  /// strongest first.
+  public func diveSiteCommonsMatches(_ uuid: UUID) async throws -> [DiveSiteCommonsMatchRead] {
+    try await authorizedDecoded(
+      [DiveSiteCommonsMatchRead].self, Call(path: "dive-site/\(Self.wire(uuid))/commons-matches"))
+  }
+
   /// `GET /dive-site-proposals`: the diver's own proposals, newest first. Only an instance that
   /// edits the Commons answers it.
   public func diveSiteProposals(page: Int, itemsPerPage: Int = listPageSize) async throws
