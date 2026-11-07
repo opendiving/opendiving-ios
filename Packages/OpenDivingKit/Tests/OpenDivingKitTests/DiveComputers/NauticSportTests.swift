@@ -46,12 +46,42 @@ struct NauticSportTests {
     #expect(NauticSport.isDive(stream(record(0x08, [0, 0, 3, 0xFF, 0x01]))))
   }
 
-  @Test func theWalkReadsLongRecordsAndStepsPastArtefacts() {
+  @Test func anActivityRecordIsFiveOrSixBytes() {
+    let running: [UInt8] = [0x08, 0x05, 0, 0, 3, 0x33, 0]
+    let scuba: [UInt8] = [0x08, 0x06, 0, 0, 51, 0x35, 0x31, 0]
+    #expect(NauticSport.id(in: stream(timeline, running)) == 3)
+    #expect(NauticSport.id(in: stream(timeline, scuba)) == 51)
+  }
+
+  @Test func theWalkReadsLongRecordsAndSixteenBitIds() {
     let long = record(0x22, [UInt8](repeating: 0x08, count: 300), long: true)
     #expect(NauticSport.id(in: stream(timeline, long, activity(3))) == 3)
-    // A GPS header whose length is not a GPS fix's is stepped past a byte at a time, and the
-    // walk finds the records after it.
-    #expect(NauticSport.id(in: stream(timeline, [0x0B, 0x02], activity(3))) == 3)
+    // 0x0108 shares the activity record's low byte and is not it.
+    let wide: [UInt8] = [0xFF, 0x08, 0x01, 0x05, 0, 0, 3, 0x33, 0]
+    #expect(NauticSport.id(in: stream(timeline, wide, activity(51))) == 51)
+    #expect(NauticSport.id(in: stream(timeline, wide)) == nil)
+  }
+
+  /// The walk stops at a record that does not fit: what it reached still counts, and past it the
+  /// entry names no sport and is kept.
+  @Test func theFirstActivityRecordBeforeABadRecordIsRead() {
+    let overrun: [UInt8] = [0x22, 0x10, 0x01]
+    let run = stream(timeline, activity(3), overrun)
+    #expect(NauticSport.id(in: run) == 3)
+    #expect(!NauticSport.isDive(run))
+    let unreachable = stream(timeline, overrun, activity(3))
+    #expect(NauticSport.id(in: unreachable) == nil)
+    #expect(NauticSport.isDive(unreachable))
+  }
+
+  @Test func aTruncatedStreamNamesNoSportAndIsADive() {
+    let run = stream(timeline, activity(3))
+    let cut = run.dropLast()
+    #expect(NauticSport.id(in: cut) == nil)
+    #expect(NauticSport.isDive(cut))
+    for tail: [UInt8] in [[0xFF], [0xFF, 0x22], [0xFF, 0x22, 0x01], [0x22], [0x22, 0xFF, 0x01]] {
+      #expect(NauticSport.isDive(stream(timeline, tail)))
+    }
   }
 
   /// Only the profile is read: an activity record in the appended summary is not the entry's.
@@ -59,5 +89,8 @@ struct NauticSportTests {
     let summary = Self.magic + activity(3)
     #expect(NauticSport.id(in: stream(timeline) + Data(summary)) == nil)
     #expect(NauticSport.id(in: stream(timeline, activity(51)) + Data(summary)) == 51)
+    // A record overrunning the profile stops there rather than landing in the summary.
+    let overrun: [UInt8] = [0x22, UInt8(Self.magic.count)]
+    #expect(NauticSport.id(in: stream(timeline, overrun) + Data(summary)) == nil)
   }
 }

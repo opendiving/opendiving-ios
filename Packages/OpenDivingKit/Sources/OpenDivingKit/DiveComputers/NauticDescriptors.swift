@@ -4,8 +4,7 @@ import Foundation
 /// out: what each record's group holds, field by field, and each field's format. The layout can
 /// move between firmware versions, so the sport is found by its path rather than at an offset.
 ///
-/// Both are `SBEM0103` and then records of a one-byte id, a one-byte length (255: a four-byte
-/// little-endian length follows) and the value. A descriptor is a record of id 0: a two-byte
+/// Both are SBEM streams, read by ``SBEMRecords``. A descriptor is a record of id 0: a two-byte
 /// little-endian descriptor id, then lines `<PTH>path`, `<FRM>format`, or `<GRP>a,b,c` listing
 /// the fields of a group. A summary record's id names a group, and its value is the group's
 /// fields in order.
@@ -48,7 +47,7 @@ public struct NauticDescriptors: Sendable {
     guard let records = Self.records(summary) else { return nil }
     var sport: Int?
     for (id, value) in records {
-      guard let group = groups[Int(id)] else { return nil }
+      guard let group = groups[id] else { return nil }
       var offset = value.startIndex
       for key in group {
         guard let field = fields[key], let size = Self.size(field.format, value[offset...])
@@ -114,27 +113,11 @@ public struct NauticDescriptors: Sendable {
     }
   }
 
-  private static let magic = Data("SBEM0103".utf8)
-
-  /// The records after the magic; nil where there is no magic or the last record overruns.
-  private static func records(_ bytes: Data) -> [(UInt8, Data.SubSequence)]? {
-    guard bytes.starts(with: magic) else { return nil }
-    var records: [(UInt8, Data.SubSequence)] = []
-    var position = bytes.startIndex + magic.count
-    while position < bytes.endIndex {
-      guard position + 2 <= bytes.endIndex else { return nil }
-      let id = bytes[position]
-      var length = Int(bytes[position + 1])
-      position += 2
-      if length == 255 {
-        guard position + 4 <= bytes.endIndex else { return nil }
-        length = (0..<4).reduce(0) { $0 | Int(bytes[position + $1]) << (8 * $1) }
-        position += 4
-      }
-      guard position + length <= bytes.endIndex else { return nil }
-      records.append((id, bytes[position..<(position + length)]))
-      position += length
-    }
-    return records
+  /// The stream's records; nil where there is no magic or a record does not fit.
+  private static func records(_ bytes: Data) -> [(id: Int, value: Data.SubSequence)]? {
+    guard var walk = SBEMRecords(bytes) else { return nil }
+    var records: [(id: Int, value: Data.SubSequence)] = []
+    while let record = walk.next() { records.append(record) }
+    return walk.isComplete ? records : nil
   }
 }
