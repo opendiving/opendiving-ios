@@ -37,7 +37,9 @@ struct InboxDownloadTests {
 
   private let archive = "shearwater-perdix-3_D9772626_2026-10-25T0920.zip"
 
-  @Test func anAppliedImportKeepsARefusedDownloadToGoUpAloneAndDropsARefusedSharedFile() async throws {
+  @Test func anAppliedImportKeepsARefusedDownloadToGoUpAloneAndDropsARefusedSharedFile()
+    async throws
+  {
     let server = try ImportServer()
     server.refuse(parts: [0, 1])
     let model = try await loaded(server)

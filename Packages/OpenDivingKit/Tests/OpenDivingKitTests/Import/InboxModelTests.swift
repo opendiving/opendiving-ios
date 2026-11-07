@@ -272,9 +272,10 @@ struct InboxModelTests {
 
     await appeared(model)
 
-    #expect(imports(server).suffix(2) == [
-      "GET imports/pending", "GET import/\(held.uuidString.lowercased())",
-    ])
+    #expect(
+      imports(server).suffix(2) == [
+        "GET imports/pending", "GET import/\(held.uuidString.lowercased())",
+      ])
     #expect(model.files.isEmpty)
     #expect(model.pending == nil)
     #expect(!FileManager.default.fileExists(atPath: bytes.path))

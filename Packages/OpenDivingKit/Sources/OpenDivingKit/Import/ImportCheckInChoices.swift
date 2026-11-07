@@ -41,7 +41,8 @@ public struct ImportCheckInChoices: Hashable, Sendable {
   /// The apply's body over what `pending` offers.
   public func apply(for pending: LogbookImportRead) -> LogbookImportApply {
     LogbookImportApply(
-      checkInDetails: submission(for: pending.checkInDetails), portrait: portrait(for: pending.portrait))
+      checkInDetails: submission(for: pending.checkInDetails),
+      portrait: portrait(for: pending.portrait))
   }
 
   /// The apply's `portrait`, sent whichever way it went once one was offered.

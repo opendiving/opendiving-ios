@@ -131,7 +131,9 @@ struct WriteModelFixtureTests {
     let change = try APICoding.decoder().decode(LogbookImportChange.self, from: json)
     #expect(
       change.before
-        == .array([.number(1), .bool(true), .string("a"), .null, .object(["snake_case": .array([])])]))
+        == .array([
+          .number(1), .bool(true), .string("a"), .null, .object(["snake_case": .array([])]),
+        ]))
     #expect(change.after == .bool(false))
     let again = try APICoding.decoder().decode(
       LogbookImportChange.self, from: APICoding.encoder().encode(change))
@@ -161,7 +163,8 @@ struct WriteModelFixtureTests {
   }
 
   @Test func theHistoryCountsByOutcome() throws {
-    let page = try KitFixture.decode(PaginatedListResponse<LogbookImportSummary>.self, "imports-page")
+    let page = try KitFixture.decode(
+      PaginatedListResponse<LogbookImportSummary>.self, "imports-page")
     #expect(page.data.map(\.counts) == [["modified": 1], ["new": 1]])
     #expect(page.hasMore == false)
   }

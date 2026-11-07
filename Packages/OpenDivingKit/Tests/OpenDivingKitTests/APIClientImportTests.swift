@@ -66,7 +66,10 @@ struct APIClientImportTests {
     #expect(try await harness.client.importNotes(uuid).dives.count == 2)
     #expect(try await harness.client.imports(page: 2).data.count == 2)
     let requests = harness.transport.requests
-    #expect(requests.map(\.route) == ["GET imports/pending", "GET \(path)", "GET \(path)/notes", "GET imports"])
+    #expect(
+      requests.map(\.route) == [
+        "GET imports/pending", "GET \(path)", "GET \(path)/notes", "GET imports",
+      ])
     #expect(requests[3].url?.query?.contains("page=2") == true)
   }
 
