@@ -228,11 +228,10 @@ so a re-download is a dive the account already holds and links. One import resto
 full-export archive, so a download arriving beside downloads of the same mark not yet uploaded
 replaces them with their union — each dive once by uuid, each unnamed member once by digest —
 in one inbox save, while the inbox is idle. An uploaded archive is never swapped out from under
-its import, and one returned to waiting waits beside a newer download rather than uniting, the
-union being the download code's writer. A walk leaves out a new entry whose uuid is among the
-dives kept under its mark, uploaded or not, counting it neither new nor downloaded. Rejected: a
-random uuid, which leaves every dedupe to the recording gates; an archive per dive; downloading
-a waiting dive again for the union to drop.
+its import, and one returned to waiting waits beside a newer download, uniting being the download
+code's alone. A walk leaves out a new entry whose uuid is among the dives kept under its mark,
+uploaded or not, counting it neither new nor downloaded. Rejected: a random uuid, which leaves
+every dedupe to the recording gates; downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 
