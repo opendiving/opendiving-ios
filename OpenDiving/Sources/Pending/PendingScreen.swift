@@ -4,10 +4,11 @@ import SwiftUI
 /// Everything the phone holds that the server does not have yet, item by item, with what the
 /// server last said about each and the way out of each: the drafts, the writes waiting, what
 /// this build cannot read, what is done but said once, and the files waiting to import, each
-/// with where its read stands.
+/// with where it stands.
 ///
-/// Signed in it ends in *Sync now*, which also reads files no read covers. Signed out — a sheet off the email screen, over the stores
-/// of the account last loaded here — it says that signing in syncs.
+/// Signed in it ends in *Sync now*, which leaves the files to *Upload* on the Import screen. Signed
+/// out — a sheet off the email screen, over the stores of the account last loaded here — it says
+/// that signing in syncs.
 struct PendingScreen: View {
   @Environment(Session.self) private var session
   @Environment(OutboxModel.self) private var outbox

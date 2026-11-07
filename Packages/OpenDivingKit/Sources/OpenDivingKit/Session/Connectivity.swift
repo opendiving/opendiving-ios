@@ -2,9 +2,8 @@
 /// again. The app target conforms over `NWPathMonitor` and the scene phase.
 ///
 /// Every request waits for connectivity, a minute at most, so what the app starts on its own —
-/// a queue's flush, files to read — does not start while no route is believed to exist, and
-/// a moment is what starts it, and an account load, once one appears. What the diver asks for
-/// tries regardless.
+/// a queue's flush — does not start while no route is believed to exist, and a moment is what
+/// starts it, and an account load, once one appears. What the diver asks for tries regardless.
 public protocol Connectivity: Sendable {
   /// Whether a route is believed to exist now. A belief, not a promise: a request may still
   /// fail with one, and succeed without.
