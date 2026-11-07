@@ -18,11 +18,12 @@ public enum SignedOutEntry: Hashable, Sendable, CaseIterable, Identifiable {
     let kept = origin.isFlagship ? "" : ", until you forget the server"
     return switch self {
     case .logDive:
-      "Log a dive without signing in. It waits on this phone and syncs when you sign in to this"
-        + " account again."
+      "Log a dive without signing in. It's saved for the account last signed in here, and syncs"
+        + " when that account signs in again. Signing in to a different account won't send it."
     case .waitingToSync:
-      "What you saved on this phone that hasn't reached the server. It stays here after you sign"
-        + " out\(kept), and syncs when you sign in to this account again."
+      "What the account last signed in here saved on this phone and hasn't reached the server."
+        + " It stays here after you sign out\(kept), and syncs when that account signs in again."
+        + " Signing in to a different account won't send it."
     case .checkInSheet:
       "Your certification cards, ready to show at a dive centre's counter, even with no signal."
         + " The sheet stays on this phone after you sign out\(kept)."
