@@ -70,7 +70,7 @@ public enum ImportChangeRow: Hashable, Sendable {
       return value(prefix + member.label, change, member.format, units)
     }
     if first == "profile", second == "channels", rest.count == 3, Int(rest[2]) != nil {
-      return element(prefix + "Curve", change, { $0.text }, units)
+      return element(prefix + "Curve", change, curveName, units)
     }
     let nested = ["device": deviceMembers, "deco_model": decoMembers, "profile": profileMembers]
     if rest.count == 2, let second, let member = nested[first]?[second],
@@ -190,6 +190,7 @@ public enum ImportChangeRow: Hashable, Sendable {
     "oxygen": Member("O₂", percent),
     "helium": Member("He", percent),
     "po2_limit": Member("ppO₂ limit", bar),
+    "gas_number": Member("Gas number", plain),
     "role": Member("Role", worded(VocabularyLabels.gasRole)),
     "usage": Member("Usage", worded(VocabularyLabels.tankUsage)),
     "gear_item": Member("Cylinder") { value, _ in
@@ -295,6 +296,12 @@ public enum ImportChangeRow: Hashable, Sendable {
         ?? "Gas not recorded",
       value["volume"].number.map { NumberText.plain($0) + " L" },
     ].compactMap { $0 }.joined(separator: ", ")
+  }
+
+  /// A curve by the name the profile chart gives it; one this build's chart has no channel for
+  /// keeps the writer's name.
+  private static let curveName: Summary = { value in
+    value.text.map { ProfileChannel(rawValue: $0)?.label ?? $0 }
   }
 
   private static let recordingSummary: Summary = { value in
