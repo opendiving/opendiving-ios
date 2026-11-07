@@ -130,9 +130,11 @@ struct EmailScreen: View {
         .resizable()
         .scaledToFit()
         .frame(height: wordmarkHeight)
+        .foregroundStyle(Color.primary.opacity(0.75))
     }
     .frame(maxWidth: .infinity)
     .padding(.top, 32)
+    .padding(.bottom, 16)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("OpenDiving")
     .accessibilityAddTraits(.isHeader)
