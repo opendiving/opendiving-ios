@@ -94,7 +94,9 @@ public enum ImportChangeRow: Hashable, Sendable {
   private static func value(
     _ label: String, _ change: LogbookImportChange, _ format: Format, _ units: UnitSystem
   ) -> ImportChangeRow {
-    let shown = { (value: ImportChangeValue) in value == .null ? "—" : format(value, units) }
+    func shown(_ value: ImportChangeValue) -> String {
+      value == .null ? "—" : format(value, units)
+    }
     return .value(label: label, before: shown(change.before), after: shown(change.after))
   }
 

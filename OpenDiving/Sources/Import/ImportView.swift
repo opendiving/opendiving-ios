@@ -9,7 +9,9 @@ struct ImportView: View {
   /// Opened because a file was shared to the app, which delivers one at a time.
   var shared = false
 
+  @Environment(Session.self) private var session
   @Environment(InboxModel.self) private var inbox
+  @State private var history: PagedList<LogbookImportSummary>?
   @State private var picking = false
   @State private var pickFailure: String?
   @State private var choices = ImportCheckInChoices()
@@ -45,6 +47,12 @@ struct ImportView: View {
     }
     .onChange(of: inbox.pending?.uuid) { choices = ImportCheckInChoices() }
     .task(id: inbox.isAccountLoaded) { inbox.readPending() }
+    .task {
+      guard history == nil else { return }
+      let list = ImportHistorySection.list(session)
+      history = list
+      await list.load()
+    }
   }
 
   @ViewBuilder private var inboxSections: some View {
@@ -131,6 +139,10 @@ struct ImportView: View {
           Text(DiveComputerText.removeDownloadWarning)
         }
       }
+    }
+
+    if inbox.pending == nil, let history {
+      ImportHistorySection(list: history)
     }
   }
 

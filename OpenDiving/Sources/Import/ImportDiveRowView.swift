@@ -1,9 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One dive of a review or a result: the start, opening the dive where the row links one,
-/// then Dive time, Depth and Recorded by, the files it came from, the outcome, and why a skipped
-/// dive was skipped.
+/// One dive of an import's log: the start, opening the dive where the row links one, what recorded
+/// it, the outcome, why a skipped dive was skipped, and what the import has to say about it.
 struct ImportDiveRowView: View {
   let row: ImportDiveRow
 
@@ -21,6 +20,12 @@ struct ImportDiveRowView: View {
       if let reason = row.reason {
         ImportNoteLine(badge: nil, tone: .warning, text: reason)
       }
+      ForEach(Array(row.notes.enumerated()), id: \.offset) { _, note in
+        ImportNoteLine(badge: note.badge, tone: note.tone, text: note.text)
+      }
+      if let truncated = row.notesTruncated {
+        Text(truncated).font(.caption).italic().foregroundStyle(.secondary)
+      }
     }
   }
 
@@ -31,11 +36,8 @@ struct ImportDiveRowView: View {
         Spacer()
         Text(row.outcome).font(.subheadline)
       }
-      Text("Dive time \(row.diveTime) · Depth \(row.depth) · Recorded by \(row.recordedBy)")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      if !row.files.isEmpty {
-        Text("Files: " + row.files.joined(separator: ", "))
+      if let recordedBy = row.recordedBy {
+        Text("Recorded by \(recordedBy)")
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -44,16 +46,11 @@ struct ImportDiveRowView: View {
 }
 
 #Preview {
-  List {
-    ImportDiveRowView(row: .preview)
-  }
-}
-
-extension ImportDiveRow {
-  /// A row for previews.
-  fileprivate static var preview: ImportDiveRow {
-    ImportDiveRow.rows(
-      ImportPreviewData.pending.dives, members: ImportPreviewData.pending.members, units: .metric,
-      written: false)[0]
+  NavigationStack {
+    List {
+      ForEach(ImportLogContent(ImportPreviewData.notes, written: true).dives) { row in
+        ImportDiveRowView(row: row)
+      }
+    }
   }
 }

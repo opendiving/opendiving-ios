@@ -42,6 +42,11 @@ public struct ImportDiveCard: Sendable, Identifiable {
     }
   }
 
+  /// Whether any of `dives` has no card, so that only the log names it.
+  public static func leavesRowsOut(_ dives: [LogbookImportDive]) -> Bool {
+    dives.contains { $0.dive == nil || !["new", "modified"].contains($0.outcome) }
+  }
+
   /// What the card's sheet shows, built on the tap rather than for every card of an import.
   public func sheet(units: UnitSystem) -> ImportDiveSheet {
     guard row.outcome == "modified" else {
