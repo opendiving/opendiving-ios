@@ -11,9 +11,9 @@ public enum KeptText {
     + " your dive computer download history and the copies of your logbook kept for"
     + " offline stay on this phone after you sign out"
 
-  /// Under the signed-out screen's entries, for `origin`: only a server that can be forgotten
-  /// mentions it.
-  public static func signedOutFooter(_ origin: ServerOrigin) -> String {
+  /// Behind the signed-out screen's info button, for `origin`: only a server that can be
+  /// forgotten mentions it.
+  public static func signedOutKept(_ origin: ServerOrigin) -> String {
     afterSignOut + (origin.isFlagship ? "." : ", until you forget the server.")
   }
 

@@ -12,7 +12,8 @@ struct EmailScreen: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
-  @ScaledMetric(relativeTo: .body) private var spinnerWidth: CGFloat = 20
+  @State private var showsKept = false
+  @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
 
   @FocusState private var focused: Bool
 
@@ -56,7 +57,7 @@ struct EmailScreen: View {
             .opacity(flow.isRequestingCode ? 0 : 1)
             .overlay {
               if flow.isRequestingCode {
-                BubbleSpinner(width: spinnerWidth).foregroundStyle(.white)
+                BubbleSpinner(side: spinnerSide).foregroundStyle(.white)
               }
             }
             .frame(maxWidth: .infinity)
@@ -88,14 +89,35 @@ struct EmailScreen: View {
               .accentRow()
             }
           case .checkInSheet:
-            Button(action: showSheet) {
-              Label("Your check-in sheet", icon: .idCard)
+            HStack {
+              Button(action: showSheet) {
+                Label("Your check-in sheet", icon: .idCard)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .contentShape(Rectangle())
+              }
+              .accentRow()
+              // Two buttons in one row: a style other than the default gives each its own taps
+              // rather than the row's.
+              .buttonStyle(.borderless)
+              Button {
+                showsKept = true
+              } label: {
+                Image(systemName: "info.circle")
+              }
+              .accentRow()
+              .buttonStyle(.borderless)
+              .accessibilityLabel("What stays on this phone")
+              .popover(isPresented: $showsKept) {
+                Text(KeptText.signedOutKept(origin))
+                  .font(.subheadline)
+                  .fixedSize(horizontal: false, vertical: true)
+                  .padding()
+                  .frame(width: 300)
+                  .presentationCompactAdaptation(.popover)
+              }
             }
-            .accentRow()
           }
         }
-      } footer: {
-        Text(KeptText.signedOutFooter(origin))
       }
       // A form row's automatic style draws an app symbol's label as its title alone.
       .labelStyle(.titleAndIcon)

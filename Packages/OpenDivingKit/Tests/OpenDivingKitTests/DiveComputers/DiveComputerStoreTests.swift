@@ -246,7 +246,7 @@ struct DiveComputerStoreTests {
   @Test func everySentenceThatListsWhatThePhoneKeepsNamesTheDownloadHistory() throws {
     let origin = ImportServer.origin
     for sentence in [
-      KeptText.signedOutFooter(origin), KeptText.signedOutFooter(.flagship), KeptText.held(origin),
+      KeptText.signedOutKept(origin), KeptText.signedOutKept(.flagship), KeptText.held(origin),
     ] {
       #expect(sentence.contains("dive computer download history"))
     }
