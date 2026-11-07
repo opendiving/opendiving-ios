@@ -1,0 +1,4 @@
+{
+  "check_in_details": { "email": "desk@example.org", "phone": null },
+  "portrait": { "choice": "keep", "account_sha256": null }
+}

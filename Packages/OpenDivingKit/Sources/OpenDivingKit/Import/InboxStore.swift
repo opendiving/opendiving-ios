@@ -1,7 +1,7 @@
 import Foundation
 
-/// One account's inbox: the files waiting to be imported, kept under `Inbox/files/` by names
-/// of their own, and `inbox.json` holding a record per file and the last read.
+/// One account's inbox: the files kept until they are imported, under `Inbox/files/` by names
+/// of their own, and `inbox.json` holding a record per file.
 ///
 /// It lives in the account's directory, so sign-out leaves it and
 /// ``ServerStateStore/forget(_:)`` removes it with the server's.
@@ -13,11 +13,9 @@ public struct InboxStore: Sendable {
   /// What `inbox.json` holds.
   public struct Contents: Codable, Hashable, Sendable {
     public var files: [InboxFile]
-    public var read: InboxRead?
 
-    public init(files: [InboxFile] = [], read: InboxRead? = nil) {
+    public init(files: [InboxFile] = []) {
       self.files = files
-      self.read = read
     }
   }
 
@@ -47,12 +45,7 @@ public struct InboxStore: Sendable {
       guard let data = Self.json(entry) else { return nil }
       return try? decoder.decode(InboxFile.self, from: data)
     }
-    // A read this build cannot decode is an answer to fetch again, not the diver's data.
-    let read = record["read"].flatMap { value -> InboxRead? in
-      guard let data = Self.json(value) else { return nil }
-      return try? decoder.decode(InboxRead.self, from: data)
-    }
-    return Contents(files: files, read: read)
+    return Contents(files: files)
   }
 
   public func save(_ contents: Contents) throws {
@@ -145,10 +138,8 @@ public struct InboxStore: Sendable {
       try FileManager.default.copyItem(at: other.url(for: file), to: url(for: moved))
       mine.files.append(moved)
     }
-    if mine.read != nil { mine.read?.stale = true }
     try save(mine)
     theirs.files.removeAll(where: \.receivedBeforeAccountKnown)
-    if theirs.read != nil { theirs.read?.stale = true }
     try other.save(theirs)
     other.discard(marked)
     return marked.count

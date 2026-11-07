@@ -2,9 +2,9 @@ import OpenDivingKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The import screen, the web's Import page on the phone: the files waiting in the account's
-/// inbox, what reading them found, and *Import*. Reached from the Dives tab's `+` and shown
-/// when a file is shared to the app.
+/// The import screen, the web's Import page on the phone: the import the server holds, from
+/// whichever device uploaded it, above the files the phone keeps. Reached from the Dives tab's `+`
+/// and shown when a file is shared to the app.
 struct ImportView: View {
   /// Opened because a file was shared to the app, which delivers one at a time.
   var shared = false
@@ -43,7 +43,8 @@ struct ImportView: View {
     } message: {
       Text(pickFailure ?? "")
     }
-    .onChange(of: inbox.importable?.token) { choices = ImportCheckInChoices() }
+    .onChange(of: inbox.pending?.uuid) { choices = ImportCheckInChoices() }
+    .task(id: inbox.isAccountLoaded) { inbox.readPending() }
   }
 
   @ViewBuilder private var inboxSections: some View {
@@ -68,41 +69,50 @@ struct ImportView: View {
       }
     }
 
+    if let error = inbox.applyError {
+      Section {
+        Text(error).foregroundStyle(Color.danger)
+      }
+    }
+
+    if let pending = inbox.pending {
+      ImportReviewSections(
+        pending: pending, units: inbox.units, choices: $choices, phase: inbox.phase,
+        onImport: { inbox.apply(choices) }, onDiscard: { inbox.discard() })
+    }
+
     if !inbox.files.isEmpty {
       Section("Files") {
         ForEach(inbox.files) { file in
           ImportFileRow(file: file)
         }
       }
+    }
+
+    if !inbox.waiting.isEmpty {
       Section {
         if let refusal = inbox.selectionRefusal {
           Text(refusal).foregroundStyle(Color.danger)
         }
         if !inbox.isAccountLoaded {
-          Text("The files are read once your account has loaded.")
+          Text("The files can be uploaded once your account has loaded.")
             .foregroundStyle(.secondary)
         }
-        if let error = inbox.readError {
+        if let hold = inbox.uploadHold {
+          Text(hold).foregroundStyle(.secondary)
+        }
+        if let error = inbox.uploadError {
           Text(error).foregroundStyle(Color.danger)
         }
-        if let waiting = inbox.waitingForRoute {
-          Text(waiting).foregroundStyle(.secondary)
-        }
-        if inbox.read?.stale == true {
-          Text(ImportText.staleSentence).foregroundStyle(.secondary)
-        } else if let refusal = inbox.read?.refusal {
-          Text(refusal).foregroundStyle(Color.danger)
-        }
-        if inbox.phase == .reading {
+        if inbox.phase == .uploading {
           HStack(spacing: 8) {
             ProgressView()
-            Text("Reading the files...").foregroundStyle(.secondary)
+            Text("Uploading the files...").foregroundStyle(.secondary)
           }
-        }
-        if let title = readTitle {
-          Button(title) { inbox.readAgain() }
+        } else {
+          Button("Upload") { inbox.upload() }
             .accentRow()
-            .disabled(!inbox.canRead)
+            .disabled(!inbox.canUpload)
         }
         Button("Remove all", role: .destructive) {
           if inbox.removeAllNeedsConfirmation {
@@ -122,29 +132,6 @@ struct ImportView: View {
         }
       }
     }
-
-    if let error = inbox.applyError {
-      Section {
-        Text(error).foregroundStyle(Color.danger)
-      }
-    }
-
-    if let preview = inbox.importable {
-      ImportReviewSections(
-        preview: preview, units: inbox.units, choices: $choices,
-        isImporting: inbox.phase == .importing
-      ) {
-        inbox.apply(choices)
-      }
-    }
-  }
-
-  /// *Read the files* over an inbox no read covers, *Read the files again* over one whose
-  /// read is stale or refused, and nothing over a preview standing or a read in flight.
-  private var readTitle: String? {
-    guard inbox.phase == .idle else { return nil }
-    guard let read = inbox.read else { return "Read the files" }
-    return read.stale || read.preview == nil ? "Read the files again" : nil
   }
 
   /// Each picked file is read under its security scope, released before the next, into a

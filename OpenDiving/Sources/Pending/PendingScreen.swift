@@ -4,10 +4,11 @@ import SwiftUI
 /// Everything the phone holds that the server does not have yet, item by item, with what the
 /// server last said about each and the way out of each: the drafts, the writes waiting, what
 /// this build cannot read, what is done but said once, and the files waiting to import, each
-/// with where its read stands.
+/// with where it stands.
 ///
-/// Signed in it ends in *Sync now*, which also reads files no read covers. Signed out — a sheet off the email screen, over the stores
-/// of the account last loaded here — it says that signing in syncs.
+/// Signed in it ends in *Sync now*, which leaves the files to *Upload* on the Import screen. Signed
+/// out — a sheet off the email screen, over the stores of the account last loaded here — it says
+/// that signing in syncs.
 struct PendingScreen: View {
   @Environment(Session.self) private var session
   @Environment(OutboxModel.self) private var outbox
@@ -27,7 +28,7 @@ struct PendingScreen: View {
       && outbox.notices.isEmpty && inbox.files.isEmpty
   }
 
-  private var isSyncing: Bool { outbox.isFlushing || inbox.phase == .reading }
+  private var isSyncing: Bool { outbox.isFlushing }
 
   var body: some View {
     List {
@@ -55,7 +56,6 @@ struct PendingScreen: View {
         Section {
           Button {
             outbox.syncNow()
-            inbox.syncNow()
           } label: {
             if isSyncing {
               HStack {
@@ -202,13 +202,8 @@ struct PendingScreen: View {
     }
   }
 
-  /// Beneath the files: why they cannot go as one import, that they wait for a route, or that
-  /// a read stands ready to import.
-  static func filesFooter(_ inbox: InboxModel) -> String? {
-    if let refusal = inbox.selectionRefusal { return refusal }
-    if let waiting = inbox.waitingForRoute { return waiting }
-    return inbox.importable == nil ? nil : PendingText.filesReady
-  }
+  /// Beneath the files: why they cannot go as one import.
+  static func filesFooter(_ inbox: InboxModel) -> String? { inbox.selectionRefusal }
 
   // MARK: - Editing and discarding
 

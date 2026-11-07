@@ -7,7 +7,7 @@ import Foundation
 /// A file to import, read from disk while the request is written.
 public struct ImportFile: Hashable, Sendable {
   public var file: URL
-  /// The name the server reports the file under, and digests into the preview's token.
+  /// The name the server reports the file under.
   public var filename: String
   public var contentType: String
 
@@ -18,34 +18,60 @@ public struct ImportFile: Hashable, Sendable {
   }
 }
 
-// The logbook import: any number of files, each a `file` part, previewed and then applied.
-// The token digests each part's name and bytes, so the apply sends the same files in the
-// same order under the same names, and a different set is a 422.
+// The logbook import: an upload of any number of files, each a `file` part, that the server
+// holds as one pending import per account until it is applied or discarded, from any device.
 extension APIClient {
-  /// `POST /import/logbook/preview`: what importing `files` would do. Stores nothing.
-  public func importPreview(files: [ImportFile]) async throws -> ImportPreview {
+  /// `POST /imports`: uploads `files` once, for the server to hold and review. Writes nothing to
+  /// the logbook; a 409 while the account has a pending import.
+  public func uploadImport(files: [ImportFile]) async throws -> LogbookImportRead {
     try await authorizedDecoded(
-      ImportPreview.self,
-      Call(method: "POST", path: "import/logbook/preview", parts: Self.fileParts(files)))
+      LogbookImportRead.self, Call(method: "POST", path: "imports", parts: Self.fileParts(files)))
   }
 
-  /// `POST /import/logbook`: imports `files` under the preview's `token`. `checkInDetails` and
-  /// `portrait` are the diver's answers to what the preview offered, sent only when given.
-  public func importApply(
-    files: [ImportFile], token: String, checkInDetails: ImportCheckInSubmission? = nil,
-    portrait: ImportPortraitChoice? = nil
-  ) async throws -> ImportResult {
-    var parts = [MultipartPart.field("token", token)]
-    if let checkInDetails {
-      parts.append(
-        .field("check_in_details", String(decoding: try Self.json(checkInDetails), as: UTF8.self)))
-    }
-    if let portrait {
-      parts.append(.field("portrait", String(decoding: try Self.json(portrait), as: UTF8.self)))
-    }
-    return try await authorizedDecoded(
-      ImportResult.self,
-      Call(method: "POST", path: "import/logbook", parts: parts + Self.fileParts(files)))
+  /// `GET /imports`: the applied imports, most recently applied first.
+  public func imports(page: Int, itemsPerPage: Int = listPageSize) async throws
+    -> PaginatedListResponse<LogbookImportSummary>
+  {
+    try await authorizedDecoded(
+      PaginatedListResponse<LogbookImportSummary>.self,
+      Call(path: "imports", query: Self.paging(page, itemsPerPage)))
+  }
+
+  /// `GET /imports/pending`: the account's pending import, whichever device uploaded it; a 404
+  /// when there is none.
+  public func pendingImport() async throws -> LogbookImportRead {
+    try await authorizedDecoded(LogbookImportRead.self, Call(path: "imports/pending"))
+  }
+
+  /// `GET /import/{uuid}`, pending or applied; a 404 for one that is gone.
+  public func logbookImport(_ uuid: UUID) async throws -> LogbookImportRead {
+    try await authorizedDecoded(
+      LogbookImportRead.self, Call(path: "import/\(Self.wire(uuid))"))
+  }
+
+  /// `GET /import/{uuid}/notes`: the import's log.
+  public func importNotes(_ uuid: UUID) async throws -> LogbookImportNotes {
+    try await authorizedDecoded(
+      LogbookImportNotes.self, Call(path: "import/\(Self.wire(uuid))/notes"))
+  }
+
+  /// `POST /import/{uuid}/apply`: writes the import as reviewed, from the files the server holds.
+  /// A 409 when it is already applied.
+  public func applyImport(_ uuid: UUID, _ choices: LogbookImportApply) async throws
+    -> LogbookImportRead
+  {
+    try await authorizedDecoded(
+      LogbookImportRead.self,
+      Call(method: "POST", path: "import/\(Self.wire(uuid))/apply", body: Self.json(choices)))
+  }
+
+  /// `DELETE /import/{uuid}`: discards a pending import, or leaves an applied one out of the
+  /// history. `status` is the one the caller means to delete; a 409 when the import's is another.
+  public func deleteImport(_ uuid: UUID, status: String) async throws {
+    try await authorizedChecked(
+      Call(
+        method: "DELETE", path: "import/\(Self.wire(uuid))",
+        query: [URLQueryItem(name: "status", value: status)]))
   }
 
   private static func fileParts(_ files: [ImportFile]) -> [MultipartPart] {

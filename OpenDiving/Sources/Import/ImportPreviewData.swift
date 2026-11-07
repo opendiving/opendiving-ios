@@ -1,30 +1,28 @@
 import Foundation
 import OpenDivingKit
 
-/// A preview's answer for the import screens' previews.
+/// A pending import for the import screens' previews.
 enum ImportPreviewData {
-  static let preview: ImportPreview = {
+  static let pending: LogbookImportRead = {
     let json = #"""
-      {"collections":[{"collection":"sites","created":1,"linked":2,"restored":0,"skipped":0}],
+      {"uuid":"01a0a51f-afe3-7363-a0bc-b0d634c35923","status":"pending",
+       "created_at":"2026-09-14T12:00:00+00:00","applied_at":null,
+       "expires_at":"2026-09-15T12:00:00+00:00","archive":false,
+       "collections":[{"collection":"sites","created":1,"linked":2,"skipped":0}],
        "files":{"referenced":2,"restored":0,"not_contained":2,"skipped":0},
-       "notes":[{"code":"tags_created","kind":null,"collection":"dives",
-                 "message":"1 tag is new to your logbook: drift.","count":1,"wheres":[]}],
-       "notes_truncated":0,
        "members":[{"part":0,"container":null,"name":"dive-0214.fit","byte_size":48213,
                    "sha256":"3f","format":"fit","opened":null,"kept":true,"not_kept":null,
                    "refusal":null}],
-       "dives":[{"uuid":null,"outcome":"created","files_added":0,"recordings_added":0,
-                 "reason":null,"start_time":"2026-09-14T09:12:00+03:00","submerged_time":2940,
-                 "max_depth":24.6,"device":{"brand":"Garmin","model":"Descent Mk3","serial":null,
-                 "firmware":null,"name":null,"dive_number":null},"members":[0],
-                 "notes":[{"code":"gas_dropped","kind":"dropped","collection":"dives",
-                           "message":"A tank pressure this dive recorded was dropped."}],
-                 "notes_truncated":0}],
-       "format":"fit","version":"1","generator":null,"archive":false,"token":"preview-token",
+       "dives":[{"uuid":null,"outcome":"new","dive":null,"changes":[],
+                 "start_time":"2026-09-14T09:12:00+03:00",
+                 "device":{"brand":"Garmin","model":"Descent Mk3","serial":null,
+                 "firmware":null,"name":null,"dive_number":null},"members":[0],"reason":null}],
        "check_in_details":[{"detail":"phone","account":null,"proposed":"+1 555 0100"}],
-       "portrait":null}
+       "portrait":null,
+       "numbering":{"total_dives":3,"lowest":1,"highest":3,"missing_count":0,"duplicate_count":0,
+                    "out_of_date_order_count":0,"is_sequential":true}}
       """#
     // The literal above is this file's own and decodes.
-    return try! APICoding.decoder().decode(ImportPreview.self, from: Data(json.utf8))
+    return try! APICoding.decoder().decode(LogbookImportRead.self, from: Data(json.utf8))
   }()
 }
