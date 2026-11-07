@@ -163,7 +163,7 @@ struct WriteModelFixtureTests {
   }
 
   @Test func theHistoryCountsByOutcome() throws {
-    let page = try KitFixture.decode(
+    let page = try KitFixture.roundTrip(
       PaginatedListResponse<LogbookImportSummary>.self, "imports-page")
     #expect(page.data.map(\.counts) == [["modified": 1], ["new": 1]])
     #expect(page.hasMore == false)
