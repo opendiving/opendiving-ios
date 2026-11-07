@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What the import would do, waiting for the diver's *Import* or *Discard*.
+/// The import waiting for the diver's *Import* or *Discard*, from whichever device uploaded it.
 struct ImportReviewSections: View {
   let pending: LogbookImportRead
   let units: UnitSystem
@@ -13,22 +13,19 @@ struct ImportReviewSections: View {
   var body: some View {
     Section {
       VStack(alignment: .leading, spacing: 2) {
-        Text("What the Import Would Do").font(.headline)
-        Text("Nothing has been written yet.").font(.subheadline).foregroundStyle(.secondary)
+        Text("Review This Import").font(.headline)
+        Text(ImportText.reviewLine(expiresAt: pending.expiresAt))
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
       }
     }
-    if !pending.dives.isEmpty {
-      Section("Dives (\(pending.dives.count))") {
-        ForEach(
-          ImportDiveRow.rows(pending.dives, members: pending.members, units: units, written: false)
-        ) { row in
-          ImportDiveRowView(row: row)
-        }
-      }
-    }
+    ImportBodySections(read: pending, units: units)
     ImportReportSections(report: pending)
     ImportCheckInSection(
       details: pending.checkInDetails, portrait: pending.portrait, choices: $choices)
+    Section {
+      ImportLogLink(read: pending) { Text("Import log") }
+    }
     Section {
       Button(action: onImport) {
         if phase == .importing {
@@ -58,4 +55,5 @@ struct ImportReviewSections: View {
         onImport: {}, onDiscard: {})
     }
   }
+  .environment(DivePreviewData.session)
 }

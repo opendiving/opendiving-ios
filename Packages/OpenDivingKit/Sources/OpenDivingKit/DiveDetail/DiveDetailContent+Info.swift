@@ -53,4 +53,45 @@ extension DiveDetailContent {
         ]),
     ]
   }
+
+  /// What an import's new dive shows: its fields, with the cylinders and the recordings the
+  /// dive's page gives cards of their own, the dive not having that page yet. A recording's
+  /// identifiers are the review's, so nothing here opens one.
+  static func reviewInfo(_ dive: DiveReadWithMixtures, units: UnitSystem) -> [RecordInfoSection] {
+    var sections = info(dive, units: units)
+    if let tanks = tanks(dive, units: units) {
+      sections.append(
+        RecordInfoSection(
+          heading: "Tanks",
+          facts: tanks.tanks.enumerated().map { index, tank in
+            let pressures =
+              tank.start != nil || tank.end != nil
+              ? "\(tank.start ?? "—") → \(tank.end ?? "—")" : nil
+            let parts = [tank.gas ?? "Gas not recorded", tank.role] + tank.facts + [pressures]
+            return RecordInfoFact(
+              label: "Tank \(index + 1)", value: parts.compactMap { $0 }.joined(separator: " · "),
+              isWide: true)
+          }))
+    }
+    let recordings = dive.recordings.sorted { $0.ordinal < $1.ordinal }
+    if !recordings.isEmpty {
+      sections.append(
+        RecordInfoSection(
+          heading: "Recordings",
+          facts: recordings.enumerated().map { index, read in
+            let shown = recording(read, diveStart: dive.startTime, isOneOfMany: false)
+            let files =
+              shown.noFileKept.map { [$0] } ?? shown.files.map { $0.name + " · " + $0.detail }
+            let lines = [
+              shown.device, shown.settings, shown.readouts, shown.started, shown.firmware,
+            ]
+            let profile = read.profile.map { profileDescription($0, units: units) }
+            return RecordInfoFact(
+              label: DiveDetailText.recordingLabel(ordinal: index),
+              value: (lines + files + [profile]).compactMap { $0 }.joined(separator: "\n"),
+              isWide: true)
+          }))
+    }
+    return sections
+  }
 }

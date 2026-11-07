@@ -92,6 +92,40 @@ extension DiveCardContent {
       fixes: places.fixes)
   }
 
+  /// A dive read's card, which has no outline, the read carrying none. The dive owed decompression where the first recording with a profile reached a ceiling, the
+  /// question a list row's `deco` answers.
+  static func dive(_ dive: DiveReadWithMixtures, units: UnitSystem) -> DiveCardContent {
+    let charted = dive.recordings.sorted { $0.ordinal < $1.ordinal }.first { $0.profile != nil }
+    return .dive(
+      number: dive.diveNumber, siteNames: dive.diveSites.map(\.name),
+      isCourse: dive.courseUuid != nil, rating: dive.rating, waterType: dive.waterType,
+      diveType: dive.type, tags: dive.tags, start: dive.startTime,
+      locationName: dive.diveSites.first?.location?.name, boatName: dive.boatName,
+      recordingCount: dive.recordings.count, owedDeco: charted?.profile?.maxCeiling != nil,
+      submergedSeconds: dive.submergedTime, maxDepth: dive.maxDepth,
+      waterTemperature: dive.bottomTemperature, speciesCount: dive.sightings.count, outline: [],
+      places: mapPlaces(
+        sites: dive.diveSites, entry: (dive.entryLatitude, dive.entryLongitude),
+        exit: (dive.exitLatitude, dive.exitLongitude)),
+      units: units)
+  }
+
+  /// An import row's card, its chip leading the chips: *New* or *Modified*. Nil for a row with no
+  /// dive to draw, or one the import does not write.
+  public static func dive(_ row: LogbookImportDive, units: UnitSystem) -> DiveCardContent? {
+    guard let dive = row.dive else { return nil }
+    let chip: Chip
+    switch row.outcome {
+    case "new": chip = Chip(text: "New", accessibilityLabel: "New dive", kind: .new)
+    case "modified":
+      chip = Chip(text: "Modified", accessibilityLabel: "Modified dive", kind: .modified)
+    default: return nil
+    }
+    var content = Self.dive(dive, units: units)
+    content.chips.insert(chip, at: 0)
+    return content
+  }
+
   /// Where a dive is on a map, as the web has it: its sites where they are pinned, and where
   /// the dive computer put the diver — a different claim, drawn apart. A fix at latitude or
   /// longitude 0 is a position, not an absence.
