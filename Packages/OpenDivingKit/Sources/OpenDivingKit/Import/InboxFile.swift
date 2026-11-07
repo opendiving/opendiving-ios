@@ -1,6 +1,6 @@
 import Foundation
 
-/// One file waiting in an account's inbox to be imported.
+/// One file kept in an account's inbox until it is imported.
 public struct InboxFile: Codable, Hashable, Sendable, Identifiable {
   /// The file's own name on disk, so two files of one name are two files.
   public let id: UUID
@@ -14,10 +14,14 @@ public struct InboxFile: Codable, Hashable, Sendable, Identifiable {
   /// Set on an archive downloaded from dive computers. A build before it reads the file as
   /// any other and drops the member at its next save.
   public var download: InboxDownload?
+  /// The import an upload put it in, for as long as the phone keeps it for that import: such a
+  /// file is no longer waiting to upload, and leaves once the import is seen applied.
+  public var uploadedInto: UUID?
 
   public init(
     id: UUID = UUID(), filename: String, byteSize: Int, arrivedAt: Date = Date(),
-    receivedBeforeAccountKnown: Bool = false, download: InboxDownload? = nil
+    receivedBeforeAccountKnown: Bool = false, download: InboxDownload? = nil,
+    uploadedInto: UUID? = nil
   ) {
     self.id = id
     self.filename = filename
@@ -25,5 +29,6 @@ public struct InboxFile: Codable, Hashable, Sendable, Identifiable {
     self.arrivedAt = arrivedAt
     self.receivedBeforeAccountKnown = receivedBeforeAccountKnown
     self.download = download
+    self.uploadedInto = uploadedInto
   }
 }

@@ -1,80 +1,143 @@
 import Foundation
 
-/// What an import of files did, or would do: the body `POST /import/logbook/preview` and
-/// `POST /import/logbook` share. Every `code`, `kind` and outcome is the string the API sent,
-/// because it says to treat one a client does not recognise as information.
-public struct ImportReport: Codable, Hashable, Sendable {
+/// An import the server holds: its review while `pending`, and what became of it once `applied`.
+/// One shape for both, the answer of `POST /imports`, `GET /imports/pending`, `GET /import/{uuid}`
+/// and `POST /import/{uuid}/apply`. Every `code`, `kind`, `status` and outcome is the string the
+/// API sent, because it says to treat one a client does not recognise as information.
+public struct LogbookImportRead: Codable, Hashable, Sendable, Identifiable {
+  public let uuid: UUID
+  /// `pending` or `applied`.
+  public let status: String
+  public let createdAt: DiveTimestamp
+  /// Null while pending.
+  public let appliedAt: DiveTimestamp?
+  /// When the server deletes it, or null where the instance sets no limit.
+  public let expiresAt: DiveTimestamp?
+  /// Whether the files carry a full-export archive.
+  public let archive: Bool
+  /// One row per file: each part of the upload, and each file a zip among them held.
+  public let members: [ImportMemberReport]
   /// One per envelope collection, in the envelope's order.
   public let collections: [ImportCollectionReport]
   public let files: ImportFileReport
+  /// One row per dive the files hold, newest first; on an applied import, rows the review did
+  /// not show follow the ones it did.
+  public let dives: [LogbookImportDive]
+  /// Each check-in detail the files carry, the account's value beside the proposal; pending only.
+  public let checkInDetails: [ImportCheckInDetail]
+  /// The archive's portrait beside the account's, when it carries one to offer; pending only.
+  public let portrait: ImportPortraitOffer?
+  /// The log's numbering when the files were uploaded.
+  public let numbering: DiveNumberingSummary
+
+  public var id: UUID { uuid }
+  public var isApplied: Bool { status == "applied" }
+}
+
+/// One dive the import's files hold, and what the import does to it.
+public struct LogbookImportDive: Codable, Hashable, Sendable {
+  /// The dive's identifier, a new dive's as it will be written. Null for a dive the upload
+  /// skipped, and for one the apply skipped that the review did not show.
+  public let uuid: UUID?
+  /// `new`, `modified`, `unchanged` or `skipped`.
+  public let outcome: String
+  /// The dive as the import leaves it, on a `new` or `modified` row and on a row the apply
+  /// skipped. The identifiers of a recording, file or profile nested in it can name nothing
+  /// once applied, so nothing downloads or reads by them.
+  public let dive: DiveReadWithMixtures?
+  /// What changes on a `modified` dive; empty on any other.
+  public let changes: [LogbookImportChange]
+  public let startTime: DiveTimestamp?
+  public let device: RecordingDevice?
+  /// The indexes in `members` of the files the dive came from.
+  public let members: [Int]
+  /// On a skipped dive, why.
+  public let reason: String?
+}
+
+/// One member of a dive the import changes, what it was and what it becomes.
+public struct LogbookImportChange: Codable, Hashable, Sendable {
+  /// A path in the dive's read shape: `recordings/0/device/name`, `mixtures/1/start_pressure`,
+  /// `recordings/1`, `recordings/0/files/1`.
+  public let member: String
+  /// Null where the member did not exist.
+  public let before: ImportChangeValue
+  /// Null where it no longer does.
+  public let after: ImportChangeValue
+}
+
+/// A member's value as a dive read gives it, which may be any JSON at all. An object keeps the
+/// API's keys as they were sent.
+public enum ImportChangeValue: Codable, Hashable, Sendable {
+  case null
+  case bool(Bool)
+  case number(Double)
+  case string(String)
+  case array([ImportChangeValue])
+  case object([String: ImportChangeValue])
+
+  public init(from decoder: any Decoder) throws {
+    let c = try decoder.singleValueContainer()
+    if c.decodeNil() {
+      self = .null
+    } else if let value = try? c.decode(Bool.self) {
+      self = .bool(value)
+    } else if let value = try? c.decode(Double.self) {
+      self = .number(value)
+    } else if let value = try? c.decode(String.self) {
+      self = .string(value)
+    } else if let value = try? c.decode([ImportChangeValue].self) {
+      self = .array(value)
+    } else {
+      self = .object(try c.decode([String: ImportChangeValue].self))
+    }
+  }
+
+  public func encode(to encoder: any Encoder) throws {
+    var c = encoder.singleValueContainer()
+    switch self {
+    case .null: try c.encodeNil()
+    case .bool(let value): try c.encode(value)
+    case .number(let value): try c.encode(value)
+    case .string(let value): try c.encode(value)
+    case .array(let value): try c.encode(value)
+    case .object(let value): try c.encode(value)
+    }
+  }
+}
+
+/// One applied import, as `GET /imports` lists it.
+public struct LogbookImportSummary: Codable, Hashable, Sendable, Identifiable {
+  public let uuid: UUID
+  public let createdAt: DiveTimestamp
+  public let appliedAt: DiveTimestamp
+  /// How many of its dive rows came to each outcome; an outcome none did is left out.
+  public let counts: [String: Int]
+
+  public var id: UUID { uuid }
+}
+
+/// `GET /import/{uuid}/notes`: each dive's notes, and what is about no dive.
+public struct LogbookImportNotes: Codable, Hashable, Sendable {
+  /// One per dive row, in the review's order.
+  public let dives: [LogbookImportDiveNotes]
   /// Every note on no dive's row, grouped.
   public let notes: [ImportNoteGroup]
   /// Groups past the cap that `notes` leaves out.
   public let notesTruncated: Int
-  /// One row per file: each part of the request, and each file a zip among them held.
-  public let members: [ImportMemberReport]
-  /// One row per dive the import creates or touches.
-  public let dives: [ImportDiveReport]
 }
 
-/// `POST /import/logbook`'s answer: the report of what was written.
-public typealias ImportResult = ImportReport
-
-/// `POST /import/logbook/preview`'s answer: the report of what an import would write, and the
-/// token that applies it to the same files under the same names.
-@dynamicMemberLookup
-public struct ImportPreview: Codable, Hashable, Sendable {
-  public let report: ImportReport
-  /// The first document's own `format` marker.
-  public let format: String
-  public let version: String
-  public let generator: ImportGenerator?
-  /// Whether the files carry a full-export archive.
-  public let archive: Bool
-  public let token: String
-  /// Each check-in detail the files carry, the account's value beside the proposal.
-  public let checkInDetails: [ImportCheckInDetail]
-  /// The archive's portrait beside the account's, when it carries one to offer.
-  public let portrait: ImportPortraitOffer?
-
-  public subscript<Value>(dynamicMember keyPath: KeyPath<ImportReport, Value>) -> Value {
-    report[keyPath: keyPath]
-  }
-
-  enum CodingKeys: String, CodingKey {
-    case format, version, generator, archive, token, checkInDetails, portrait
-  }
-
-  public init(from decoder: any Decoder) throws {
-    report = try ImportReport(from: decoder)
-    let c = try decoder.container(keyedBy: CodingKeys.self)
-    format = try c.decode(String.self, forKey: .format)
-    version = try c.decode(String.self, forKey: .version)
-    generator = try c.decodeIfPresent(ImportGenerator.self, forKey: .generator)
-    archive = try c.decode(Bool.self, forKey: .archive)
-    token = try c.decode(String.self, forKey: .token)
-    checkInDetails =
-      try c.decodeIfPresent([ImportCheckInDetail].self, forKey: .checkInDetails) ?? []
-    portrait = try c.decodeIfPresent(ImportPortraitOffer.self, forKey: .portrait)
-  }
-
-  public func encode(to encoder: any Encoder) throws {
-    try report.encode(to: encoder)
-    var c = encoder.container(keyedBy: CodingKeys.self)
-    try c.encode(format, forKey: .format)
-    try c.encode(version, forKey: .version)
-    try c.encodeIfPresent(generator, forKey: .generator)
-    try c.encode(archive, forKey: .archive)
-    try c.encode(token, forKey: .token)
-    try c.encode(checkInDetails, forKey: .checkInDetails)
-    try c.encodeIfPresent(portrait, forKey: .portrait)
-  }
-}
-
-/// What produced an imported document, where it said.
-public struct ImportGenerator: Codable, Hashable, Sendable {
-  public let name: String?
-  public let version: String?
+/// Everything an import has to say about one dive.
+public struct LogbookImportDiveNotes: Codable, Hashable, Sendable {
+  public let uuid: UUID?
+  public let startTime: DiveTimestamp?
+  public let device: RecordingDevice?
+  public let outcome: String
+  /// On a skipped dive, why.
+  public let reason: String?
+  public let notes: [ImportDiveNote]
+  /// Notes past the row's cap, which the log's `notes` holds.
+  public let notesTruncated: Int
 }
 
 /// One envelope collection's records, by what happened to each.
@@ -83,8 +146,6 @@ public struct ImportCollectionReport: Codable, Hashable, Sendable {
   public let created: Int
   /// Matched a record of the account's; nothing was written.
   public let linked: Int
-  /// A record the account deleted, back under its own uuid.
-  public let restored: Int
   public let skipped: Int
 }
 
@@ -118,9 +179,9 @@ public struct ImportNoteGroup: Codable, Hashable, Sendable {
   public let wheres: [String]
 }
 
-/// One file of the import: a part of the request, or a file a zip among them held.
+/// One file of the import: a part of the upload, or a file a zip among them held.
 public struct ImportMemberReport: Codable, Hashable, Sendable {
-  /// The index of the request's `file` part it came from.
+  /// The index of the upload's `file` part it came from.
   public let part: Int
   /// For a file a zip held, the index in `members` of the zip's own row.
   public let container: Int?
@@ -139,29 +200,6 @@ public struct ImportMemberReport: Codable, Hashable, Sendable {
   public let refusal: String?
 }
 
-/// One dive the import creates or touches.
-public struct ImportDiveReport: Codable, Hashable, Sendable {
-  /// The dive's identifier once written; null for one the import skips.
-  public let uuid: UUID?
-  /// `created`, `restored`, `linked`, `updated` or `skipped`.
-  public let outcome: String
-  public let filesAdded: Int
-  public let recordingsAdded: Int
-  /// On a skipped dive, why.
-  public let reason: String?
-  public let startTime: DiveTimestamp?
-  /// Seconds.
-  public let submergedTime: Int?
-  /// Metres.
-  public let maxDepth: Double?
-  public let device: RecordingDevice?
-  /// The indexes in `members` of the files the dive came from.
-  public let members: [Int]
-  public let notes: [ImportDiveNote]
-  /// Notes past the row's cap, which the report's `notes` holds.
-  public let notesTruncated: Int
-}
-
 /// A check-in detail a logbook carries, the account's value beside the proposal.
 public enum ImportCheckInDetail: Hashable, Sendable {
   case email(account: String?, proposed: String)
@@ -169,7 +207,7 @@ public enum ImportCheckInDetail: Hashable, Sendable {
   case dateOfBirth(account: CalendarDate?, proposed: CalendarDate)
   case emergencyContacts(account: [EmergencyContact], proposed: [EmergencyContact])
   case insurancePolicies(account: [InsurancePolicy], proposed: [InsurancePolicy])
-  /// A detail this version does not know, kept by name so the rest of the preview reads.
+  /// A detail this version does not know, kept by name so the rest of the import reads.
   case other(String)
 }
 

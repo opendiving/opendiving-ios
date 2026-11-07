@@ -4,22 +4,20 @@ import Foundation
 /// Every `code`, `kind` and outcome is the API's string, so one this build does not know reads
 /// as the bare fact rather than as a blank.
 public enum ImportText {
-  /// A preview that failed with no sentence of the API's, and any 5xx.
-  public static let readFailed = "The files could not be read. Please check them and try again."
-  /// A read the diver tapped that never reached the server.
-  public static let unreachable = "The server could not be reached, so the files were not read."
+  /// An upload that failed with no sentence of the API's, and any 5xx.
+  public static let uploadFailed =
+    "The files could not be uploaded. Please check them and try again."
+  /// An upload that never reached the server.
+  public static let unreachable =
+    "The server could not be reached, so the files were not uploaded."
   /// An apply that failed with no sentence of the API's.
   public static let applyFailed = "The import could not be completed. Nothing has been changed."
-  public static let staleSentence =
-    "The files changed since they were read. Read them again to see what they would import."
+  /// Beside *Upload* while an import is pending, on this device or another.
+  public static let pendingBlocksUpload =
+    "An import is waiting to be finished. Import or discard it before uploading these files."
   /// Said on the import screen when a file was shared to the app.
   public static let oneAtATime =
     "Shared files arrive one at a time; to import several, pick them with Import files."
-
-  /// Files no read covers, while the server cannot be reached to read them.
-  public static func waitingForRoute(_ count: Int) -> String {
-    PendingText.filesWaiting(count) + "; they are read when the server can be reached"
-  }
 
   // MARK: - Files
 
@@ -49,45 +47,23 @@ public enum ImportText {
   // MARK: - Dives
 
   /// What an import does to one dive.
-  public static func diveOutcome(_ row: ImportDiveReport) -> String {
+  public static func diveOutcome(_ row: LogbookImportDive) -> String {
     switch row.outcome {
-    case "created": return "New"
-    case "restored": return "Brought back from deletion"
-    case "linked": return "Already in your logbook"
-    case "updated":
-      var gains: [String] = []
-      if row.filesAdded > 0 {
-        gains.append(row.filesAdded == 1 ? "a file" : "\(row.filesAdded) files")
-      }
-      if row.recordingsAdded > 0 {
-        gains.append(
-          row.recordingsAdded == 1
-            ? "another computer's recording"
-            : "\(row.recordingsAdded) other computers' recordings")
-      }
-      return gains.isEmpty
-        ? "Adds to a dive you have" : "Adds \(gains.joined(separator: " and ")) to a dive you have"
-    case "skipped":
-      // The reason is a sentence, too long for the column this sits in; the row prints it
-      // beneath, at full width.
-      return "Skipped"
-    default:
-      return row.outcome
+    case "new": "New"
+    case "modified": "Modified"
+    case "unchanged": "Already in your logbook"
+    // The reason is a sentence, too long for the column this sits in; the row prints it
+    // beneath, at full width.
+    case "skipped": "Skipped"
+    default: row.outcome
     }
   }
 
-  /// The import button's label. It never says an import would write nothing: whether an
-  /// apply changes a stored row is the writer's fact, and the report does not carry it.
-  public static func buttonLabel(_ dives: [ImportDiveReport]) -> String {
-    let brought = dives.filter { $0.outcome == "created" || $0.outcome == "restored" }.count
-    if brought > 0 { return "Import \(countNoun(brought, "dive"))" }
-    let updated = dives.filter { $0.outcome == "updated" }
-    let files = updated.reduce(0) { $0 + $1.filesAdded }
-    let recordings = updated.reduce(0) { $0 + $1.recordingsAdded }
-    var gains: [String] = []
-    if files > 0 { gains.append(countNoun(files, "file")) }
-    if recordings > 0 { gains.append(countNoun(recordings, "recording")) }
-    return gains.isEmpty ? "Import" : "Import \(gains.joined(separator: " and "))"
+  /// The import button's label, from the rows the import writes. It stays enabled whatever they
+  /// say, since a check-in detail or a tag can be written where no dive is.
+  public static func buttonLabel(_ dives: [LogbookImportDive]) -> String {
+    let written = dives.filter { $0.outcome == "new" || $0.outcome == "modified" }.count
+    return written > 0 ? "Import \(countNoun(written, "dive"))" : "Import"
   }
 
   /// A dive's start as the file gives it: its wall clock, then the offset that clock was on
@@ -172,9 +148,9 @@ public enum ImportText {
 
   /// The rows the Records table shows: empty rows left out, and the dives row wherever the
   /// report has dive rows, which are the report on dives.
-  public static func recordRows(_ report: ImportReport) -> [ImportCollectionReport] {
+  public static func recordRows(_ report: LogbookImportRead) -> [ImportCollectionReport] {
     report.collections.filter { row in
-      !(row.created == 0 && row.linked == 0 && row.restored == 0 && row.skipped == 0)
+      !(row.created == 0 && row.linked == 0 && row.skipped == 0)
         && !(row.collection == "dives" && !report.dives.isEmpty)
     }
   }
@@ -187,9 +163,9 @@ public enum ImportText {
   }
 
   /// What a bare document cannot do, said once.
-  public static func fileRestoreHint(_ report: ImportReport, archive: Bool) -> String? {
+  public static func fileRestoreHint(_ report: LogbookImportRead) -> String? {
     let count = report.files.notContained
-    guard !archive, count > 0 else { return nil }
+    guard !report.archive, !report.isApplied, count > 0 else { return nil }
     return (count == 1 ? "This file is" : "These \(count) files are")
       + " named by the document but not carried in it — import the full archive (.zip) to "
       + "restore the bytes as well."
@@ -221,12 +197,9 @@ public enum ImportText {
   /// dives sharing a number or out of date order than the log had. Renumbering stays on the
   /// web, so it is a sentence and offers nothing.
   public static func numberingSuggestion(
-    before: DiveNumberingSummary?, after: DiveNumberingSummary?, dives: [ImportDiveReport]
+    before: DiveNumberingSummary, after: DiveNumberingSummary?, dives: [LogbookImportDive]
   ) -> String? {
-    guard let before, let after,
-      dives.contains(where: {
-        ($0.outcome == "created" || $0.outcome == "restored") && $0.startTime != nil
-      }),
+    guard let after, dives.contains(where: { $0.outcome == "new" && $0.startTime != nil }),
       after.duplicateCount > before.duplicateCount
         || after.outOfDateOrderCount > before.outOfDateOrderCount,
       let description = numbering(after)

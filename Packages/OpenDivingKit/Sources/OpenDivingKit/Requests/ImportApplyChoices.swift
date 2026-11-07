@@ -1,6 +1,20 @@
 import Foundation
 
-/// The check-in details the diver kept or edited in an import's preview, sent back with the
+/// What the diver confirmed in the review: the body of `POST /import/{uuid}/apply`. A member left
+/// nil is not sent.
+public struct LogbookImportApply: Codable, Hashable, Sendable {
+  public var checkInDetails: ImportCheckInSubmission?
+  public var portrait: ImportPortraitChoice?
+
+  public init(
+    checkInDetails: ImportCheckInSubmission? = nil, portrait: ImportPortraitChoice? = nil
+  ) {
+    self.checkInDetails = checkInDetails
+    self.portrait = portrait
+  }
+}
+
+/// The check-in details the diver kept or edited in an import's review, sent back with the
 /// apply as `check_in_details`. A member left ``Patch/absent`` or nil is not written; a scalar
 /// sent as ``Patch/null`` is cleared; a list sent replaces the account's whole list.
 public struct ImportCheckInSubmission: Codable, Hashable, Sendable {
@@ -52,8 +66,8 @@ public struct InsurancePolicyWrite: Codable, Hashable, Sendable {
 }
 
 /// Whether the archive's portrait replaces the account's, sent with the apply as `portrait`.
-/// `accountSha256` is the preview's ``ImportPortraitOffer/accountSha256``, written as null when
-/// the account had none, so a portrait changed since the preview is kept.
+/// `accountSha256` is the review's ``ImportPortraitOffer/accountSha256``, written as null when
+/// the account had none, so a portrait changed since the review is kept.
 public struct ImportPortraitChoice: Hashable, Sendable {
   public var take: Bool
   public var accountSha256: String?
