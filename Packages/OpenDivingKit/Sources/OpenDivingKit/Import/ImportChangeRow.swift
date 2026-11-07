@@ -37,7 +37,8 @@ public enum ImportChangeRow: Hashable, Sendable {
   private static func labelled(_ change: LogbookImportChange, _ units: UnitSystem)
     -> ImportChangeRow?
   {
-    let path = change.member.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+    let path = change.member.split(separator: "/", omittingEmptySubsequences: false).map(
+      String.init)
     guard path.count > 1 else {
       return diveMembers[change.member].map { value($0.label, change, $0.format, units) }
     }

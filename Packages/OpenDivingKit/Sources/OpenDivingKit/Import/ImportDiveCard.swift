@@ -1,6 +1,5 @@
 import Foundation
 
-
 /// One dive of a review or a result as a card: a `new` or `modified` row with a dive to draw.
 public struct ImportDiveCard: Sendable, Identifiable {
   /// What tapping the card does.

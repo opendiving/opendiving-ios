@@ -149,4 +149,37 @@ struct DiveCardContentTests {
     #expect(
       DiveTitles.sitesLabel(["Pescador Island", "Panagsama Wall", "Kasai"]) == "Pescador Island +2")
   }
+
+  // MARK: - An import's row
+
+  @Test func aNewRowDrawsItsDiveBehindItsChip() throws {
+    let read = try KitFixture.decode(LogbookImportRead.self, "import-pending")
+    let row = try #require(read.dives.first)
+    let dive = try #require(row.dive)
+    let content = try #require(DiveCardContent.dive(row, units: .metric))
+    #expect(content.chips.first?.text == "New")
+    #expect(content.chips.first?.kind == .new)
+    #expect(content.outline.isEmpty)
+    #expect(content.title == DiveTitles.title(number: dive.diveNumber, siteNames: []))
+    #expect(
+      content.fixes.count == (dive.entryLatitude == nil ? 0 : 1)
+        + (dive.exitLatitude == nil ? 0 : 1))
+    #expect(
+      content.facts.contains { $0.icon == .diveComputer && $0.iconCount == dive.recordings.count })
+  }
+
+  @Test func aModifiedRowSaysSo() throws {
+    let read = try KitFixture.decode(LogbookImportRead.self, "import-modified")
+    let row = try #require(read.dives.first)
+    let content = try #require(DiveCardContent.dive(row, units: .metric))
+    #expect(content.chips.first?.text == "Modified")
+    #expect(content.chips.first?.kind == .modified)
+  }
+
+  @Test func aRowTheImportDoesNotWriteHasNoCard() throws {
+    let read = try KitFixture.decode(LogbookImportRead.self, "import-applied")
+    let skipped = try #require(read.dives.last)
+    #expect(skipped.outcome == "skipped")
+    #expect(DiveCardContent.dive(skipped, units: .metric) == nil)
+  }
 }

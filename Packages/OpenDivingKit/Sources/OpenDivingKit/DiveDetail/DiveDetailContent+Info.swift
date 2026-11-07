@@ -82,7 +82,9 @@ extension DiveDetailContent {
             let shown = recording(read, diveStart: dive.startTime, isOneOfMany: false)
             let files =
               shown.noFileKept.map { [$0] } ?? shown.files.map { $0.name + " · " + $0.detail }
-            let lines = [shown.device, shown.settings, shown.readouts, shown.started, shown.firmware]
+            let lines = [
+              shown.device, shown.settings, shown.readouts, shown.started, shown.firmware,
+            ]
             let profile = read.profile.map { profileDescription($0, units: units) }
             return RecordInfoFact(
               label: DiveDetailText.recordingLabel(ordinal: index),

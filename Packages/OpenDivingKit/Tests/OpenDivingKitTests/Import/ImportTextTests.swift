@@ -37,54 +37,50 @@ struct ImportTextTests {
       LogbookImportDive.self, from: JSONSerialization.data(withJSONObject: json))
   }
 
-  @Test func theRowsReadAsTheWebsDo() throws {
+  @Test func aMemberSaysWhatBecameOfItsFile() throws {
     let pending = try KitFixture.decode(LogbookImportRead.self, "import-pending")
-    let rows = ImportDiveRow.rows(
-      pending.dives, members: pending.members, units: .metric, written: false)
-    let first = try #require(rows.first)
-    #expect(first.start == "Sep 8, 2026, 15:17 +03:00")
-    #expect(first.diveTime == "51:03")
-    #expect(first.depth == "19.0 m")
-    #expect(first.recordedBy == "Suunto Ocean")
-    #expect(first.outcome == "New")
-    #expect(first.files == ["dive-0214.fit"])
-    #expect(first.opens == nil)
     #expect(ImportText.memberStatus(pending.members[0]) == ("FIT · kept on its dive", false))
     #expect(
       ImportText.memberStatus(pending.members[1])
         == ("Refused: This file is not one OpenDiving reads.", true))
+    #expect(
+      ImportText.refusedFiles(pending) == ["notes.txt: This file is not one OpenDiving reads."])
   }
 
-  @Test func theOutcomesReadInTheDiversTerms() throws {
-    #expect(ImportText.diveOutcome(try row("new")) == "New")
-    #expect(ImportText.diveOutcome(try row("modified")) == "Modified")
-    #expect(ImportText.diveOutcome(try row("unchanged")) == "Already in your logbook")
-    #expect(ImportText.diveOutcome(try row("skipped")) == "Skipped")
-    #expect(ImportText.diveOutcome(try row("something_new")) == "something_new")
+  @Test func theOutcomesReadInTheDiversTerms() {
+    #expect(ImportText.diveOutcome("new") == "New")
+    #expect(ImportText.diveOutcome("modified") == "Modified")
+    #expect(ImportText.diveOutcome("unchanged") == "Already in your logbook")
+    #expect(ImportText.diveOutcome("skipped") == "Skipped")
+    #expect(ImportText.diveOutcome("something_new") == "something_new")
   }
 
-  @Test func aRowOpensADiveThatExists() throws {
-    let uuid = UUID()
-    let opens = { (outcome: String, written: Bool) in
-      ImportDiveRow.rows(
-        [try self.row(outcome, uuid: uuid)], members: [], units: .metric, written: written)[0].opens
-    }
-    #expect(try opens("new", false) == nil)
-    #expect(try opens("modified", false) == uuid)
-    #expect(try opens("unchanged", false) == uuid)
-    #expect(try opens("skipped", false) == nil)
-    #expect(try opens("new", true) == uuid)
-    // A row the apply skipped keeps the uuid the review gave it, of a dive gone since.
-    #expect(try opens("skipped", true) == nil)
+  @Test func theSummaryCountsTheRowsAndTheFirstTermNamesThem() throws {
+    #expect(ImportText.summary([]) == nil)
+    #expect(ImportText.summary([try row("skipped")]) == "1 skipped dive")
+    #expect(
+      ImportText.summary([
+        try row("unchanged"), try row("new"), try row("new"), try row("modified"),
+        try row("something_new"),
+      ]) == "2 new dives, 1 modified, 1 unchanged, 1 something_new")
   }
 
-  @Test func aSkippedRowSaysWhyOnceBeneathItsOutcome() throws {
-    let dive = try row(
-      "skipped", uuid: nil, reason: "A dive needs a start time, and this one has none.")
-    let first = try #require(
-      ImportDiveRow.rows([dive], members: [], units: .metric, written: false).first)
-    #expect(first.outcome == "Skipped")
-    #expect(first.reason == "A dive needs a start time, and this one has none.")
+  @Test func aHistoryRowCountsItsOutcomes() {
+    #expect(ImportText.counts(["modified": 2, "new": 12]) == "12 new, 2 modified")
+    #expect(ImportText.counts(["something_new": 1, "skipped": 3]) == "3 skipped, 1 something_new")
+    #expect(ImportText.counts([:]) == "No dives")
+  }
+
+  @Test func theReviewSaysHowLongItCanWait() {
+    let utc = DiveTimestamp(wireValue: "2026-11-08T11:46:38+00:00")
+    let line = ImportText.reviewLine(expiresAt: utc)
+    #expect(line.hasPrefix("Your logbook changes when you import. You can finish this on any"))
+    #expect(line.contains(" until Nov "))
+    #expect(
+      ImportText.reviewLine(expiresAt: nil)
+        == "Your logbook changes when you import. You can finish this on any device.")
+    #expect(ImportText.appliedLine(nil) == nil)
+    #expect(ImportText.appliedLine(utc)?.hasPrefix("Written to your logbook on Nov ") == true)
   }
 
   @Test func theButtonCountsWhatIsWrittenAndNeverClaimsTheNegative() throws {
