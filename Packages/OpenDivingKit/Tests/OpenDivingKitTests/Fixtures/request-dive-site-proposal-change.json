@@ -1,0 +1,17 @@
+{
+  "attestation": "I am proposing this change from my own diving. It is not copied from another database, app or publication. I dedicate it to the public domain under CC0 1.0.",
+  "message": "",
+  "members": {
+    "name": "Blue Hole",
+    "other_names": ["The Blue Hole"],
+    "external_ids": [],
+    "entry_types": ["shore"],
+    "latitude": 28.5722,
+    "longitude": 34.5372,
+    "depth_from": 5,
+    "depth_to": null,
+    "water_type": "salt",
+    "altitude": null,
+    "location_name": null
+  }
+}

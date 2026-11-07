@@ -125,6 +125,28 @@ extension APIClient {
 
   // MARK: - Commons proposals
 
+  /// `POST /dive-site/{uuid}/proposals`: proposes the diver's own site as it stands, or a change
+  /// to a Commons record. Proposing again on a site replaces what waits.
+  @discardableResult
+  public func proposeDiveSite(_ uuid: UUID, _ proposal: DiveSiteProposalCreate) async throws
+    -> DiveSiteProposalRead
+  {
+    try await authorizedDecoded(
+      DiveSiteProposalRead.self,
+      Call(
+        method: "POST", path: "dive-site/\(Self.wire(uuid))/proposals", body: Self.json(proposal)))
+  }
+
+  /// `POST /dive-site/{uuid}/replace`: moves the diver's site onto a Commons record and deletes
+  /// it, answering the record. The site's uuid goes on meaning the record to this account alone.
+  public func replaceDiveSite(_ uuid: UUID, with record: UUID) async throws -> DiveSiteRead {
+    try await authorizedDecoded(
+      DiveSiteRead.self,
+      Call(
+        method: "POST", path: "dive-site/\(Self.wire(uuid))/replace",
+        body: Self.json(DiveSiteReplace(commonsSite: record))))
+  }
+
   /// `DELETE /dive-site-proposal/{uuid}`: takes back a proposal while it waits; a 409 on one
   /// already decided or withdrawn.
   public func withdrawDiveSiteProposal(_ uuid: UUID) async throws {

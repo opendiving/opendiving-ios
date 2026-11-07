@@ -51,13 +51,16 @@ extension FormPicker {
   /// site's sheet took instead.
   @ViewBuilder func addSheet(
     onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
+    siteHandBack: SiteProposalHandBack = SiteProposalHandBack(),
     onCreated: @escaping (RecordRef) -> Void
   ) -> some View {
     switch self {
     case .course: NewCourseSheet(onCreated: onCreated)
     case .trip: NewTripSheet(onCreated: onCreated)
     case .contact: NewContactSheet(onCreated: onCreated)
-    case .diveSites: NewDiveSiteSheet(onCommonsSite: onCommonsSite, onCreated: onCreated)
+    case .diveSites:
+      NewDiveSiteSheet(
+        onCommonsSite: onCommonsSite, handBack: siteHandBack, onCreated: onCreated)
     case .people: NewPersonSheet(onCreated: onCreated)
     case .gear: NewGearItemSheet(onCreated: onCreated)
     case .cylinder: NewGearItemSheet(type: "cylinder", onCreated: onCreated)

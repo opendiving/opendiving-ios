@@ -37,6 +37,16 @@ struct ModelFixtureTests {
     #expect(stats.createdAt.utcOffsetMinutes == 0)
   }
 
+  @Test func theCommonsMatches() throws {
+    let matches = try KitFixture.roundTrip(
+      [DiveSiteCommonsMatchRead].self, "dive-site-commons-matches")
+    #expect(matches.map(\.rule) == ["within_20_m", "identity"])
+    #expect(matches.first?.distanceMetres == 12.4)
+    #expect(matches.first?.externalIds.first?.identifier == "node/255316037")
+    #expect(matches.last?.qualifierSiblings == true)
+    #expect(matches.last?.locationName == nil)
+  }
+
   @Test func peoplePage() throws {
     let page = try KitFixture.roundTrip(PaginatedListResponse<PersonRead>.self, "people-page")
     #expect(page.data.map(\.name) == ["Ana Diaz", "Ben Okafor", "Chloe Martin"])

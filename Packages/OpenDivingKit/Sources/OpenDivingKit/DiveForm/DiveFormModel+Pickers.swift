@@ -195,6 +195,22 @@ extension DiveFormModel {
     change { values in if !values.diveSites.contains(ref) { values.diveSites.append(ref) } }
   }
 
+  /// A Commons record where `retired` stood, a replaced site under either of its refs: the local
+  /// one the form was handed, or the server's the flush swapped it for. The dive names the record
+  /// once, and nothing of the site.
+  public func swapSite(_ retired: Set<RecordRef>, for record: DiveSiteRead) {
+    let ref = RecordRef.server(record.uuid)
+    remember(
+      FormPickerRow(
+        ref: ref, title: record.name, subtitle: record.location?.name, isCommons: record.isCommons,
+        attribution: record.attribution))
+    change { values in
+      guard let index = values.diveSites.firstIndex(where: retired.contains) else { return }
+      if !values.diveSites.contains(ref) { values.diveSites.insert(ref, at: index) }
+      values.diveSites.removeAll(where: retired.contains)
+    }
+  }
+
   /// A Commons record taken from the site form's search, which the picker then adds.
   public func take(_ site: DiveSiteLookupItem) {
     sitesFound[site.ref] = site

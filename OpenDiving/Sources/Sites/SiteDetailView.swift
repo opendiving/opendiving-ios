@@ -6,9 +6,15 @@ import SwiftUI
 struct SiteDetailView: View {
   let siteUUID: UUID
   @Environment(Session.self) private var session
+  /// The Commons record that replaced the site while its page was open.
+  @State private var record: UUID?
 
   var body: some View {
-    SiteDetailContent(model: DiveSiteDetailModel(session: session, siteUUID: siteUUID))
+    let shown = record ?? siteUUID
+    SiteDetailContent(model: DiveSiteDetailModel(session: session, siteUUID: shown)) {
+      record = $0
+    }
+    .id(shown)
   }
 }
 
@@ -16,9 +22,12 @@ private struct SiteDetailContent: View {
   @Environment(Session.self) private var session
   @Environment(\.dismiss) private var dismiss
   @State private var model: DiveSiteDetailModel
+  @State private var replacing: DiveSiteCommonsMatch?
+  let onReplaced: (UUID) -> Void
 
-  init(model: DiveSiteDetailModel) {
+  init(model: DiveSiteDetailModel, onReplaced: @escaping (UUID) -> Void) {
     _model = State(initialValue: model)
+    self.onReplaced = onReplaced
   }
 
   var body: some View {
@@ -46,6 +55,11 @@ private struct SiteDetailContent: View {
               }
               if let notice = site.proposal.flatMap(DiveSiteProposalSummary.notice) {
                 ProposalNotice(notice: notice, model: model)
+              }
+              if let match = site.commonsMatch {
+                CommonsMatchNotice(match: match, replacement: model.replacement) {
+                  replacing = match
+                }
               }
               SiteDives(list: model.dives, units: session.units)
               PageEndTrigger(list: model.dives)
@@ -78,7 +92,8 @@ private struct SiteDetailContent: View {
             sections: DiveSiteSummary.recordInfo(site, units: session.units))
           if !site.isUnsavedCommons {
             NavigationLink {
-              DiveSiteFormView(mode: .edit(site)) { dismiss() }
+              DiveSiteFormView(
+                mode: .edit(site), onDeleted: { dismiss() }, onReplaced: onReplaced)
             } label: {
               Label("Edit dive site", systemImage: "pencil")
             }
@@ -88,6 +103,12 @@ private struct SiteDetailContent: View {
     }
     .task { await model.load() }
     .proposalWithdrawalAlert(model.withdrawal)
+    .replaceWithCommonsConfirmation(siteName: title, target: $replacing) { match in
+      Task {
+        if let record = await model.replace(with: match.uuid) { onReplaced(record.uuid) }
+      }
+    }
+    .replaceWithCommonsAlert(model.replacement)
   }
 
   private var title: String {
@@ -116,6 +137,31 @@ private struct ProposalNotice: View {
         ProposalWithdrawButton(
           proposal: proposal, withdrawal: model.withdrawal, withdraw: model.withdraw)
       }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+  }
+}
+
+/// The diver's own site shares a registry entry with a Commons record: which one, opening its
+/// page, and the way to take it instead. On every instance, as the route is.
+private struct CommonsMatchNotice: View {
+  let match: DiveSiteCommonsMatch
+  let replacement: CommonsSiteReplacement
+  let replace: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      NavigationLink {
+        SiteDetailView(siteUUID: match.uuid)
+      } label: {
+        Text(DiveSiteProposalSummary.commonsMatch(match))
+          .font(.subheadline)
+          .multilineTextAlignment(.leading)
+      }
+      .accentRow()
+      ReplaceWithCommonsButton(record: match.uuid, replacement: replacement, replace: replace)
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)

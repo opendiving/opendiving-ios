@@ -26,6 +26,8 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   public private(set) var hasPendingEdit = false
   /// The *Withdraw* on the page's proposal notice.
   public let withdrawal: ProposalWithdrawal
+  /// The *Replace with Commons site* on the page's match notice.
+  public let replacement: CommonsSiteReplacement
 
   @ObservationIgnored private let session: Session
   /// The read a queued edit landing started.
@@ -37,6 +39,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     self.session = session
     self.siteUUID = siteUUID
     withdrawal = ProposalWithdrawal(session: session)
+    replacement = CommonsSiteReplacement(session: session)
     dives = PagedList(session: session, itemsPerPage: APIClient.nestedListPageSize) {
       client, page, itemsPerPage in
       try await client.dives(page: page, itemsPerPage: itemsPerPage, diveSiteUUID: siteUUID)
@@ -78,6 +81,12 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   /// Takes back the diver's proposal on the site and reads the site again.
   public func withdraw(_ proposal: UUID) async {
     await withdrawal.withdraw(proposal) { await reloadWithEveryList(on: session) }
+  }
+
+  /// Replaces the site with the Commons record, answering the record the page gives way to; nil
+  /// with the reason on ``replacement``.
+  public func replace(with record: UUID) async -> DiveSiteRead? {
+    await replacement.replace(siteUUID, with: record) { await reloadWithEveryList(on: session) }
   }
 
   private func readSite() async {

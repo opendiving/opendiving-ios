@@ -61,6 +61,15 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
     isCommons = site.isCommons
   }
 
+  /// The form a change to a Commons record opens on: its shared members to correct, with none of
+  /// the diver's own words.
+  public init(changing site: DiveSiteRead) {
+    self.init(editing: site)
+    isCommons = false
+    notes = ""
+    tags = []
+  }
+
   public var issues: [FormIssue] {
     var list = FormIssueList()
     if !isCommons {
@@ -135,6 +144,39 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
     update.altitude = .change(from: before.altitude, to: now.altitude)
     update.location = .change(from: before.location, to: now.location)
     return update
+  }
+
+  /// What a proposed change to a Commons record is held to: a site's rules, and the record keeps
+  /// its pin.
+  public var changeIssues: [FormIssue] {
+    let cleared = !CoordinateEntry.isSet(latitude) && !CoordinateEntry.isSet(longitude)
+    return issues
+      + (cleared ? [FormIssue(field: "latitude", message: "A Commons site keeps its pin")] : [])
+  }
+
+  /// A proposed change's `members`: what differs from the record the form opened on. The position
+  /// goes as a pair, and the place as its name alone.
+  public func change(from baseline: DiveSiteFormValues) throws(FormInvalid)
+    -> DiveSiteMembersChange
+  {
+    if !changeIssues.isEmpty { throw FormInvalid(issues: changeIssues) }
+    let now = written
+    let before = baseline.written
+    var change = DiveSiteMembersChange()
+    if now.name != before.name { change.name = now.name }
+    if now.otherNames != before.otherNames { change.otherNames = now.otherNames }
+    if now.externalIds != before.externalIds { change.externalIds = now.externalIds }
+    if now.entryTypes != before.entryTypes { change.entryTypes = now.entryTypes }
+    if now.latitude != before.latitude || now.longitude != before.longitude {
+      change.latitude = Patch(now.latitude)
+      change.longitude = Patch(now.longitude)
+    }
+    change.depthFrom = .change(from: before.depthFrom, to: now.depthFrom)
+    change.depthTo = .change(from: before.depthTo, to: now.depthTo)
+    change.waterType = .change(from: before.waterType, to: now.waterType)
+    change.altitude = .change(from: before.altitude, to: now.altitude)
+    change.locationName = .change(from: before.location?.name, to: now.location?.name)
+    return change
   }
 
   /// These values with a queued update laid over.
