@@ -20,7 +20,7 @@ struct ImportChangeRowTests {
     #expect(rows.contains(.value(label: "Entry latitude", before: "—", after: "28.496525")))
     #expect(rows.contains(.value(label: "Recording 1: Device name", before: "—", after: "Ocean")))
     #expect(rows.contains(.element("File added — dive-0214.json")))
-    #expect(rows.contains(.element("Recording 1: Curve added — pressure")))
+    #expect(rows.contains(.element("Recording 1: Curve added — Tank pressure")))
   }
 
   @Test func aValueReadsInTheDiversUnits() throws {
@@ -70,10 +70,36 @@ struct ImportChangeRowTests {
         == .value(label: "Tag", before: "reef", after: "wall"))
   }
 
-  @Test func whatHasNoLabelReadsByItsPath() throws {
+  @Test func aTanksGasNumberReadsAsTheTankRowsDo() throws {
     #expect(
       try row("mixtures/0/gas_number", "null", "0")
-        == .value(label: "mixtures/0/gas_number", before: "—", after: "0"))
+        == .value(label: "Tank 1: Gas number", before: "—", after: "0"))
+  }
+
+  @Test func aCurveReadsByTheNameTheChartGivesIt() throws {
+    for channel in ProfileChannel.allCases {
+      #expect(
+        try row("recordings/0/profile/channels/2", "null", #""\#(channel.rawValue)""#)
+          == .element("Recording 1: Curve added — \(channel.label)"))
+    }
+    #expect(
+      try row("recordings/1/profile/channels/0", #""ndl""#, "null")
+        == .element("Recording 2: Curve removed — No-deco time"))
+    #expect(
+      try row("recordings/0/profile/channels/1", #""ceiling""#, #""heart_rate""#)
+        == .value(label: "Recording 1: Curve", before: "Deco ceiling", after: "Heart rate"))
+  }
+
+  @Test func aCurveTheChartDoesNotKnowKeepsItsWriterName() throws {
+    #expect(
+      try row("recordings/0/profile/channels/2", "null", #""co2""#)
+        == .element("Recording 1: Curve added — co2"))
+  }
+
+  @Test func whatHasNoLabelReadsByItsPath() throws {
+    #expect(
+      try row("mixtures/0/regulator", "null", "0")
+        == .value(label: "mixtures/0/regulator", before: "—", after: "0"))
     #expect(
       try row("gas_use", #"{"rmv":14.5,"a":true}"#, "null")
         == .value(label: "gas_use", before: #"{"a":true,"rmv":14.5}"#, after: "—"))
