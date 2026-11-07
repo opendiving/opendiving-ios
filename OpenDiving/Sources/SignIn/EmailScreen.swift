@@ -133,7 +133,7 @@ struct EmailScreen: View {
         .foregroundStyle(Color.primary.opacity(0.75))
     }
     .frame(maxWidth: .infinity)
-    .padding(.top, 32)
+    .padding(.top, 12)
     .padding(.bottom, 16)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("OpenDiving")

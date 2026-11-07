@@ -37,6 +37,8 @@ struct ServerCard<Actions: View>: View {
       if !content.isEncrypted {
         Label("Connection is not encrypted.", systemImage: "lock.open")
           .foregroundStyle(.orange)
+          // A label's separator would otherwise start at its title, short of the rows above.
+          .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
       }
       actions
     }
