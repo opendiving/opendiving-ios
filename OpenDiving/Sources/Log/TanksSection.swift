@@ -152,7 +152,7 @@ private struct VolumeField: View {
         DecimalField(
           title: "Volume", unit: "L", value: value, isReadOnly: isReadOnly, onChange: onChange)
         if !isReadOnly {
-          VolumePresetsMenu(groups: model.volumeGroups, units: model.units, onPick: onChange)
+          VolumePresetsMenu(groups: model.volumeGroups, units: model.units) { onChange($0.liters) }
         }
       }
       if let error { FieldMessage(error) }

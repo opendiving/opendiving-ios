@@ -7,11 +7,27 @@ public struct VolumePreset: Hashable, Sendable {
   public let label: String
   /// The cubic-feet name a US cylinder is known by, material and all: `AL80`, `HP100`.
   public let imperialName: String?
+  /// Bar: the rating a named cylinder's cubic feet are measured at, stored as typing its psi into
+  /// a working-pressure box stores it. Nil without a name — a 12 L comes at 200, 232 and 300 bar.
+  public let workingPressure: Double?
+  /// A ``FormVocabulary/cylinderMaterials`` key, for a named cylinder only.
+  public let material: String?
 
-  init(_ liters: Double, _ label: String, _ imperialName: String? = nil) {
+  init(_ liters: Double, _ label: String) {
+    self.liters = liters
+    self.label = label
+    imperialName = nil
+    workingPressure = nil
+    material = nil
+  }
+
+  /// A cylinder named by its cubic feet at `psi`, the pressure that name is rated at.
+  init(_ liters: Double, _ label: String, _ imperialName: String, _ material: String, psi: Double) {
     self.liters = liters
     self.label = label
     self.imperialName = imperialName
+    workingPressure = Measure.pressure.fromDisplay(psi, .imperial)
+    self.material = material
   }
 
   /// How the preset reads to a diver in `units`: imperial leads with the cu-ft name where there
@@ -33,6 +49,10 @@ public struct VolumePresetGroup: Hashable, Sendable {
 /// The Volume box's presets, the web's lists at its pin: every group to every diver, the
 /// reader's own family first, never filtered — a list hiding the unfamiliar half fails the
 /// diver handed an AL80 on a boat in Florida.
+///
+/// A US name also pins the cylinder's rating and material: Luxfer and Catalina aluminium at
+/// 3000 psi, Luxfer's S100 at 3300, Faber and Worthington HP steel at 3442, LP steel at its 2400+.
+/// A metric volume pins neither.
 public enum VolumePresets {
   public static let groups: [VolumePresetGroup] = [
     VolumePresetGroup(
@@ -45,25 +65,34 @@ public enum VolumePresets {
     VolumePresetGroup(
       title: "Twin Sets", units: nil,
       presets: [
-        VolumePreset(14, "14 L (2x7 L)"), VolumePreset(22.2, "22.2 L (2x AL80)", "2x AL80"),
+        VolumePreset(14, "14 L (2x7 L)"),
+        VolumePreset(22.2, "22.2 L (2x AL80)", "2x AL80", "aluminium", psi: 3000),
         VolumePreset(24, "24 L (2x12 L)"), VolumePreset(30, "30 L (2x15 L)"),
       ]),
     VolumePresetGroup(
       title: "US Aluminium", units: .imperial,
       presets: [
-        VolumePreset(5.7, "5.7 L (AL40)", "AL40"), VolumePreset(7.1, "7.1 L (AL50)", "AL50"),
-        VolumePreset(9, "9 L (AL63)", "AL63"), VolumePreset(10, "10 L (AL72)", "AL72"),
-        VolumePreset(11.1, "11.1 L (AL80)", "AL80"),
-        VolumePreset(13.2, "13.2 L (AL100)", "AL100"),
+        VolumePreset(5.7, "5.7 L (AL40)", "AL40", "aluminium", psi: 3000),
+        VolumePreset(7.1, "7.1 L (AL50)", "AL50", "aluminium", psi: 3000),
+        VolumePreset(9, "9 L (AL63)", "AL63", "aluminium", psi: 3000),
+        VolumePreset(10, "10 L (AL72)", "AL72", "aluminium", psi: 3000),
+        VolumePreset(11.1, "11.1 L (AL80)", "AL80", "aluminium", psi: 3000),
+        VolumePreset(13.2, "13.2 L (AL100)", "AL100", "aluminium", psi: 3300),
       ]),
     VolumePresetGroup(
       title: "US Steel", units: .imperial,
       presets: [
-        VolumePreset(10.2, "10.2 L (HP80)", "HP80"), VolumePreset(12.9, "12.9 L (HP100)", "HP100"),
-        VolumePreset(15, "15 L (HP117)", "HP117"), VolumePreset(15.3, "15.3 L (HP120)", "HP120"),
-        VolumePreset(16, "16 L (HP130)", "HP130"), VolumePreset(13, "13 L (LP85)", "LP85"),
-        VolumePreset(15, "15 L (LP95)", "LP95"), VolumePreset(17, "17 L (LP108)", "LP108"),
-        VolumePreset(19, "19 L (LP121)", "LP121"),
+        VolumePreset(10.2, "10.2 L (HP80)", "HP80", "steel", psi: 3442),
+        VolumePreset(12.9, "12.9 L (HP100)", "HP100", "steel", psi: 3442),
+        VolumePreset(15, "15 L (HP117)", "HP117", "steel", psi: 3442),
+        VolumePreset(15.3, "15.3 L (HP120)", "HP120", "steel", psi: 3442),
+        VolumePreset(16, "16 L (HP130)", "HP130", "steel", psi: 3442),
+        // An LP name's cubic feet are at the 10% overfill a "+" stamp allows, 2640 psi; at the
+        // stamped 2400 an LP85 holds about 77.
+        VolumePreset(13, "13 L (LP85)", "LP85", "steel", psi: 2640),
+        VolumePreset(15, "15 L (LP95)", "LP95", "steel", psi: 2640),
+        VolumePreset(17, "17 L (LP108)", "LP108", "steel", psi: 2640),
+        VolumePreset(19, "19 L (LP121)", "LP121", "steel", psi: 2640),
       ]),
   ]
 

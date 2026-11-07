@@ -43,6 +43,14 @@ extension GearItemFormValues {
     workingPressure = nil
     material = nil
   }
+
+  /// A Volume preset: its litres, and the rating and material a named cylinder pins down, each
+  /// only where the diver has set none — what was typed is this cylinder, not the catalogue's.
+  public mutating func pickVolume(_ preset: VolumePreset) {
+    volume = preset.liters
+    workingPressure = workingPressure ?? preset.workingPressure
+    material = material ?? preset.material
+  }
 }
 
 extension GearSetSaveValues {

@@ -124,6 +124,37 @@ struct DiveFormInputsTests {
     #expect(VolumePresets.groups(for: .metric, recent: [12]).first?.presets.first?.label == "12 L")
   }
 
+  /// A US name pins its cylinder's rating and material, stored as typing the rating's psi into a
+  /// working-pressure box stores it; a metric volume pins neither, a recent one included.
+  @MainActor
+  @Test func aNamedPresetCarriesTheRatingItsNameSays() throws {
+    let presets = VolumePresets.groups(for: .imperial, recent: [12, 11.1]).flatMap(\.presets)
+    for preset in presets {
+      guard let name = preset.imperialName else {
+        #expect(preset.workingPressure == nil && preset.material == nil, "\(preset.label)")
+        continue
+      }
+      let expected = try #require(rating(name), "\(name) has no rating rule")
+      #expect(preset.material == expected.material, "\(name)")
+      #expect(FormVocabulary.cylinderMaterials.contains(expected.material))
+      let typed = try RecordEntryUnits.value(
+        NumberText.plain(expected.psi), .pressure, .imperial
+      ).get()
+      #expect(preset.workingPressure == typed, "\(name)")
+    }
+    let al80 = try #require(presets.first { $0.imperialName == "AL80" })
+    #expect(al80.workingPressure == 206.84)
+  }
+
+  /// The rating and material a US cylinder's name says.
+  private func rating(_ name: String) -> (material: String, psi: Double)? {
+    if name == "AL100" { return ("aluminium", 3300) }
+    if name.hasPrefix("AL") || name.hasPrefix("2x AL") { return ("aluminium", 3000) }
+    if name.hasPrefix("HP") { return ("steel", 3442) }
+    if name.hasPrefix("LP") { return ("steel", 2640) }
+    return nil
+  }
+
   @Test func addTankIsElevenLitresOfAir() {
     #expect(TankValues.added == TankValues(volume: 11.1, oxygen: 21, helium: 0))
   }

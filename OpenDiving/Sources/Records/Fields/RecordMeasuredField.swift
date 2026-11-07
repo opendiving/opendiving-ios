@@ -42,6 +42,12 @@ struct RecordMeasuredField: View {
     }
     .onAppear { text = RecordEntryUnits.text(value, measure, units) }
     .onChange(of: units) { text = RecordEntryUnits.text(value, measure, units) }
+    // A value set from outside while the box holds no number, a preset's rating, shows in it; a
+    // number the diver typed stays as typed, even where the field stores it rounded.
+    .onChange(of: value) { _, new in
+      if case .success(.some) = RecordEntryUnits.value(text, measure, units) { return }
+      text = RecordEntryUnits.text(new, measure, units)
+    }
     .onChange(of: text) { commit() }
   }
 
