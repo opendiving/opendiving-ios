@@ -35,6 +35,20 @@ public final class RecordEntryUnits {
     return NumberText.plain(NumberText.round(measure.toDisplay(metric, units), decimals: 2))
   }
 
+  /// A value set from outside the box as the fewest decimals that still store it: a preset's
+  /// 206.84 bar reads 3000 psi, where ``text(_:_:_:)`` would read 2999.96.
+  public static func filledText(_ metric: Double?, _ measure: Measure, _ units: UnitSystem)
+    -> String
+  {
+    guard let metric else { return "" }
+    let shown = measure.toDisplay(metric, units)
+    for decimals in 0..<2 {
+      let figure = NumberText.round(shown, decimals: decimals)
+      if measure.fromDisplay(figure, units) == metric { return NumberText.plain(figure) }
+    }
+    return text(metric, measure, units)
+  }
+
   /// What a box's text stores: nil for an empty box, the metric value of a number, and a
   /// sentence for text that is not one.
   public static func value(_ text: String, _ measure: Measure, _ units: UnitSystem)

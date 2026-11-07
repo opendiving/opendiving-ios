@@ -141,9 +141,14 @@ struct DiveFormInputsTests {
         NumberText.plain(expected.psi), .pressure, .imperial
       ).get()
       #expect(preset.workingPressure == typed, "\(name)")
+      #expect(
+        RecordEntryUnits.filledText(preset.workingPressure, .pressure, .imperial)
+          == NumberText.plain(expected.psi), "\(name)")
     }
     let al80 = try #require(presets.first { $0.imperialName == "AL80" })
     #expect(al80.workingPressure == 206.84)
+    #expect(RecordEntryUnits.filledText(al80.workingPressure, .pressure, .metric) == "206.84")
+    #expect(RecordEntryUnits.filledText(nil, .pressure, .imperial) == "")
   }
 
   /// The rating and material a US cylinder's name says.

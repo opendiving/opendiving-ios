@@ -46,7 +46,7 @@ struct RecordMeasuredField: View {
     // committed already reads as typed.
     .onChange(of: value) { _, new in
       if RecordEntryUnits.value(text, measure, units) != .success(new) {
-        text = RecordEntryUnits.text(new, measure, units)
+        text = RecordEntryUnits.filledText(new, measure, units)
       }
     }
     .onChange(of: text) { commit() }
