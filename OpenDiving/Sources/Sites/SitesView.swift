@@ -89,7 +89,7 @@ private struct SiteList: View {
     .background(Color(.systemGroupedBackground))
     .refreshable { await list.refresh() }
     .task { await list.load() }
-    // Nothing else on this tab asks an instance with no map tiles what it is.
+    // Nothing else on this tab asks the server what it is until a card with a pin draws its map.
     .task { await session.loadServerInfo() }
   }
 
