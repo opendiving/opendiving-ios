@@ -14,7 +14,7 @@ struct RecordSheetForm<Content: View>: View {
   var failure: String?
   var saveError: String?
   var deletion: RecordDeletion?
-  /// Returns whether the write was kept, which closes the sheet.
+  /// Returns whether the form is done, which closes it.
   let save: () -> Bool
   @ViewBuilder let content: Content
 
