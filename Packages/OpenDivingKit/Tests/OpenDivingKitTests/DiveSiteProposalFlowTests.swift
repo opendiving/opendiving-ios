@@ -89,6 +89,18 @@ struct DiveSiteProposalFlowTests {
     await flow.load()
     #expect(flow.step == .matches)
     #expect(!flow.canContinue)
+    #expect(flow.needsPin)
+  }
+
+  @Test func aPinAddedThroughEditGoesOnToTheReview() async throws {
+    let (flow, _) = try flow([Self.matchesRoute: .json("[]")], pinned: false)
+    await flow.load()
+    #expect(flow.needsPin)
+
+    await flow.restart(with: try site())
+    #expect(!flow.needsPin)
+    #expect(flow.step == .review)
+    #expect(!flow.canGoBack)
   }
 
   @Test func aFailedFetchShowsTheStepWithItsSentence() async throws {
@@ -97,6 +109,7 @@ struct DiveSiteProposalFlowTests {
     #expect(flow.step == .matches)
     #expect(flow.loadError == "Try later.")
     #expect(!flow.canContinue)
+    #expect(!flow.needsPin)
   }
 
   @Test func theSendCarriesTheAttestationAndNoMembers() async throws {

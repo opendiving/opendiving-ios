@@ -37,6 +37,9 @@ public final class DiveSiteProposalFlow: ReloadingListObserver {
 
   public var hasPin: Bool { site.latitude != nil && site.longitude != nil }
 
+  /// The matches step says what is missing and offers *Edit*, the review step being out of reach.
+  public var needsPin: Bool { loadError == nil && !hasPin }
+
   public var hasIdentityMatch: Bool {
     matches.contains { $0.rule == DiveSiteCommonsMatchRule.identity }
   }

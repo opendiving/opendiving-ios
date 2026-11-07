@@ -31,7 +31,9 @@ struct ProposeSiteFlowView: View {
         case .loading:
           EmptyOrErrorView(status: .loading)
         case .matches:
-          MatchesStep(model: model, units: session.units) { replacing = $0 }
+          MatchesStep(
+            model: model, units: session.units, replace: { replacing = $0 },
+            onEdit: { editing = true })
         case .review:
           ReviewStep(
             model: model, map: MapStyleModel(session: session), units: session.units,
@@ -89,6 +91,7 @@ private struct MatchesStep: View {
   let model: DiveSiteProposalFlow
   let units: UnitSystem
   let replace: (DiveSiteCommonsMatch) -> Void
+  let onEdit: () -> Void
 
   var body: some View {
     ScrollView {
@@ -109,9 +112,11 @@ private struct MatchesStep: View {
             row: DiveSiteCommonsMatchSummary.row(match, units: units),
             replacement: model.replacement, replace: replace)
         }
-        if model.loadError == nil, !model.hasPin {
+        if model.needsPin {
           Text(DiveSiteCommonsMatchSummary.needsPin)
             .font(.subheadline)
+          Button("Edit", action: onEdit)
+            .buttonStyle(.bordered)
         }
         if model.hasIdentityMatch {
           Text(DiveSiteCommonsMatchSummary.isACopy)
