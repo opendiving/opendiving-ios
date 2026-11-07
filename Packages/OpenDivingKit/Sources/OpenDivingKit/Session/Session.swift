@@ -372,6 +372,14 @@ public final class Session {
     return await askServerInfo(origin)?.config
   }
 
+  // MARK: - OpenDiving Commons
+
+  /// Whether the active server edits the Commons, so that proposing is offered at all: not
+  /// until it has answered, and not on a config that does not say.
+  public var isCommonsPrimary: Bool {
+    server?.config.commonsPrimary == true
+  }
+
   // MARK: - Internals
 
   private func enter(_ origin: ServerOrigin) {

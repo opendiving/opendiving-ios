@@ -10,4 +10,6 @@ public struct InstanceConfigRead: Codable, Hashable, Sendable {
   /// The credit the map tiles owe, as a markdown link; nil until the API has heard it from
   /// its renderer.
   public let mapAttribution: String?
+  /// Whether this instance edits OpenDiving Commons and so takes proposals.
+  public let commonsPrimary: Bool?
 }

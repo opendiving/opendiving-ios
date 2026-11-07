@@ -123,6 +123,15 @@ extension APIClient {
       DiveReadWithMixtures.self, "dive-draft/\(Self.wire(uuid))/dive", dive, idempotencyKey)
   }
 
+  // MARK: - Commons proposals
+
+  /// `DELETE /dive-site-proposal/{uuid}`: takes back a proposal while it waits; a 409 on one
+  /// already decided or withdrawn.
+  public func withdrawDiveSiteProposal(_ uuid: UUID) async throws {
+    try await authorizedChecked(
+      Call(method: "DELETE", path: "dive-site-proposal/\(Self.wire(uuid))"))
+  }
+
   // MARK: - Species
 
   /// `POST /species/resolve`: a register hit as a catalog species, whose uuid a sighting can

@@ -1,0 +1,44 @@
+{
+  "uuid": "01a0a521-28c5-7e34-a572-4d7324f5033b",
+  "dive_count": 2,
+  "last_dived_on": "2026-04-17",
+  "max_dive_depth": 46.41,
+  "species_count": 0,
+  "average_rating": null,
+  "other_names": [],
+  "external_ids": [],
+  "depth_from": null,
+  "depth_to": null,
+  "water_type": null,
+  "altitude": null,
+  "entry_types": [],
+  "name": "Tiger Reef",
+  "latitude": null,
+  "longitude": null,
+  "notes": "",
+  "location": {
+    "name": "Dahab, Egypt",
+    "latitude": null,
+    "longitude": null,
+    "bbox_south": null,
+    "bbox_north": null,
+    "bbox_west": null,
+    "bbox_east": null
+  },
+  "tags": [],
+  "owner": "account",
+  "saved": true,
+  "attribution": null,
+  "created_at": "2026-09-15T12:53:28.901059Z",
+  "proposal": {
+    "uuid": "01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0d",
+    "kind": "new_site",
+    "status": "declined",
+    "reason": "This is the same reef as Lighthouse.",
+    "created_at": "2026-10-30T08:15:02.114522Z"
+  },
+  "commons_match": {
+    "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f",
+    "name": "Lighthouse Reef"
+  }
+}

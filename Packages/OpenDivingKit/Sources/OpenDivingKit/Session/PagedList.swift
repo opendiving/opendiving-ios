@@ -220,7 +220,7 @@ extension PagedList: AccountStoresObserver {
   func accountStoresChanged() { showFetched() }
 }
 
-extension PagedList: AccountListsObserver {
+extension PagedList: ReloadingListObserver {
   func accountListsChanged() {
     guard phase != .idle else { return }
     reloading = Task { await loadPages(through: max(nextPage - 1, 1)) }

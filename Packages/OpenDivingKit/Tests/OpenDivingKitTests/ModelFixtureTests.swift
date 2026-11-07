@@ -155,6 +155,31 @@ struct ModelFixtureTests {
     #expect(site.saved)
     #expect(site.attribution == nil)
     #expect(!site.isCommons)
+    #expect(site.proposal == nil)
+    #expect(site.commonsMatch == nil)
+  }
+
+  @Test func aSiteWithItsProposalAndItsCommonsMatch() throws {
+    let site = try KitFixture.roundTrip(DiveSiteRead.self, "dive-site-commons")
+    #expect(site.proposal?.kind == DiveSiteProposalKind.newSite)
+    #expect(site.proposal?.status == DiveSiteProposalStatus.declined)
+    #expect(site.proposal?.reason == "This is the same reef as Lighthouse.")
+    #expect(site.proposal?.createdAt.utcOffsetMinutes == 0)
+    #expect(site.commonsMatch?.name == "Lighthouse Reef")
+  }
+
+  @Test func theDiversProposals() throws {
+    let page = try KitFixture.roundTrip(
+      PaginatedListResponse<DiveSiteProposalRead>.self, "dive-site-proposals-page")
+    #expect(
+      page.data.map(\.status) == [
+        DiveSiteProposalStatus.waiting, DiveSiteProposalStatus.declined,
+        DiveSiteProposalStatus.accepted, DiveSiteProposalStatus.withdrawn,
+      ])
+    #expect(page.data[0].site.name == "Tiger Reef")
+    #expect(page.data[0].decidedAt == nil)
+    #expect(page.data[1].reason == "The registry entry is another site's.")
+    #expect(page.data[1].decidedAt != nil)
   }
 
   @Test func course() throws {
@@ -185,6 +210,10 @@ struct ModelFixtureTests {
 
   @Test func instanceConfigAndHealth() throws {
     #expect(try KitFixture.roundTrip(InstanceConfigRead.self, "config").mapTiles == true)
+    #expect(try KitFixture.roundTrip(InstanceConfigRead.self, "config").commonsPrimary == nil)
+    #expect(
+      try KitFixture.roundTrip(InstanceConfigRead.self, "config-commons-primary").commonsPrimary
+        == true)
     #expect(try KitFixture.roundTrip(HealthRead.self, "health").status == "healthy")
   }
 

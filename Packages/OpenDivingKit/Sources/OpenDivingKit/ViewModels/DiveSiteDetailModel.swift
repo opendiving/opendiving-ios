@@ -5,7 +5,7 @@ import Observation
 /// on them with their photos.
 @MainActor
 @Observable
-public final class DiveSiteDetailModel: AccountStoresObserver, AccountListsObserver {
+public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObserver {
   /// The *Species Seen Here* card's state.
   public enum Species: Hashable, Sendable {
     /// The site counts no species, so nothing is asked for and no card is drawn.
@@ -24,6 +24,8 @@ public final class DiveSiteDetailModel: AccountStoresObserver, AccountListsObser
 
   /// The queue holds an edit of this site, which the page shows once it lands.
   public private(set) var hasPendingEdit = false
+  /// The *Withdraw* on the page's proposal notice.
+  public let withdrawal: ProposalWithdrawal
 
   @ObservationIgnored private let session: Session
   /// The read a queued edit landing started.
@@ -34,6 +36,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, AccountListsObser
   public init(session: Session, siteUUID: UUID) {
     self.session = session
     self.siteUUID = siteUUID
+    withdrawal = ProposalWithdrawal(session: session)
     dives = PagedList(session: session, itemsPerPage: APIClient.nestedListPageSize) {
       client, page, itemsPerPage in
       try await client.dives(page: page, itemsPerPage: itemsPerPage, diveSiteUUID: siteUUID)
@@ -70,6 +73,11 @@ public final class DiveSiteDetailModel: AccountStoresObserver, AccountListsObser
     if let bytes = try? await client.speciesPhoto(entry.uuid, version: version) {
       photos[entry.uuid] = bytes.data
     }
+  }
+
+  /// Takes back the diver's proposal on the site and reads the site again.
+  public func withdraw(_ proposal: UUID) async {
+    await withdrawal.withdraw(proposal) { await reloadWithEveryList(on: session) }
   }
 
   private func readSite() async {

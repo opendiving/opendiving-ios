@@ -245,6 +245,16 @@ public actor APIClient {
     try await authorizedDecoded(DiveSiteRead.self, Call(path: "dive-site/\(Self.wire(uuid))"))
   }
 
+  /// `GET /dive-site-proposals`: the diver's own proposals, newest first. Only an instance that
+  /// edits the Commons answers it.
+  public func diveSiteProposals(page: Int, itemsPerPage: Int = listPageSize) async throws
+    -> PaginatedListResponse<DiveSiteProposalRead>
+  {
+    try await authorizedDecoded(
+      PaginatedListResponse<DiveSiteProposalRead>.self,
+      Call(path: "dive-site-proposals", query: Self.paging(page, itemsPerPage)))
+  }
+
   /// `GET /course/{uuid}`.
   public func course(_ uuid: UUID) async throws -> CourseRead {
     try await authorizedDecoded(CourseRead.self, Call(path: "course/\(Self.wire(uuid))"))

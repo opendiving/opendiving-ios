@@ -13,6 +13,25 @@ protocol AccountListsObserver: AnyObject {
   func accountListsChanged()
 }
 
+/// Something that lists an account's records and keeps the read such a change starts.
+@MainActor
+protocol ReloadingListObserver: AccountListsObserver {
+  var reloading: Task<Void, Never>? { get set }
+}
+
+extension ReloadingListObserver {
+  /// Tells every list over `session`'s account that a direct call changed what they show, and
+  /// waits for this one's read: an observer the hub has not met yet reads all the same.
+  func reloadWithEveryList(on session: Session) async {
+    reloading = nil
+    if let stores = AccountStores.current(session) {
+      OutboxHub.hub(for: stores.directory).listsChanged()
+    }
+    if reloading == nil { accountListsChanged() }
+    await reloading?.value
+  }
+}
+
 /// What the process holds for one account's outbox, however many models it builds over it:
 /// the one flush, the answers counted against each item, and who to tell when the stores or
 /// the lists change. Two flushes would send one item twice, so every model asks this for its flush.
