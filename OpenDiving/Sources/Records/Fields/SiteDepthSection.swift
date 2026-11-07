@@ -1,25 +1,6 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A site's entries in other registries, which can be taken off and never typed; no section for a
-/// site with none.
-struct SiteRegistriesSection: View {
-  @Binding var entries: [ExternalIdWrite]
-
-  var body: some View {
-    if !entries.isEmpty {
-      Section {
-        ForEach(entries, id: \.self) { entry in
-          Text("\(ExternalIdRegistry.label(entry.registry)) \(entry.identifier)")
-            .swipeToDelete { entries.removeAll { $0 == entry } }
-        }
-      } header: {
-        FormSectionHeader(title: "In Other Registries", icon: .globe)
-      }
-    }
-  }
-}
-
 /// How deep a site is, in what water and how high.
 struct SiteDepthSection: View {
   @Binding var values: DiveSiteFormValues
@@ -55,32 +36,13 @@ struct SiteDepthSection: View {
   }
 }
 
-/// How divers get in, ticked in the order chosen.
-struct SiteEntryTypesSection: View {
-  @Binding var values: DiveSiteFormValues
-
-  var body: some View {
-    Section {
-      ForEach(FormVocabulary.entryTypes, id: \.self) { entry in
-        Toggle(
-          VocabularyLabels.entryType(entry),
-          isOn: Binding(
-            get: { values.entryTypes.contains(entry) },
-            set: { values.setEntryType(entry, $0) })
-        )
-        .tint(.brandTeal)
-      }
-    } header: {
-      FormSectionHeader(title: "Entry Types", icon: .wavesArrowDown)
-    }
-  }
-}
-
 #Preview {
-  @Previewable @State var values = DiveSiteFormValues(
-    externalIds: [ExternalIdWrite(registry: "openstreetmap", identifier: "node/255316037")])
+  @Previewable @State var values = DiveSiteFormValues()
+  @Previewable @State var invalid: Set<String> = []
   Form {
-    SiteRegistriesSection(entries: $values.externalIds)
-    SiteEntryTypesSection(values: $values)
+    SiteDepthSection(
+      values: $values,
+      units: RecordEntryUnits(session: Session.stub(transport: StubTransport(routes: [:]))),
+      invalid: $invalid, message: { _ in nil })
   }
 }

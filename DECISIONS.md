@@ -408,12 +408,6 @@ the write still queued keeps the site private and says so. The intent is not que
 Rejected: a queued proposal, whose attestation and answers would land in Pending, and a second kind
 of item, which has to survive a create landing under another uuid.
 
-## The attestations are a copy of the API's
-
-`CommonsAttestations` holds the words the API compares a proposal against, a third copy after the
-API's and the web's. An API rewording refuses every proposal from a phone until it is rebuilt, as a
-renamed field the Kit decodes blanks a screen, so a rewording ships with a change here.
-
 ## A page head's map is the instance's tiles, drawn only with the credit it names
 
 A dive's, a trip's or a site's head draws `GET /map-tiles` as the web composes them —

@@ -1,6 +1,6 @@
-/// What a proposer affirms, word for word: a copy of the API's `ATTESTATIONS`, shown beside the
-/// tick and sent back. The API refuses any other text, so a rewording there breaks proposing here
-/// until the phone is rebuilt.
+/// What a proposer affirms, word for word: a copy of the API's `ATTESTATIONS`, as the web holds
+/// one, shown beside the tick and sent back. The API refuses any other text, so a rewording there
+/// breaks proposing here until the phone is rebuilt.
 public enum CommonsAttestations {
   public static let newSite =
     "I am adding this dive site from my own diving. It is not copied from another database, app "

@@ -15,13 +15,13 @@ extension OutboxModel {
   public func landing(ofSite ref: RecordRef) async -> DiveSiteLanding {
     guard let stores = AccountStores.current(session) else { return .kept(ref) }
     let hub = OutboxHub.hub(for: stores.directory)
-    var ref = Self.resolved(ref, in: stores.outbox)
+    var ref = stores.outbox.resolved(ref)
     // An earlier write of the site may be waiting for nothing but a pass.
     if hub.flush == nil, stores.outbox.items().contains(where: { $0.record == ref }) {
       requestFlush(retryAll: false)
     }
     while true {
-      ref = Self.resolved(ref, in: stores.outbox)
+      ref = stores.outbox.resolved(ref)
       let writes = stores.outbox.items().filter { $0.record == ref }
       if writes.isEmpty { break }
       guard session.connectivity.isRouteAvailable, !writes.contains(where: \.isFailed),
@@ -33,13 +33,5 @@ extension OutboxModel {
       let site = try? await session.requireClient().diveSite(uuid)
     else { return .kept(ref) }
     return .landed(site)
-  }
-
-  /// The server's ref for a create that has landed.
-  private static func resolved(_ ref: RecordRef, in outbox: OutboxStore) -> RecordRef {
-    guard case .local(let local) = ref, let server = outbox.resolutions()[local]?.server else {
-      return ref
-    }
-    return .server(server)
   }
 }
