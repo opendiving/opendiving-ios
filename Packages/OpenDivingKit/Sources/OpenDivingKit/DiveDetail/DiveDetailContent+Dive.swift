@@ -19,7 +19,7 @@ extension DiveDetailContent {
   ) {
     let recordings = dive.recordings.sorted { $0.ordinal < $1.ordinal }
     navigationTitle = "#\(dive.diveNumber)"
-    hero = Self.hero(dive, recordings: recordings, units: units)
+    hero = Self.hero(dive, units: units)
     info = Self.info(dive, units: units)
     profile = Self.profile(dive, recordings: recordings, units: units)
     tanks = Self.tanks(dive, units: units)
@@ -41,22 +41,9 @@ extension DiveDetailContent {
 
   /// The card's chips, title and facts, over the dive's figures in the web's order: the
   /// dive time, the max depth, the water temperature, the visibility and the species seen,
-  /// each but the dive time only where the dive records it. The dive owed decompression
-  /// where the first recording with a profile reached a ceiling, the question a list row's
-  /// `deco` answers.
-  static func hero(
-    _ dive: DiveReadWithMixtures, recordings: [RecordingRead], units: UnitSystem
-  ) -> HeroContent {
-    let charted = recordings.first { $0.profile != nil }
-    let card = DiveCardContent.dive(
-      number: dive.diveNumber, siteNames: dive.diveSites.map(\.name),
-      isCourse: dive.courseUuid != nil, rating: dive.rating, waterType: dive.waterType,
-      diveType: dive.type, tags: dive.tags, start: dive.startTime,
-      locationName: dive.diveSites.first?.location?.name, boatName: dive.boatName,
-      recordingCount: recordings.count, owedDeco: charted?.profile?.maxCeiling != nil,
-      submergedSeconds: dive.submergedTime, maxDepth: dive.maxDepth,
-      waterTemperature: dive.bottomTemperature, speciesCount: dive.sightings.count, outline: [],
-      units: units)
+  /// each but the dive time only where the dive records it.
+  static func hero(_ dive: DiveReadWithMixtures, units: UnitSystem) -> HeroContent {
+    let card = DiveCardContent.dive(dive, units: units)
 
     var figures = [
       Figure(label: "Dive time", value: DateText.hoursMinutes(seconds: dive.submergedTime))
@@ -79,12 +66,9 @@ extension DiveDetailContent {
       figures.append(Figure(label: "Species seen", value: String(dive.sightings.count)))
     }
 
-    let places = DiveCardContent.mapPlaces(
-      sites: dive.diveSites, entry: (dive.entryLatitude, dive.entryLongitude),
-      exit: (dive.exitLatitude, dive.exitLongitude))
     return HeroContent(
       title: card.title, isCourse: card.isCourse, rating: card.rating, chips: card.chips,
-      facts: card.facts, figures: figures, points: places.points, fixes: places.fixes)
+      facts: card.facts, figures: figures, points: card.points, fixes: card.fixes)
   }
 
   // MARK: - Main column

@@ -30,12 +30,20 @@ private struct ChipView: View {
     .lineLimit(1)
     .padding(.horizontal, 4)
     .padding(.vertical, 1)
-    .foregroundStyle(chip.kind == .tag ? Color.white : Color.primary)
+    .foregroundStyle(isFilled ? Color.white : Color.primary)
     .background {
       switch chip.kind {
       case .vocabulary, .commons: shape.strokeBorder(Color.primary)
-      case .tag: shape.fill(Color.brandTeal)
+      case .tag, .new: shape.fill(Color.brandTeal)
+      case .modified: shape.fill(Color.brandCoral)
       }
+    }
+  }
+
+  private var isFilled: Bool {
+    switch chip.kind {
+    case .vocabulary, .commons: false
+    case .tag, .new, .modified: true
     }
   }
 }

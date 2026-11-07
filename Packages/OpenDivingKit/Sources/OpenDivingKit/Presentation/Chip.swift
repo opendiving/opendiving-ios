@@ -8,6 +8,10 @@ public struct Chip: Hashable, Sendable {
     case commons
     /// One of the diver's own tags, filled, its words its own.
     case tag
+    /// An import's new dive, filled.
+    case new
+    /// An import's modified dive, filled in the other brand colour.
+    case modified
   }
 
   public var text: String

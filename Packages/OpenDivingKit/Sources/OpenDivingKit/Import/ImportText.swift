@@ -47,16 +47,64 @@ public enum ImportText {
   // MARK: - Dives
 
   /// What an import does to one dive.
-  public static func diveOutcome(_ row: LogbookImportDive) -> String {
-    switch row.outcome {
+  public static func diveOutcome(_ outcome: String) -> String {
+    switch outcome {
     case "new": "New"
     case "modified": "Modified"
     case "unchanged": "Already in your logbook"
     // The reason is a sentence, too long for the column this sits in; the row prints it
     // beneath, at full width.
     case "skipped": "Skipped"
-    default: row.outcome
+    default: outcome
     }
+  }
+
+  /// The outcomes a count reads in; one this build does not know follows them, by name.
+  private static let outcomeOrder = ["new", "modified", "unchanged", "skipped"]
+
+  private static func orderedCounts(_ counts: [String: Int]) -> [(outcome: String, count: Int)] {
+    let known = outcomeOrder.filter { counts[$0] != nil }
+    let unknown = counts.keys.filter { !outcomeOrder.contains($0) }.sorted()
+    return (known + unknown).compactMap { outcome in
+      counts[outcome].flatMap { $0 > 0 ? (outcome, $0) : nil }
+    }
+  }
+
+  /// The rows by outcome, `12 new dives, 2 modified, 5 unchanged`: the first says what is being
+  /// counted and the rest lean on it. Nil for an import with no dive rows.
+  public static func summary(_ dives: [LogbookImportDive]) -> String? {
+    let counts = Dictionary(dives.map { ($0.outcome, 1) }, uniquingKeysWith: +)
+    let terms = orderedCounts(counts).enumerated().map { index, term in
+      "\(term.count) \(term.outcome)" + (index > 0 ? "" : term.count == 1 ? " dive" : " dives")
+    }
+    return terms.isEmpty ? nil : terms.joined(separator: ", ")
+  }
+
+  /// A history row's counts, `12 new, 2 modified`.
+  public static func counts(_ counts: [String: Int]) -> String {
+    let terms = orderedCounts(counts).map { "\($0.count) \($0.outcome)" }
+    return terms.isEmpty ? "No dives" : terms.joined(separator: ", ")
+  }
+
+  /// Under a pending import's heading.
+  public static func reviewLine(expiresAt: DiveTimestamp?) -> String {
+    let finish = "Your logbook changes when you import. You can finish this on any device"
+    return expiresAt.map { finish + " until " + when($0) + "." } ?? finish + "."
+  }
+
+  /// Under an applied import's heading.
+  public static func appliedLine(_ appliedAt: DiveTimestamp?) -> String? {
+    appliedAt.map { "Written to your logbook on " + when($0) + "." }
+  }
+
+  /// A server's timestamp on the phone's clock.
+  public static func when(_ timestamp: DiveTimestamp) -> String {
+    timestamp.instant.map { DateText.dateTime($0) } ?? DateText.diveDateTime(timestamp)
+  }
+
+  /// Each file the import could not read, by name, with why.
+  public static func refusedFiles(_ read: LogbookImportRead) -> [String] {
+    read.members.compactMap { member in member.refusal.map { member.name + ": " + $0 } }
   }
 
   /// The import button's label, from the rows the import writes. It stays enabled whatever they
@@ -131,7 +179,7 @@ public enum ImportText {
   public static func truncatedNotes(_ truncated: Int) -> String? {
     guard truncated > 0 else { return nil }
     return countNoun(truncated, "further note is", plural: "further notes are")
-      + " not shown. The counts above are complete."
+      + " not shown."
   }
 
   // MARK: - Records and stored files
