@@ -44,14 +44,16 @@ struct NauticLogbookTests {
       NauticDescriptors(Data()).sport(inSummary: try captured("summary-1792852533-run")) == nil)
   }
 
-  /// SBEM records: an id, a length, the value.
-  private func sbem(_ records: [(UInt8, Data)]) -> Data {
+  /// SBEM records: an id, 16-bit past a byte, a length, the value.
+  private func sbem(_ records: [(Int, Data)]) -> Data {
     records.reduce(Data("SBEM0103".utf8)) { bytes, record in
-      bytes + Data([record.0, UInt8(record.1.count)]) + record.1
+      let id =
+        record.0 < 0xFF ? [UInt8(record.0)] : [0xFF, UInt8(record.0 & 0xFF), UInt8(record.0 >> 8)]
+      return bytes + Data(id + [UInt8(record.1.count)]) + record.1
     }
   }
 
-  private func descriptor(_ id: UInt16, _ text: String) -> (UInt8, Data) {
+  private func descriptor(_ id: UInt16, _ text: String) -> (Int, Data) {
     (0, Data([UInt8(id & 0xFF), UInt8(id >> 8)]) + Data(text.utf8) + Data([0]))
   }
 
@@ -78,6 +80,18 @@ struct NauticLogbookTests {
 
     let noSport = NauticDescriptors(sbem(fields + [descriptor(10, "<GRP>2,3,3,3")]))
     #expect(noSport.sport(inSummary: summary) == nil)
+  }
+
+  /// The sport's field in a group whose key is past a byte, and a summary cut short of it.
+  @Test func aSummaryRecordCanNameItsGroupInSixteenBits() {
+    let descriptors = NauticDescriptors(
+      sbem([
+        descriptor(1, "<PTH>Samples.suunto/sml.Header.ActivityType\n<FRM>int32"),
+        descriptor(300, "<GRP>1"),
+      ]))
+    let summary = sbem([(300, Data([61, 0, 0, 0]))])
+    #expect(descriptors.sport(inSummary: summary) == 61)
+    #expect(descriptors.sport(inSummary: summary.dropLast()) == nil)
   }
 
   @Test func everyEntryIsSummarisedUnlessTheRecordRemembersIt() {
