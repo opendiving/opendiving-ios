@@ -44,6 +44,9 @@ private struct SiteDetailContent: View {
               if model.hasPendingEdit {
                 PendingEditLine()
               }
+              if let notice = site.proposal.flatMap(DiveSiteProposalSummary.notice) {
+                ProposalNotice(notice: notice, model: model)
+              }
               SiteDives(list: model.dives, units: session.units)
               PageEndTrigger(list: model.dives)
               SiteInformationCard(info: DiveSiteSummary.info(site))
@@ -84,10 +87,39 @@ private struct SiteDetailContent: View {
       }
     }
     .task { await model.load() }
+    .proposalWithdrawalAlert(model.withdrawal)
   }
 
   private var title: String {
     if case .loaded(let site) = model.phase { site.name } else { "Dive site" }
+  }
+}
+
+/// Where the diver's proposal on the site stands: waiting, with the way to take it back, or
+/// declined, with the reason until they propose again.
+private struct ProposalNotice: View {
+  let notice: DiveSiteProposalSummary.Notice
+  let model: DiveSiteDetailModel
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(notice.title)
+          .fontWeight(.medium)
+        if let message = notice.message {
+          Text(message)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .font(.subheadline)
+      if let proposal = notice.withdrawable {
+        ProposalWithdrawButton(
+          proposal: proposal, withdrawal: model.withdrawal, withdraw: model.withdraw)
+      }
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
   }
 }
 

@@ -39,6 +39,10 @@ public struct DiveSiteRead: Codable, Hashable, Sendable, Identifiable {
   public let saved: Bool
   /// The credit a Commons record's source asks for, as `[label](href)`; nil on the diver's own.
   public let attribution: String?
+  /// The reader's latest proposal on the site, while it waits or once declined.
+  public let proposal: DiveSiteProposalState?
+  /// The Commons record this site of the diver's own shares a registry entry with.
+  public let commonsMatch: DiveSiteCommonsMatch?
   public let createdAt: DiveTimestamp
 
   public var isCommons: Bool { owner == DiveSiteOwner.commons }

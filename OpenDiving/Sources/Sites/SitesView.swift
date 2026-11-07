@@ -50,13 +50,18 @@ private struct SiteList: View {
           Task { await list.load() }
         }
       case .loaded where list.items.isEmpty:
-        EmptyOrErrorView(
-          status: .empty(
-            icon: .diveSite, title: "No dive sites yet",
-            message: "Add one with +, or when logging a dive."))
+        VStack(spacing: 0) {
+          proposalsRow
+            .padding()
+          EmptyOrErrorView(
+            status: .empty(
+              icon: .diveSite, title: "No dive sites yet",
+              message: "Add one with +, or when logging a dive."))
+        }
       case .loaded:
         ScrollView {
           LazyVStack(spacing: 12) {
+            proposalsRow
             if let lastUpdated = list.lastUpdated {
               LastUpdatedLine(date: lastUpdated)
             }
@@ -84,6 +89,30 @@ private struct SiteList: View {
     .background(Color(.systemGroupedBackground))
     .refreshable { await list.refresh() }
     .task { await list.load() }
+    // Nothing else on this tab asks an instance with no map tiles what it is.
+    .task { await session.loadServerInfo() }
+  }
+
+  /// Only where the instance takes proposals, whose routes answer nowhere else.
+  @ViewBuilder private var proposalsRow: some View {
+    if session.isCommonsPrimary {
+      NavigationLink {
+        YourProposalsView()
+      } label: {
+        HStack(spacing: 8) {
+          Label(YourProposalsView.title, icon: .landmark)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          Image(systemName: "chevron.right")
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+        }
+        .font(.subheadline)
+        .padding(12)
+        .background(
+          Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+      }
+      .buttonStyle(.plain)
+    }
   }
 }
 

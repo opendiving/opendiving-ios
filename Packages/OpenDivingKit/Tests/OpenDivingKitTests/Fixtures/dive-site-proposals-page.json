@@ -1,0 +1,56 @@
+{
+  "data": [
+    {
+      "uuid": "01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0d",
+      "kind": "new_site",
+      "status": "waiting",
+      "reason": null,
+      "site": {
+        "uuid": "01a0a521-28c5-7e34-a572-4d7324f5033b",
+        "name": "Tiger Reef"
+      },
+      "created_at": "2026-11-02T23:40:11.502113Z",
+      "decided_at": null
+    },
+    {
+      "uuid": "01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0e",
+      "kind": "change",
+      "status": "declined",
+      "reason": "The registry entry is another site's.",
+      "site": {
+        "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f",
+        "name": "Lighthouse Reef"
+      },
+      "created_at": "2026-10-30T08:15:02.114522Z",
+      "decided_at": "2026-10-31T10:02:45.000001Z"
+    },
+    {
+      "uuid": "01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0f",
+      "kind": "new_site",
+      "status": "accepted",
+      "reason": null,
+      "site": {
+        "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e70",
+        "name": "Eel Garden"
+      },
+      "created_at": "2026-10-12T17:05:33.871200Z",
+      "decided_at": "2026-10-14T09:30:00.000000Z"
+    },
+    {
+      "uuid": "01a15c10-7d3e-7b21-9a44-5e6f7a8b9c10",
+      "kind": "change",
+      "status": "withdrawn",
+      "reason": null,
+      "site": {
+        "uuid": "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e71",
+        "name": "Canyon"
+      },
+      "created_at": "2026-10-01T06:00:00.000000Z",
+      "decided_at": null
+    }
+  ],
+  "total_count": 4,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 50
+}

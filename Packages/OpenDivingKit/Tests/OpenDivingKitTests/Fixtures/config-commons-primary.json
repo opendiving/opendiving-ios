@@ -1,0 +1,8 @@
+{
+  "registration_mode": "invite",
+  "project_operated": true,
+  "join_links": true,
+  "map_tiles": true,
+  "map_attribution": "[© OpenStreetMap contributors](https://www.openstreetmap.org/copyright)",
+  "commons_primary": true
+}

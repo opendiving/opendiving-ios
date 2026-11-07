@@ -23,6 +23,35 @@ struct APIClientWriteTests {
     }
   }
 
+  @Test func withdrawingAProposalIsADeleteWithNoBodyAndAConflictKeepsItsSentence() async throws {
+    let wire = uuid.uuidString.lowercased()
+    let harness = harness([
+      "DELETE dive-site-proposal/\(wire)": .json(#"{"message":"Proposal withdrawn"}"#)
+    ])
+    try await harness.client.withdrawDiveSiteProposal(uuid)
+    let request = try #require(harness.transport.requests.first)
+    #expect(request.route == "DELETE dive-site-proposal/\(wire)")
+    #expect(request.httpBody == nil)
+
+    let refused = self.harness([
+      "DELETE dive-site-proposal/\(wire)": .json(#"{"detail":"Already decided."}"#, status: 409)
+    ])
+    await #expect(throws: APIError.http(status: 409, message: "Already decided.")) {
+      try await refused.client.withdrawDiveSiteProposal(uuid)
+    }
+  }
+
+  @Test func theProposalsAreAPagedRead() async throws {
+    let harness = harness([
+      "GET dive-site-proposals": .json(try KitFixture.text("dive-site-proposals-page"))
+    ])
+    let page = try await harness.client.diveSiteProposals(page: 2, itemsPerPage: 10)
+    #expect(page.data.count == 4)
+    let query = try #require(harness.transport.requests.first?.url?.query)
+    #expect(query.contains("page=2"))
+    #expect(query.contains("items_per_page=10"))
+  }
+
   @Test func everyCreateIsAPostCarryingItsIdempotencyKey() async throws {
     let dive = try KitFixture.text("dive-detail")
     let draft = try KitFixture.text("dive-draft")
