@@ -18,6 +18,10 @@ struct EmailScreen: View {
 
   var body: some View {
     Form {
+      Section {
+        logo
+      }
+      .listRowBackground(Color.clear)
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
@@ -25,22 +29,14 @@ struct EmailScreen: View {
         }
       }
       Section {
-        // Verbatim, because a literal address is parsed into a link and drawn in the link colour.
-        TextField(
-          "Email", text: Binding(get: { flow.email }, set: { flow.setEmail($0) }),
-          prompt: Text(verbatim: "you@example.com")
-        )
-        .keyboardType(.emailAddress)
-        .textContentType(.emailAddress)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .submitLabel(.send)
-        .onSubmit(send)
-        .focused($focused)
-      } header: {
-        Text("Email").focusesOnTap($focused)
-      } footer: {
-        Text("We'll email you a six-digit sign-in code.")
+        TextField("Email", text: Binding(get: { flow.email }, set: { flow.setEmail($0) }))
+          .keyboardType(.emailAddress)
+          .textContentType(.emailAddress)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .submitLabel(.send)
+          .onSubmit(send)
+          .focused($focused)
       }
       if let error = flow.emailError {
         Section {
@@ -102,8 +98,6 @@ struct EmailScreen: View {
           }
         }
       }
-      // A form row's automatic style draws an app symbol's label as its title alone.
-      .labelStyle(.titleAndIcon)
       ServerCard(content: flow.session.card(for: origin)) {
         NavigationLink("Change server") {
           // A notice from an earlier visit is not this one's, though one set while here, by a
@@ -117,10 +111,28 @@ struct EmailScreen: View {
     }
     .background(TapEndsTyping())
     .navigationTitle("Sign In")
+    // The logo heads the screen; the title stays for what reads it, such as a pushed page's back
+    // button.
+    .toolbar(.hidden, for: .navigationBar)
     .navigationDestination(isPresented: $logsDive) { DiveFormView(mode: .create) }
     .task { await flow.session.loadServerInfo() }
     // Whenever the row is shown; the outbox refreshes nothing before the account loads.
     .task { await outbox.refreshDrafts() }
+  }
+
+  private var logo: some View {
+    HStack(spacing: 8) {
+      Image(OpenDivingKit.Icon.dive)
+        .font(.largeTitle)
+        .foregroundStyle(Color.brandCoral)
+      Text(verbatim: "OpenDiving")
+        .font(.system(.title, design: .rounded, weight: .bold))
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.top, 32)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("OpenDiving")
+    .accessibilityAddTraits(.isHeader)
   }
 
   private var waiting: String? {

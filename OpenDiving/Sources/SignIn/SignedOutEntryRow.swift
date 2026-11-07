@@ -16,6 +16,7 @@ struct SignedOutEntryRow<Title: View>: View {
     HStack {
       Button(action: action) {
         title
+          .labelStyle(EntryLabelStyle())
           .frame(maxWidth: .infinity, alignment: .leading)
           .contentShape(Rectangle())
       }
@@ -40,6 +41,20 @@ struct SignedOutEntryRow<Title: View>: View {
   }
 }
 
+/// The icon in a column of its own width, so the titles of rows with different icons line up,
+/// closer to its title than a form's own label draws it.
+private struct EntryLabelStyle: LabelStyle {
+  @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 22
+
+  func makeBody(configuration: Configuration) -> some View {
+    HStack(spacing: 8) {
+      configuration.icon.frame(width: iconWidth)
+      configuration.title
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+    }
+  }
+}
+
 #Preview {
   Form {
     SignedOutEntryRow(
@@ -48,6 +63,5 @@ struct SignedOutEntryRow<Title: View>: View {
     ) {
       Label("Your check-in sheet", icon: .idCard)
     }
-    .labelStyle(.titleAndIcon)
   }
 }
