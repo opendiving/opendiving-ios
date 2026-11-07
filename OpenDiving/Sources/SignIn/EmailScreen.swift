@@ -75,7 +75,8 @@ struct EmailScreen: View {
           switch entry {
           case .logDive:
             SignedOutEntryRow(
-              info: entry.info(on: origin), infoLabel: "About logging a dive offline",
+              infoTitle: "Log a dive offline", info: entry.info(on: origin),
+              infoLabel: "About logging a dive offline",
               action: { logsDive = true }
             ) {
               Label("Log a dive offline", icon: .dive)
@@ -83,7 +84,8 @@ struct EmailScreen: View {
           case .waitingToSync:
             if let waiting {
               SignedOutEntryRow(
-                info: entry.info(on: origin), infoLabel: "About what is waiting to sync",
+                infoTitle: "Waiting to sync", info: entry.info(on: origin),
+                infoLabel: "About what is waiting to sync",
                 action: showPending
               ) {
                 Label(waiting, systemImage: "arrow.triangle.2.circlepath")
@@ -91,7 +93,8 @@ struct EmailScreen: View {
             }
           case .checkInSheet:
             SignedOutEntryRow(
-              info: entry.info(on: origin), infoLabel: "About your check-in sheet",
+              infoTitle: "Your check-in sheet", info: entry.info(on: origin),
+              infoLabel: "About your check-in sheet",
               action: showSheet
             ) {
               Label("Your check-in sheet", icon: .idCard)

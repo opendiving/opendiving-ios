@@ -1,9 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One of the sign-in screen's entries: its button, and an info button on the right opening a
-/// popover with what it is.
+/// One of the sign-in screen's entries: its button, and an info button on the right opening an
+/// alert with what it is.
 struct SignedOutEntryRow<Title: View>: View {
+  let infoTitle: String
   let info: String
   let infoLabel: String
   let action: () -> Void
@@ -30,13 +31,10 @@ struct SignedOutEntryRow<Title: View>: View {
       .accentRow()
       .buttonStyle(.borderless)
       .accessibilityLabel(infoLabel)
-      .popover(isPresented: $showsInfo) {
+      .alert(infoTitle, isPresented: $showsInfo) {
+        Button("OK", role: .cancel) {}
+      } message: {
         Text(info)
-          .font(.subheadline)
-          .fixedSize(horizontal: false, vertical: true)
-          .padding()
-          .frame(width: 300)
-          .presentationCompactAdaptation(.popover)
       }
     }
   }
@@ -45,8 +43,8 @@ struct SignedOutEntryRow<Title: View>: View {
 #Preview {
   Form {
     SignedOutEntryRow(
-      info: SignedOutEntry.checkInSheet.info(on: .flagship), infoLabel: "About your check-in sheet",
-      action: {}
+      infoTitle: "Your check-in sheet", info: SignedOutEntry.checkInSheet.info(on: .flagship),
+      infoLabel: "About your check-in sheet", action: {}
     ) {
       Label("Your check-in sheet", icon: .idCard)
     }
