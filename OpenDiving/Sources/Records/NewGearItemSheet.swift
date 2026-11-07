@@ -69,7 +69,7 @@ private struct GearItemSheetForm: View {
             VolumePresetsMenu(
               groups: VolumePresets.groups(for: units.account, recent: lookups.recentVolumes),
               units: units.account
-            ) { model.values.volume = $0 }
+            ) { model.values.pickVolume($0) }
           }
           RecordMeasuredField(
             label: "Working pressure", key: "working_pressure", measure: .pressure,

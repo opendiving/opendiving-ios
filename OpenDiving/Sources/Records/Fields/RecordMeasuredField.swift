@@ -42,6 +42,13 @@ struct RecordMeasuredField: View {
     }
     .onAppear { text = RecordEntryUnits.text(value, measure, units) }
     .onChange(of: units) { text = RecordEntryUnits.text(value, measure, units) }
+    // A value set from outside the box, a preset's rating, shows in it; one the box just
+    // committed already reads as typed.
+    .onChange(of: value) { _, new in
+      if RecordEntryUnits.value(text, measure, units) != .success(new) {
+        text = RecordEntryUnits.filledText(new, measure, units)
+      }
+    }
     .onChange(of: text) { commit() }
   }
 

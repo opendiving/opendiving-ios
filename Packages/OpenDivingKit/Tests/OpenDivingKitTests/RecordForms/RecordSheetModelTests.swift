@@ -204,6 +204,62 @@ struct RecordSheetEditsTests {
     #expect(item.issues.isEmpty)
   }
 
+  @Test func aNamedPresetFillsOnlyTheFactsLeftEmpty() throws {
+    let presets = VolumePresets.groups.flatMap(\.presets)
+    let al80 = try #require(presets.first { $0.imperialName == "AL80" })
+    let twelve = try #require(presets.first { $0.label == "12 L" })
+
+    var empty = GearItemFormValues(name: "Tank", type: "cylinder")
+    empty.pickVolume(al80)
+    #expect(empty.volume == 11.1)
+    #expect(empty.workingPressure == al80.workingPressure && empty.workingPressure != nil)
+    #expect(empty.material == "aluminium")
+
+    var typed = GearItemFormValues(
+      name: "Tank", type: "cylinder", workingPressure: 232, material: "steel")
+    typed.pickVolume(al80)
+    #expect(typed.volume == 11.1 && typed.workingPressure == 232 && typed.material == "steel")
+
+    var half = GearItemFormValues(name: "Tank", type: "cylinder", material: "carbon")
+    half.pickVolume(al80)
+    #expect(half.workingPressure == al80.workingPressure && half.material == "carbon")
+
+    var metric = GearItemFormValues(name: "Tank", type: "cylinder", volume: 11.1)
+    metric.pickVolume(twelve)
+    #expect(metric == GearItemFormValues(name: "Tank", type: "cylinder", volume: 12))
+  }
+
+  @Test func aSecondPresetReplacesWhatTheFirstFilledAndNothingTheDiverSet() throws {
+    let presets = VolumePresets.groups.flatMap(\.presets)
+    let al80 = try #require(presets.first { $0.imperialName == "AL80" })
+    let hp100 = try #require(presets.first { $0.imperialName == "HP100" })
+    let twelve = try #require(presets.first { $0.label == "12 L" })
+
+    var repicked = GearItemFormValues(name: "Tank", type: "cylinder")
+    repicked.pickVolume(al80)
+    repicked.pickVolume(hp100)
+    #expect(repicked.volume == 12.9)
+    #expect(repicked.workingPressure == hp100.workingPressure && repicked.material == "steel")
+    repicked.pickVolume(twelve)
+    #expect(repicked.volume == 12 && repicked.workingPressure == nil && repicked.material == nil)
+
+    var edited = GearItemFormValues(name: "Tank", type: "cylinder")
+    edited.pickVolume(al80)
+    edited.workingPressure = 232
+    edited.pickVolume(hp100)
+    #expect(edited.workingPressure == 232 && edited.material == "steel")
+    edited.pickVolume(twelve)
+    #expect(edited.workingPressure == 232 && edited.material == nil)
+
+    var retyped = GearItemFormValues(name: "Tank", type: "cylinder")
+    retyped.pickVolume(al80)
+    retyped.setType("fins")
+    retyped.setType("cylinder")
+    retyped.material = "aluminium"
+    retyped.pickVolume(hp100)
+    #expect(retyped.material == "aluminium" && retyped.workingPressure == hp100.workingPressure)
+  }
+
   @Test func savingToAnExistingSetTakesItsNameAndANewSetStartsUnnamed() {
     let set = RecordRef.server(UUID())
     var values = GearSetSaveValues(form: GearSetFormValues(name: "Mine"))
