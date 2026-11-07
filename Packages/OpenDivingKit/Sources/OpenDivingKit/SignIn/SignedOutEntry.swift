@@ -12,4 +12,21 @@ public enum SignedOutEntry: Hashable, Sendable, CaseIterable, Identifiable {
   case checkInSheet
 
   public var id: Self { self }
+
+  /// What the entry is, behind its info button. Only a server that can be forgotten mentions it.
+  public func info(on origin: ServerOrigin) -> String {
+    let kept = origin.isFlagship ? "" : ", until you forget the server"
+    return switch self {
+    case .logDive:
+      "Log a dive without signing in. It's saved for the account last signed in here, and syncs"
+        + " when that account signs in again. Signing in to a different account won't send it."
+    case .waitingToSync:
+      "What the account last signed in here saved on this phone and hasn't reached the server."
+        + " It stays here after you sign out\(kept), and syncs when that account signs in again."
+        + " Signing in to a different account won't send it."
+    case .checkInSheet:
+      "Your certification cards, ready to show at a dive centre's counter, even with no signal."
+        + " The sheet stays on this phone after you sign out\(kept)."
+    }
+  }
 }

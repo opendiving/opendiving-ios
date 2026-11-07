@@ -475,6 +475,26 @@ struct SignInFlowTests {
     #expect(flow.emailError == "Too many sign-in requests. Try again later.")
   }
 
+  @Test func onlyAServerThatCanBeForgottenMentionsForgetting() {
+    for entry in [SignedOutEntry.waitingToSync, .checkInSheet] {
+      #expect(entry.info(on: origin).contains("until you forget the server"))
+      #expect(!entry.info(on: .flagship).contains("forget"))
+    }
+  }
+
+  @Test func aBlankEmailIsEmptyAndRequestsNoCode() async {
+    let flow = SignInFlow(
+      session: session(pointer: origin, transport: Self.failing(.notConnectedToInternet)))
+    #expect(flow.isEmailEmpty)
+    flow.setEmail("  ")
+    #expect(flow.isEmailEmpty)
+    await flow.sendCode()
+    #expect(flow.step == .email)
+    #expect(flow.emailError == nil)
+    flow.setEmail("diver@example.com")
+    #expect(!flow.isEmailEmpty)
+  }
+
   @Test func theCodeKeepsSixDigits() async throws {
     let (flow, _) = await atTheCode(.json(try KitFixture.text("auth-outcome-authenticated")))
     flow.setCode("12 a3-45678")

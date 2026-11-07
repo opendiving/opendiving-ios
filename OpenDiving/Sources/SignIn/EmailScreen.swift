@@ -12,11 +12,17 @@ struct EmailScreen: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
+  @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
+  @ScaledMetric(relativeTo: .title) private var wordmarkHeight: CGFloat = 28
 
   @FocusState private var focused: Bool
 
   var body: some View {
     Form {
+      Section {
+        logo
+      }
+      .listRowBackground(Color.clear)
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
@@ -24,23 +30,16 @@ struct EmailScreen: View {
         }
       }
       Section {
-        // Verbatim, because a literal address is parsed into a link and drawn in the link colour.
-        TextField(
-          "Email", text: Binding(get: { flow.email }, set: { flow.setEmail($0) }),
-          prompt: Text(verbatim: "you@example.com")
-        )
-        .keyboardType(.emailAddress)
-        .textContentType(.emailAddress)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .submitLabel(.send)
-        .onSubmit(send)
-        .focused($focused)
-      } header: {
-        Text("Email").focusesOnTap($focused)
-      } footer: {
-        Text("We'll email you a six-digit sign-in code.")
+        TextField("Email", text: Binding(get: { flow.email }, set: { flow.setEmail($0) }))
+          .keyboardType(.emailAddress)
+          .textContentType(.emailAddress)
+          .textInputAutocapitalization(.never)
+          .autocorrectionDisabled()
+          .submitLabel(.send)
+          .onSubmit(send)
+          .focused($focused)
       }
+      .listSectionSpacing(12)
       if let error = flow.emailError {
         Section {
           Label(error, systemImage: "exclamationmark.triangle")
@@ -49,22 +48,23 @@ struct EmailScreen: View {
       }
       Section {
         Button(action: send) {
-          Group {
-            if flow.isRequestingCode {
-              HStack {
-                ProgressView().tint(.white)
-                Text("Sending…")
+          // Held in place under the spinner, so the button keeps its size.
+          Text("Sign in")
+            .bold()
+            .opacity(flow.isRequestingCode ? 0 : 1)
+            .overlay {
+              if flow.isRequestingCode {
+                BubbleSpinner(side: spinnerSide).foregroundStyle(.white)
               }
-            } else {
-              Text("Send code")
             }
-          }
-          .bold()
-          .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity)
         }
-        .brandProminentButton(.brandCoral)
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(.brandCoral)
         .controlSize(.large)
-        .disabled(!flow.canSendCode)
+        .accessibilityLabel("Sign in")
+        .accessibilityValue(flow.isRequestingCode ? "Sending" : "")
         .listRowInsets(EdgeInsets())
         .listRowBackground(Color.clear)
       }
@@ -72,31 +72,34 @@ struct EmailScreen: View {
         ForEach(flow.signedOutEntries) { entry in
           switch entry {
           case .logDive:
-            Button {
-              logsDive = true
-            } label: {
+            SignedOutEntryRow(
+              infoTitle: "Log a dive offline", info: entry.info(on: origin),
+              infoLabel: "About logging a dive offline",
+              action: { logsDive = true }
+            ) {
               Label("Log a dive offline", icon: .dive)
             }
-            .accentRow()
           case .waitingToSync:
             if let waiting {
-              Button(action: showPending) {
+              SignedOutEntryRow(
+                infoTitle: "Waiting to sync", info: entry.info(on: origin),
+                infoLabel: "About what is waiting to sync",
+                action: showPending
+              ) {
                 Label(waiting, systemImage: "arrow.triangle.2.circlepath")
               }
-              .accentRow()
             }
           case .checkInSheet:
-            Button(action: showSheet) {
+            SignedOutEntryRow(
+              infoTitle: "Your check-in sheet", info: entry.info(on: origin),
+              infoLabel: "About your check-in sheet",
+              action: showSheet
+            ) {
               Label("Your check-in sheet", icon: .idCard)
             }
-            .accentRow()
           }
         }
-      } footer: {
-        Text(KeptText.signedOutFooter(origin))
       }
-      // A form row's automatic style draws an app symbol's label as its title alone.
-      .labelStyle(.titleAndIcon)
       ServerCard(content: flow.session.card(for: origin)) {
         NavigationLink("Change server") {
           // A notice from an earlier visit is not this one's, though one set while here, by a
@@ -110,10 +113,31 @@ struct EmailScreen: View {
     }
     .background(TapEndsTyping())
     .navigationTitle("Sign In")
+    // The logo heads the screen; the title stays for what reads it, such as a pushed page's back
+    // button.
+    .toolbar(.hidden, for: .navigationBar)
     .navigationDestination(isPresented: $logsDive) { DiveFormView(mode: .create) }
     .task { await flow.session.loadServerInfo() }
     // Whenever the row is shown; the outbox refreshes nothing before the account loads.
     .task { await outbox.refreshDrafts() }
+  }
+
+  private var logo: some View {
+    VStack(spacing: 12) {
+      BrandMark(side: 72)
+      // The web's wordmark, Outfit Bold, as outlines: the app carries no copy of the font.
+      Image("Wordmark")
+        .resizable()
+        .scaledToFit()
+        .frame(height: wordmarkHeight)
+        .foregroundStyle(Color.primary.opacity(0.75))
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.top, 12)
+    .padding(.bottom, 16)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("OpenDiving")
+    .accessibilityAddTraits(.isHeader)
   }
 
   private var waiting: String? {
@@ -123,7 +147,11 @@ struct EmailScreen: View {
   }
 
   private func send() {
-    Task { await flow.sendCode() }
+    if flow.isEmailEmpty {
+      focused = true
+    } else {
+      Task { await flow.sendCode() }
+    }
   }
 }
 
