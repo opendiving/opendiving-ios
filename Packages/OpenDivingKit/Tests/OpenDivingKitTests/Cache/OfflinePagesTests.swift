@@ -314,13 +314,18 @@ struct OfflinePagesTests {
 
     let outbox = world.outbox()
     try outbox.queue(.deleteDive(.server(dive)))
+    await outbox.settled()
+    for key in keys {
+      #expect(world.cacheA.pages(key, of: DiveListItem.self)?.value.items.map(\.id) == [])
+    }
+
     try outbox.queue(.deleteDiveSite(.server(siteUUID)))
     try outbox.queue(.deleteTrip(.server(tripUUID)))
     await outbox.settled()
     #expect(world.cacheA.site(siteUUID) == nil)
     #expect(world.cacheA.trip(tripUUID) == nil)
     for key in keys {
-      #expect(world.cacheA.pages(key, of: DiveListItem.self)?.value.items.isEmpty ?? true)
+      #expect(world.cacheA.pages(key, of: DiveListItem.self) == nil)
     }
   }
 
