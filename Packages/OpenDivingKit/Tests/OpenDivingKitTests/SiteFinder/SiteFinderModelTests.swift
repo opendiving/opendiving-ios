@@ -13,6 +13,8 @@ import Testing
 final class FakeFinderLocator: LocationProvider {
   var outcome: Result<DeviceLocation, LocationFailure>
   var isUndetermined = false
+  /// Holds the answer back until the test has looked at what shows meanwhile.
+  var isHeld = false
   private(set) var asked = 0
 
   init(_ outcome: Result<DeviceLocation, LocationFailure>) {
@@ -21,6 +23,7 @@ final class FakeFinderLocator: LocationProvider {
 
   func currentLocation() async throws(LocationFailure) -> DeviceLocation {
     asked += 1
+    while isHeld { await Task.yield() }
     return try outcome.get()
   }
 }
@@ -253,5 +256,23 @@ struct SiteFinderModelTests {
     await again.open()
     #expect(again.rows.count == 3)
     #expect(again.list?.lastUpdated != nil)
+  }
+
+  @Test func theTabShowsItsLastListWhileItWaitsForAFix() async throws {
+    let (world, searches) = try await world()
+    await tab(world, FakeFinderLocator(.failure(.denied))).open()
+    let locator = FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5)))
+    locator.isHeld = true
+    let again = tab(world, locator)
+    let opening = Task { await again.open() }
+    while locator.asked == 0 { await Task.yield() }
+    #expect(again.isOpening)
+    #expect(again.rows.count == 3)
+    #expect(again.list?.lastUpdated != nil)
+    #expect(searches.queries.count == 1)
+    locator.isHeld = false
+    await opening.value
+    #expect(searches.queries.last?["latitude"] == "28.50")
+    #expect(again.list?.lastUpdated == nil)
   }
 }

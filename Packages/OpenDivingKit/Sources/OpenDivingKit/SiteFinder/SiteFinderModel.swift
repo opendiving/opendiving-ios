@@ -107,6 +107,7 @@ public final class SiteFinderModel {
   public func open() async {
     guard isOpening, !isResolving else { return }
     isResolving = true
+    showKeptWhileOpening()
     let opened: SiteFinderOpening
     if let form {
       let facts = form.siteFinderFacts
@@ -143,10 +144,23 @@ public final class SiteFinderModel {
     var dives = cache?.pages(PageCacheKey<DiveListItem>.dives.name, of: DiveListItem.self)?.value
       .items
     if let client = try? session.routedClient() {
-      if let page = try? await client.trips(page: 1) { trips = page.data }
-      if let page = try? await client.dives(page: 1, itemsPerPage: 1) { dives = page.data }
+      async let tripPage = try? client.trips(page: 1)
+      async let divePage = try? client.dives(page: 1, itemsPerPage: 1)
+      if let page = await tripPage { trips = page.data }
+      if let page = await divePage { dives = page.data }
     }
     return (trips ?? [], Array((dives ?? []).prefix(1)))
+  }
+
+  /// The Sites tab's last untyped list, shown while the opening rule waits on a fix or a read,
+  /// as every list shows its kept pages at once; the opening's own request replaces it.
+  private func showKeptWhileOpening() {
+    guard host == .sitesTab else { return }
+    let kept = PagedList<DiveSiteSearchRow>(
+      session: session, cache: .siteFinder(yours: false), routed: true
+    ) { _, _, _ in throw APIError.noRoute }
+    kept.showKept()
+    list = kept
   }
 
   private func refit() {

@@ -182,7 +182,7 @@ struct SiteFinderView<Header: View>: View {
   }
 
   @ViewBuilder private var content: some View {
-    if model.isOpening {
+    if model.isOpening && model.list == nil {
       BubbleSpinner().frame(maxWidth: .infinity).padding(.top, 24)
     } else if let list = model.list {
       switch list.phase {
