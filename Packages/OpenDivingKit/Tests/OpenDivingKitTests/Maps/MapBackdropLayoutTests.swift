@@ -5,7 +5,7 @@ import Testing
 
 /// The expected tiles and pins are the web app's: its `frameCamera`, `tileLayout` and
 /// `projectFrom` run over the same places and frame, so a page head shows the same square on
-/// both.
+/// both, but for the whole points that bring the places' middle back onto the band's.
 struct MapBackdropLayoutTests {
   private func layout(
     _ points: [MapPoint], fixes: [MapPoint] = [], width: Double, height: Double,
@@ -35,10 +35,49 @@ struct MapBackdropLayoutTests {
       [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)],
       fixes: [MapPoint(name: "Exit", latitude: 28.5735, longitude: 34.5361)],
       width: 393, height: 280, coveredBottom: 150)
-    #expect(tiles(layout) == [[9, 304, 213, -376, -225], [9, 305, 213, 136, -225]])
+    #expect(tiles(layout) == [[9, 304, 213, -377, -225], [9, 305, 213, 135, -225]])
     expectPins(
-      layout, [(197.22154666666756, 65.21723197239044), (196.42055111110676, 64.13932187619503)])
+      layout, [(196.22154666666756, 65.21723197239044), (195.42055111110676, 64.13932187619503)])
     #expect(layout.pins.map(\.isFix) == [false, true])
+  }
+
+  @Test func aDivesSiteLandsInTheBandsMiddleToThePixelWhereverItsFixesAre() throws {
+    let site = MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)
+    let fixes = [
+      MapPoint(name: "Entry", latitude: 28.58, longitude: 34.55),
+      MapPoint(name: "Exit", latitude: 28.581, longitude: 34.552),
+    ]
+    for scale in [2.0, 3.0] {
+      let alone = try #require(
+        MapBackdropLayout(
+          points: [site], fixes: [], theme: .light, width: 361, height: 240, coveredBottom: 101,
+          scale: scale))
+      let dived = try #require(
+        MapBackdropLayout(
+          points: [site], fixes: fixes, theme: .light, width: 361, height: 240,
+          coveredBottom: 101, scale: scale))
+      for layout in [alone, dived] {
+        let pin = try #require(layout.pins.first)
+        #expect(abs(pin.x - 180.5) <= 0.5 / scale)
+        #expect(abs(pin.y - (240 - 101) / 2) <= 0.5 / scale)
+        #expect(layout.tiles.allSatisfy { abs(($0.x * scale).rounded() - $0.x * scale) < 1e-9 })
+      }
+    }
+  }
+
+  @Test func aFixFarFromItsSiteStaysInTheBandWithTheSiteInItsMiddle() throws {
+    let site = MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)
+    let harbour = MapPoint(name: "Entry", latitude: 28.95, longitude: 34.1)
+    let layout = try #require(
+      MapBackdropLayout(
+        points: [site], fixes: [harbour], theme: .light, width: 361, height: 240,
+        coveredBottom: 101, scale: 3))
+    let padding = MapBackdropLayout.fitPadding
+    #expect(abs(layout.pins[0].x - 180.5) <= 0.5 / 3)
+    for pin in layout.pins {
+      #expect((padding...(361 - padding)).contains(pin.x), "\(pin)")
+      #expect((padding...(240 - 101 - padding)).contains(pin.y), "\(pin)")
+    }
   }
 
   @Test func placesEitherSideOfTheAntimeridianAreFittedTheShortWayRound() throws {

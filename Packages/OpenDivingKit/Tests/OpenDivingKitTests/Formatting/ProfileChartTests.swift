@@ -243,7 +243,7 @@ struct ProfileChartTests {
   @Test func ndlAndTtsTakeARowEach() throws {
     let layout = chart(try decoProfile()).layout(hiding: [])
     #expect(layout.placement.panels == [.noDeco, .timeToSurface, .ppo2, .percent])
-    #expect(layout.panelRows.map(\.top) == ["100 min", "15 min", "1.2 bar", "200%"])
+    #expect(layout.panelRows.map(\.top) == ["100", "15", "1.2", "200%"])
     #expect(layout.panelRows.map(\.bottom) == ["0", "0", "0.2", "0"])
     #expect(layout.plotted(.ndl)?.panelIndex == 0)
     #expect(layout.plotted(.tts)?.panelIndex == 1)
@@ -290,7 +290,7 @@ struct ProfileChartTests {
     #expect(layout.placement.panels == [.heartRate, .percent])
     #expect(layout.plotted(.heartRate)?.panelIndex == 0)
     #expect(layout.plotted(.heartRate)?.domain == AxisDomain(min: 50, max: 110, step: 10))
-    #expect(layout.panelRows.map(\.top) == ["110 bpm", "10%"])
+    #expect(layout.panelRows.map(\.top) == ["110", "10%"])
     #expect(layout.panelRows.map(\.bottom) == ["50", "0"])
 
     // Toggled off, its row goes and the CNS row keeps its scale.

@@ -426,8 +426,8 @@ of item, which has to survive a create landing under another uuid.
 
 A dive's, a trip's or a site's head draws `GET /map-tiles` as the web composes them —
 `MapBackdropLayout` is the web's fit, and its tests hold the web's numbers — so both show the same
-square of the same map. Tiles are asked for only where `/config` says `map_tiles` and names
-`map_attribution`; anywhere else the band shows without a map. Rejected: MapKit as the fallback,
+square of the same map, but centred on the places rather than their fixes, and to the pixel.
+Tiles are asked for only where `/config` says `map_tiles` and names `map_attribution`; anywhere else the band shows without a map. Rejected: MapKit as the fallback,
 a second look with Apple's credit; a shipped OpenFreeMap credit, which is false for an operator's
 own style. Tiles shown and the last credit are kept in the server's directory, so a head draws
 offline. The tiles stop at zoom 9, too coarse to place a pin, so a form draws the style instead.
