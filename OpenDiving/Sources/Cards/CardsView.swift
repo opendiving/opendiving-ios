@@ -30,6 +30,26 @@ private struct CheckinSheetScreen: View {
   }
 
   var body: some View {
+    refreshableWhenSignedIn(page)
+      .navigationTitle("Cards")
+      .toolbar {
+        if !model.isSignedIn {
+          ToolbarItem(placement: .confirmationAction) {
+            Button("Done") { dismiss() }
+          }
+        }
+      }
+      .task {
+        model.load()
+        await model.refresh()
+        await model.followRoute()
+      }
+      .fullScreenCover(item: $fullScreen) { card in
+        FullScreenCardView(card: card)
+      }
+  }
+
+  private var page: some View {
     Group {
       if let content = model.content {
         ScrollView {
@@ -51,22 +71,16 @@ private struct CheckinSheetScreen: View {
               ? nil : "Sign in once with a connection and the sheet is kept here."))
       }
     }
-    .navigationTitle("Cards")
-    .toolbar {
-      if !model.isSignedIn {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }
-        }
-      }
-    }
-    .refreshable { await model.refresh() }
-    .task {
-      model.load()
-      await model.refresh()
-      await model.followRoute()
-    }
-    .fullScreenCover(item: $fullScreen) { card in
-      FullScreenCardView(card: card)
+  }
+
+  /// Signed out, the sheet is presented over sign-in with nothing to refresh from, so a pull
+  /// down is left to dismiss it.
+  @ViewBuilder
+  private func refreshableWhenSignedIn(_ content: some View) -> some View {
+    if model.isSignedIn {
+      content.refreshable { await model.refresh() }
+    } else {
+      content
     }
   }
 
