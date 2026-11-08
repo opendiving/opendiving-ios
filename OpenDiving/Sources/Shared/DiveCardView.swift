@@ -7,22 +7,26 @@ import SwiftUI
 struct DiveCardView: View {
   let content: DiveCardContent
 
-  static let silhouetteHeight: CGFloat = 56
-  static let silhouetteGap: CGFloat = 4
+  private static let silhouetteHeight: CGFloat = 56
+  private static let silhouetteGap: CGFloat = 4
   private static let chipsHeight: CGFloat = 26
+  /// Between a pin's foot and the silhouette's line under it.
+  private static let pinClearance: CGFloat = 2
 
   var body: some View {
-    BackdropCardView { coveredBottom, mapCoveredBottom in
+    BackdropCardView { frame in
       // The water's icon centres above the silhouette and the chips rather than behind them.
       let aboveProfile =
         hasOutline
-        ? coveredBottom + Self.silhouetteGap + Self.silhouetteHeight
-        : content.chips.isEmpty ? coveredBottom : coveredBottom + Self.chipsHeight
+        ? frame.coveredBottom + Self.silhouetteGap + Self.silhouetteHeight
+        : content.chips.isEmpty ? frame.coveredBottom : frame.coveredBottom + Self.chipsHeight
       ZStack {
         UnplacedBackdropView(icon: .tabDive, coveredBottom: aboveProfile)
         if !content.points.isEmpty || !content.fixes.isEmpty {
+          let covers = frame.mapCovers(pinCentre: pinCentre(frame))
           MapBackdropView(
-            points: content.points, fixes: content.fixes, coveredBottom: mapCoveredBottom)
+            points: content.points, fixes: content.fixes, coveredTop: covers.top,
+            coveredBottom: covers.bottom)
         }
       }
     } details: {
@@ -49,6 +53,20 @@ struct DiveCardView: View {
   }
 
   private var hasOutline: Bool { content.outline.count > 1 }
+
+  /// A card's own, or higher where the silhouette's line comes up under the pin, the middle of
+  /// a card that spans the silhouette less the details' padding either side.
+  private func pinCentre(_ frame: CardBackdropFrame) -> CGFloat {
+    let span = frame.width - 24
+    guard hasOutline, span > 0 else { return CardBackdropFrame.pinCentre }
+    let half = MapMarker.diameter / 2 / span
+    guard let shallowest = DiveOutline.shallowest(content.outline, from: 0.5 - half, to: 0.5 + half)
+    else { return CardBackdropFrame.pinCentre }
+    let line =
+      CardBackdropFrame.band - Self.silhouetteGap - Self.silhouetteHeight
+      + shallowest * Self.silhouetteHeight
+    return min(CardBackdropFrame.pinCentre, line - Self.pinClearance - MapMarker.diameter / 2)
+  }
 }
 
 #Preview {

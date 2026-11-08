@@ -9,12 +9,14 @@ struct RecordCardView: View {
   let icon: OpenDivingKit.Icon
 
   var body: some View {
-    BackdropCardView { coveredBottom, mapCoveredBottom in
+    BackdropCardView { frame in
       ZStack {
-        UnplacedBackdropView(icon: icon, coveredBottom: coveredBottom)
+        UnplacedBackdropView(icon: icon, coveredBottom: frame.coveredBottom)
         if !content.points.isEmpty || content.mapsTheWorldWhenEmpty {
+          let covers = frame.mapCovers()
           MapBackdropView(
-            points: content.points, fixes: [], coveredBottom: mapCoveredBottom,
+            points: content.points, fixes: [], coveredTop: covers.top,
+            coveredBottom: covers.bottom,
             worldWhenEmpty: content.mapsTheWorldWhenEmpty)
         }
       }

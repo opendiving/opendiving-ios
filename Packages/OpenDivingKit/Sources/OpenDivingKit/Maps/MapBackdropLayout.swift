@@ -30,7 +30,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// here too.
   public static let maxZoom = 9
   /// How far the outermost place is kept from the frame's edges.
-  static let fitPadding = 24.0
+  public static let fitPadding = 24.0
 
   public let tiles: [Tile]
   public let pins: [Pin]

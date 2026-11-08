@@ -3,42 +3,31 @@ import SwiftUI
 
 /// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
 /// water standing in for one — above the details, which sit over its foot on frosted glass.
-/// However tall the details grow, the band shows as much of itself. The backdrop is handed how
-/// many points of its foot the details cover, and how many a map leaves out so that its pins
-/// centre at ``pinCentre``. A map's credit sits in the card's top corner on glass of its own,
-/// out of the details, so a list's cards are one height whichever of them has a map.
+/// However tall the details grow, the band shows as much of itself. The backdrop is handed the
+/// card's width and how many points of its foot the details cover. A map's credit sits in the
+/// card's top corner on glass of its own, out of the details, so a list's cards are one height
+/// whichever of them has a map.
 struct BackdropCardView<Backdrop: View, Details: View>: View {
-  @ViewBuilder let backdrop: (_ coveredBottom: CGFloat, _ mapCoveredBottom: CGFloat) -> Backdrop
+  @ViewBuilder let backdrop: (CardBackdropFrame) -> Backdrop
   @ViewBuilder let details: () -> Details
 
-  @State private var detailsHeight: CGFloat = 0
+  @State private var detailsSize = CGSize.zero
   @State private var credit: MapBackdropView.CardCredit?
-
-  /// The band of backdrop above the details, the web's.
-  static var band: CGFloat { 132 }
-
-  /// Where a card's pins centre, from its top, on every card alike: a pin's foot two points
-  /// above a dive's silhouette, so a dive that surfaced midway does not draw its line through
-  /// the pin.
-  static var pinCentre: CGFloat {
-    band - DiveCardView.silhouetteGap - DiveCardView.silhouetteHeight - 2 - MapMarker.diameter / 2
-  }
 
   var body: some View {
     details()
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding([.horizontal, .bottom], 12)
-      .onGeometryChange(for: CGFloat.self) {
-        $0.size.height
+      .onGeometryChange(for: CGSize.self) {
+        $0.size
       } action: {
-        detailsHeight = $0
+        detailsSize = $0
       }
-      .padding(.top, Self.band)
+      .padding(.top, CardBackdropFrame.band)
       .background {
         ZStack {
-          // A map centres its pins in what the details leave; covering that much more puts the
-          // middle at `pinCentre`.
-          backdrop(detailsHeight, detailsHeight + Self.band - 2 * Self.pinCentre)
+          backdrop(
+            CardBackdropFrame(width: detailsSize.width, coveredBottom: detailsSize.height))
           glass
         }
         .allowsHitTesting(false)
@@ -82,8 +71,8 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
 }
 
 #Preview {
-  BackdropCardView { coveredBottom, _ in
-    UnplacedBackdropView(icon: .tabDiveSite, coveredBottom: coveredBottom)
+  BackdropCardView { frame in
+    UnplacedBackdropView(icon: .tabDiveSite, coveredBottom: frame.coveredBottom)
   } details: {
     VStack(alignment: .leading) {
       Text("Tiger Reef").font(.headline)
