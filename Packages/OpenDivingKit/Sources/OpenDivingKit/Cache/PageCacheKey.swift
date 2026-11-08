@@ -43,3 +43,15 @@ extension PageCacheKey where Item == DiveSiteRead {
   /// The Sites tab.
   public static var diveSites: Self { Self("dive-sites", record: \.uuid) }
 }
+
+extension PageCacheKey where Item == DiveListItem {
+  /// The dives on one site's page, kept and dropped with the site's own copy.
+  static func siteDives(_ site: UUID) -> Self {
+    Self("site-dives-\(site.uuidString.lowercased())", record: \.id)
+  }
+
+  /// The dives on one trip's page, kept and dropped with the trip's own copy.
+  static func tripDives(_ trip: UUID) -> Self {
+    Self("trip-dives-\(trip.uuidString.lowercased())", record: \.id)
+  }
+}

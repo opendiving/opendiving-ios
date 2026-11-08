@@ -23,3 +23,14 @@ public enum ConnectivityMoment: Hashable, Sendable {
   case routeAppeared
   case becameActive
 }
+
+extension Connectivity {
+  /// Runs `body` each time a route appears, until the calling task is cancelled: how a screen
+  /// that skipped its read for want of one reads again.
+  @MainActor
+  func eachRouteAppearance(_ body: @MainActor () async -> Void) async {
+    for await moment in moments() where moment == .routeAppeared {
+      await body()
+    }
+  }
+}

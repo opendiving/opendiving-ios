@@ -3,6 +3,11 @@ import Observation
 
 /// One dive site's page: the site, every dive there a page at a time, and the species seen
 /// on them with their photos.
+///
+/// A site the phone has opened before shows at once from the account's cache, its dives and
+/// species with it, under ``lastUpdated``, while it is fetched behind; a fetch that fails leaves
+/// it standing. With no route nothing is asked for, and ``followRoute()`` reads again once one
+/// appears. A 404 for the site means the server no longer has it, and the phone forgets it.
 @MainActor
 @Observable
 public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObserver {
@@ -17,6 +22,8 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
 
   public let siteUUID: UUID
   public private(set) var phase: DetailPhase<DiveSiteRead> = .loading
+  /// When the site shown was fetched, while it is the cache's rather than this visit's.
+  public private(set) var lastUpdated: Date?
   public let dives: PagedList<DiveListItem>
   public private(set) var species: Species = .none
   /// Photo bytes by species uuid, as each card asks for its own.
@@ -40,8 +47,10 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     self.siteUUID = siteUUID
     withdrawal = ProposalWithdrawal(session: session)
     replacement = CommonsSiteReplacement(session: session)
-    dives = PagedList(session: session, itemsPerPage: APIClient.nestedListPageSize) {
-      client, page, itemsPerPage in
+    dives = PagedList(
+      session: session, itemsPerPage: APIClient.nestedListPageSize, cache: .siteDives(siteUUID),
+      routed: true
+    ) { client, page, itemsPerPage in
       try await client.dives(page: page, itemsPerPage: itemsPerPage, diveSiteUUID: siteUUID)
     }
   }
@@ -49,6 +58,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   /// The site, then its dives and its species; nothing once the site is on screen.
   public func load() async {
     if phase.isLoaded { return }
+    showCached()
     await readSite()
     guard case .loaded(let site) = phase else { return }
     async let list: Void = dives.load()
@@ -70,7 +80,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   /// leaves the card's no-photo backdrop.
   public func loadPhoto(_ entry: SpeciesLifeListEntry) async {
     guard let version = entry.photoSha256, photosAsked[entry.uuid] != version,
-      let client = session.client
+      let client = try? session.routedClient()
     else { return }
     photosAsked[entry.uuid] = version
     if let bytes = try? await client.speciesPhoto(entry.uuid, version: version) {
@@ -89,17 +99,68 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     await replacement.replace(siteUUID, with: record) { await reloadWithEveryList(on: session) }
   }
 
+  /// Reads again what a route can mend — now, if there is one, and each time one appears —
+  /// until the calling task is cancelled.
+  public func followRoute() async {
+    if session.connectivity.isRouteAvailable { await reread() }
+    await session.connectivity.eachRouteAppearance { await reread() }
+  }
+
+  func reread() async {
+    let stale =
+      switch phase {
+      case .loaded: lastUpdated != nil
+      case .failed: true
+      case .loading, .notFound: false
+      }
+    if stale { await readSite() }
+    guard case .loaded(let site) = phase else { return }
+    let speciesStale = stale || species == .failed
+    async let list: Void = dives.rereadIfStale()
+    if speciesStale { await readSpecies(site) }
+    await list
+  }
+
+  private func showCached() {
+    guard let stores = AccountStores.current(session), let entry = stores.cache.site(siteUUID)
+    else { return }
+    if stores.loaded { stores.cache.touchSite(siteUUID) }
+    lastUpdated = entry.fetchedAt
+    phase = .loaded(entry.value.site)
+    if entry.value.site.speciesCount > 0, let entries = entry.value.species {
+      species = .loaded(entries)
+    }
+    watchStores()
+  }
+
   private func readSite() async {
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
+    let stores = AccountStores.current(session)
     do {
-      let site = try await session.requireClient().diveSite(siteUUID)
+      let site = try await session.routedClient().diveSite(siteUUID)
+      lastUpdated = nil
       phase = .loaded(site)
+      keep(site, fetchedUnder: stores)
       watchStores()
     } catch {
       let next = DetailPhase<DiveSiteRead>.failure(error)
+      if next == .notFound {
+        cacheForAnswer(fetchedUnder: stores, session: session)?.removeSite(siteUUID)
+        lastUpdated = nil
+      }
       if !wasLoaded || next == .notFound { phase = next }
     }
+  }
+
+  /// Writes `site` with the species on screen, or those kept while they have not loaded.
+  private func keep(_ site: DiveSiteRead, fetchedUnder stores: AccountStores?) {
+    guard let cache = cacheForAnswer(fetchedUnder: stores, session: session) else { return }
+    let entries: [SpeciesLifeListEntry]? =
+      if case .loaded(let entries) = species { entries } else {
+        cache.site(siteUUID)?.value.species
+      }
+    cache.writeSite(AccountCache.Site(site: site, species: entries), fetchedAt: Date())
   }
 
   private func watchStores() {
@@ -127,18 +188,23 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
 
   /// Read whole, as the web reads it: a site's species are a list worth seeing entire.
   private func readSpecies(_ site: DiveSiteRead) async {
-    guard site.speciesCount > 0, let client = session.client else {
+    guard site.speciesCount > 0 else {
       species = .none
       return
     }
     if case .loaded = species {} else { species = .loading }
     let siteUUID = siteUUID
+    let stores = AccountStores.current(session)
     do {
+      let client = try session.routedClient()
       let entries = try await APIClient.allPages { page, itemsPerPage in
         try await client.speciesLifeList(
           diveSiteUUID: siteUUID, page: page, itemsPerPage: itemsPerPage)
       }
       species = .loaded(entries)
+      if case .loaded(let shown) = phase, lastUpdated == nil {
+        keep(shown, fetchedUnder: stores)
+      }
     } catch {
       if case .loaded = species { return }
       species = .failed

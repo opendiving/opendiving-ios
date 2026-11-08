@@ -100,6 +100,14 @@ so it stays unattempted — editable, and a form's draft create still withdrawn 
 logged; one that saw a route come and go may have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a request made during
 the prompt; a shorter timeout, which still spins and still counts the create as sent.
 
+## A record page reads nothing without a route
+
+A dive's, a site's or a trip's page, the lists on the last two and the Cards tab check the path
+before reading: with no route they show the phone's copy, or say the record shows once the server
+can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
+read too, since the page reads itself the moment it can. Rejected: letting the read wait out the
+minute, which spins over a page the phone could not have filled anyway.
+
 ## A queued write that lands is removed, not logged
 
 The outbox holds what the server has not acknowledged and nothing else: once a write lands the
@@ -133,8 +141,8 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives and drafts are written when a screen loads them, never fetched to fill the cache,
-and dive details are bounded to the two hundred most recently opened. It exists so a screen
+Pages, dives, sites, trips and drafts are written when a screen loads them, never fetched to fill
+the cache, and each kind of detail is bounded to the two hundred most recently opened. It exists so a screen
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 

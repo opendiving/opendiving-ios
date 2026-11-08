@@ -33,6 +33,16 @@ public enum APIError: Error, Hashable, Sendable {
     }
   }
 
+  /// Nothing was sent: the phone believes it has no route. `URLError.notConnectedToInternet`,
+  /// as a request would have failed after waiting for one.
+  public static let noRoute = APIError.unreachable(
+    TransportFailure(code: -1009, message: "The Internet connection appears to be offline."))
+
+  /// No answer arrived, ``noRoute`` included.
+  public var isUnreachable: Bool {
+    if case .unreachable = self { true } else { false }
+  }
+
   /// Any error a call threw, as an `APIError`.
   public init(_ error: any Error) {
     if let error = error as? APIError {

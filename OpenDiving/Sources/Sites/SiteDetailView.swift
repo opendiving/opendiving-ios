@@ -38,7 +38,10 @@ private struct SiteDetailContent: View {
       case .notFound:
         EmptyOrErrorView(status: .notFound(message: "Dive site not found."))
       case .failed(let error):
-        EmptyOrErrorView(status: .failed(message: error.message)) {
+        EmptyOrErrorView(
+          status: .failed(
+            message: error.isUnreachable ? OfflineText.siteNotShown : error.message)
+        ) {
           Task { await model.load() }
         }
       case .loaded(let site):
@@ -46,6 +49,9 @@ private struct SiteDetailContent: View {
           LazyVStack(spacing: 16) {
             HeroView(content: DiveSiteSummary.hero(site, units: session.units))
             Group {
+              if let lastUpdated = model.lastUpdated {
+                LastUpdatedLine(date: lastUpdated)
+              }
               if let attribution = site.attribution {
                 AttributionLine(credits: [attribution])
                   .frame(maxWidth: .infinity, alignment: .leading)
@@ -101,7 +107,10 @@ private struct SiteDetailContent: View {
         }
       }
     }
-    .task { await model.load() }
+    .task {
+      await model.load()
+      await model.followRoute()
+    }
     .proposalWithdrawalAlert(model.withdrawal)
     .replaceWithCommonsConfirmation(siteName: title, target: $replacing) { match in
       Task {
@@ -184,11 +193,14 @@ private struct SiteDives: View {
         ProgressView()
           .frame(maxWidth: .infinity)
       }
-    case .failed:
+    case .failed(let error):
       SectionCard(title: Self.title, icon: Self.icon) {
-        Text("This site's dives could not be loaded.")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
+        Text(
+          error.isUnreachable
+            ? OfflineText.divesNotShown : "This site's dives could not be loaded."
+        )
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
           .buttonStyle(.bordered)
       }

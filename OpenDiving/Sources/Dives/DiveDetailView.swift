@@ -20,10 +20,12 @@ struct DiveDetailView: View {
       }
     }
     .task {
-      guard model == nil else { return }
-      let model = DiveDetailModel(session: session, diveUUID: diveUUID)
-      self.model = model
-      await model.load()
+      if model == nil {
+        let model = DiveDetailModel(session: session, diveUUID: diveUUID)
+        self.model = model
+        await model.load()
+      }
+      await model?.followRoute()
     }
   }
 }
@@ -88,7 +90,7 @@ private struct DiveDetailScreen: View {
   /// A dive with no copy on the phone fails offline only once the request has waited for a
   /// route; it says why it needs one.
   private static func message(_ error: APIError) -> String {
-    if case .unreachable = error { return OfflineText.diveNotShown }
+    if error.isUnreachable { return OfflineText.diveNotShown }
     return error.message
   }
 

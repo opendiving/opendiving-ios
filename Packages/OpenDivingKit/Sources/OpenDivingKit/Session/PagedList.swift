@@ -18,6 +18,10 @@ import Observation
 ///
 /// A list that names its rows' records leaves out a record whose delete is queued, offline too,
 /// and shows it again if the delete is discarded or refused.
+///
+/// A list made `routed` asks for nothing while the phone believes it has no route: it fails at
+/// once with ``APIError/noRoute``, quietly behind kept pages, and the page that owns it reads
+/// again when one appears.
 @MainActor
 @Observable
 public final class PagedList<Item: Codable & Sendable> {
@@ -47,6 +51,7 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private let itemsPerPage: Int
   @ObservationIgnored private let fetch: Fetch
   @ObservationIgnored private let cacheKey: PageCacheKey<Item>?
+  @ObservationIgnored private let routed: Bool
   @ObservationIgnored private var fetched: [Item] = []
   @ObservationIgnored private var nextPage = 1
   @ObservationIgnored private var generation = 0
@@ -59,11 +64,12 @@ public final class PagedList<Item: Codable & Sendable> {
 
   public init(
     session: Session, itemsPerPage: Int = APIClient.listPageSize,
-    cache cacheKey: PageCacheKey<Item>? = nil, fetch: @escaping Fetch
+    cache cacheKey: PageCacheKey<Item>? = nil, routed: Bool = false, fetch: @escaping Fetch
   ) {
     self.session = session
     self.itemsPerPage = itemsPerPage
     self.cacheKey = cacheKey
+    self.routed = routed
     self.fetch = fetch
   }
 
@@ -85,7 +91,7 @@ public final class PagedList<Item: Codable & Sendable> {
     defer { isLoadingMore = false }
     let generation = generation
     do {
-      let client = try session.requireClient()
+      let client = try client()
       let stores = AccountStores.current(session)
       let response = try await fetch(client, nextPage, itemsPerPage)
       guard generation == self.generation else { return }
@@ -109,6 +115,11 @@ public final class PagedList<Item: Codable & Sendable> {
 
   /// Pull-to-refresh: the account and the people table, then page 1 in place of every page.
   public func refresh() async {
+    if routed, !session.connectivity.isRouteAvailable {
+      pageError = .noRoute
+      if fetched.isEmpty { phase = .failed(.noRoute) }
+      return
+    }
     do {
       try await session.loadAccount()
     } catch {
@@ -133,7 +144,7 @@ public final class PagedList<Item: Codable & Sendable> {
     let stores = AccountStores.current(session)
     observeAccount()
     do {
-      let client = try session.requireClient()
+      let client = try client()
       var pages: [Item] = []
       var page = 1
       var more = true
@@ -156,10 +167,26 @@ public final class PagedList<Item: Codable & Sendable> {
       guard generation == self.generation else { return }
       if fetched.isEmpty {
         phase = .failed(APIError(error))
-      } else {
+      } else if APIError(error) != .noRoute {
         pageError = APIError(error)
       }
     }
+  }
+
+  /// The first page if none was asked for, or every page shown again when what is shown is
+  /// kept pages or a failure: for the page that owns a `routed` list, once a route appears.
+  func rereadIfStale() async {
+    switch phase {
+    case .loading: return
+    case .idle: return await load()
+    case .failed: break
+    case .loaded: guard lastUpdated != nil || pageError != nil else { return }
+    }
+    await loadPages(through: max(nextPage - 1, 1))
+  }
+
+  private func client() throws -> APIClient {
+    try routed ? session.routedClient() : session.requireClient()
   }
 
   /// Joins the hub of the account the session names, and joins again each time the session

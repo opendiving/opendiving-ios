@@ -32,9 +32,15 @@ public final class CheckinSheetModel {
     sheet = store?.load()
   }
 
-  /// Refreshes the sheet when signed in, keeping the cached one whole on any failure.
+  /// Refreshes the sheet when signed in, keeping the cached one whole on any failure. With no
+  /// route nothing is asked for: a kept sheet stands as it is, and without one the sheet says
+  /// it needs a connection.
   public func refresh() async {
     guard isSignedIn, !isRefreshing, let store else { return }
+    guard session.connectivity.isRouteAvailable else {
+      if sheet == nil { refreshError = APIError.noRoute.message }
+      return
+    }
     isRefreshing = true
     defer { isRefreshing = false }
     do {
@@ -45,6 +51,11 @@ public final class CheckinSheetModel {
     } catch {
       refreshError = String(describing: error)
     }
+  }
+
+  /// Refreshes the sheet each time a route appears, until the calling task is cancelled.
+  public func followRoute() async {
+    await session.connectivity.eachRouteAppearance { await refresh() }
   }
 
   /// A cached picture's bytes.
