@@ -4,59 +4,66 @@ import SwiftUI
 /// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
 /// water standing in for one — above the details, which sit over its foot on frosted glass.
 /// However tall the details grow, the band shows as much of itself. The backdrop is handed how
-/// many points of its foot the details cover. A map's credit closes the details, as it does a
-/// page head's, on the whole of the glass. Its line is kept on a card without one, so a list's
-/// cards are one height whichever of them has a map, and it is laid out unseen until the map
-/// shows.
+/// many points of its foot the details cover, and how many a map leaves out so that its pins
+/// centre at ``pinCentre``. A map's credit sits in the card's top corner on glass of its own,
+/// out of the details, so a list's cards are one height whichever of them has a map.
 struct BackdropCardView<Backdrop: View, Details: View>: View {
-  @ViewBuilder let backdrop: (_ coveredBottom: CGFloat) -> Backdrop
+  @ViewBuilder let backdrop: (_ coveredBottom: CGFloat, _ mapCoveredBottom: CGFloat) -> Backdrop
   @ViewBuilder let details: () -> Details
 
   @State private var detailsHeight: CGFloat = 0
   @State private var credit: MapBackdropView.CardCredit?
 
   /// The band of backdrop above the details, the web's.
-  private static var band: CGFloat { 132 }
+  static var band: CGFloat { 132 }
 
-  var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      details()
-      creditLine
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding([.horizontal, .bottom], 12)
-    .onGeometryChange(for: CGFloat.self) {
-      $0.size.height
-    } action: {
-      detailsHeight = $0
-    }
-    .padding(.top, Self.band)
-    .background {
-      ZStack {
-        backdrop(detailsHeight)
-        glass
-      }
-      .allowsHitTesting(false)
-    }
-    .background(Color(.systemBackground))
-    .onPreferenceChange(MapBackdropView.CardCredit.Key.self) { credit = $0 }
-    .clipShape(RoundedRectangle(cornerRadius: 12))
-    .accessibilityElement(children: .combine)
+  /// Where a card's pins centre, from its top, on every card alike: a pin's foot two points
+  /// above a dive's silhouette, so a dive that surfaced midway does not draw its line through
+  /// the pin.
+  static var pinCentre: CGFloat {
+    band - DiveCardView.silhouetteGap - DiveCardView.silhouetteHeight - 2 - MapMarker.diameter / 2
   }
 
-  private var creditLine: some View {
+  var body: some View {
+    details()
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding([.horizontal, .bottom], 12)
+      .onGeometryChange(for: CGFloat.self) {
+        $0.size.height
+      } action: {
+        detailsHeight = $0
+      }
+      .padding(.top, Self.band)
+      .background {
+        ZStack {
+          // A map centres its pins in what the details leave; covering that much more puts the
+          // middle at `pinCentre`.
+          backdrop(detailsHeight, detailsHeight + Self.band - 2 * Self.pinCentre)
+          glass
+        }
+        .allowsHitTesting(false)
+      }
+      .background(Color(.systemBackground))
+      .overlay(alignment: .topTrailing) { creditChip }
+      .onPreferenceChange(MapBackdropView.CardCredit.Key.self) { credit = $0 }
+      .clipShape(RoundedRectangle(cornerRadius: 12))
+      .accessibilityElement(children: .combine)
+  }
+
+  /// On glass of its own, as bare text cannot be read on the map's labels.
+  private var creditChip: some View {
     ZStack {
-      Text(verbatim: " ")
-        .font(.caption2)
-        .hidden()
-      if let credit {
+      if let credit, credit.isShown {
         AttributionLine(credits: [MapAttribution.display(credit.text)], underline: false)
           .multilineTextAlignment(.trailing)
-          .opacity(credit.isShown ? 1 : 0)
-          .accessibilityHidden(!credit.isShown)
+          .padding(.horizontal, 6)
+          .padding(.vertical, 2)
+          .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+          .transition(.opacity)
       }
     }
-    .frame(maxWidth: .infinity, alignment: .trailing)
+    .padding(8)
+    .frame(maxWidth: 260, alignment: .trailing)
     .animation(.easeOut(duration: 0.3), value: credit)
     .allowsHitTesting(false)
   }
@@ -74,7 +81,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
 }
 
 #Preview {
-  BackdropCardView { coveredBottom in
+  BackdropCardView { coveredBottom, _ in
     UnplacedBackdropView(icon: .tabDiveSite, coveredBottom: coveredBottom)
   } details: {
     VStack(alignment: .leading) {

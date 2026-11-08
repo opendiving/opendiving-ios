@@ -7,14 +7,13 @@ import SwiftUI
 struct DiveCardView: View {
   let content: DiveCardContent
 
-  private static let silhouetteHeight: CGFloat = 56
-  private static let silhouetteGap: CGFloat = 4
+  static let silhouetteHeight: CGFloat = 56
+  static let silhouetteGap: CGFloat = 4
   private static let chipsHeight: CGFloat = 26
 
   var body: some View {
-    BackdropCardView { coveredBottom in
-      // The map's places and the water's icon centre above the silhouette and the chips
-      // rather than behind them.
+    BackdropCardView { coveredBottom, mapCoveredBottom in
+      // The water's icon centres above the silhouette and the chips rather than behind them.
       let aboveProfile =
         hasOutline
         ? coveredBottom + Self.silhouetteGap + Self.silhouetteHeight
@@ -23,7 +22,7 @@ struct DiveCardView: View {
         UnplacedBackdropView(icon: .tabDive, coveredBottom: aboveProfile)
         if !content.points.isEmpty || !content.fixes.isEmpty {
           MapBackdropView(
-            points: content.points, fixes: content.fixes, coveredBottom: aboveProfile)
+            points: content.points, fixes: content.fixes, coveredBottom: mapCoveredBottom)
         }
       }
     } details: {

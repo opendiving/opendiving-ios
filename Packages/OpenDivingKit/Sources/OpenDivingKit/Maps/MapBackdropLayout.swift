@@ -41,10 +41,14 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// and `worldWhenEmpty`, the whole world at zoom 0, the equator across the band's middle.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
+  ///
+  /// Every place is fitted, but the band's middle is the places' own, the fixes' only where
+  /// there are no places: a dive's site sits where a site's does, its fixes around it. That
+  /// middle lands on the band's to the nearest of the screen's pixels, `scale` to a point.
   public init?(
     points: [MapPoint], fixes: [MapPoint], theme: MapTileTheme, width: Double, height: Double,
     overflowTop: Double = 0, coveredTop: Double = 0, coveredBottom: Double,
-    worldWhenEmpty: Bool = false
+    worldWhenEmpty: Bool = false, scale: Double = 1
   ) {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
@@ -70,13 +74,19 @@ public struct MapBackdropLayout: Hashable, Sendable {
         Self.fitZoom(
           WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: shown - 2 * padding),
         Self.fitZoom(pinBounds, width: fitWidth, height: height - bandTop - bandBottom))
+      let centred = placed.contains { !$0.isFix } ? placed.filter { !$0.isFix } : placed
+      let centreBounds = WebMercator.union(
+        centred.map {
+          LatLonBounds(
+            south: $0.latitude, north: $0.latitude, west: $0.longitude, east: $0.longitude)
+        })!
       centreLongitude = WebMercator.wrap(
         longitude: WebMercator.longitude(
-          x: (WebMercator.x(longitude: pinBounds.west) + WebMercator.x(longitude: pinBounds.east))
-            / 2))
+          x: (WebMercator.x(longitude: centreBounds.west)
+            + WebMercator.x(longitude: centreBounds.east)) / 2))
       centreLatitude = WebMercator.latitude(
-        y: (WebMercator.y(latitude: WebMercator.clamp(latitude: pinBounds.south))
-          + WebMercator.y(latitude: WebMercator.clamp(latitude: pinBounds.north))) / 2)
+        y: (WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.south))
+          + WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.north))) / 2)
     } else {
       zoom = 0
       centreLongitude = 0
@@ -93,12 +103,25 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let originY = WebMercator.round(
       WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize)
 
+    // The anchor and the origin are whole points, so the tiles meet without a seam, and each
+    // rounding can move the middle half a point off the band's; the whole map is moved back by
+    // whole pixels, which keeps the seams closed.
+    let snap = { (value: Double) in (value * scale).rounded() / scale }
+    let shiftX = snap(
+      width / 2 - (anchorX + WebMercator.x(longitude: centreLongitude) * worldSize - originX))
+    let shiftY = snap(
+      (bandTop + height - bandBottom) / 2
+        - (anchorY + WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude))
+          * worldSize - originY))
+    let shownX = anchorX + shiftX
+    let shownY = anchorY + shiftY
+
     let size = WebMercator.tileSize
-    let first = Int(((originX - anchorX) / size).rounded(.down))
-    let last = Int(((originX + width - anchorX) / size).rounded(.up)) - 1
+    let first = Int(((originX - shownX) / size).rounded(.down))
+    let last = Int(((originX + width - shownX) / size).rounded(.up)) - 1
     // Rows past the world's top or bottom edge have nothing to draw.
-    let top = max(0, Int(((originY - anchorY) / size).rounded(.down)))
-    let bottom = min(count - 1, Int(((originY + height - anchorY) / size).rounded(.up)) - 1)
+    let top = max(0, Int(((originY - shownY) / size).rounded(.down)))
+    let bottom = min(count - 1, Int(((originY + height - shownY) / size).rounded(.up)) - 1)
     var tiles: [Tile] = []
     if top <= bottom {
       for row in top...bottom {
@@ -107,8 +130,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
             Tile(
               address: MapTileAddress(
                 theme: theme, z: z, x: ((column % count) + count) % count, y: row),
-              x: anchorX + Double(column) * size - originX,
-              y: anchorY + Double(row) * size - originY))
+              x: shownX + Double(column) * size - originX,
+              y: shownY + Double(row) * size - originY))
         }
       }
     }
@@ -120,8 +143,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
       let across = WebMercator.x(longitude: place.longitude) - originX / worldSize
       return Pin(
         name: place.name, isFix: place.isFix,
-        x: anchorX + (across - WebMercator.round(across)) * worldSize,
-        y: anchorY + WebMercator.y(latitude: WebMercator.clamp(latitude: place.latitude))
+        x: shownX + (across - WebMercator.round(across)) * worldSize,
+        y: shownY + WebMercator.y(latitude: WebMercator.clamp(latitude: place.latitude))
           * worldSize - originY)
     }
   }
