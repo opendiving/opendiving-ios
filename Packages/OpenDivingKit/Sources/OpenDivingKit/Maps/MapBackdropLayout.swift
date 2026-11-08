@@ -1,7 +1,8 @@
 import Foundation
 
 /// A page head's map as the tiles and pins that draw it, placed in the frame's points: the web
-/// app's `MapBackdrop` fit, so a record's head shows the same square of the same map on both.
+/// app's `MapBackdrop` fit, so a record's head shows the same map on both, centred on its places
+/// rather than their fixes and to the pixel.
 ///
 /// The places' extents are fitted over the frame and their pins into the band between the
 /// bar over its top and the details over its bottom, the lesser zoom, floored to one the renderer draws tiles at and capped at
