@@ -59,11 +59,12 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
           .padding(.horizontal, 6)
           .padding(.vertical, 2)
           .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+          .opacity(0.8)
           .transition(.opacity)
       }
     }
     .padding(8)
-    .frame(maxWidth: 260, alignment: .trailing)
+    .frame(maxWidth: .infinity, alignment: .trailing)
     .animation(.easeOut(duration: 0.3), value: credit)
     .allowsHitTesting(false)
   }
