@@ -33,7 +33,7 @@ struct DiveProfileChartView: View {
   @ViewBuilder private var content: some View {
     switch load {
     case .loading:
-      ProgressView()
+      BubbleSpinner()
         .frame(maxWidth: .infinity, minHeight: 200)
     case .loaded(let profile):
       let chart = ProfileChart(profile: profile, units: session.units, cylinders: cylinderLabels)

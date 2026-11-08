@@ -54,7 +54,7 @@ struct EmailScreen: View {
             .opacity(flow.isRequestingCode ? 0 : 1)
             .overlay {
               if flow.isRequestingCode {
-                BubbleSpinner(side: spinnerSide).foregroundStyle(.white)
+                BubbleSpinner(side: spinnerSide, style: .white)
               }
             }
             .frame(maxWidth: .infinity)

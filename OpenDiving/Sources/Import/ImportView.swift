@@ -114,7 +114,7 @@ struct ImportView: View {
         }
         if inbox.phase == .uploading {
           HStack(spacing: 8) {
-            ProgressView()
+            BubbleSpinner()
             Text("Uploading the files...").foregroundStyle(.secondary)
           }
         } else {

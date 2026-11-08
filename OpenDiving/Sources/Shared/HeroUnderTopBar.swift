@@ -34,7 +34,7 @@ private struct HeroUnderTopBar: ViewModifier {
       }
       .overlay(alignment: .top) {
         if refresh != nil {
-          ProgressView()
+          BubbleSpinner()
             .frame(width: 32, height: 32)
             .background(Color(.systemBackground).opacity(0.8), in: Circle())
             .padding(.top, 8)

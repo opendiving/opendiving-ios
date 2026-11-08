@@ -30,7 +30,7 @@ struct ImportReviewSections: View {
       Button(action: onImport) {
         if phase == .importing {
           HStack(spacing: 8) {
-            ProgressView()
+            BubbleSpinner()
             Text("Importing...")
           }
         } else {

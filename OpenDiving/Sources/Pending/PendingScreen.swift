@@ -59,7 +59,7 @@ struct PendingScreen: View {
           } label: {
             if isSyncing {
               HStack {
-                ProgressView()
+                BubbleSpinner()
                 Text("Syncing…")
               }
             } else {
