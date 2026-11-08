@@ -1,9 +1,9 @@
+import OpenDivingKit
 import SwiftUI
 
 /// A dive's depth curve as a shape to recognise rather than a chart to read, as the web draws
 /// it on a dive card: the curve in the text's colour over a fill fading down from it into
-/// whatever is behind. Each value is a fraction of the deepest point; the surface is pinned at
-/// both ends, where every dive starts and finishes.
+/// whatever is behind, along ``DiveOutline``.
 struct DiveSilhouetteView: View {
   let depths: [Double]
 
@@ -27,15 +27,11 @@ struct DiveSilhouetteView: View {
 
     func path(in rect: CGRect) -> Path {
       var path = Path()
-      guard !depths.isEmpty else { return path }
-      path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-      for (index, depth) in depths.enumerated() {
-        let x = (CGFloat(index) + 0.5) / CGFloat(depths.count)
-        let y = CGFloat(min(max(depth, 0), 1))
-        path.addLine(
-          to: CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height))
+      let line = DiveOutline.vertices(depths).map {
+        CGPoint(x: rect.minX + $0.x * rect.width, y: rect.minY + $0.y * rect.height)
       }
-      path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+      guard !line.isEmpty else { return path }
+      path.addLines(line)
       if closed {
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))

@@ -7,6 +7,7 @@ import SwiftUI
 struct AttributionLine: View {
   let credits: [String]
   var underline = true
+  var font = Font.caption2
 
   var body: some View {
     Text(
@@ -15,7 +16,7 @@ struct AttributionLine: View {
         line.characters.isEmpty ? credit : line + AttributedString(" · ") + credit
       }
     )
-    .font(.caption2)
+    .font(font)
     .foregroundStyle(.secondary)
     .tint(Color(.secondaryLabel))
   }

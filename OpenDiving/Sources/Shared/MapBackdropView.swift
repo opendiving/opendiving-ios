@@ -22,6 +22,7 @@ struct MapBackdropView: View {
 
   @Environment(Session.self) private var session
   @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.displayScale) private var displayScale
   @State private var model: MapBackdropModel?
   @State private var size = CGSize.zero
   @State private var images: [MapTileAddress: UIImage] = [:]
@@ -32,7 +33,7 @@ struct MapBackdropView: View {
       points: points, fixes: fixes, theme: colorScheme == .dark ? .dark : .light,
       width: size.width, height: size.height, overflowTop: overflowTop,
       coveredTop: coveredTop, coveredBottom: coveredBottom,
-      worldWhenEmpty: worldWhenEmpty)
+      worldWhenEmpty: worldWhenEmpty, scale: displayScale)
   }
 
   var body: some View {
@@ -67,8 +68,7 @@ struct MapBackdropView: View {
 
   /// The credit a map owes, for the card over it to carry: a card's glass would blur anything
   /// drawn with the map, and bare text cannot be read on the map's own labels. Handed up whether
-  /// or not a set is on screen, as ``MapBackdropModel/credit`` is kept, so a credit that wraps
-  /// does not refit the map each time a set comes and goes.
+  /// or not a set is on screen, as ``MapBackdropModel/credit`` is kept, and shown only with one.
   struct CardCredit: Equatable {
     let text: String
     let isShown: Bool
