@@ -1,7 +1,7 @@
 import Observation
 
-/// The *Settings* tab: the server card with the servers screen and signing out, and the
-/// account.
+/// The *Settings* tab: the server card with the servers screen, and the account with signing
+/// out.
 @MainActor
 @Observable
 public final class SettingsModel {
