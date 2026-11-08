@@ -12,7 +12,7 @@ struct LoadMoreFooter: View {
   var body: some View {
     Group {
       if isLoading {
-        ProgressView()
+        BubbleSpinner()
       } else if failed {
         Button("Try again", action: retry)
           .buttonStyle(.bordered)

@@ -10,7 +10,7 @@ struct EmptyOrErrorView: View {
   var body: some View {
     switch status {
     case .loading:
-      ProgressView()
+      BubbleSpinner()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .empty(let icon, let title, let message):
       ContentUnavailableView {

@@ -20,7 +20,7 @@ struct CodeScreen: View {
           .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
         if flow.isVerifying {
           HStack {
-            ProgressView()
+            BubbleSpinner()
             Text("Checking your code…")
           }
           .foregroundStyle(.secondary)

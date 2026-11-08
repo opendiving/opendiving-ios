@@ -54,7 +54,7 @@ struct AddServerScreen: View {
         Button(action: proceed) {
           if flow.isValidating {
             HStack {
-              ProgressView()
+              BubbleSpinner()
               Text("Connecting…")
             }
           } else {

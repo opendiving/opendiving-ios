@@ -162,7 +162,7 @@ private struct LocationPickerForm: View {
     } label: {
       Group {
         if model.isLocating {
-          ProgressView()
+          BubbleSpinner()
         } else {
           Image(Icon.locateFixed)
         }
@@ -329,7 +329,7 @@ private struct LocationSearchSheet: View {
         switch model.search.state {
         case .idle: EmptyView()
         case .tooLong: note(model.search.text.queryTooLong)
-        case .searching: ProgressView().frame(maxWidth: .infinity)
+        case .searching: BubbleSpinner().frame(maxWidth: .infinity)
         case .noMatches: note(model.search.text.noMatches(hasMap: hasMap))
         case .failed: note(model.search.text.searchError(hasMap: hasMap))
         case .results(let rows, let hasMore):

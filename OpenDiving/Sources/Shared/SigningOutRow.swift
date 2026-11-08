@@ -9,7 +9,7 @@ struct SigningOutRow: View {
 
   var body: some View {
     HStack {
-      ProgressView()
+      BubbleSpinner()
       Text("Signing out of \(origin.description)…")
     }
     .foregroundStyle(.secondary)

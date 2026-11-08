@@ -200,7 +200,7 @@ private struct DiveSiteSheetForm: View {
     }
     .disabled(isLanding)
     .overlay {
-      if isLanding { ProgressView() }
+      if isLanding { BubbleSpinner() }
     }
     .navigationBarBackButtonHidden(isLanding)
     .interactiveDismissDisabled(isLanding)

@@ -15,7 +15,7 @@ struct ServerCard<Actions: View>: View {
       LabeledContent("Version") {
         HStack {
           if content.isUpdating {
-            ProgressView()
+            BubbleSpinner()
           } else if let failure = content.updateFailure {
             Button {
               showsFailure = true

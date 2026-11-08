@@ -42,7 +42,7 @@ private struct SettingsList: View {
           LabeledContent("Email", value: user.email)
         } else {
           HStack {
-            ProgressView()
+            BubbleSpinner()
             Text("Loading your account…")
           }
           .foregroundStyle(.secondary)

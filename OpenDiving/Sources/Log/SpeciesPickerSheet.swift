@@ -35,7 +35,7 @@ struct SpeciesPickerSheet: View {
                 }
               }
               Spacer()
-              if adding == pick { ProgressView() }
+              if adding == pick { BubbleSpinner() }
             }
           }
           .disabled(adding != nil)

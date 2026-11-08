@@ -10,7 +10,7 @@ struct ReplaceWithCommonsButton: View {
   var body: some View {
     Button(action: replace) {
       if replacement.replacing == record {
-        ProgressView()
+        BubbleSpinner()
       } else {
         Text(DiveSiteProposalSummary.replaceTitle)
       }

@@ -190,7 +190,7 @@ private struct SiteDives: View {
     switch list.phase {
     case .idle, .loading:
       SectionCard(title: Self.title, icon: Self.icon) {
-        ProgressView()
+        BubbleSpinner()
           .frame(maxWidth: .infinity)
       }
     case .failed(let error):

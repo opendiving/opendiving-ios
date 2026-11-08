@@ -1,17 +1,32 @@
+import OpenDivingKit
 import SwiftUI
 
-/// The logo's three bubbles, smallest filled, circling a shared centre in the foreground style, on
-/// a 24-unit grid. Still under Reduce Motion.
+/// The app's spinner: the logo's three bubbles, smallest filled, in ``CrossingBubbles``' motion.
+/// Grey like the system's unless given a `style`, and sized by `controlSize` unless given a
+/// `side`. Each frame is computed from the time, so no state of a List row can leave it stopped,
+/// as one can leave a `ProgressView`. Still under Reduce Motion.
 struct BubbleSpinner: View {
-  let side: CGFloat
+  private let side: CGFloat?
+  private let style: AnyShapeStyle
+  @Environment(\.controlSize) private var controlSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var start = Date.now
 
-  private static let radii: [CGFloat] = [1.78, 2.89, 3.78]
-  private static let orbit: CGFloat = 6.8
-  private static let stroke: CGFloat = 2
-  /// The seconds of one turn.
-  private static let period = 1.4
+  init(side: CGFloat? = nil, style: some ShapeStyle = .secondary) {
+    self.side = side
+    self.style = AnyShapeStyle(style)
+  }
+
+  private var resolvedSide: CGFloat {
+    if let side { return side }
+    switch controlSize {
+    case .mini: return 12
+    case .small: return 16
+    case .large: return 28
+    case .extraLarge: return 36
+    default: return 20
+    }
+  }
 
   var body: some View {
     TimelineView(.animation(paused: reduceMotion)) { timeline in
@@ -19,25 +34,34 @@ struct BubbleSpinner: View {
       Canvas { context, size in
         context.translateBy(x: size.width / 2, y: size.height / 2)
         context.scaleBy(x: size.width / 24, y: size.height / 24)
-        context.rotate(by: .radians(elapsed / Self.period * 2 * .pi))
-        for (index, radius) in Self.radii.enumerated() {
-          let angle = Double(index) * 2 * .pi / 3
+        let centres = CrossingBubbles.centres(at: elapsed)
+        for (index, radius) in CrossingBubbles.radii.enumerated() {
           let bubble = Path(
             ellipseIn: CGRect(
-              x: Self.orbit * cos(angle) - radius, y: Self.orbit * sin(angle) - radius,
+              x: centres[index].x - radius, y: centres[index].y - radius,
               width: radius * 2, height: radius * 2))
-          if index == 0 { context.fill(bubble, with: .foreground) }
-          context.stroke(bubble, with: .foreground, lineWidth: Self.stroke)
+          if index == 0 { context.fill(bubble, with: .style(style)) }
+          context.stroke(bubble, with: .style(style), lineWidth: CrossingBubbles.stroke)
         }
       }
     }
-    .frame(width: side, height: side)
+    .frame(width: resolvedSide, height: resolvedSide)
+    .accessibilityElement()
+    .accessibilityLabel("In progress")
   }
 }
 
 #Preview {
-  BubbleSpinner(side: 24)
-    .foregroundStyle(.white)
-    .padding()
-    .background(Color.brandCoral)
+  VStack(spacing: 24) {
+    HStack(spacing: 24) {
+      BubbleSpinner().controlSize(.small)
+      BubbleSpinner()
+      BubbleSpinner().controlSize(.large)
+      BubbleSpinner(side: 96)
+    }
+    BubbleSpinner(side: 24, style: .white)
+      .padding()
+      .background(Color.brandCoral, in: Capsule())
+  }
+  .padding()
 }

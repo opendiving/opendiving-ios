@@ -83,7 +83,7 @@ struct DiveComputerScreen: View {
       } header: {
         HStack(spacing: 8) {
           Text(DiveComputerText.scanningHeading)
-          if model.phase == .scanning { ProgressView() }
+          if model.phase == .scanning { BubbleSpinner() }
         }
       }
     case .connecting:
@@ -92,7 +92,7 @@ struct DiveComputerScreen: View {
           Text(identity.title).font(.headline)
         }
         HStack(spacing: 8) {
-          DiveComputerSpinner()
+          BubbleSpinner()
           Text(model.connectingText ?? DiveComputerText.connecting)
         }
         if let waiting = model.waitingText {
@@ -111,7 +111,7 @@ struct DiveComputerScreen: View {
         // While the computer is busy with another app, the waiting line stands in for the counter.
         if let text = model.waitingText ?? model.downloadingText {
           HStack(spacing: 8) {
-            DiveComputerSpinner()
+            BubbleSpinner()
             Text(text)
           }
         }

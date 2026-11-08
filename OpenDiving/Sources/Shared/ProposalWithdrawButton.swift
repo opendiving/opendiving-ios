@@ -12,7 +12,7 @@ struct ProposalWithdrawButton: View {
       Task { await withdraw(proposal) }
     } label: {
       if withdrawal.withdrawing == proposal {
-        ProgressView()
+        BubbleSpinner()
       } else {
         Text("Withdraw")
       }

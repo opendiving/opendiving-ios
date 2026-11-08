@@ -120,7 +120,7 @@ private struct CheckinSheetScreen: View {
       HStack(spacing: 6) {
         Text(content.lastUpdated)
         if model.isRefreshing {
-          ProgressView().controlSize(.small)
+          BubbleSpinner().controlSize(.small)
         }
       }
       .font(.footnote)

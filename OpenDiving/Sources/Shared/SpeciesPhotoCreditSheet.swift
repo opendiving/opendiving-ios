@@ -74,7 +74,7 @@ private struct SheetContent: View {
   @ViewBuilder private var credit: some View {
     switch model.phase {
     case .loading:
-      ProgressView()
+      BubbleSpinner()
     case .notFound:
       message("This species is no longer in the catalog.")
     case .failed:
