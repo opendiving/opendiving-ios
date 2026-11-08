@@ -20,7 +20,8 @@ struct FormSaveBar: View {
           .bold()
           .frame(maxWidth: .infinity)
       }
-      .brandProminentButton()
+      .buttonStyle(.borderedProminent)
+      .tint(.brandTeal)
       .controlSize(.large)
     }
     .padding(.horizontal)
