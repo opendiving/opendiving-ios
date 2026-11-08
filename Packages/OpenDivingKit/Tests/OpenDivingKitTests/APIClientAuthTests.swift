@@ -328,13 +328,13 @@ struct APIClientAuthTests {
     let harness = ClientHarness(accessToken: "live") { _ in .emptyPage }
     let trip = UUID()
     _ = try await harness.client.dives(page: 2, tripUUID: trip)
-    _ = try await harness.client.diveSites(page: 1)
+    _ = try await harness.client.trips(page: 1)
     let urls = harness.transport.requests.compactMap { $0.url?.absoluteString }
     #expect(
       urls == [
         "https://dive.example.org/api/v1/dives?page=2&items_per_page=50&trip_uuid="
           + trip.uuidString.lowercased(),
-        "https://dive.example.org/api/v1/dive-sites?page=1&items_per_page=50&sort=last_dived_on",
+        "https://dive.example.org/api/v1/trips?page=1&items_per_page=50",
       ])
   }
 

@@ -1,10 +1,16 @@
-/// Where the phone is, for the location picker's *Use my location*. A protocol because the Kit
-/// builds where CoreLocation does not exist: the app target conforms it over the device's
+/// Where the phone is, for *Use my location* and the site finder's opening. A protocol because
+/// the Kit builds where CoreLocation does not exist: the app target conforms it over the device's
 /// location services, and a view model's tests over a fake.
 @MainActor
 public protocol LocationProvider: AnyObject {
   /// One fix, asking the diver's permission first where it has not been given or refused.
   func currentLocation() async throws(LocationFailure) -> DeviceLocation
+  /// The diver has neither given nor refused their location, so asking shows the prompt.
+  var isUndetermined: Bool { get }
+}
+
+extension LocationProvider {
+  public var isUndetermined: Bool { false }
 }
 
 /// A position the phone reported, in decimal degrees.

@@ -189,6 +189,17 @@ public struct AccountCache: Sendable {
     write(entry, "dive-drafts.json")
   }
 
+  // MARK: - The site finder's map
+
+  /// `GET /dive-sites/points` as last read.
+  public var diveSitePoints: Entry<[DiveSitePoint]>? {
+    read(Entry<[DiveSitePoint]>.self, "dive-site-points.json")
+  }
+
+  func writeDiveSitePoints(_ points: [DiveSitePoint], fetchedAt: Date = Date()) {
+    write(Entry(value: points, fetchedAt: fetchedAt), "dive-site-points.json")
+  }
+
   // MARK: - Lookups
 
   public func lookup<Row: Codable & Sendable>(_ table: LookupTable, of type: Row.Type) -> Entry<

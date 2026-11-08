@@ -4,15 +4,19 @@ import Foundation
 // row the server would answer for it, under its local ref — and under the server's once its
 // create lands, until the next refresh brings the server's own row.
 
+extension LocationWrite {
+  var read: LocationRead {
+    LocationRead(
+      name: name, latitude: latitude, longitude: longitude, bboxSouth: bboxSouth,
+      bboxNorth: bboxNorth, bboxWest: bboxWest, bboxEast: bboxEast)
+  }
+}
+
 extension DiveSiteCreate {
   func lookupRow(_ ref: RecordRef) -> DiveSiteLookupItem {
     DiveSiteLookupItem(
       ref: ref, name: name, otherNames: otherNames, latitude: latitude, longitude: longitude,
-      location: location.map {
-        LocationRead(
-          name: $0.name, latitude: $0.latitude, longitude: $0.longitude, bboxSouth: $0.bboxSouth,
-          bboxNorth: $0.bboxNorth, bboxWest: $0.bboxWest, bboxEast: $0.bboxEast)
-      },
+      location: location?.read,
       externalIds: externalIds.map {
         ExternalIdRead(registry: $0.registry, identifier: $0.identifier)
       }, waterType: waterType, altitude: altitude, entryTypes: entryTypes)
@@ -21,7 +25,11 @@ extension DiveSiteCreate {
 
 extension TripCreate {
   func lookupRow(_ ref: RecordRef) -> TripLookupItem {
-    TripLookupItem(ref: ref, name: name, people: people)
+    TripLookupItem(
+      ref: ref, name: name, people: people,
+      parts: parts.map {
+        TripLookupPart(startDate: $0.startDate, endDate: $0.endDate, location: $0.location?.read)
+      })
   }
 }
 

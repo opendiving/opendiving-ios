@@ -39,11 +39,6 @@ extension PageCacheKey where Item == TripRead {
   public static var trips: Self { Self("trips", record: \.uuid) }
 }
 
-extension PageCacheKey where Item == DiveSiteRead {
-  /// The Sites tab.
-  public static var diveSites: Self { Self("dive-sites", record: \.uuid) }
-}
-
 extension PageCacheKey where Item == DiveListItem {
   /// The dives on one site's page, kept and dropped with the site's own copy.
   static func siteDives(_ site: UUID) -> Self {
@@ -57,4 +52,16 @@ extension PageCacheKey where Item == DiveListItem {
 
   static var siteDivesPrefix: String { "site-dives-" }
   static var tripDivesPrefix: String { "trip-dives-" }
+}
+
+extension PageCacheKey where Item == DiveSiteSearchRow {
+  /// The Sites tab's untyped list, *Your sites*' or the sites nearest the camera. A place names
+  /// no record, so no delete takes it out.
+  static func siteFinder(yours: Bool) -> Self {
+    let noRecord = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    return Self(yours ? "site-finder-yours" : "site-finder-nearby") { row in
+      guard case .site(let item) = row, let uuid = item.ref.serverUUID else { return noRecord }
+      return uuid
+    }
+  }
 }

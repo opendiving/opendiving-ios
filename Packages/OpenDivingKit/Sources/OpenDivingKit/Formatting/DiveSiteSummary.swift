@@ -39,7 +39,7 @@ public enum DiveSiteSummary {
   public static let commonsLabel = "Commons"
 
   /// What the head of a Commons site's card or page carries.
-  public static func chips(_ site: DiveSiteRead) -> [Chip] {
+  public static func chips(_ site: some DiveSiteCardSource) -> [Chip] {
     guard site.isCommons else { return [] }
     return [
       Chip(text: commonsLabel, accessibilityLabel: "OpenDiving Commons site", kind: .commons)
@@ -48,7 +48,9 @@ public enum DiveSiteSummary {
 
   /// The site's card on the sites list: its name, its facts, and its dives, its deepest —
   /// a dash where it has none — and its species once there are some, over a map of its pin.
-  public static func card(_ site: DiveSiteRead, units: UnitSystem) -> RecordCardContent {
+  public static func card(_ site: some DiveSiteCardSource, units: UnitSystem)
+    -> RecordCardContent
+  {
     var figures = [
       Figure(label: "Dives", value: String(site.diveCount)),
       Figure(label: "Deepest", value: deepest(site, units: units)),
@@ -82,7 +84,7 @@ public enum DiveSiteSummary {
 
   /// The site's pin alone, where it has one: its locality's centre is the town a geocoder
   /// resolved, not the site.
-  public static func points(_ site: DiveSiteRead) -> [MapPoint] {
+  public static func points(_ site: some DiveSiteCardSource) -> [MapPoint] {
     guard let latitude = site.latitude, let longitude = site.longitude else { return [] }
     return [MapPoint(name: site.name, latitude: latitude, longitude: longitude)]
   }
@@ -90,7 +92,7 @@ public enum DiveSiteSummary {
   /// Where the site is, in what water, how deep, how high and how divers get in — each only
   /// where the site records it, the water only where it is not the sea's and the altitude
   /// only where it is not sea level, both of which go without saying.
-  public static func facts(_ site: DiveSiteRead, units: UnitSystem) -> [Fact] {
+  public static func facts(_ site: some DiveSiteCardSource, units: UnitSystem) -> [Fact] {
     var facts: [Fact] = []
     if let place = site.location?.name, !place.isEmpty {
       facts.append(Fact(text: place))
@@ -180,7 +182,7 @@ public enum DiveSiteSummary {
   }
 
   /// `5 m – 30 m`, or the one end the site records.
-  static func depthRange(_ site: DiveSiteRead, units: UnitSystem) -> String? {
+  static func depthRange(_ site: some DiveSiteCardSource, units: UnitSystem) -> String? {
     switch (site.depthFrom, site.depthTo) {
     case (let from?, let to?):
       UnitFormat.depth(from, units) + " – " + UnitFormat.depth(to, units)
@@ -191,7 +193,40 @@ public enum DiveSiteSummary {
   }
 
   /// The deepest dive there, in whole units as a dive card rounds its depths.
-  private static func deepest(_ site: DiveSiteRead, units: UnitSystem) -> String? {
+  private static func deepest(_ site: some DiveSiteCardSource, units: UnitSystem) -> String? {
     site.maxDiveDepth.map { UnitFormat.depth($0, units, decimals: 0) }
   }
+}
+
+/// What a site's card reads: a site as the API reads it, or a row of the site finder's list.
+public protocol DiveSiteCardSource {
+  var name: String { get }
+  var location: LocationRead? { get }
+  var latitude: Double? { get }
+  var longitude: Double? { get }
+  var waterType: String? { get }
+  var depthFrom: Double? { get }
+  var depthTo: Double? { get }
+  var altitude: Int? { get }
+  var entryTypes: [String] { get }
+  var isCommons: Bool { get }
+  var diveCount: Int { get }
+  var maxDiveDepth: Double? { get }
+  var speciesCount: Int { get }
+}
+
+extension DiveSiteRead: DiveSiteCardSource {}
+
+extension DiveSiteSearchItem: DiveSiteCardSource {
+  public var name: String { site.name }
+  public var location: LocationRead? { site.location }
+  public var latitude: Double? { site.latitude }
+  public var longitude: Double? { site.longitude }
+  public var waterType: String? { site.waterType }
+  public var altitude: Int? { site.altitude }
+  public var entryTypes: [String] { site.entryTypes }
+  public var isCommons: Bool { site.isCommons }
+  public var diveCount: Int { dives?.diveCount ?? 0 }
+  public var maxDiveDepth: Double? { dives?.maxDiveDepth }
+  public var speciesCount: Int { dives?.speciesCount ?? 0 }
 }
