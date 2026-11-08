@@ -54,21 +54,35 @@ public struct DiveSiteLookupItem: LookupRow {
   }
 }
 
-/// A row of `GET /trips/lookup`, with the people a dive form fills from the trip.
+/// A row of `GET /trips/lookup`, with the people a dive form fills from the trip and the parts'
+/// dates and places, which the site finder opens on.
 public struct TripLookupItem: LookupRow {
   public var ref: RecordRef
   public var name: String
   public var people: [PersonReference]
+  public var parts: [TripLookupPart]
 
   enum CodingKeys: String, CodingKey {
     case ref = "uuid"
-    case name, people
+    case name, people, parts
   }
 
-  public init(ref: RecordRef, name: String, people: [PersonReference] = []) {
+  public init(
+    ref: RecordRef, name: String, people: [PersonReference] = [], parts: [TripLookupPart] = []
+  ) {
     self.ref = ref
     self.name = name
     self.people = people
+    self.parts = parts
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    ref = try c.decode(RecordRef.self, forKey: .ref)
+    name = try c.decode(String.self, forKey: .name)
+    people = try c.decode([PersonReference].self, forKey: .people)
+    // A row the phone kept before the lookup carried parts has none.
+    parts = try c.decodeIfPresent([TripLookupPart].self, forKey: .parts) ?? []
   }
 
   public var title: String { name }
@@ -77,6 +91,21 @@ public struct TripLookupItem: LookupRow {
   public mutating func rewriteRefs(_ rewrite: (RecordRef) -> RecordRef?) {
     ref = rewrite(ref) ?? ref
     people.rewritePeople(rewrite)
+  }
+}
+
+/// A trip part as the trip lookup row carries it: when and where.
+public struct TripLookupPart: Codable, Hashable, Sendable {
+  public let startDate: CalendarDate?
+  public let endDate: CalendarDate?
+  public let location: LocationRead?
+
+  public init(
+    startDate: CalendarDate? = nil, endDate: CalendarDate? = nil, location: LocationRead? = nil
+  ) {
+    self.startDate = startDate
+    self.endDate = endDate
+    self.location = location
   }
 }
 

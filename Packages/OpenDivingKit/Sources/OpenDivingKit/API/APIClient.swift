@@ -229,17 +229,6 @@ public actor APIClient {
     try await authorizedDecoded(TripRead.self, Call(path: "trip/\(Self.wire(uuid))"))
   }
 
-  /// `GET /dive-sites`, most recently dived first — the web list's order, not the API's
-  /// default by name.
-  public func diveSites(page: Int, itemsPerPage: Int = listPageSize) async throws
-    -> PaginatedListResponse<DiveSiteRead>
-  {
-    var query = Self.paging(page, itemsPerPage)
-    query.append(URLQueryItem(name: "sort", value: "last_dived_on"))
-    return try await authorizedDecoded(
-      PaginatedListResponse<DiveSiteRead>.self, Call(path: "dive-sites", query: query))
-  }
-
   /// `GET /dive-site/{uuid}`.
   public func diveSite(_ uuid: UUID) async throws -> DiveSiteRead {
     try await authorizedDecoded(DiveSiteRead.self, Call(path: "dive-site/\(Self.wire(uuid))"))

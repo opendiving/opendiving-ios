@@ -48,9 +48,9 @@ extension FormPicker {
   }
 
   /// The record sheet the + opens, handing back the new record's ref, or the Commons record a
-  /// site's sheet took instead.
+  /// site's sheet took instead. A site's opens pinned to `pin`, where one is given.
   @ViewBuilder func addSheet(
-    onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
+    pin: DeviceLocation? = nil, onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
     siteHandBack: SiteProposalHandBack = SiteProposalHandBack(),
     onCreated: @escaping (RecordRef) -> Void
   ) -> some View {
@@ -60,7 +60,7 @@ extension FormPicker {
     case .contact: NewContactSheet(onCreated: onCreated)
     case .diveSites:
       NewDiveSiteSheet(
-        onCommonsSite: onCommonsSite, handBack: siteHandBack, onCreated: onCreated)
+        pin: pin, onCommonsSite: onCommonsSite, handBack: siteHandBack, onCreated: onCreated)
     case .people: NewPersonSheet(onCreated: onCreated)
     case .gear: NewGearItemSheet(onCreated: onCreated)
     case .cylinder: NewGearItemSheet(type: "cylinder", onCreated: onCreated)

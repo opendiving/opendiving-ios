@@ -113,15 +113,6 @@ struct OfflineScreensTests {
     #expect(result.afterRelease == 1)
   }
 
-  @Test func theSitesListShowsWhatItLastLoadedBeforeTheFetchAnswers() async throws {
-    let result = try await showsItsCopy(page: "GET dive-sites", F.page(F.site)) {
-      SitesView.list($0)
-    }
-    #expect(result.shown == 1)
-    #expect(result.lastUpdated != nil)
-    #expect(result.afterRelease == 1)
-  }
-
   @Test func theDivePageOpensFromTheCopyBeforeTheFetchAnswers() async throws {
     let directory = F.directory()
     let route = "GET dive/\(DivePreviewData.diveUUID.uuidString.lowercased())"

@@ -1,0 +1,11 @@
+{
+  "version": "3f9a1c0b7e2d4a65",
+  "sources": {
+    "openstreetmap": "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)",
+    "wikidata_sites": "[Wikidata, CC0](https://www.wikidata.org/)"
+  },
+  "points": [
+    [33.9, 27.2, "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f", "The Canyon", "openstreetmap"],
+    [34.53722, 28.57219, "01a14b2e-0c3d-7a10-9f00-4c2b3c4d5e6f", "Blue Hole", "wikidata_sites"]
+  ]
+}

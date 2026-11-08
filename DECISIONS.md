@@ -434,11 +434,11 @@ offline. The tiles stop at zoom 9, too coarse to place a pin, so a form draws th
 
 ## A form's map is the instance's style, and a form with no style has no map
 
-`PinMap`, `PlacesMapView` and the location picker draw `GET /map-style/{theme}` with MapLibre, as
-the web's forms draw theirs, by the gate a page head keeps. The renderer resolves the style and the
-API passes it on, so the app keeps one server address, and an instance without the renderer has no
-form map: coordinates, search and *Use my location* still place the pin, and no sentence offers a
-map.
+`PinMap`, `PlacesMapView`, the location picker and the site finder draw `GET /map-style/{theme}`
+with MapLibre, as the web's forms draw theirs, by the gate a page head keeps. The renderer resolves
+the style and the API passes it on, so the app keeps one server address, and an instance without
+the renderer has no form map: coordinates, search and *Use my location* still place the pin, the
+finder still sends the place its opening found as the camera, and no sentence offers a map.
 Rejected: `/config` naming the web's address, a second origin needing a credit from elsewhere;
 shipping the Liberty pair and its credit, false for an operator's own style; MapKit as the
 fallback, two looks and two code paths. MapLibre's ambient cache stays at its default and

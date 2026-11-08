@@ -209,6 +209,11 @@ public final class PagedList<Item: Codable & Sendable> {
     }
   }
 
+  /// The kept pages alone, asking nothing: what a screen shows while it works out what to ask.
+  func showKept() {
+    showCached()
+  }
+
   /// The kept pages, shown as loaded while page 1 is on its way. No more is asked for until
   /// it lands, so a later page never follows a stale one.
   private func showCached() {

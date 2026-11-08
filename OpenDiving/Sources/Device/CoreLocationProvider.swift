@@ -9,6 +9,8 @@ final class CoreLocationProvider: LocationProvider {
   /// Held for the request: a manager that goes away mid-request cancels the prompt.
   private let manager = CLLocationManager()
 
+  var isUndetermined: Bool { manager.authorizationStatus == .notDetermined }
+
   func currentLocation() async throws(LocationFailure) -> DeviceLocation {
     switch manager.authorizationStatus {
     case .denied, .restricted:

@@ -86,8 +86,8 @@ targets:
         NSLocalNetworkUsageDescription: >-
           OpenDiving connects to the server you choose, which can be one on your local network.
         NSLocationWhenInUseUsageDescription: >-
-          OpenDiving uses your location only when you ask it to place a dive site or a trip where
-          you are.
+          OpenDiving uses your location to open the dive-site finder near you, and when you ask it
+          to place a dive site or a trip where you are.
         NSBluetoothAlwaysUsageDescription: >-
           OpenDiving connects to your dive computer over Bluetooth to download your dives, and
           for nothing else.

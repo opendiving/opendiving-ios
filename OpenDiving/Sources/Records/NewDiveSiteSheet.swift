@@ -6,6 +6,8 @@ import SwiftUI
 /// back a Commons record instead, and nothing is made.
 struct NewDiveSiteSheet: View {
   let failedItem: UUID?
+  /// Where the site finder was pressed, which the new site opens pinned to.
+  var pin: DeviceLocation?
   /// Nil where a Commons record has nothing to go on.
   var onCommonsSite: ((DiveSiteLookupItem) -> Void)?
   var handBack: SiteProposalHandBack
@@ -14,11 +16,13 @@ struct NewDiveSiteSheet: View {
   @Environment(Session.self) private var session
 
   init(
-    failedItem: UUID? = nil, onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
+    failedItem: UUID? = nil, pin: DeviceLocation? = nil,
+    onCommonsSite: ((DiveSiteLookupItem) -> Void)? = nil,
     handBack: SiteProposalHandBack = SiteProposalHandBack(),
     onCreated: @escaping (RecordRef) -> Void
   ) {
     self.failedItem = failedItem
+    self.pin = pin
     self.onCommonsSite = onCommonsSite
     self.handBack = handBack
     self.onCreated = onCreated
@@ -27,7 +31,7 @@ struct NewDiveSiteSheet: View {
   var body: some View {
     DiveSiteSheetForm(
       model: RecordSheetModel(
-        outbox: OutboxModel(session: session), values: DiveSiteFormValues(),
+        outbox: OutboxModel(session: session), values: DiveSiteFormValues(pinnedAt: pin),
         failedItem: failedItem),
       units: RecordEntryUnits(session: session), map: MapStyleModel(session: session),
       session: session, offersChoice: failedItem == nil, handBack: handBack,
@@ -49,6 +53,8 @@ struct SiteProposalHandBack {
 /// form, and one off the diver's list none.
 struct DiveSiteFormView: View {
   let mode: RecordFormMode<DiveSiteRead>
+  /// A new site's pin, where the site finder was pressed.
+  var pin: DeviceLocation?
   /// The site was deleted from the form, which leaves the page it was opened from nothing to show.
   var onDeleted: () -> Void = {}
   /// The site became a Commons record in the propose flow, and its page gives way to the record's.
@@ -62,7 +68,9 @@ struct DiveSiteFormView: View {
   var body: some View {
     switch mode {
     case .create:
-      form(RecordSheetModel(outbox: OutboxModel(session: session), values: DiveSiteFormValues()))
+      form(
+        RecordSheetModel(
+          outbox: OutboxModel(session: session), values: DiveSiteFormValues(pinnedAt: pin)))
     case .edit(let site):
       editing(site, failedItem: nil)
     case .failed(let item, let uuid):
