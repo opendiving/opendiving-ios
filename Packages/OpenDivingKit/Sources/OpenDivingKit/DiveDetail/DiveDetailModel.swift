@@ -40,6 +40,8 @@ public final class DiveDetailModel: AccountStoresObserver {
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private var generation = 0
+  /// The last read of the dive was skipped for want of a route.
+  @ObservationIgnored private var skippedForRoute = false
   /// The dive as the server or the cache gave it, before any queued edit.
   @ObservationIgnored private var base: DiveReadWithMixtures?
   /// When the server answered `base`, so a newer copy in the cache replaces it.
@@ -100,6 +102,7 @@ public final class DiveDetailModel: AccountStoresObserver {
       dive = try await client.dive(uuid)
     } catch {
       guard generation == self.generation else { return }
+      skippedForRoute = APIError(error) == .noRoute
       if case .http(status: 404, _) = APIError(error) {
         if cacheForAnswer(fetchedUnder: stores, session: session) != nil {
           AccountStores.current(session)?.forgetDive(uuid)
@@ -113,6 +116,7 @@ public final class DiveDetailModel: AccountStoresObserver {
       return
     }
     guard generation == self.generation else { return }
+    skippedForRoute = false
     if !fromCache { (trip, course, contact) = (nil, nil, nil) }
     lastUpdated = nil
     let answeredAt = Date()
@@ -137,10 +141,10 @@ public final class DiveDetailModel: AccountStoresObserver {
   }
 
   /// Reads the dive again while what is shown is the cache's copy or a failure to reach the
-  /// server — now, if there is a route, and each time one appears — until the calling task is
-  /// cancelled.
+  /// server — now, if a read was skipped for want of a route that has since appeared, and each
+  /// time one appears — until the calling task is cancelled.
   public func followRoute() async {
-    if session.connectivity.isRouteAvailable { await reread() }
+    if skippedForRoute, session.connectivity.isRouteAvailable { await reread() }
     await session.connectivity.eachRouteAppearance { await reread() }
   }
 

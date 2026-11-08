@@ -83,15 +83,24 @@ public struct AccountCache: Sendable {
     prune("dives")
   }
 
-  /// Drops a dive the server no longer has: its detail, and its row on the Dives tab's pages.
+  /// Drops a dive the server no longer has: its detail, and its row on every kept list of
+  /// dives — the Dives tab's and each site's and trip's page.
   func removeDive(_ uuid: UUID) {
     remove(Self.divePath(uuid))
-    let key = PageCacheKey<DiveListItem>.dives.name
-    guard var entry = pages(key, of: DiveListItem.self),
-      entry.value.items.contains(where: { $0.id == uuid })
-    else { return }
-    entry.value.items.removeAll { $0.id == uuid }
-    write(entry, "pages/\(key).json")
+    let folder = root.appendingPathComponent("pages", isDirectory: true)
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+    let keys = names.filter { $0.hasSuffix(".json") }.map { String($0.dropLast(5)) }.filter {
+      $0 == PageCacheKey<DiveListItem>.dives.name
+        || $0.hasPrefix(PageCacheKey<DiveListItem>.siteDivesPrefix)
+        || $0.hasPrefix(PageCacheKey<DiveListItem>.tripDivesPrefix)
+    }
+    for key in keys {
+      guard var entry = pages(key, of: DiveListItem.self),
+        entry.value.items.contains(where: { $0.id == uuid })
+      else { continue }
+      entry.value.items.removeAll { $0.id == uuid }
+      write(entry, "pages/\(key).json")
+    }
   }
 
   /// Counts a dive opened from the cache as opened, for the bound.

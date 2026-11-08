@@ -10,10 +10,20 @@ import Testing
 
 /// A route the test switches, telling every subscriber when one appears.
 final class RouteSwitch: Connectivity {
-  private let state = Mutex(
-    (available: false, appearances: 0, streams: [AsyncStream<ConnectivityMoment>.Continuation]()))
+  private let state:
+    Mutex<
+      (available: Bool, appearances: Int, streams: [AsyncStream<ConnectivityMoment>.Continuation])
+    >
 
-  var isRouteAvailable: Bool { state.withLock { $0.available } }
+  init(available: Bool = false) {
+    state = Mutex((available, 0, []))
+  }
+
+  /// Set quietly, as a route that appeared while no screen was following it.
+  var isRouteAvailable: Bool {
+    get { state.withLock { $0.available } }
+    set { state.withLock { $0.available = newValue } }
+  }
   var routeAppearances: Int { state.withLock { $0.appearances } }
 
   func moments() -> AsyncStream<ConnectivityMoment> {
@@ -200,5 +210,156 @@ struct OfflinePagesTests {
     #expect(model.refreshError == APIError.noRoute.message)
     #expect(!model.isRefreshing)
     #expect(world.server.sent.isEmpty)
+  }
+
+  /// Runs `follow` until it is listening for routes, then stops it.
+  private func followBriefly(_ route: RouteSwitch, _ follow: @escaping @MainActor () async -> Void)
+    async
+  {
+    let following = Task { await follow() }
+    while !route.isFollowed { await Task.yield() }
+    following.cancel()
+    await following.value
+  }
+
+  @Test func aReadThatFailedWithARouteIsNotSentAgainAtOnce() async throws {
+    let route = RouteSwitch(available: true)
+    let world = try OutboxWorld(connectivity: route)
+    world.server.override { request, _ in
+      request.route.hasPrefix("GET dive-site/") || request.route.hasPrefix("GET trip/")
+        || request.route.hasPrefix("GET dive/")
+        ? .json(#"{"detail":"Down"}"#, status: 503) : nil
+    }
+    let site = DiveSiteDetailModel(session: world.session, siteUUID: siteUUID)
+    await site.load()
+    await followBriefly(route, site.followRoute)
+    let trip = TripDetailModel(session: world.session, tripUUID: tripUUID)
+    await trip.load()
+    await followBriefly(route, trip.followRoute)
+    let dive = DiveDetailModel(session: world.session, diveUUID: UUID())
+    await dive.load()
+    await followBriefly(route, dive.followRoute)
+
+    #expect(world.server.routes.filter { $0.hasPrefix("GET dive-site/") }.count == 1)
+    #expect(world.server.routes.filter { $0.hasPrefix("GET trip/") }.count == 1)
+    #expect(world.server.routes.filter { $0.hasPrefix("GET dive/") }.count == 1)
+  }
+
+  @Test func aRouteThatAppearedWhileThePageWasHiddenReadsItOnReturn() async throws {
+    let route = RouteSwitch()
+    let world = try world().relaunched(connectivity: route)
+    let model = DiveSiteDetailModel(session: world.session, siteUUID: siteUUID)
+    await model.load()
+    #expect(model.phase == .failed(.noRoute))
+    route.isRouteAvailable = true
+    let following = Task { await model.followRoute() }
+    while !route.isFollowed { await Task.yield() }
+    following.cancel()
+    #expect(model.phase.isLoaded)
+  }
+
+  @Test func aTripShownFromItsCopyIsReadAgainWhenARouteAppears() async throws {
+    let first = try world()
+    try await first.load()
+    await TripDetailModel(session: first.session, tripUUID: tripUUID).load()
+
+    let route = RouteSwitch()
+    let world = try first.relaunched(connectivity: route)
+    try await world.session.loadAccount()
+    let model = TripDetailModel(session: world.session, tripUUID: tripUUID)
+    await model.load()
+    #expect(model.lastUpdated != nil)
+    #expect(model.dives.lastUpdated != nil)
+    await followUntilRead(route, model.followRoute) {
+      model.lastUpdated == nil && model.dives.lastUpdated == nil
+    }
+  }
+
+  @Test func aTripTheServerNoLongerHasIsForgotten() async throws {
+    let world = try world()
+    try await world.load()
+    await TripDetailModel(session: world.session, tripUUID: tripUUID).load()
+    #expect(world.cacheA.trip(tripUUID) != nil)
+
+    world.server.override { request, _ in
+      request.route.hasPrefix("GET trip/") ? .json(#"{"detail":"Not Found"}"#, status: 404) : nil
+    }
+    let model = TripDetailModel(session: world.session, tripUUID: tripUUID)
+    await model.load()
+    #expect(model.phase == .notFound)
+    #expect(world.cacheA.trip(tripUUID) == nil)
+    #expect(
+      world.cacheA.pages(
+        PageCacheKey<DiveListItem>.tripDives(tripUUID).name, of: DiveListItem.self) == nil)
+  }
+
+  @Test func aDeleteThatLandsLeavesNoKeptCopyOfTheRecord() async throws {
+    let world = try world()
+    try await world.load()
+    // Each page goes before the deletes, so none reads its record back from this server, which
+    // goes on answering it.
+    await TripDetailModel(session: world.session, tripUUID: tripUUID).load()
+    let dive = try await {
+      let site = DiveSiteDetailModel(session: world.session, siteUUID: siteUUID)
+      await site.load()
+      return try #require(site.dives.items.first?.id)
+    }()
+    let keys = [
+      PageCacheKey<DiveListItem>.siteDives(siteUUID).name,
+      PageCacheKey<DiveListItem>.tripDives(tripUUID).name,
+    ]
+    for key in keys {
+      #expect(world.cacheA.pages(key, of: DiveListItem.self)?.value.items.map(\.id) == [dive])
+    }
+
+    let outbox = world.outbox()
+    try outbox.queue(.deleteDive(.server(dive)))
+    try outbox.queue(.deleteDiveSite(.server(siteUUID)))
+    try outbox.queue(.deleteTrip(.server(tripUUID)))
+    await outbox.settled()
+    #expect(world.cacheA.site(siteUUID) == nil)
+    #expect(world.cacheA.trip(tripUUID) == nil)
+    for key in keys {
+      #expect(world.cacheA.pages(key, of: DiveListItem.self)?.value.items.isEmpty ?? true)
+    }
+  }
+
+  @Test func sitesAreBoundedAndTakeTheirDivesWithThem() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    let cache = world.cacheA
+    let base =
+      try JSONSerialization.jsonObject(with: KitFixture.data("dive-site")) as? [String: Any] ?? [:]
+    var first: UUID?
+    for index in 0...AccountCache.detailLimit {
+      var object = base
+      let uuid = UUID()
+      object["uuid"] = uuid.uuidString.lowercased()
+      let read = try APICoding.decoder().decode(
+        DiveSiteRead.self, from: JSONSerialization.data(withJSONObject: object))
+      if index == 0 {
+        first = uuid
+        cache.writePages(
+          AccountCache.Pages<DiveListItem>(items: [], hasMore: false, nextPage: 2),
+          key: PageCacheKey<DiveListItem>.siteDives(uuid).name)
+      }
+      cache.writeSite(AccountCache.Site(site: read, species: nil), fetchedAt: Date())
+      if index == 0 {
+        try FileManager.default.setAttributes(
+          [.modificationDate: Date.distantPast],
+          ofItemAtPath: cache.root.appendingPathComponent(
+            "sites/\(uuid.uuidString.lowercased()).json"
+          ).path)
+      }
+    }
+    let dropped = try #require(first)
+    #expect(cache.site(dropped) == nil)
+    #expect(
+      cache.pages(PageCacheKey<DiveListItem>.siteDives(dropped).name, of: DiveListItem.self)
+        == nil)
+    let folder = cache.root.appendingPathComponent("sites", isDirectory: true)
+    #expect(
+      try FileManager.default.contentsOfDirectory(atPath: folder.path).count
+        == AccountCache.detailLimit)
   }
 }

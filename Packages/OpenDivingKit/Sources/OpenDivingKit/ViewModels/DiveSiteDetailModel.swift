@@ -37,6 +37,8 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   public let replacement: CommonsSiteReplacement
 
   @ObservationIgnored private let session: Session
+  /// The last read of the site was skipped for want of a route.
+  @ObservationIgnored private var skippedForRoute = false
   /// The read a queued edit landing started.
   @ObservationIgnored var reloading: Task<Void, Never>?
   /// The photo version last asked for, by species uuid.
@@ -99,10 +101,10 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     await replacement.replace(siteUUID, with: record) { await reloadWithEveryList(on: session) }
   }
 
-  /// Reads again what a route can mend — now, if there is one, and each time one appears —
-  /// until the calling task is cancelled.
+  /// Reads again what a route can mend — now, if a read was skipped for want of one that has
+  /// since appeared, and each time one appears — until the calling task is cancelled.
   public func followRoute() async {
-    if session.connectivity.isRouteAvailable { await reread() }
+    if skippedForRoute, session.connectivity.isRouteAvailable { await reread() }
     await session.connectivity.eachRouteAppearance { await reread() }
   }
 
@@ -139,11 +141,13 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     let stores = AccountStores.current(session)
     do {
       let site = try await session.routedClient().diveSite(siteUUID)
+      skippedForRoute = false
       lastUpdated = nil
       phase = .loaded(site)
       keep(site, fetchedUnder: stores)
       watchStores()
     } catch {
+      skippedForRoute = APIError(error) == .noRoute
       let next = DetailPhase<DiveSiteRead>.failure(error)
       if next == .notFound {
         cacheForAnswer(fetchedUnder: stores, session: session)?.removeSite(siteUUID)

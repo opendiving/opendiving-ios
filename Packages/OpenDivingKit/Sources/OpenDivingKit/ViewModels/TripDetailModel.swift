@@ -26,6 +26,8 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
   public private(set) var hasPendingEdit = false
 
   @ObservationIgnored private let session: Session
+  /// The last read of the trip was skipped for want of a route.
+  @ObservationIgnored private var skippedForRoute = false
   /// The read a queued edit landing started.
   @ObservationIgnored var reloading: Task<Void, Never>?
 
@@ -61,10 +63,10 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     _ = await (list, names)
   }
 
-  /// Reads again what a route can mend — now, if there is one, and each time one appears —
-  /// until the calling task is cancelled.
+  /// Reads again what a route can mend — now, if a read was skipped for want of one that has
+  /// since appeared, and each time one appears — until the calling task is cancelled.
   public func followRoute() async {
-    if session.connectivity.isRouteAvailable { await reread() }
+    if skippedForRoute, session.connectivity.isRouteAvailable { await reread() }
     await session.connectivity.eachRouteAppearance { await reread() }
   }
 
@@ -98,11 +100,13 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     let stores = AccountStores.current(session)
     do {
       let trip = try await session.routedClient().trip(tripUUID)
+      skippedForRoute = false
       lastUpdated = nil
       phase = .loaded(trip)
       keep(trip, fetchedUnder: stores)
       watchStores()
     } catch {
+      skippedForRoute = APIError(error) == .noRoute
       let next = DetailPhase<TripRead>.failure(error)
       if next == .notFound {
         cacheForAnswer(fetchedUnder: stores, session: session)?.removeTrip(tripUUID)
