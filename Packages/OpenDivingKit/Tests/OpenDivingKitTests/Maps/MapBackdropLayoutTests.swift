@@ -65,6 +65,21 @@ struct MapBackdropLayoutTests {
     }
   }
 
+  @Test func aFixFarFromItsSiteStaysInTheBandWithTheSiteInItsMiddle() throws {
+    let site = MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)
+    let harbour = MapPoint(name: "Entry", latitude: 28.95, longitude: 34.1)
+    let layout = try #require(
+      MapBackdropLayout(
+        points: [site], fixes: [harbour], theme: .light, width: 361, height: 240,
+        coveredBottom: 101, scale: 3))
+    let padding = MapBackdropLayout.fitPadding
+    #expect(abs(layout.pins[0].x - 180.5) <= 0.5 / 3)
+    for pin in layout.pins {
+      #expect((padding...(361 - padding)).contains(pin.x), "\(pin)")
+      #expect((padding...(240 - 101 - padding)).contains(pin.y), "\(pin)")
+    }
+  }
+
   @Test func placesEitherSideOfTheAntimeridianAreFittedTheShortWayRound() throws {
     let layout = try layout(
       [

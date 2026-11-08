@@ -69,11 +69,6 @@ public struct MapBackdropLayout: Hashable, Sendable {
         LatLonBounds(south: $0.latitude, north: $0.latitude, west: $0.longitude, east: $0.longitude)
       })
     {
-      let fitWidth = width - 2 * padding
-      zoom = min(
-        Self.fitZoom(
-          WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: shown - 2 * padding),
-        Self.fitZoom(pinBounds, width: fitWidth, height: height - bandTop - bandBottom))
       let centred = placed.contains { !$0.isFix } ? placed.filter { !$0.isFix } : placed
       let centreBounds = WebMercator.union(
         centred.map {
@@ -87,6 +82,13 @@ public struct MapBackdropLayout: Hashable, Sendable {
       centreLatitude = WebMercator.latitude(
         y: (WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.south))
           + WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.north))) / 2)
+      let fitWidth = width - 2 * padding
+      zoom = min(
+        Self.fitZoom(
+          WebMercator.union(placed.map(\.bounds))!, width: fitWidth, height: shown - 2 * padding),
+        Self.fitZoom(
+          Self.mirrored(pinBounds, longitude: centreLongitude, latitude: centreLatitude),
+          width: fitWidth, height: height - bandTop - bandBottom))
     } else {
       zoom = 0
       centreLongitude = 0
@@ -147,6 +149,23 @@ public struct MapBackdropLayout: Hashable, Sendable {
         y: shownY + WebMercator.y(latitude: WebMercator.clamp(latitude: place.latitude))
           * worldSize - originY)
     }
+  }
+
+  /// `box` grown to reach as far on each side of the centre as its farthest side does, so a fit
+  /// of it holds with the centre in the middle: the places' own box where the centre is its
+  /// middle, more where fixes lie off to one side of the sites.
+  static func mirrored(_ box: LatLonBounds, longitude: Double, latitude: Double) -> LatLonBounds {
+    let centreX =
+      longitude + (((box.west + box.east) / 2 - longitude) / 360).rounded() * 360
+    let halfX = max(abs(box.west - centreX), abs(box.east - centreX))
+    let centreY = WebMercator.y(latitude: WebMercator.clamp(latitude: latitude))
+    let halfY = max(
+      abs(WebMercator.y(latitude: WebMercator.clamp(latitude: box.south)) - centreY),
+      abs(WebMercator.y(latitude: WebMercator.clamp(latitude: box.north)) - centreY))
+    return LatLonBounds(
+      south: WebMercator.latitude(y: min(1, centreY + halfY)),
+      north: WebMercator.latitude(y: max(0, centreY - halfY)),
+      west: centreX - halfX, east: centreX + halfX)
   }
 
   /// The deepest zoom at which `box` fits `width` by `height`, capped at ``maxZoom``, which is
