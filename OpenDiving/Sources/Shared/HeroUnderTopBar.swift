@@ -33,15 +33,19 @@ private struct HeroUnderTopBar: ViewModifier {
         pull = pulled
       }
       .overlay(alignment: .top) {
-        if refresh != nil {
-          BubbleSpinner()
-            .frame(width: 32, height: 32)
-            .background(Color(.systemBackground).opacity(0.8), in: Circle())
-            .padding(.top, 8)
-            .opacity(isRefreshing ? 1 : pulledFar)
-            .animation(.easeOut(duration: 0.2), value: isRefreshing)
-            .accessibilityHidden(true)
+        ZStack {
+          // Built only while it shows: hidden by opacity, its timeline would draw every frame.
+          if refresh != nil, isRefreshing || pulledFar > 0 {
+            BubbleSpinner()
+              .frame(width: 32, height: 32)
+              .background(Color(.systemBackground).opacity(0.8), in: Circle())
+              .padding(.top, 8)
+              .opacity(isRefreshing ? 1 : pulledFar)
+              .transition(.opacity)
+              .accessibilityHidden(true)
+          }
         }
+        .animation(.easeOut(duration: 0.2), value: isRefreshing)
       }
       .onGeometryChange(for: CGFloat.self) {
         $0.safeAreaInsets.top
