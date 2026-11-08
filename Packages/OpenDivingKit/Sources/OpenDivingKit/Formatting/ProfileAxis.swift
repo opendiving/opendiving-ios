@@ -37,13 +37,15 @@ public enum ProfileAxis: String, Sendable, Hashable, CaseIterable {
     return AxisDomain.nice([0, bound])
   }
 
-  /// What follows the number on a panel row's top tick — separator and unit both, so
-  /// `40 min` and `100%` are each spaced as the quantity is written.
+  /// What follows the number on a panel row's top tick: `%`, and nothing for minutes, beats
+  /// per minute or bar. The legend already names those rows, and the widest label in the
+  /// leading gutter sets where the whole plot starts, so ` min` would narrow every row.
   public func unitSuffix(_ units: UnitSystem) -> String {
     guard let channel = ProfileChannel.allCases.first(where: { $0.axis == self }) else {
       return ""
     }
-    return channel.separator + channel.display(units).unit
+    let unit = channel.display(units).unit
+    return ["min", "bpm", "bar"].contains(unit) ? "" : channel.separator + unit
   }
 
   /// The channels on this axis, in the legend's order.

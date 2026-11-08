@@ -136,12 +136,12 @@ struct AxisDomainTests {
 
   // MARK: axisUnitSuffix and channelsOnAxis — `dive-profile.test.ts:1239-1289`
 
-  @Test func panelSuffixesCarryTheSeparator() {
-    #expect(ProfileAxis.noDeco.unitSuffix(.metric) == " min")
-    #expect(ProfileAxis.timeToSurface.unitSuffix(.metric) == " min")
-    #expect(ProfileAxis.ppo2.unitSuffix(.metric) == " bar")
+  @Test func panelSuffixesLeaveOutWhatTheLegendNames() {
+    #expect(ProfileAxis.noDeco.unitSuffix(.metric) == "")
+    #expect(ProfileAxis.timeToSurface.unitSuffix(.metric) == "")
+    #expect(ProfileAxis.ppo2.unitSuffix(.metric) == "")
     #expect(ProfileAxis.percent.unitSuffix(.metric) == "%")
-    #expect(ProfileAxis.heartRate.unitSuffix(.imperial) == " bpm")
+    #expect(ProfileAxis.heartRate.unitSuffix(.imperial) == "")
     #expect(ProfileAxis.depth.unitSuffix(.imperial) == " ft")
     #expect(ProfileAxis.percent.unitSuffix(.imperial) == "%")
   }

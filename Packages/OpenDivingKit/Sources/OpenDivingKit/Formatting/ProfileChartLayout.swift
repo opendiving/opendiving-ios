@@ -62,8 +62,8 @@ public struct ProfileChartLayout: Hashable, Sendable {
     return labels
   }
 
-  /// One row per panel axis: its two rules and their numbers, the top one carrying the
-  /// unit. Two rather than every tick, which in a row this short collide.
+  /// One row per panel axis: its two rules and their numbers, the top one carrying
+  /// ``ProfileAxis/unitSuffix(_:)``. Two rather than every tick, which in a row this short collide.
   public var panelRows: [ProfilePanelRow] {
     placement.panels.enumerated().compactMap { index, axis in
       guard let row = shown.first(where: { $0.panelIndex == index }) else { return nil }
@@ -278,7 +278,7 @@ public struct ProfilePlottedLine: Hashable, Sendable, Identifiable {
   }
 }
 
-/// A row's scale under the depth plot: its two rules' numbers, the top one with the unit.
+/// A row's scale under the depth plot: its two rules' numbers, the top one with its suffix.
 public struct ProfilePanelRow: Hashable, Sendable {
   public var axis: ProfileAxis
   /// Its position among the rows, from the top.
