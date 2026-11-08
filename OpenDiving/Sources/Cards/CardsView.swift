@@ -63,6 +63,7 @@ private struct CheckinSheetScreen: View {
     .task {
       model.load()
       await model.refresh()
+      await model.followRoute()
     }
     .fullScreenCover(item: $fullScreen) { card in
       FullScreenCardView(card: card)

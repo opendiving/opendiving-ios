@@ -318,6 +318,10 @@ private struct Flush {
       if let uuid = ref.serverUUID { await readBack(dive: uuid) }
     case (.deleteDive(let ref), _):
       if let uuid = ref.serverUUID { cache.removeDive(uuid) }
+    case (.deleteDiveSite(let ref), _):
+      if let uuid = ref.serverUUID { cache.removeSite(uuid) }
+    case (.deleteTrip(let ref), _):
+      if let uuid = ref.serverUUID { cache.removeTrip(uuid) }
     case (.createDiveDraft, .draft(let draft)):
       cache.replaceDiveDraft(draft)
       await readBack(draft: draft.uuid)

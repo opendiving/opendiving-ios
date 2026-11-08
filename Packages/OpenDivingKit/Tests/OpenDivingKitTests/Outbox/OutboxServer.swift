@@ -253,11 +253,11 @@ struct OutboxWorld {
   }
 
   /// The same phone, relaunched: a new session over the same directory.
-  func relaunched() throws -> OutboxWorld {
+  func relaunched(connectivity: any Connectivity = AlwaysReachable()) throws -> OutboxWorld {
     for account in [OutboxServer.accountA, OutboxServer.accountB] {
       OutboxHub.forget(session.store.directory(for: OutboxServer.origin, account: account))
     }
-    return try OutboxWorld(server: server, root: root)
+    return try OutboxWorld(server: server, root: root, connectivity: connectivity)
   }
 
   /// Every write the server is sent fails as if there were no route.

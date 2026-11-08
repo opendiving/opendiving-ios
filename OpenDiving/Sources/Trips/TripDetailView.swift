@@ -29,7 +29,10 @@ private struct TripDetailContent: View {
       case .notFound:
         EmptyOrErrorView(status: .notFound(message: "Trip not found."))
       case .failed(let error):
-        EmptyOrErrorView(status: .failed(message: error.message)) {
+        EmptyOrErrorView(
+          status: .failed(
+            message: error.isUnreachable ? OfflineText.tripNotShown : error.message)
+        ) {
           Task { await model.load() }
         }
       case .loaded(let trip):
@@ -37,6 +40,9 @@ private struct TripDetailContent: View {
           LazyVStack(spacing: 16) {
             HeroView(content: TripSummary.hero(trip, units: session.units))
             Group {
+              if let lastUpdated = model.lastUpdated {
+                LastUpdatedLine(date: lastUpdated)
+              }
               if model.hasPendingEdit {
                 PendingEditLine()
               }
@@ -69,7 +75,10 @@ private struct TripDetailContent: View {
         }
       }
     }
-    .task { await model.load() }
+    .task {
+      await model.load()
+      await model.followRoute()
+    }
   }
 
   private var title: String {
@@ -95,11 +104,14 @@ private struct TripDives: View {
         ProgressView()
           .frame(maxWidth: .infinity)
       }
-    case .failed:
+    case .failed(let error):
       SectionCard(title: Self.title, icon: Self.icon) {
-        Text("This trip's dives could not be loaded.")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
+        Text(
+          error.isUnreachable
+            ? OfflineText.divesNotShown : "This trip's dives could not be loaded."
+        )
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
           .buttonStyle(.bordered)
       }

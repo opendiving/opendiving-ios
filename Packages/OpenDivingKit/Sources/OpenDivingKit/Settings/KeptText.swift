@@ -39,7 +39,7 @@ public enum KeptText {
   }
 }
 
-/// What the lists and the dive page say when what they show is the phone's copy.
+/// What the lists and the record pages say when what they show is the phone's copy.
 public enum OfflineText {
   /// Above rows, or a dive, shown from the phone's copy: *Last updated Oct 25, 2026, 14:02*.
   public static func lastUpdated(_ at: Date, in timeZone: TimeZone = .current) -> String {
@@ -52,6 +52,17 @@ public enum OfflineText {
   /// A dive the phone has never opened, which only the server can show.
   public static let diveNotShown =
     "This dive has not been opened on this phone, so it shows once the server can be reached."
+  /// A dive site the phone has never opened, which only the server can show.
+  public static let siteNotShown =
+    "This dive site has not been opened on this phone, so it shows once the server can be"
+    + " reached."
+  /// A trip the phone has never opened, which only the server can show.
+  public static let tripNotShown =
+    "This trip has not been opened on this phone, so it shows once the server can be reached."
+  /// A site's or a trip's dives the phone has not listed, which only the server can show.
+  public static let divesNotShown =
+    "These dives have not been listed on this phone, so they show once the server can be"
+    + " reached."
   /// The profile card of a dive shown from the phone's copy: profiles are not kept.
   public static let profileNeedsServer =
     "Profiles are not kept on this phone, so this one shows once the server can be reached."

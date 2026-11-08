@@ -344,6 +344,15 @@ public final class Session {
     return client
   }
 
+  /// ``requireClient()`` for a read a screen starts on its own, which fails at once with
+  /// ``APIError/noRoute`` while the phone believes it has no route rather than waiting a
+  /// minute for one; the screen reads again when ``Connectivity/moments()`` says one appeared.
+  public func routedClient() throws -> APIClient {
+    let client = try requireClient()
+    guard connectivity.isRouteAvailable else { throw APIError.noRoute }
+    return client
+  }
+
   // MARK: - Map tiles
 
   /// The active server's map tiles; nil with no server.

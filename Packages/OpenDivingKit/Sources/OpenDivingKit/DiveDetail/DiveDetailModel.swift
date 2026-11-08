@@ -10,7 +10,8 @@ import Observation
 /// the queue holds an edit of the dive that has not failed, the edit's values are laid over it
 /// and ``hasPendingEdit`` says so, until the flush reads the dive back. A 404 for the dive —
 /// to the fetch or to a queued edit — means the server no longer has it: the page fails with
-/// the API's sentence in place of any cached copy, and the phone forgets the dive.
+/// the API's sentence in place of any cached copy, and the phone forgets the dive. With no route
+/// nothing is asked for, and ``followRoute()`` reads again once one appears.
 @MainActor
 @Observable
 public final class DiveDetailModel: AccountStoresObserver {
@@ -39,6 +40,8 @@ public final class DiveDetailModel: AccountStoresObserver {
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private var generation = 0
+  /// The last read of the dive was skipped for want of a route.
+  @ObservationIgnored private var skippedForRoute = false
   /// The dive as the server or the cache gave it, before any queued edit.
   @ObservationIgnored private var base: DiveReadWithMixtures?
   /// When the server answered `base`, so a newer copy in the cache replaces it.
@@ -75,7 +78,7 @@ public final class DiveDetailModel: AccountStoresObserver {
 
   /// The species' photo, or nil when it cannot be had; the card then draws its backdrop.
   public func speciesPhoto(_ uuid: UUID, version: String) async -> Data? {
-    guard let client = try? session.requireClient() else { return nil }
+    guard let client = try? session.routedClient() else { return nil }
     return try? await client.speciesPhoto(uuid, version: version).data
   }
 
@@ -95,10 +98,11 @@ public final class DiveDetailModel: AccountStoresObserver {
     let client: APIClient
     let dive: DiveReadWithMixtures
     do {
-      client = try session.requireClient()
+      client = try session.routedClient()
       dive = try await client.dive(uuid)
     } catch {
       guard generation == self.generation else { return }
+      skippedForRoute = APIError(error) == .noRoute
       if case .http(status: 404, _) = APIError(error) {
         if cacheForAnswer(fetchedUnder: stores, session: session) != nil {
           AccountStores.current(session)?.forgetDive(uuid)
@@ -112,6 +116,7 @@ public final class DiveDetailModel: AccountStoresObserver {
       return
     }
     guard generation == self.generation else { return }
+    skippedForRoute = false
     if !fromCache { (trip, course, contact) = (nil, nil, nil) }
     lastUpdated = nil
     let answeredAt = Date()
@@ -133,6 +138,22 @@ public final class DiveDetailModel: AccountStoresObserver {
     cache.writeDive(
       AccountCache.Dive(dive: dive, trip: self.trip, course: self.course, contact: self.contact),
       fetchedAt: answeredAt)
+  }
+
+  /// Reads the dive again while what is shown is the cache's copy or a failure to reach the
+  /// server — now, if a read was skipped for want of a route that has since appeared, and each
+  /// time one appears — until the calling task is cancelled.
+  public func followRoute() async {
+    if skippedForRoute, session.connectivity.isRouteAvailable { await reread() }
+    await session.connectivity.eachRouteAppearance { await reread() }
+  }
+
+  func reread() async {
+    switch phase {
+    case .loaded: if lastUpdated != nil { await load(diveUUID) }
+    case .failed(.unreachable): await load(diveUUID)
+    case .loading, .failed: break
+    }
   }
 
   /// Shows the cached copy of `uuid`, if the phone holds one.
