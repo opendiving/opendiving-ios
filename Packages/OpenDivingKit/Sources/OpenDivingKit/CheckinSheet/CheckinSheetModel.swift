@@ -24,7 +24,7 @@ public final class CheckinSheetModel {
   }
 
   public var content: CheckinSheetContent? {
-    sheet.map { CheckinSheetContent($0, today: Self.today()) }
+    sheet.map { CheckinSheetContent($0, today: CalendarDate.today()) }
   }
 
   /// Reads the cached sheet of the active server.
@@ -65,13 +65,5 @@ public final class CheckinSheetModel {
 
   private var store: CheckinSheetStore? {
     session.state.origin.map { CheckinSheetStore(store: session.store, origin: $0) }
-  }
-
-  /// The phone's own calendar day, which is what a card's expiry is read against.
-  private static func today() -> CalendarDate {
-    let parts = Calendar(identifier: .gregorian).dateComponents(
-      in: .current, from: Date())
-    // Every component is present for a Gregorian calendar asked for them.
-    return CalendarDate(year: parts.year!, month: parts.month!, day: parts.day!)!
   }
 }

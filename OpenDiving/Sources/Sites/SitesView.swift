@@ -1,14 +1,15 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Sites* tab: the diver's dive sites, the most recently dived first and the sites no
-/// dive names last, each opening its page, and the `+` that adds one.
+/// The *Sites* tab: the site finder over the diver's sites and the Commons, each site opening its
+/// page, the `+` that adds one and a long press on the map that adds one where it was pressed.
+/// Under *Your sites* it is the diver's list, the most recently dived first, as cards.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
   var body: some View {
     NavigationStack {
-      SiteList(session: session)
+      SitesFinder(session: session)
         .navigationTitle("Sites")
         .toolbar {
           ToolbarItem(placement: .primaryAction) {
@@ -24,71 +25,37 @@ struct SitesView: View {
 }
 
 extension SitesView {
-  /// The tab's list, over the account's copy of the pages it has shown.
-  static func list(_ session: Session) -> PagedList<DiveSiteRead> {
-    PagedList(session: session, cache: .diveSites) { client, page, itemsPerPage in
-      try await client.diveSites(page: page, itemsPerPage: itemsPerPage)
-    }
+  /// The tab's finder, which opens on the phone's location, a trip under way or the last dive.
+  static func finder(_ session: Session) -> SiteFinderModel {
+    SiteFinderModel(
+      session: session, locator: CoreLocationProvider(), today: CalendarDate.today())
   }
 }
 
-private struct SiteList: View {
+private struct SitesFinder: View {
+  @State private var model: SiteFinderModel
+  @State private var map: MapStyleModel
+  /// The site a row or a point opened.
+  @State private var opened: UUID?
+  /// Where a long press asked for a new site.
+  @State private var adding: PinnedNewSite?
   @Environment(Session.self) private var session
-  @State private var list: PagedList<DiveSiteRead>
 
   init(session: Session) {
-    _list = State(initialValue: SitesView.list(session))
+    _model = State(initialValue: SitesView.finder(session))
+    _map = State(initialValue: MapStyleModel(session: session))
   }
 
   var body: some View {
-    Group {
-      switch list.phase {
-      case .idle, .loading:
-        EmptyOrErrorView(status: .loading)
-      case .failed(let error):
-        EmptyOrErrorView(status: .failed(message: error.message)) {
-          Task { await list.load() }
-        }
-      case .loaded where list.items.isEmpty:
-        VStack(spacing: 0) {
-          proposalsRow
-            .padding()
-          EmptyOrErrorView(
-            status: .empty(
-              icon: .diveSite, title: "No dive sites yet",
-              message: "Add one with +, or when logging a dive."))
-        }
-      case .loaded:
-        ScrollView {
-          LazyVStack(spacing: 12) {
-            proposalsRow
-            if let lastUpdated = list.lastUpdated {
-              LastUpdatedLine(date: lastUpdated)
-            }
-            ForEach(list.items) { site in
-              VStack(alignment: .leading, spacing: 4) {
-                NavigationLink {
-                  SiteDetailView(siteUUID: site.uuid)
-                } label: {
-                  RecordCardView(
-                    content: DiveSiteSummary.card(site, units: session.units), icon: .tabDiveSite)
-                }
-                .buttonStyle(.plain)
-                if let attribution = site.attribution {
-                  AttributionLine(credits: [attribution])
-                }
-              }
-              .onAppear { Task { await list.loadMore(after: site) } }
-            }
-            LoadMoreFooter(list: list)
-          }
-          .padding()
-        }
-      }
+    SiteFinderView(
+      model: model, map: map, units: session.units, pointAction: "Open site", showsCards: true,
+      onSite: { site in opened = site.ref.serverUUID },
+      onLongPress: { adding = PinnedNewSite(pin: $0) }
+    ) {
+      proposalsRow
     }
-    .background(Color(.systemGroupedBackground))
-    .refreshable { await list.refresh() }
-    .task { await list.load() }
+    .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
+    .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
     // Nothing else on this tab asks the server what it is until a card with a pin draws its map.
     .task { await session.loadServerInfo() }
   }
@@ -114,6 +81,12 @@ private struct SiteList: View {
       .buttonStyle(.plain)
     }
   }
+}
+
+/// A new site asked for at a point of the map, which the form opens pinned to.
+private struct PinnedNewSite: Hashable, Identifiable {
+  let id = UUID()
+  let pin: DeviceLocation
 }
 
 #Preview {

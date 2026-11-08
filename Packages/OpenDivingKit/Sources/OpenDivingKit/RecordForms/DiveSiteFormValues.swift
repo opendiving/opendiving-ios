@@ -46,6 +46,15 @@ public struct DiveSiteFormValues: Codable, Hashable, Sendable {
     self.notes = notes
   }
 
+  /// A new site's form, its pin at `pin` where one is given, in the digits a placed pin keeps.
+  public init(pinnedAt pin: DeviceLocation?) {
+    self.init()
+    guard let pin else { return }
+    let folded = PinCamera.folded(latitude: pin.latitude, longitude: pin.longitude)
+    latitude = PlaceSearch.placedText(folded.latitude)
+    longitude = PlaceSearch.placedText(folded.longitude)
+  }
+
   /// The form an edit opens on.
   public init(editing site: DiveSiteRead) {
     self.init(

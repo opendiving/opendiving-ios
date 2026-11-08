@@ -2,11 +2,12 @@ import OpenDivingKit
 import SwiftUI
 
 /// The dive's sites in the order visited — the first is the primary — each a row of the form, so
-/// it drags to a new place and swipes away, and the picker that adds the next.
+/// it drags to a new place and swipes away, and the site finder that adds the next.
 struct DiveSitesField: View {
   let model: DiveFormModel
 
   @State private var picking = false
+  @Environment(Session.self) private var session
 
   var body: some View {
     let sites = model.values.diveSites
@@ -27,9 +28,7 @@ struct DiveSitesField: View {
       .accentRow()
       .listRowSeparator(sites.isEmpty ? .hidden : .automatic, edges: .top)
       .sheet(isPresented: $picking) {
-        RecordPickerSheet(model: model, picker: .diveSites) { ref in
-          if let ref { model.addSite(ref) }
-        }
+        SiteFinderSheet(form: model, session: session)
       }
   }
 }
@@ -38,4 +37,5 @@ struct DiveSitesField: View {
   Form {
     DiveSitesField(model: DiveFormModel(session: DivePreviewData.session, mode: .create))
   }
+  .environment(DivePreviewData.session)
 }

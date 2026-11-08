@@ -64,18 +64,26 @@ public struct DiveSiteSearchQuery: Hashable, Sendable {
   /// The view's edges in −180…180, each rounded away from the middle; a view as wide as the world
   /// or wider is the world. A `west` past its `east` crosses the antimeridian, as the API reads it.
   static func rounded(_ box: LatLonBounds) -> LatLonBounds {
-    let south = max(-90, (box.south * precision).rounded(.down) / precision)
-    let north = min(90, (box.north * precision).rounded(.up) / precision)
+    let south = max(-90, outward(box.south, .down))
+    let north = min(90, outward(box.north, .up))
     guard box.east - box.west < 360 else {
       return LatLonBounds(south: south, north: north, west: -180, east: 180)
     }
     // The east edge reads 180 rather than −180, so a view ending on the line does not cross it.
     var east = wrap(box.east)
     if east == -180 { east = 180 }
-    let west = max(-180, (wrap(box.west) * precision).rounded(.down) / precision)
     return LatLonBounds(
-      south: south, north: north, west: west,
-      east: min(180, (east * precision).rounded(.up) / precision))
+      south: south, north: north, west: max(-180, outward(wrap(box.west), .down)),
+      east: min(180, outward(east, .up)))
+  }
+
+  /// To hundredths in `direction`, from the degrees as written: the wrap's arithmetic leaves
+  /// 183.1 as −176.8999…, which rounded up as it stands would gain a hundredth.
+  private static func outward(_ degrees: Double, _ direction: FloatingPointRoundingRule)
+    -> Double
+  {
+    let written = (degrees * precision * 1e6).rounded() / 1e6
+    return written.rounded(direction) / precision
   }
 
   /// A longitude in −180…180, the world's copies the map scrolls to folded back.

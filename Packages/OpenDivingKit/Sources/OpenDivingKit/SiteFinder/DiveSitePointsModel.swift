@@ -63,7 +63,8 @@ public final class DiveSitePointsModel {
   }
 
   private func fetchCommons() async {
-    guard let origin = session.state.origin, !Self.askedCommons.contains(origin),
+    // A server forgotten and signed in to again in one launch holds no copy to keep showing.
+    guard let origin = session.state.origin, commons == nil || !Self.askedCommons.contains(origin),
       let file = commonsFile, let client = try? session.routedClient()
     else { return }
     let etag = commons == nil ? nil : try? String(contentsOf: file.etag, encoding: .utf8)

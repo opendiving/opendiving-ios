@@ -1,3 +1,5 @@
+import Foundation
+
 /// A day with no clock and no zone: a trip part's dates, a card's `certified_on`, a dive
 /// that carries only its day. Never a `Date` at UTC midnight, which a zone west of UTC
 /// prints as the day before.
@@ -24,6 +26,13 @@ public struct CalendarDate: Hashable, Comparable, Sendable {
   }
 
   /// `YYYY-MM-DD`, the API's spelling.
+  /// The phone's own calendar day.
+  public static func today(in timeZone: TimeZone = .current, now: Date = Date()) -> CalendarDate {
+    let parts = Calendar(identifier: .gregorian).dateComponents(in: timeZone, from: now)
+    // Every component is present for a Gregorian calendar asked for them.
+    return CalendarDate(year: parts.year!, month: parts.month!, day: parts.day!)!
+  }
+
   public var iso8601: String {
     "\(Self.pad(year, 4))-\(Self.pad(month, 2))-\(Self.pad(day, 2))"
   }

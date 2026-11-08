@@ -52,6 +52,9 @@ public final class SiteFinderModel {
   /// The query the list shows.
   public private(set) var query: DiveSiteSearchQuery?
 
+  /// The list shows a typed search.
+  public var isTyped: Bool { !(query?.text.trimmedOfWhitespace.isEmpty ?? true) }
+
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let locator: any LocationProvider
   @ObservationIgnored private let form: DiveFormModel?

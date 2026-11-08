@@ -18,7 +18,8 @@ public enum SiteFinderText {
 
   /// The line in place of a list that failed.
   public static func failure(_ error: APIError) -> String {
-    error.isUnreachable ? "The server could not be reached, so nothing could be searched." : error.message
+    error.isUnreachable
+      ? "The server could not be reached, so nothing could be searched." : error.message
   }
 
   /// The line in place of an empty list.
