@@ -30,10 +30,11 @@ public struct DiveSiteSearchPage: Decodable, Sendable {
     var rows: [DiveSiteSearchRow] = []
     var list = try c.nestedUnkeyedContainer(forKey: .rows)
     while !list.isAtEnd {
-      // A later kind of row is left out rather than failing the page.
-      if let row = try? list.decode(DiveSiteSearchRow.self) {
-        rows.append(row)
-      } else {
+      // A later kind of row is left out rather than failing the page; a site or a place this
+      // build cannot read fails it, so a changed contract is not read as an empty list.
+      do {
+        rows.append(try list.decode(DiveSiteSearchRow.self))
+      } catch is DiveSiteSearchRow.UnknownKind {
         _ = try list.decode(Skipped.self)
       }
     }

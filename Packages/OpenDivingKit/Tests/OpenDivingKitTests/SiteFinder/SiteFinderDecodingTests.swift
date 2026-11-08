@@ -34,6 +34,14 @@ struct SiteFinderDecodingTests {
     #expect(place.distanceM == 432000)
   }
 
+  @Test func aSiteRowThisBuildCannotReadFailsThePage() throws {
+    let broken = try KitFixture.text("dive-site-search").replacingOccurrences(
+      of: #""name": "Canyon","#, with: #""name": 7,"#)
+    #expect(throws: DecodingError.self) {
+      try APICoding.decoder().decode(DiveSiteSearchPage.self, from: Data(broken.utf8))
+    }
+  }
+
   @Test func aSearchRowSurvivesTheCacheRoundTrip() throws {
     let page = try KitFixture.decode(DiveSiteSearchPage.self, "dive-site-search")
     let again = try APICoding.decoder().decode(
