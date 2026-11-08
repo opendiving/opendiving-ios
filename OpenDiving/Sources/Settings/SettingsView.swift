@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Settings* tab: the server card, with signing out and the servers screen, the account
-/// as read-only rows, and the app.
+/// The *Settings* tab: the server card with the servers screen, the account as read-only rows with
+/// signing out, and the app.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
@@ -26,16 +26,6 @@ private struct SettingsList: View {
     List {
       if let card = model.card {
         ServerCard(content: card) {
-          Button("Sign out") { Task { await model.signOut() } }
-            .accentRow()
-            .disabled(model.isWorking)
-          if let origin = model.signIn.signingOut {
-            SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
-          }
-          if let error = model.error {
-            Label(error, systemImage: "exclamationmark.triangle")
-              .foregroundStyle(Color.danger)
-          }
           NavigationLink("Change server") {
             // A notice from an earlier visit is not this one's; one set while here, by a page
             // pushed over the list, is.
@@ -58,10 +48,18 @@ private struct SettingsList: View {
           .foregroundStyle(.secondary)
         }
         LabeledContent("Units", value: model.unitsLabel)
+        Button("Sign out") { Task { await model.signOut() } }
+          .accentRow()
+          .disabled(model.isWorking)
+        if let origin = model.signIn.signingOut {
+          SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
+        }
+        if let error = model.error {
+          Label(error, systemImage: "exclamationmark.triangle")
+            .foregroundStyle(Color.danger)
+        }
       } header: {
         Text("Account")
-      } footer: {
-        Text("Units are changed on the web.")
       }
       Section("App") {
         LabeledContent("Version", value: Self.appVersion)
