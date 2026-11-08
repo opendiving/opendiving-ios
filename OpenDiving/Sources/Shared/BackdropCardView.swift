@@ -13,6 +13,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
 
   @State private var detailsSize = CGSize.zero
   @State private var credit: MapBackdropView.CardCredit?
+  @ScaledMetric(relativeTo: .caption2) private var creditSize: CGFloat = 10
 
   var body: some View {
     details()
@@ -43,13 +44,16 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
   private var creditChip: some View {
     ZStack {
       if let credit, credit.isShown {
-        AttributionLine(credits: [MapAttribution.display(credit.text)], underline: false)
-          .multilineTextAlignment(.trailing)
-          .padding(.horizontal, 6)
-          .padding(.vertical, 2)
-          .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
-          .opacity(0.8)
-          .transition(.opacity)
+        AttributionLine(
+          credits: [MapAttribution.display(credit.text)], underline: false,
+          font: .system(size: creditSize)
+        )
+        .multilineTextAlignment(.trailing)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .opacity(0.6)
+        .transition(.opacity)
       }
     }
     .padding(8)
