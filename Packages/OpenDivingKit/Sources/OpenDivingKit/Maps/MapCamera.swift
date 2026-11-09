@@ -38,4 +38,18 @@ public struct MapCamera: Hashable, Sendable {
         y: (WebMercator.y(latitude: box.south) + WebMercator.y(latitude: box.north)) / 2),
       longitude: WebMercator.wrap(longitude: (box.west + box.east) / 2), zoom: zoom)
   }
+
+  /// What a frame `width` by `height` points centred on this camera shows. Its west and east may
+  /// pass ±180, and a frame wider than the world spans more than 360 degrees; its south and north
+  /// stop where Web Mercator is cut.
+  public func bounds(width: Double, height: Double) -> LatLonBounds {
+    let world = WebMercator.tileSize * pow(2, zoom)
+    let halfWidth = width / 2 / world * 360
+    let middle = WebMercator.y(latitude: WebMercator.clamp(latitude: latitude))
+    let halfHeight = height / 2 / world
+    return LatLonBounds(
+      south: WebMercator.latitude(y: min(1, middle + halfHeight)),
+      north: WebMercator.latitude(y: max(0, middle - halfHeight)),
+      west: longitude - halfWidth, east: longitude + halfWidth)
+  }
 }
