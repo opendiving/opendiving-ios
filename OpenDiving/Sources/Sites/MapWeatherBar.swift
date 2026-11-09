@@ -56,11 +56,12 @@ struct MapWeatherBar: View {
           .redacted(reason: place == nil ? .placeholder : [])
         Text(content.summary)
           .font(.subheadline)
-        // A credit a line, so neither wraps.
+        // A credit a line, so neither wraps; not underlined, as the credits over a map are, since
+        // one credit is a single link and the other two with text between.
         VStack(alignment: .leading, spacing: 2) {
-          AttributionLine(credits: [content.attribution])
+          AttributionLine(credits: [content.attribution], underline: false)
           if let credit = place?.credit {
-            AttributionLine(credits: [credit])
+            AttributionLine(credits: [credit], underline: false)
           }
         }
       }
