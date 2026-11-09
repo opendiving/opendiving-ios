@@ -78,7 +78,7 @@ private struct CheckinSheetScreen: View {
   @ViewBuilder
   private func refreshableWhenSignedIn(_ content: some View) -> some View {
     if model.isSignedIn {
-      content.refreshable { await model.refresh() }
+      content.bubbleRefreshable { await model.refresh() }
     } else {
       content
     }

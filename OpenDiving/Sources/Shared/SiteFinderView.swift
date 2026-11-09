@@ -168,7 +168,7 @@ struct SiteFinderView<Header: View>: View {
       .padding()
     }
     .scrollDismissesKeyboard(.immediately)
-    .refreshable { await model.list?.refresh() }
+    .bubbleRefreshable { await model.list?.refresh() }
   }
 
   @ViewBuilder private var content: some View {

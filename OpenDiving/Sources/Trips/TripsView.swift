@@ -77,7 +77,7 @@ private struct TripList: View {
       }
     }
     .background(Color(.systemGroupedBackground))
-    .refreshable { await list.refresh() }
+    .bubbleRefreshable { await list.refresh() }
     .task { await list.load() }
   }
 }
