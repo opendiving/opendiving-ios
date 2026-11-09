@@ -34,26 +34,26 @@ struct SiteFinderSheet: View {
           form.addSite(row.ref)
           dismiss()
         },
-        leading: {
-          Button {
-            dismiss()
-          } label: {
-            Image(Icon.x)
+        bar: {
+          ToolbarItem(placement: .cancellationAction) {
+            Button {
+              dismiss()
+            } label: {
+              Image(Icon.x)
+            }
+            .accessibilityLabel("Cancel")
+            .mapBarButton()
           }
-          .accessibilityLabel("Cancel")
-          .buttonStyle(MapRoundButtonStyle())
-        },
-        trailing: {
-          Button {
-            adding = AddingSite(pin: nil)
-          } label: {
-            Image(Icon.plus)
+          ToolbarItem(placement: .primaryAction) {
+            Button {
+              adding = AddingSite(pin: nil)
+            } label: {
+              Label(FormPicker.diveSites.addLabel, systemImage: "plus")
+            }
+            .mapBarButton()
           }
-          .accessibilityLabel(FormPicker.diveSites.addLabel)
-          .buttonStyle(MapRoundButtonStyle())
         }
       )
-      .toolbar(.hidden, for: .navigationBar)
       .sheet(item: $adding) { site in
         FormPicker.diveSites.addSheet(
           pin: site.pin,

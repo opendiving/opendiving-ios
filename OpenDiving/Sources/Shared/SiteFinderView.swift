@@ -6,8 +6,8 @@ import SwiftUI
 /// under a panel that holds the search and the list, *Your sites* and *Use my location* floating
 /// over the map's corner above the panel, and *Search this area* once the map has moved. With no
 /// map on the instance the panel stands alone, at its tallest. What a site does when chosen, and
-/// the controls in the top corners, are the host's.
-struct SiteFinderView<Leading: View, Trailing: View>: View {
+/// the top bar's buttons, are the host's; the bar draws no background over the map.
+struct SiteFinderView<Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
   let units: UnitSystem
@@ -22,12 +22,13 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
   /// What the dive form lists while the search cannot reach the server: the phone's lookup rows.
   var offlineRows: ((String) -> [FormPickerRow])?
   var onOfflineRow: (FormPickerRow) -> Void = { _ in }
-  @ViewBuilder let leading: () -> Leading
-  @ViewBuilder let trailing: () -> Trailing
+  @ToolbarContentBuilder let bar: () -> Bar
 
   @State private var detent = SiteFinderPanel.Detent.half
-  /// How far the panel's drag has pulled it up.
-  @GestureState(resetTransaction: Transaction(animation: .snappy)) private var dragged = 0.0
+  /// How far the drag on the handle or the search has pulled the panel up.
+  @GestureState(resetTransaction: Transaction(animation: .snappy)) private var handleDragged = 0.0
+  /// How far a drag on the list, begun at its top, has pulled the panel up.
+  @State private var listDragged = 0.0
   @FocusState private var typing: Bool
 
   var body: some View {
@@ -40,7 +41,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
         } else {
           Color(.systemGroupedBackground).ignoresSafeArea()
         }
-        topBar
+        searchThisArea
         // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
         panelView(panel, below: geometry.safeAreaInsets.bottom)
           .offset(y: geometry.size.height - panelHeight(panel))
@@ -48,6 +49,20 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
     }
     // The list is scrolled to reach what the keyboard covers, which dismisses it.
     .ignoresSafeArea(.keyboard)
+    .toolbar {
+      if !map.hasMap {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          yoursButton.mapBarButton(isOn: model.yours)
+          locateButton.mapBarButton()
+        }
+        ToolbarIslandGap()
+      }
+      bar()
+    }
+    .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+    // The host's title names the back button on what it opens; the bar over the map shows none.
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar(removing: .title)
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: typing) { _, typing in
@@ -92,7 +107,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       width: Double(geometry.size.width),
       height: max(0, geometry.size.height - panel.height(mapDetent))
     )
-    let height = panel.height(detent, dragged: dragged)
+    let height = panelHeight(panel)
     return ZStack(alignment: .bottom) {
       SiteFinderMap(
         styleJSON: style.styleJSON, camera: model.camera, covered: covered,
@@ -109,12 +124,13 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       .onChange(of: [shown.width, shown.height], initial: true) {
         model.viewport = shown
       }
+      statusBarShade(top: geometry.safeAreaInsets.top)
       HStack(alignment: .bottom) {
         MapCredit(credit: style.credit)
         Spacer()
         VStack(spacing: 12) {
-          yoursButton
-          locateButton
+          yoursButton.mapRoundButton(isOn: model.yours)
+          locateButton.mapRoundButton()
         }
       }
       .padding(.horizontal, 12)
@@ -129,14 +145,16 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
     Button {
       Task { await model.useMyLocation() }
     } label: {
-      if model.isLocating {
-        BubbleSpinner()
-      } else {
-        Image(Icon.locateFixed)
+      Group {
+        if model.isLocating {
+          BubbleSpinner()
+        } else {
+          Image(Icon.locateFixed)
+        }
       }
+      .frame(width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
     .accessibilityLabel(model.isLocating ? SiteFinderText.locating : SiteFinderText.useMyLocation)
-    .buttonStyle(MapRoundButtonStyle())
     .disabled(model.isLocating)
   }
 
@@ -145,42 +163,46 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       Task { await model.setYours(!model.yours) }
     } label: {
       Image(Icon.bookmark)
+        .frame(
+          width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
     .accessibilityLabel(SiteFinderText.yoursLabel)
     .accessibilityAddTraits(model.yours ? .isSelected : [])
-    .buttonStyle(MapRoundButtonStyle(isOn: model.yours))
+  }
+
+  /// A blur fading down from the top of the screen, which keeps the status bar and the top bar
+  /// readable over whatever the map draws there.
+  private func statusBarShade(top: Double) -> some View {
+    Rectangle()
+      .fill(.thinMaterial)
+      .mask {
+        LinearGradient(
+          stops: [.init(color: .black, location: 0.4), .init(color: .clear, location: 1)],
+          startPoint: .top, endPoint: .bottom)
+      }
+      .frame(height: top + 12)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      .ignoresSafeArea()
+      .allowsHitTesting(false)
+      .accessibilityHidden(true)
   }
 
   // MARK: - Over the map
 
-  /// The host's corners, *Search this area* between them; without a map, the filter and the
-  /// location, which have no map to float over, beside the host's trailing control.
-  private var topBar: some View {
-    HStack(alignment: .top, spacing: 12) {
-      leading()
-      Spacer(minLength: 0)
-      if !map.hasMap {
-        yoursButton
-        locateButton
+  /// Under the top bar, once the map has moved.
+  @ViewBuilder private var searchThisArea: some View {
+    if model.offersSearchThisArea && map.hasMap {
+      Button(SiteFinderText.searchThisArea) {
+        Task { await model.searchThisArea() }
       }
-      trailing()
+      .font(.subheadline.weight(.semibold))
+      .foregroundStyle(.primary)
+      .padding(.horizontal, 16)
+      .frame(height: 36)
+      .buttonStyle(.plain)
+      .pickerControl(in: Capsule())
+      .padding(.top, 8)
     }
-    .overlay(alignment: .top) {
-      if model.offersSearchThisArea && map.hasMap {
-        Button(SiteFinderText.searchThisArea) {
-          Task { await model.searchThisArea() }
-        }
-        .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 16)
-        .frame(height: 36)
-        .buttonStyle(.plain)
-        .pickerControl(in: Capsule())
-        .padding(.top, 4)
-      }
-    }
-    .padding(.horizontal, 16)
-    .padding(.top, 8)
   }
 
   // MARK: - The panel
@@ -206,7 +228,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
           .padding(.horizontal, 16)
           .padding(.bottom, 8)
       }
-      list
+      list(panel)
     }
     .frame(height: panelHeight(panel), alignment: .top)
     .frame(maxWidth: .infinity)
@@ -220,7 +242,8 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
   }
 
   private func panelHeight(_ panel: SiteFinderPanel) -> Double {
-    map.hasMap ? panel.height(detent, dragged: dragged) : panel.height(.full)
+    map.hasMap
+      ? panel.height(detent, dragged: handleDragged + listDragged) : panel.height(.full)
   }
 
   private static var panelRadius: Double {
@@ -262,7 +285,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
 
   private func drag(_ panel: SiteFinderPanel) -> some Gesture {
     DragGesture(minimumDistance: 8, coordinateSpace: .global)
-      .updating($dragged) { value, state, _ in state = -value.translation.height }
+      .updating($handleDragged) { value, state, _ in state = -value.translation.height }
       .onEnded { value in
         withAnimation(.snappy) {
           detent = panel.settle(from: detent, predicted: -value.predictedEndTranslation.height)
@@ -293,16 +316,37 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
 
   // MARK: - The list
 
-  private var list: some View {
+  /// Over a map a drag down from the list's top moves the panel, so only the panel with no map,
+  /// which stands still, pulls to refresh.
+  @ViewBuilder private func list(_ panel: SiteFinderPanel) -> some View {
+    if map.hasMap {
+      scrolledList(panel)
+    } else {
+      scrolledList(panel).bubbleRefreshable { await model.list?.refresh() }
+    }
+  }
+
+  private func scrolledList(_ panel: SiteFinderPanel) -> some View {
     ScrollView {
       LazyVStack(spacing: 12) {
         content
       }
       .padding(.horizontal)
       .padding(.bottom)
+      .background {
+        if map.hasMap {
+          PanelDragFromScrollTop(
+            onChanged: { listDragged = -$0 },
+            onEnded: { predicted in
+              withAnimation(.snappy) {
+                detent = panel.settle(from: detent, predicted: -predicted)
+                listDragged = 0
+              }
+            })
+        }
+      }
     }
     .scrollDismissesKeyboard(.immediately)
-    .bubbleRefreshable { await model.list?.refresh() }
   }
 
   @ViewBuilder private var content: some View {
@@ -457,7 +501,8 @@ private struct SiteFinderPointSheet: View {
         session: session, locator: CoreLocationProvider(),
         today: CalendarDate(year: 2026, month: 11, day: 8)!),
       map: MapStyleModel(session: session), units: .metric, pointAction: "Open site",
-      onSite: { _ in }, leading: { EmptyView() }, trailing: { EmptyView() })
+      onSite: { _ in },
+      bar: { ToolbarItem(placement: .topBarTrailing) { Button("Add", systemImage: "plus") {} } })
   }
   .environment(session)
 }
