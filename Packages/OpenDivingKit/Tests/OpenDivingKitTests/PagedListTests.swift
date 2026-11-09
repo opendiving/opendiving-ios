@@ -126,6 +126,36 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1", "Trip 2"])
   }
 
+  @Test func aCancelledLoadIsNoFailureAndTheNextLoadAsksAgain() async throws {
+    let session = Session.stub(transport: try transport())
+    let calls = Mutex(0)
+    let list = PagedList<TripRead>(session: session, itemsPerPage: 2) { client, page, perPage in
+      let call = calls.withLock {
+        $0 += 1
+        return $0
+      }
+      if call != 2 {
+        while !Task.isCancelled { await Task.yield() }
+        throw URLError(.cancelled)
+      }
+      return try await client.trips(page: page, itemsPerPage: perPage)
+    }
+    let first = Task { await list.load() }
+    while calls.withLock({ $0 }) < 1 { await Task.yield() }
+    first.cancel()
+    await first.value
+    #expect(list.phase == .idle)
+
+    await list.load()
+    #expect(list.items.map(\.name) == ["Trip 1"])
+    let more = Task { await list.loadMore() }
+    while calls.withLock({ $0 }) < 3 { await Task.yield() }
+    more.cancel()
+    await more.value
+    #expect(list.pageError == nil)
+    #expect(list.items.map(\.name) == ["Trip 1"])
+  }
+
   @Test func aFailedFirstPageIsTheError() async throws {
     let list = trips(Session.stub(transport: try transport(failPage: 1)))
     await list.load()

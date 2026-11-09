@@ -56,9 +56,27 @@ struct SiteFinderModelTests {
     }
   }
 
+  /// Holds the search's answers back while the test looks at what shows meanwhile; a held request
+  /// that is cancelled gives up.
+  final class Gate: Sendable {
+    private let held = Mutex(false)
+
+    var isHeld: Bool {
+      get { held.withLock { $0 } }
+      set { held.withLock { $0 = newValue } }
+    }
+
+    func pass() async throws {
+      while isHeld {
+        try Task.checkCancellation()
+        await Task.yield()
+      }
+    }
+  }
+
   /// A phone over a server answering the search with the fixture's page and empty trips and
   /// dives, its account loaded.
-  private func world() async throws -> (FormWorld, Searches) {
+  private func world(gate: Gate = Gate()) async throws -> (FormWorld, Searches) {
     let world = try FormWorld()
     let searches = Searches()
     let page = Self.page
@@ -67,6 +85,7 @@ struct SiteFinderModelTests {
       switch request.route {
       case "GET dive-sites/search":
         searches.record(request.url)
+        try await gate.pass()
         return .json(page)
       case "GET trips", "GET dives": return .json(empty)
       case "GET dive-sites/points": return .json(#"{"points":[]}"#)
@@ -78,7 +97,24 @@ struct SiteFinderModelTests {
   }
 
   private func tab(_ world: FormWorld, _ locator: FakeFinderLocator) -> SiteFinderModel {
-    SiteFinderModel(session: world.session, locator: locator, today: Self.today)
+    let model = SiteFinderModel(session: world.session, locator: locator, today: Self.today)
+    model.settleDelay = .zero
+    return model
+  }
+
+  /// A finder over a map opened on the world, its first list answered.
+  private func mapped(_ world: FormWorld, _ locator: FakeFinderLocator) async -> SiteFinderModel {
+    let model = tab(world, locator)
+    model.hasMap = true
+    model.viewport = Self.viewport
+    await model.open()
+    return model
+  }
+
+  /// A gesture's move to `camera`, once the list has followed it.
+  private func pan(_ model: SiteFinderModel, to camera: MapCamera) async {
+    model.mapMoved(to: camera, byGesture: true)
+    await model.settling?.value
   }
 
   private static let viewport = (width: 390.0, height: 400.0)
@@ -147,62 +183,118 @@ struct SiteFinderModelTests {
     #expect(searches.queries.count == 2)
   }
 
-  @Test func panningSendsNothingAndSearchThisAreaSendsTheView() async throws {
+  @Test func aPanListsTheViewOnceTheCameraRests() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
-    model.hasMap = true
-    model.viewport = Self.viewport
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
     await model.open()
     model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: false)
-    #expect(!model.offersSearchThisArea)
-    let moved = MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10)
-    model.mapMoved(to: moved, byGesture: true)
-    #expect(model.offersSearchThisArea)
+    #expect(model.settling == nil)
     #expect(searches.queries.count == 1)
-    await model.searchThisArea()
+    let moved = MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10)
+    await pan(model, to: moved)
+    #expect(searches.queries.count == 2)
     let sent = try #require(searches.queries.last)
     #expect(sent["latitude"] == "28.51")
     #expect(sent["longitude"] == "34.53")
     #expect(sentBox(sent) == box(moved))
-    #expect(!model.offersSearchThisArea)
+    #expect(!model.isSearching)
   }
 
-  @Test func shownAgainAMovedMapListsItsView() async throws {
+  @Test func movesInQuickSuccessionSendOneRequest() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
-    model.hasMap = true
-    model.viewport = Self.viewport
-    await model.open()
-    await model.open()
-    #expect(searches.queries.count == 1)
-    let moved = MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10)
-    model.mapMoved(to: moved, byGesture: true)
-    await model.open()
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    model.settleDelay = .milliseconds(50)
+    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
+    model.mapMoved(to: last, byGesture: true)
+    #expect(!model.isSearching)
+    await model.settling?.value
     #expect(searches.queries.count == 2)
-    #expect(sentBox(try #require(searches.queries.last)) == box(moved))
+    #expect(sentBox(try #require(searches.queries.last)) == box(last))
   }
 
-  @Test func yourSitesIsNarrowedToTheView() async throws {
+  @Test func aMoveCancelsTheRequestOnItsWayAndTheKeptRowsShowUndatedMeanwhile() async throws {
+    let gate = Gate()
+    let (world, searches) = try await world(gate: gate)
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    let opened = try #require(model.list)
+    gate.isHeld = true
+    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    while searches.queries.count < 2 { await Task.yield() }
+    #expect(model.isSearching)
+    #expect(model.list !== opened)
+    #expect(model.list?.lastUpdated != nil)
+    #expect(model.lastUpdated == nil)
+    #expect(model.rows.count == 3)
+    let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
+    model.mapMoved(to: last, byGesture: true)
+    while searches.queries.count < 3 { await Task.yield() }
+    gate.isHeld = false
+    await model.settling?.value
+    while model.isSearching { await Task.yield() }
+    #expect(searches.queries.count == 3)
+    #expect(model.list?.phase == .loaded)
+    #expect(model.list?.lastUpdated == nil)
+    #expect(sentBox(try #require(searches.queries.last)) == box(last))
+  }
+
+  @Test func aPanCancellingTheListOnScreenShowsNoFailure() async throws {
+    let gate = Gate()
+    let (world, searches) = try await world(gate: gate)
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    gate.isHeld = true
+    let toggled = Task { await model.setYours(true) }
+    while searches.queries.count < 2 { await Task.yield() }
+    let shown = try #require(model.list)
+    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    await toggled.value
+    #expect(shown.phase == .idle)
+    #expect(shown.pageError == nil)
+    gate.isHeld = false
+    await model.settling?.value
+    while model.isSearching { await Task.yield() }
+    #expect(model.list?.phase == .loaded)
+    #expect(searches.queries.last?["my"] == "true")
+  }
+
+  @Test func aPanBackToTheViewLastAnsweredSendsNothing() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
-    model.hasMap = true
-    model.viewport = Self.viewport
-    await model.open()
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    let here = MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10)
+    await pan(model, to: here)
+    let answered = try #require(model.list)
+    await pan(model, to: here)
+    #expect(searches.queries.count == 2)
+    #expect(model.list === answered)
+  }
+
+  @Test func yourSitesIsNarrowedToTheViewAndAskedForOncePerView() async throws {
+    let (world, searches) = try await world()
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
     let first = MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10)
-    model.mapMoved(to: first, byGesture: true)
+    await pan(model, to: first)
+    let all = try #require(model.list)
     await model.setYours(true)
+    #expect(searches.queries.count == 3)
     let toggled = try #require(searches.queries.last)
     #expect(toggled["my"] == "true")
     #expect(sentBox(toggled) == box(first))
+    let yours = try #require(model.list)
+
+    await model.setYours(false)
+    #expect(model.list === all)
+    await model.setYours(true)
+    #expect(model.list === yours)
+    #expect(searches.queries.count == 3)
+
     let moved = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
-    model.mapMoved(to: moved, byGesture: true)
-    #expect(model.offersSearchThisArea)
-    await model.searchThisArea()
+    await pan(model, to: moved)
     let searched = try #require(searches.queries.last)
     #expect(searched["my"] == "true")
     #expect(sentBox(searched) == box(moved))
     await model.setYours(false)
     let off = try #require(searches.queries.last)
+    #expect(searches.queries.count == 5)
     #expect(off["my"] == nil)
     #expect(sentBox(off) == box(model.camera))
   }
@@ -247,21 +339,23 @@ struct SiteFinderModelTests {
     #expect(sent["south"] == nil)
   }
 
-  @Test func useMyLocationMovesTheMapAndListsTheSitesInView() async throws {
+  @Test func useMyLocationMovesTheMapWhichTheListFollows() async throws {
     let (world, searches) = try await world()
     let locator = FakeFinderLocator(.failure(.denied))
-    let model = tab(world, locator)
-    model.hasMap = true
-    model.viewport = Self.viewport
-    await model.open()
+    let model = await mapped(world, locator)
     locator.outcome = .success(.init(latitude: -8.27, longitude: 115.6))
+    model.settleDelay = .milliseconds(50)
     await model.useMyLocation()
     #expect(model.camera.latitude == -8.27)
-    #expect(!model.offersSearchThisArea)
+    #expect(searches.queries.count == 1)
+    await model.settling?.value
     #expect(searches.queries.count == 2)
     let sent = try #require(searches.queries.last)
     #expect(sent["latitude"] == "-8.27")
     #expect(sentBox(sent) == box(model.camera))
+    await model.useMyLocation()
+    await model.settling?.value
+    #expect(searches.queries.count == 2)
   }
 
   @Test func withNoMapUseMyLocationSearchesAtOnce() async throws {
@@ -341,7 +435,7 @@ struct SiteFinderModelTests {
     let again = tab(world, FakeFinderLocator(.failure(.denied)))
     await again.open()
     #expect(again.rows.count == 3)
-    #expect(again.list?.lastUpdated != nil)
+    #expect(again.lastUpdated != nil)
   }
 
   @Test func theTabShowsItsLastListWhileItWaitsForAFix() async throws {
@@ -355,6 +449,7 @@ struct SiteFinderModelTests {
     #expect(again.isOpening)
     #expect(again.rows.count == 3)
     #expect(again.list?.lastUpdated != nil)
+    #expect(again.lastUpdated == nil)
     #expect(searches.queries.count == 1)
     locator.isHeld = false
     await opening.value
