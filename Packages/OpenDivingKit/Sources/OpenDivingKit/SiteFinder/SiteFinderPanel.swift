@@ -1,7 +1,7 @@
 import Foundation
 
 /// The site finder's panel over its map: the search box alone, half the screen, or the screen
-/// up to the controls along its top. It opens half way.
+/// up to just under the top bar. It opens half way.
 public struct SiteFinderPanel: Hashable, Sendable {
   public enum Detent: CaseIterable, Hashable, Sendable {
     case collapsed, half, full
@@ -9,10 +9,10 @@ public struct SiteFinderPanel: Hashable, Sendable {
 
   /// The search box and the handle over it.
   public static let collapsedHeight = 77.0
-  /// What the top row of controls keeps clear of the panel at its tallest.
-  public static let topClearance = 64.0
+  /// The strip of map the panel at its tallest leaves under the top bar.
+  public static let topClearance = 8.0
 
-  /// The height the panel may take: the screen's below the status bar and above the tab bar.
+  /// The height the panel may take: the screen's below the top bar and above the tab bar.
   public var available: Double
 
   public init(available: Double) {

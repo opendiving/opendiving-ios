@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Sites* tab: the site finder over the diver's sites and the Commons, full screen under no
-/// bar, each site opening its page, the `+` that adds one and a long press on the map that adds
+/// The *Sites* tab: the site finder over the diver's sites and the Commons, full screen under a
+/// top bar with no background, each site opening its page, the `+` that adds one and a long press on the map that adds
 /// one where it was pressed. Under *Your sites* it is the diver's list, the most recently dived
 /// first, as cards.
 struct SitesView: View {
@@ -13,7 +13,6 @@ struct SitesView: View {
       SitesFinder(session: session)
         // Never shown: it is what a site's page offers to go back to.
         .navigationTitle("Sites")
-        .toolbar(.hidden, for: .navigationBar)
     }
   }
 }
@@ -45,15 +44,18 @@ private struct SitesFinder: View {
       model: model, map: map, units: session.units, pointAction: "Open site", showsCards: true,
       onSite: { site in opened = site.ref.serverUUID },
       onLongPress: { adding = PinnedNewSite(pin: $0) },
-      leading: { proposalsButton },
-      trailing: {
-        NavigationLink {
-          DiveSiteFormView(mode: .create)
-        } label: {
-          Image(Icon.plus)
+      bar: {
+        if session.isCommonsPrimary {
+          ToolbarItem(placement: .topBarLeading) { proposalsButton }
         }
-        .accessibilityLabel("Add dive site")
-        .buttonStyle(MapRoundButtonStyle())
+        ToolbarItem(placement: .primaryAction) {
+          NavigationLink {
+            DiveSiteFormView(mode: .create)
+          } label: {
+            Label("Add dive site", systemImage: "plus")
+          }
+          .mapBarButton()
+        }
       }
     )
     .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
@@ -63,16 +65,14 @@ private struct SitesFinder: View {
   }
 
   /// Only where the instance takes proposals, whose routes answer nowhere else.
-  @ViewBuilder private var proposalsButton: some View {
-    if session.isCommonsPrimary {
-      NavigationLink {
-        YourProposalsView()
-      } label: {
-        CommonsMark(side: 22, relativeTo: .body)
-      }
-      .accessibilityLabel(YourProposalsView.title)
-      .buttonStyle(MapRoundButtonStyle())
+  private var proposalsButton: some View {
+    NavigationLink {
+      YourProposalsView()
+    } label: {
+      CommonsMark(side: 22, relativeTo: .body)
     }
+    .accessibilityLabel(YourProposalsView.title)
+    .mapBarButton()
   }
 }
 
