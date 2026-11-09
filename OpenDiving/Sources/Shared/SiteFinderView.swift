@@ -124,7 +124,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .onChange(of: [shown.width, shown.height], initial: true) {
         model.viewport = shown
       }
-      statusBarShade(top: geometry.safeAreaInsets.top)
+      statusBarBlur(top: geometry.safeAreaInsets.top)
       HStack(alignment: .bottom) {
         MapCredit(credit: style.credit)
         Spacer()
@@ -170,21 +170,13 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .accessibilityAddTraits(model.yours ? .isSelected : [])
   }
 
-  /// A blur fading down from the top of the screen, which keeps the status bar and the top bar
-  /// readable over whatever the map draws there.
-  private func statusBarShade(top: Double) -> some View {
-    Rectangle()
-      .fill(.thinMaterial)
-      .mask {
-        LinearGradient(
-          stops: [.init(color: .black, location: 0.4), .init(color: .clear, location: 1)],
-          startPoint: .top, endPoint: .bottom)
-      }
+  /// A blur fading down from the top of the screen, which keeps the status bar readable over
+  /// whatever the map draws there.
+  private func statusBarBlur(top: Double) -> some View {
+    ProgressiveBlur(edge: .top, radius: 12, hold: 0.3)
       .frame(height: top + 12)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .ignoresSafeArea()
-      .allowsHitTesting(false)
-      .accessibilityHidden(true)
   }
 
   // MARK: - Over the map
