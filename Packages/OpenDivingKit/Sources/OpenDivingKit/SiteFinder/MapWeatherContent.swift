@@ -9,6 +9,9 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// The bearing the wind blows toward, in degrees clockwise from north: the arrow's, which
   /// points where the wind goes as a weather map's does.
   public let windHeading: Double?
+  /// `Clear, 21°C, wind from the north-northwest, 13 km/h`: the bar in words, as the tap shows it.
+  public let summary: String
+  /// The summary as VoiceOver says it, its units in words.
   public let accessibilityLabel: String
   /// The provider's source line, as markdown links.
   public let attribution: String
@@ -27,23 +30,32 @@ public struct MapWeatherContent: Hashable, Sendable {
     }
     guard icon != nil || temperature != nil || windSpeed != nil else { return nil }
 
+    var written: [String] = []
     var spoken: [String] = []
-    if let vocabulary { spoken.append(VocabularyLabels.weather(vocabulary)) }
-    if let celsius = weather.airTemperature {
+    if let vocabulary {
+      written.append(VocabularyLabels.weather(vocabulary))
+      spoken.append(VocabularyLabels.weather(vocabulary))
+    }
+    if let celsius = weather.airTemperature, let temperature {
+      written.append(temperature)
       spoken.append(
         UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
           + Measure.temperature.word(units))
     }
-    if let speed = weather.windSpeed {
-      let words =
-        UnitFormat.number(speed * 3.6, .speed, units) + " " + Measure.speed.word(units)
+    if let speed = weather.windSpeed, let windSpeed {
+      let from = weather.windDirection.map { "wind from the \(Self.spokenPoint($0)), " } ?? "wind "
+      written.append(from + windSpeed)
       spoken.append(
-        weather.windDirection.map { "wind from the \(Self.spokenPoint($0)), \(words)" }
-          ?? "wind \(words)")
+        from + UnitFormat.number(speed * 3.6, .speed, units) + " " + Measure.speed.word(units))
     }
-    let sentence = spoken.joined(separator: ", ")
-    accessibilityLabel = sentence.prefix(1).uppercased() + sentence.dropFirst()
+    summary = Self.sentence(written)
+    accessibilityLabel = Self.sentence(spoken)
     attribution = read.attribution
+  }
+
+  private static func sentence(_ parts: [String]) -> String {
+    let joined = parts.joined(separator: ", ")
+    return joined.prefix(1).uppercased() + joined.dropFirst()
   }
 
   static let icons: [String: Icon] = [
@@ -51,7 +63,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     "storm": .cloudLightning, "snow": .cloudSnow, "fog": .cloudFog,
   ]
 
-  /// The nearest of the sixteen compass points to a bearing, as VoiceOver says it.
+  /// The nearest of the sixteen compass points to a bearing, in words.
   static func spokenPoint(_ degrees: Double) -> String {
     let points = [
       "north", "north-northeast", "northeast", "east-northeast", "east", "east-southeast",

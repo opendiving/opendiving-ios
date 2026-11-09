@@ -46,14 +46,15 @@ struct MapWeatherBar: View {
     .accessibilityAction { isExplained = true }
     .popover(isPresented: $isExplained) {
       VStack(alignment: .leading, spacing: 8) {
-        Text("At the centre of the map, now")
+        Text("Weather")
           .font(.subheadline.weight(.semibold))
-        Text(content.accessibilityLabel)
+        Text(content.summary)
           .font(.subheadline)
         AttributionLine(credits: [content.attribution])
       }
       .padding()
-      .frame(idealWidth: 280)
+      // Wide enough for the provider's credit on one line.
+      .frame(idealWidth: 320)
       .presentationCompactAdaptation(.popover)
     }
   }

@@ -63,6 +63,7 @@ struct MapWeatherTests {
     #expect(metric.temperature == "24°C")
     #expect(metric.windSpeed == "21 km/h")
     #expect(metric.windHeading == 225)
+    #expect(metric.summary == "Partly cloudy, 24°C, wind from the northeast, 21 km/h")
     #expect(
       metric.accessibilityLabel
         == "Partly cloudy, 24 degrees Celsius, wind from the northeast, 21 kilometers per hour")
@@ -84,6 +85,7 @@ struct MapWeatherTests {
     #expect(content.temperature == nil)
     #expect(content.windSpeed == "0 km/h")
     #expect(content.windHeading == 170)
+    #expect(content.summary == "Wind from the north, 0 km/h")
     #expect(content.accessibilityLabel == "Wind from the north, 0 kilometers per hour")
   }
 
