@@ -4,8 +4,8 @@ import SwiftUI
 
 /// The site finder the Sites tab is and the dive form's site picker opens: the map full screen
 /// under a panel that holds the search and the list, *Your sites* and *Use my location* floating
-/// over the map's corner above the panel, and *Search this area* once the map has moved. With no
-/// map on the instance the panel stands alone, at its tallest. What a site does when chosen, and
+/// over the map's corner above the panel, and a spinner under the top bar while the list is asked
+/// for again. With no map on the instance the panel stands alone, at its tallest. What a site does when chosen, and
 /// the top bar's buttons, are the host's; the bar draws no background over the map.
 struct SiteFinderView<Bar: ToolbarContent>: View {
   let model: SiteFinderModel
@@ -41,7 +41,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
         } else {
           Color(.systemGroupedBackground).ignoresSafeArea()
         }
-        searchThisArea
+        if map.hasMap && model.isSearching { searchingSpinner }
         // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
         panelView(panel, below: geometry.safeAreaInsets.bottom)
           .offset(y: geometry.size.height - panelHeight(panel))
@@ -184,20 +184,13 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
 
   // MARK: - Over the map
 
-  /// Under the top bar, once the map has moved.
-  @ViewBuilder private var searchThisArea: some View {
-    if model.offersSearchThisArea && map.hasMap {
-      Button(SiteFinderText.searchThisArea) {
-        Task { await model.searchThisArea() }
-      }
-      .font(.subheadline.weight(.semibold))
-      .foregroundStyle(.primary)
-      .padding(.horizontal, 16)
-      .frame(height: 36)
-      .buttonStyle(.plain)
-      .pickerControl(in: Capsule())
+  /// Under the top bar, while the list follows the camera.
+  private var searchingSpinner: some View {
+    BubbleSpinner()
+      .frame(width: 36, height: 36)
+      .pickerControl(in: Circle())
       .padding(.top, 8)
-    }
+      .accessibilityLabel(SiteFinderText.searching)
   }
 
   // MARK: - The panel
@@ -360,7 +353,9 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       case .loaded where model.rows.isEmpty:
         note(SiteFinderText.empty(typed: model.isTyped, yours: model.yours))
       case .loaded:
-        if let lastUpdated = list.lastUpdated {
+        // Every new list shows its kept pages while its request is on its way: the line is for
+        // kept pages a failed request leaves standing.
+        if let lastUpdated = list.lastUpdated, !model.isOpening, !model.isSearching {
           LastUpdatedLine(date: lastUpdated)
         }
         ForEach(model.rows) { row in

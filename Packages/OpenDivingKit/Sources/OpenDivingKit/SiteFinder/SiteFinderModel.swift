@@ -9,10 +9,14 @@ import Observation
 /// sites by last use. What moved the camera is never sent: a pan, a picked place, the dive's fix
 /// and *Use my location* only move it.
 ///
-/// **Untyped, the list is the sites in view.** The opening, *Use my location*, a picked place,
-/// *Your sites* toggled and *Search this area* each send the part of the map the diver sees as a
-/// box; a pan sends nothing and offers *Search this area*. A typed search looks everywhere,
-/// nearest the camera first.
+/// **Untyped, the list is the sites in view.** The opening, a picked place and *Your sites*
+/// toggled each send the part of the map the diver sees as a box. A typed search looks
+/// everywhere, nearest the camera first.
+///
+/// **The list follows the camera.** Once a pan or *Use my location* has moved it and it has
+/// rested for ``settleDelay``, the list is asked for again for the view, a typed search narrowed
+/// to it too; a later move cancels a request still on its way. A request the server would read as
+/// the last one answered for the same *Your sites* setting is not sent again: that list shows.
 ///
 /// **The list is the server's order.** Nothing re-sorts or re-filters it, except that the dive
 /// form leaves out a site already on the dive.
@@ -37,8 +41,8 @@ public final class SiteFinderModel {
   /// The opening rule has not answered yet, and the camera waits on the world.
   public private(set) var isOpening = true
   public private(set) var list: PagedList<DiveSiteSearchRow>?
-  /// The camera moved since the last request.
-  public private(set) var offersSearchThisArea = false
+  /// A request is on its way; the list shows what it showed until the answer lands.
+  public private(set) var isSearching = false
   public private(set) var isLocating = false
   /// Why the last *Use my location* found nothing.
   public private(set) var locationFailure: LocationFailure?
@@ -75,6 +79,19 @@ public final class SiteFinderModel {
   @ObservationIgnored private var restsOnWorld = false
   /// The camera sits, unmoved, where the opening put it, so a map measured late is fitted again.
   @ObservationIgnored private var restsOnOpening = false
+  /// How long the camera rests before the list follows it.
+  @ObservationIgnored var settleDelay = Duration.milliseconds(300)
+  /// The wait for the camera to rest.
+  @ObservationIgnored private(set) var settling: Task<Void, Never>?
+  @ObservationIgnored private var searching: Task<Void, Never>?
+  /// Counts requests, so only the latest one's answer is shown.
+  @ObservationIgnored private var generation = 0
+  /// The last list answered for each *Your sites* setting, and what it asked.
+  @ObservationIgnored private var answered: [Bool: Answer] = [:]
+  /// The *Your sites* setting the list shown was asked with.
+  @ObservationIgnored private var shownYours: Bool?
+
+  private typealias Answer = (query: DiveSiteSearchQuery, list: PagedList<DiveSiteSearchRow>)
 
   /// The Sites tab's finder.
   public init(session: Session, locator: any LocationProvider, today: CalendarDate) {
@@ -111,13 +128,9 @@ public final class SiteFinderModel {
   // MARK: - Opening
 
   /// Runs the host's opening rule once, moves the camera once, and sends the first request with
-  /// the camera it opened on. Shown again, a list the map has moved away from follows the view.
+  /// the camera it opened on.
   public func open() async {
-    guard isOpening else {
-      if offersSearchThisArea, !isTyped { await searchThisArea() }
-      return
-    }
-    guard !isResolving else { return }
+    guard isOpening, !isResolving else { return }
     isResolving = true
     showKeptWhileOpening()
     let opened: SiteFinderOpening
@@ -173,6 +186,7 @@ public final class SiteFinderModel {
     ) { _, _, _ in throw APIError.noRoute }
     kept.showKept()
     list = kept
+    shownYours = false
   }
 
   private func refit() {
@@ -195,7 +209,7 @@ public final class SiteFinderModel {
     guard byGesture, !isOpening else { return }
     restsOnWorld = false
     restsOnOpening = false
-    offersSearchThisArea = true
+    settle()
   }
 
   /// The search box's text, once the diver has paused: nothing is sent for text already searched.
@@ -208,11 +222,6 @@ public final class SiteFinderModel {
     guard on != yours else { return }
     yours = on
     await search()
-  }
-
-  /// The list again, for the camera and the view the map shows now, typed or not.
-  public func searchThisArea() async {
-    await search(inView: true)
   }
 
   /// A place row: the camera moves to the place — its footprint where the geocoder gave one — and
@@ -235,7 +244,8 @@ public final class SiteFinderModel {
     await search()
   }
 
-  /// Moves the camera to the phone's position and lists the sites around it.
+  /// Moves the camera to the phone's position, where the list follows it as it follows a pan;
+  /// with no map, which has no view to follow, the list is the sites around it at once.
   public func useMyLocation() async {
     isLocating = true
     locationFailure = nil
@@ -249,7 +259,7 @@ public final class SiteFinderModel {
     }
     isLocating = false
     move(to: .point(here))
-    await search()
+    if hasMap { settle() } else { await search() }
   }
 
   /// The point the diver touched, or nothing where the map has no such site.
@@ -280,8 +290,30 @@ public final class SiteFinderModel {
     restsOnOpening = false
   }
 
+  /// The camera moved: a request still on its way is for a view no longer shown, and the list
+  /// follows the camera once it has rested.
+  private func settle() {
+    settling?.cancel()
+    searching?.cancel()
+    generation += 1
+    settling = Task { [weak self, settleDelay] in
+      try? await Task.sleep(for: settleDelay)
+      guard !Task.isCancelled, let self else { return }
+      settling = nil
+      await search(inView: true)
+    }
+  }
+
   /// `inView` narrows a typed search to the view as well, which an untyped one always is.
+  ///
+  /// A list already showing rows for the same setting stays until the new one has its answer,
+  /// so the kept pages a new list shows first never flash in its place.
   private func search(inView: Bool = false) async {
+    settling?.cancel()
+    settling = nil
+    searching?.cancel()
+    generation += 1
+    let generation = generation
     let narrowed = inView || text.trimmedOfWhitespace.isEmpty
     let query = DiveSiteSearchQuery(
       text: text,
@@ -289,15 +321,37 @@ public final class SiteFinderModel {
         ? nil : DeviceLocation(latitude: camera.latitude, longitude: camera.longitude),
       box: narrowed ? shownBox : nil, until: form?.values.startTime, yours: yours)
     self.query = query
-    offersSearchThisArea = false
+    if let last = answered[query.yours], last.query.items == query.items,
+      last.list.phase == .loaded, last.list.lastUpdated == nil
+    {
+      searching = nil
+      isSearching = false
+      list = last.list
+      shownYours = query.yours
+      return
+    }
     let list = PagedList<DiveSiteSearchRow>(
       session: session, itemsPerPage: APIClient.searchPageSize, cache: cacheKey(query),
       routed: true
     ) { client, page, itemsPerPage in
       try await client.searchDiveSites(query, page: page, itemsPerPage: itemsPerPage).listPage
     }
-    self.list = list
-    await list.load()
+    if self.list?.phase != .loaded || shownYours != query.yours {
+      self.list = list
+      shownYours = query.yours
+    }
+    isSearching = true
+    let task = Task { [weak self] in
+      await list.load()
+      guard let self, generation == self.generation else { return }
+      self.list = list
+      shownYours = query.yours
+      answered[query.yours] = (query, list)
+      searching = nil
+      isSearching = false
+    }
+    searching = task
+    await task.value
   }
 
   /// What the diver sees of the map, where there is a map, measured, off the world the opening
