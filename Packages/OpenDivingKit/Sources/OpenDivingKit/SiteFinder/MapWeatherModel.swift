@@ -69,6 +69,7 @@ public final class MapWeatherModel {
   /// the server. An answer lands only while the map still shows `cell`: a pan onward cancels the
   /// task that asked, but not one a route appearing started.
   public func show(_ cell: Cell?) async {
+    if cell != shown { place = nil }
     shown = cell
     if session.state.origin != origin {
       origin = session.state.origin

@@ -231,6 +231,9 @@ struct MapWeatherTests {
           title: "Dahab, South Sinai, Egypt", credit: "[OSM](https://osm.org)"))
     await model.lookUpPlace()
     #expect(asked.all.count == 1)
+    // Another cell's name never stands over this one's weather.
+    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    #expect(model.place == nil)
   }
 
   @Test func aPlaceWithNoNameOrNoGeocoderIsItsPosition() async throws {
