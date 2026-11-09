@@ -125,6 +125,9 @@ xcrun devicectl device install app --device <UDID> \
   .build/Build/Products/Debug-iphoneos/OpenDiving.app
 ```
 
+`scripts/install-on-device.py` does all of it: it lists the physical devices, takes the first on
+return, then generates the project, builds and installs. It exits when no physical device is found.
+
 Choosing the phone as the run destination in Xcode and pressing Run does the same. The first launch
 stops at *Untrusted Developer*: Settings → General → VPN & Device Management, trust your developer
 profile, and launch again.
