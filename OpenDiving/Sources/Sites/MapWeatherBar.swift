@@ -2,10 +2,14 @@ import OpenDivingKit
 import SwiftUI
 
 /// The weather at the centre of the Sites map, in its top bar: the sky, the air temperature and
-/// the wind with an arrow along it. A tap shows what it is and whose data it is, which the
-/// provider's licence asks to be shown.
+/// the wind with an arrow along it. A tap shows where it is, the reading in words and whose data
+/// it is, which the providers' licences ask to be shown.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
+  /// Where the weather is, nil while it is looked up.
+  let place: MapWeatherModel.Place?
+  /// Looks up `place`, when the tap opens it.
+  let lookUpPlace: () async -> Void
   @State private var isExplained = false
 
   var body: some View {
@@ -46,12 +50,21 @@ struct MapWeatherBar: View {
     .accessibilityAction { isExplained = true }
     .popover(isPresented: $isExplained) {
       VStack(alignment: .leading, spacing: 8) {
-        Text("Weather")
+        // The placeholder only holds the line's height while the name is looked up.
+        Text(place?.title ?? "Place, Region, Country")
           .font(.subheadline.weight(.semibold))
+          .redacted(reason: place == nil ? .placeholder : [])
         Text(content.summary)
           .font(.subheadline)
-        AttributionLine(credits: [content.attribution])
+        // A credit a line, so neither wraps.
+        VStack(alignment: .leading, spacing: 2) {
+          AttributionLine(credits: [content.attribution])
+          if let credit = place?.credit {
+            AttributionLine(credits: [credit])
+          }
+        }
       }
+      .task { await lookUpPlace() }
       .padding()
       // Wide enough for the provider's credit on one line.
       .frame(idealWidth: 320)
@@ -73,7 +86,11 @@ struct MapWeatherBar: View {
                 airTemperature: 24.4, windSpeed: 5.9, windDirection: 45, weatherCode: 2)),
             units: .metric)
           {
-            MapWeatherBar(content: content)
+            MapWeatherBar(
+              content: content,
+              place: MapWeatherModel.Place(
+                title: "Dahab, South Sinai, Egypt", credit: "[OSM](https://osm.org)"),
+              lookUpPlace: {})
           }
         }
       }

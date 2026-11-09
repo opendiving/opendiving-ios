@@ -191,6 +191,68 @@ struct MapWeatherTests {
     #expect(model.current?.weather?.weatherCode == 0)
   }
 
+  // MARK: - The place
+
+  private static let reverseDahab =
+    #"{"latitude":28.4964,"longitude":34.5146,"location":"Dahab, South Sinai, Egypt","#
+    + #""name":"Dahab","attribution":"[OSM](https://osm.org)"}"#
+
+  private func placeWorld(
+    _ asked: Asked, reverse: @escaping @Sendable (String) -> StubTransport.Response
+  )
+    async throws -> FormWorld
+  {
+    let world = try FormWorld()
+    let dahab = Self.dahab
+    world.server.override { request, _ in
+      switch request.route {
+      case "GET dive-conditions/current": return .json(dahab)
+      case "GET geocode/reverse":
+        asked.record(request.url)
+        return reverse(request.url?.query ?? "")
+      default: return nil
+      }
+    }
+    try await world.session.loadAccount()
+    return world
+  }
+
+  @Test func theTapNamesThePlaceOnceACell() async throws {
+    let asked = Asked()
+    let reverse = Self.reverseDahab
+    let world = try await placeWorld(asked) { _ in .json(reverse) }
+    let model = model(world)
+    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    #expect(model.place == nil)
+    await model.lookUpPlace()
+    #expect(
+      model.place
+        == MapWeatherModel.Place(
+          title: "Dahab, South Sinai, Egypt", credit: "[OSM](https://osm.org)"))
+    await model.lookUpPlace()
+    #expect(asked.all.count == 1)
+  }
+
+  @Test func aPlaceWithNoNameOrNoGeocoderIsItsPosition() async throws {
+    let asked = Asked()
+    let world = try await placeWorld(asked) { query in
+      query.contains("lat=27.9") ? StubTransport.Response(status: 204) : .json("null")
+    }
+    let model = model(world)
+    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    await model.lookUpPlace()
+    #expect(model.place == MapWeatherModel.Place(title: "27.9, 34.3", credit: nil))
+    await model.show(MapWeatherModel.Cell(latitude: 26, longitude: 35))
+    await model.lookUpPlace()
+    #expect(model.place == MapWeatherModel.Place(title: "26, 35", credit: nil))
+    // A position with no name is known; one the geocoder could not be asked about is not.
+    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    await model.lookUpPlace()
+    await model.show(MapWeatherModel.Cell(latitude: 26, longitude: 35))
+    await model.lookUpPlace()
+    #expect(asked.all.count == 3)
+  }
+
   @Test func anInstanceThatFetchesNoConditionsIsAskedOnce() async throws {
     let asked = Asked()
     let world = try await world(

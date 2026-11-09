@@ -17,10 +17,26 @@ public final class MapWeatherModel {
   /// The answer for the cell the map was last shown at; nil while there is none to show.
   public private(set) var current: DiveConditionsCurrentRead?
 
+  /// Where the shown weather is, once the bar has been tapped: nil while it is looked up.
+  public private(set) var place: Place?
+
   /// The centre of the map, to a tenth of a degree.
   public struct Cell: Hashable, Sendable {
     public let latitude: Double
     public let longitude: Double
+  }
+
+  /// A cell named as the geocoder names the place it is in, or by its position where it has no
+  /// name or none could be asked for.
+  public struct Place: Hashable, Sendable {
+    public let title: String
+    /// What the geocoder's licence asks to be shown with the name.
+    public let credit: String?
+
+    public init(title: String, credit: String?) {
+      self.title = title
+      self.credit = credit
+    }
   }
 
   @ObservationIgnored private let session: Session
@@ -28,6 +44,7 @@ public final class MapWeatherModel {
   @ObservationIgnored var settleDelay = Duration.milliseconds(600)
   @ObservationIgnored var now: @Sendable () -> Date = { Date() }
   @ObservationIgnored private var held: [Cell: (at: Date, read: DiveConditionsCurrentRead)] = [:]
+  @ObservationIgnored private var places: [Cell: Place] = [:]
   /// The cell the map last showed, which a route appearing asks about again.
   @ObservationIgnored private var shown: Cell?
   /// The server the answers are from, and whether it fetches no conditions at all.
@@ -56,6 +73,7 @@ public final class MapWeatherModel {
     if session.state.origin != origin {
       origin = session.state.origin
       held = [:]
+      places = [:]
       isOff = false
     }
     guard !isOff, let cell else {
@@ -92,6 +110,34 @@ public final class MapWeatherModel {
 
   private func isShown(_ cell: Cell) -> Bool {
     !Task.isCancelled && shown == cell
+  }
+
+  /// Names the place the shown cell is in. Asked only when the bar is tapped, since a pan would
+  /// otherwise cost the geocoder a request too; a name, or the lack of one, is kept per cell.
+  public func lookUpPlace() async {
+    guard let cell = shown else { return }
+    if let known = places[cell] {
+      place = known
+      return
+    }
+    place = nil
+    let position = Place(
+      title: CoordinateFormat.format(latitude: cell.latitude, longitude: cell.longitude) ?? "",
+      credit: nil)
+    let found: Place
+    switch try? await session.routedClient().geocodeReverse(
+      latitude: cell.latitude, longitude: cell.longitude)
+    {
+    case .named(let result)?:
+      found = Place(title: result.location, credit: result.attribution)
+      places[cell] = found
+    case .nameless?:
+      found = position
+      places[cell] = found
+    case .unknown?, nil:
+      found = position
+    }
+    if shown == cell { place = found }
   }
 
   /// Asks about the cell the map shows each time a route appears, until the calling task is

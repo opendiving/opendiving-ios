@@ -56,7 +56,7 @@ private struct SitesFinder: View {
           if let current = weather.current,
             let content = MapWeatherContent(current, units: session.units)
           {
-            MapWeatherBar(content: content)
+            MapWeatherBar(content: content, place: weather.place) { await weather.lookUpPlace() }
           } else {
             Color.clear.frame(width: 1, height: 1)
           }
