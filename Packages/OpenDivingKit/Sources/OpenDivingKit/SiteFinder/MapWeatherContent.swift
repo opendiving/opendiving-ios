@@ -38,10 +38,11 @@ public struct MapWeatherContent: Hashable, Sendable {
       let words =
         UnitFormat.number(speed * 3.6, .speed, units) + " " + Measure.speed.word(units)
       spoken.append(
-        weather.windDirection.map { "Wind from the \(Self.spokenPoint($0)), \(words)" }
-          ?? "Wind \(words)")
+        weather.windDirection.map { "wind from the \(Self.spokenPoint($0)), \(words)" }
+          ?? "wind \(words)")
     }
-    accessibilityLabel = spoken.joined(separator: ", ")
+    let sentence = spoken.joined(separator: ", ")
+    accessibilityLabel = sentence.prefix(1).uppercased() + sentence.dropFirst()
     attribution = read.attribution
   }
 

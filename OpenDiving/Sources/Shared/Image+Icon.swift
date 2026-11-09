@@ -9,16 +9,25 @@ extension Image {
   init(_ icon: OpenDivingKit.Icon) {
     self.init(icon.rawValue)
   }
+
+  /// One of the app's own symbols, already loaded. What the system draws by name — a menu, a
+  /// view in the top bar — it finds only in its own set.
+  init(loaded icon: OpenDivingKit.Icon) {
+    if let symbol = UIImage(named: icon.rawValue) {
+      self.init(uiImage: symbol)
+    } else {
+      self.init(icon)
+    }
+  }
 }
 
 extension Label where Title == Text, Icon == Image {
-  /// A menu item. The system's menus draw a symbol by name only from its own set, so one of the
-  /// app's has to reach them already loaded.
+  /// A menu item, whose symbol has to reach the menu already loaded.
   init(menuItem title: String, icon: OpenDivingKit.Icon) {
     self.init {
       Text(title)
     } icon: {
-      UIImage(named: icon.rawValue).map(Image.init(uiImage:)) ?? Image(icon)
+      Image(loaded: icon)
     }
   }
 

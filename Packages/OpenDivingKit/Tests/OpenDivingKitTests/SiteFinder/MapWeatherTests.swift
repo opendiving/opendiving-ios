@@ -22,7 +22,8 @@ struct MapWeatherTests {
   final class Asked: Sendable {
     private let sent = Mutex<[String]>([])
     func record(_ url: URL?) {
-      let items = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?
+      let items =
+        url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?
         .queryItems ?? []
       let value = { (name: String) in items.first { $0.name == name }?.value ?? "-" }
       sent.withLock { $0.append("\(value("latitude")),\(value("longitude"))") }
@@ -48,7 +49,8 @@ struct MapWeatherTests {
   }
 
   private static func read(_ weather: ConditionsWeather?) -> DiveConditionsCurrentRead {
-    DiveConditionsCurrentRead(attribution: "[Open-Meteo](https://open-meteo.com/)", weather: weather)
+    DiveConditionsCurrentRead(
+      attribution: "[Open-Meteo](https://open-meteo.com/)", weather: weather)
   }
 
   // MARK: - The content
@@ -63,7 +65,7 @@ struct MapWeatherTests {
     #expect(metric.windHeading == 225)
     #expect(
       metric.accessibilityLabel
-        == "Partly cloudy, 24 degrees Celsius, Wind from the northeast, 21 kilometers per hour")
+        == "Partly cloudy, 24 degrees Celsius, wind from the northeast, 21 kilometers per hour")
     #expect(metric.attribution == "[Open-Meteo](https://open-meteo.com/)")
 
     let imperial = try #require(MapWeatherContent(read, units: .imperial))
