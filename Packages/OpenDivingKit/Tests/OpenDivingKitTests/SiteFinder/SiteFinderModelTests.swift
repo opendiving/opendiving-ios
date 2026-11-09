@@ -358,6 +358,17 @@ struct SiteFinderModelTests {
     #expect(searches.queries.count == 2)
   }
 
+  @Test func useMyLocationZoomsInButNeverOut() async throws {
+    let (world, _) = try await world()
+    let locator = FakeFinderLocator(.success(.init(latitude: -8.27, longitude: 115.6)))
+    let model = await mapped(world, locator)
+    await model.useMyLocation()
+    #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
+    model.mapMoved(to: MapCamera(latitude: 0, longitude: 0, zoom: 14), byGesture: true)
+    await model.useMyLocation()
+    #expect(model.camera == MapCamera(latitude: -8.27, longitude: 115.6, zoom: 14))
+  }
+
   @Test func withNoMapUseMyLocationSearchesAtOnce() async throws {
     let (world, searches) = try await world()
     let locator = FakeFinderLocator(.failure(.denied))

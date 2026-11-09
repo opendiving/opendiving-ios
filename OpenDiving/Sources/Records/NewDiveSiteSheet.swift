@@ -33,6 +33,7 @@ struct NewDiveSiteSheet: View {
       model: RecordSheetModel(
         outbox: OutboxModel(session: session), values: DiveSiteFormValues(pinnedAt: pin),
         failedItem: failedItem),
+      lookup: PositionLookup(pinnedAt: pin),
       units: RecordEntryUnits(session: session), map: MapStyleModel(session: session),
       session: session, offersChoice: failedItem == nil, handBack: handBack,
       onCommonsSite: onCommonsSite, onCreated: onCreated)
@@ -70,7 +71,8 @@ struct DiveSiteFormView: View {
     case .create:
       form(
         RecordSheetModel(
-          outbox: OutboxModel(session: session), values: DiveSiteFormValues(pinnedAt: pin)))
+          outbox: OutboxModel(session: session), values: DiveSiteFormValues(pinnedAt: pin)),
+        lookup: PositionLookup(pinnedAt: pin))
     case .edit(let site):
       editing(site, failedItem: nil)
     case .failed(let item, let uuid):
@@ -114,10 +116,10 @@ struct DiveSiteFormView: View {
 
   private func form(
     _ model: RecordSheetModel<DiveSiteFormValues>, site: DiveSiteRead? = nil,
-    offersChoice: Bool = true
+    offersChoice: Bool = true, lookup: PositionLookup = PositionLookup()
   ) -> some View {
     DiveSiteSheetForm(
-      model: model, units: RecordEntryUnits(session: session),
+      model: model, lookup: lookup, units: RecordEntryUnits(session: session),
       map: MapStyleModel(session: session), session: session, isPushed: true, site: site,
       offersChoice: offersChoice && onLanded == nil, onLanded: onLanded,
       onCreated: { _ in }, onDeleted: onDeleted, onReplaced: onReplaced)
@@ -126,6 +128,7 @@ struct DiveSiteFormView: View {
 
 private struct DiveSiteSheetForm: View {
   @State var model: RecordSheetModel<DiveSiteFormValues>
+  @State var lookup: PositionLookup
   @State var units: RecordEntryUnits
   @State var map: MapStyleModel
   let session: Session
@@ -152,7 +155,6 @@ private struct DiveSiteSheetForm: View {
   /// The save did not land, under this ref: the sentence, and then the form goes.
   @State private var kept: RecordRef?
   @State private var invalid: Set<String> = []
-  @State private var lookup = PositionLookup()
   @State private var searching = false
   /// A Commons record went on the list from the search: the form leaves once it has closed.
   @State private var savedFromSearch = false
