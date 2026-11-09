@@ -124,7 +124,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .onChange(of: [shown.width, shown.height], initial: true) {
         model.viewport = shown
       }
-      statusBarBlur(top: geometry.safeAreaInsets.top)
+      statusBarBlur
       HStack(alignment: .bottom) {
         MapCredit(credit: style.credit)
         Spacer()
@@ -170,11 +170,14 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .accessibilityAddTraits(model.yours ? .isSelected : [])
   }
 
-  /// A blur fading down from the top of the screen, which keeps the status bar readable over
-  /// whatever the map draws there.
-  private func statusBarBlur(top: Double) -> some View {
-    ProgressiveBlur(edge: .top, radius: 12, hold: 0.3)
-      .frame(height: top + 12)
+  /// A light blur fading down over the status bar alone, which keeps it readable over whatever
+  /// the map draws there. The geometry's top inset also holds the navigation bar, under which the
+  /// map stays sharp.
+  private var statusBarBlur: some View {
+    let scene = UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first
+    let height = scene?.statusBarManager?.statusBarFrame.height ?? 0
+    return ProgressiveBlur(edge: .top, radius: 6, hold: 0.5)
+      .frame(height: height + 6)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .ignoresSafeArea()
   }
