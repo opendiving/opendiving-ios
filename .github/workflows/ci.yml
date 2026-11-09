@@ -103,6 +103,14 @@ jobs:
       - name: Show the toolchain
         run: xcodebuild -version
 
+      # A fresh simulator's first boot takes about two minutes. Started here, it finishes while
+      # the packages resolve and the app compiles, instead of after the build.
+      - name: Boot the simulator
+        run: |
+          udid=$(scripts/simulator.sh)
+          xcrun simctl boot "$udid"
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+
       # The package checkouts and MapLibre's binary, so a run needs nothing from GitHub's
       # release downloads, which have failed this job before the code compiled. A restored
       # SourcePackages resolves offline even without a Package.resolved, which the generated
@@ -131,10 +139,12 @@ jobs:
           path: .build/SourcePackages
           key: ${{ steps.packages.outputs.cache-primary-key }}
 
+      # No index store: nothing reads one on a runner, and writing it slows every compile.
       - name: Build and test
         run: |
           xcodebuild test \
             -project OpenDiving.xcodeproj \
             -scheme OpenDiving \
-            -destination "id=$(scripts/simulator.sh)" \
-            -derivedDataPath .build
+            -destination "id=$SIMULATOR_UDID" \
+            -derivedDataPath .build \
+            COMPILER_INDEX_STORE_ENABLE=NO
