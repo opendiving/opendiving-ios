@@ -7,6 +7,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case arrowDownToLine = "arrow-down-to-line"
   case backpack
   case bedDouble = "bed-double"
+  case bookmark
   case building2 = "building-2"
   case calendar
   case chartLine = "chart-line"
@@ -27,6 +28,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case mountain
   case paperclip
   case phone
+  case plus
   case search
   case settings
   case ship
@@ -42,5 +44,6 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case waves
   case wavesArrowDown = "waves-arrow-down"
   case weight
+  case x
   case zoomOut = "zoom-out"
 }

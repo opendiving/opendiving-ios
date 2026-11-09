@@ -1,3 +1,4 @@
+import CoreLocation
 import MapLibre
 import OpenDivingKit
 import SwiftUI
@@ -16,8 +17,23 @@ struct SiteFinderScreensTests {
     return host.viewIfLoaded
   }
 
-  @Test func theDiveFormsSheetIsTitleCase() {
-    #expect(SiteFinderText.diveFormTitle == "Find a Dive Site")
+  /// The panel rising leaves the map where it was, its camera now the middle of what shows.
+  @Test func coveringTheMapMovesNothingOnScreen() throws {
+    let map = MLNMapView(
+      frame: CGRect(x: 0, y: 0, width: 320, height: 640),
+      styleJSON: MapStyleModel.Shown.preview.styleJSON)
+    map.automaticallyAdjustsContentInset = false
+    map.setCenter(
+      CLLocationCoordinate2D(latitude: 28.5, longitude: 34.5), zoomLevel: 8, animated: false)
+    let showingMiddle = CGPoint(x: 160, y: 170)
+    let before = map.convert(showingMiddle, toCoordinateFrom: map)
+    SiteFinderMap.Coordinator().cover(
+      map, with: UIEdgeInsets(top: 0, left: 0, bottom: 300, right: 0))
+    #expect(map.contentInset.bottom == 300)
+    let after = map.convert(showingMiddle, toCoordinateFrom: map)
+    #expect(abs(after.latitude - before.latitude) < 1e-6)
+    #expect(abs(after.longitude - before.longitude) < 1e-6)
+    #expect(abs(map.centerCoordinate.latitude - before.latitude) < 1e-6)
   }
 
   @Test func theSheetHostsOverTheForm() {

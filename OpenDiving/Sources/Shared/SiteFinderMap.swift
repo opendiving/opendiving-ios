@@ -9,15 +9,17 @@ import SwiftUI
 /// cluster's tap zooms into it and a point's tap names it; a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
-  /// Where the map looks. A change jumps it there; every move comes back through
-  /// `onCameraChange`, saying whether a gesture made it.
+  /// Where the map looks, at the middle of what `covered` leaves showing. A change jumps it there;
+  /// every move comes back through `onCameraChange`, saying whether a gesture made it.
   let camera: MapCamera
+  /// What the screen draws over the map, which a change leaves where it was.
+  var covered = UIEdgeInsets.zero
   /// Nil hides the Commons layer.
   let commons: CommonsDiveSitePoints?
   let yours: [DiveSitePoint]
   let listed: [MapPoint]
   let selected: SiteFinderPoint?
-  let onCameraChange: (MapCamera, LatLonBounds, Bool) -> Void
+  let onCameraChange: (MapCamera, Bool) -> Void
   let onPoint: (UUID) -> Void
   var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
@@ -32,6 +34,7 @@ struct SiteFinderMap: UIViewRepresentable {
     map.attributionButton.isHidden = true
     map.minimumZoomLevel = MapCamera.minZoom
     map.maximumZoomLevel = MapCamera.maxZoom
+    map.automaticallyAdjustsContentInset = false
     context.coordinator.styleJSON = styleJSON
     context.coordinator.fonts = MapStyleFonts.textFont(in: styleJSON)
     context.coordinator.listen(on: map)
@@ -56,6 +59,7 @@ struct SiteFinderMap: UIViewRepresentable {
           [MapPoint(name: $0.name, latitude: $0.latitude, longitude: $0.longitude)]
         } ?? []),
       on: map)
+    coordinator.cover(map, with: covered)
     coordinator.move(map, to: camera)
   }
 
@@ -74,7 +78,7 @@ struct SiteFinderMap: UIViewRepresentable {
   }
 
   final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
-    var onCameraChange: ((MapCamera, LatLonBounds, Bool) -> Void)?
+    var onCameraChange: ((MapCamera, Bool) -> Void)?
     var onPoint: ((UUID) -> Void)?
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
     var styleJSON = ""
@@ -134,6 +138,27 @@ struct SiteFinderMap: UIViewRepresentable {
           style)
       }
       drawn = layers
+    }
+
+    /// The content inset is what puts the camera in the middle of what shows; changed, the map
+    /// would keep its centre at the new middle, so it is handed the point already there instead.
+    func cover(_ map: MLNMapView, with covered: UIEdgeInsets) {
+      guard covered != map.contentInset else { return }
+      let bounds = map.bounds
+      let showing = bounds.inset(by: covered)
+      guard !bounds.isEmpty, showing.height > 0 else {
+        map.contentInset = covered
+        return
+      }
+      let middle = map.convert(CGPoint(x: showing.midX, y: showing.midY), toCoordinateFrom: map)
+      isMoving = true
+      map.contentInset = covered
+      map.setCenter(middle, zoomLevel: map.zoomLevel, animated: false)
+      isMoving = false
+      DispatchQueue.main.async { [weak self, weak map] in
+        guard let self, let map else { return }
+        report(map, byGesture: false)
+      }
     }
 
     func move(_ map: MLNMapView, to camera: MapCamera) {
@@ -304,13 +329,7 @@ struct SiteFinderMap: UIViewRepresentable {
         latitude: map.centerCoordinate.latitude, longitude: map.centerCoordinate.longitude,
         zoom: map.zoomLevel)
       camera = reported
-      let bounds = map.visibleCoordinateBounds
-      onCameraChange?(
-        reported,
-        LatLonBounds(
-          south: bounds.sw.latitude, north: bounds.ne.latitude, west: bounds.sw.longitude,
-          east: bounds.ne.longitude),
-        byGesture)
+      onCameraChange?(reported, byGesture)
     }
   }
 
@@ -341,5 +360,5 @@ struct SiteFinderMap: UIViewRepresentable {
       DiveSitePoint(
         longitude: 34.5372, latitude: 28.5722, uuid: UUID(), name: "Blue Hole",
         owner: DiveSiteOwner.account)
-    ], listed: [], selected: nil, onCameraChange: { _, _, _ in }, onPoint: { _ in })
+    ], listed: [], selected: nil, onCameraChange: { _, _ in }, onPoint: { _ in })
 }

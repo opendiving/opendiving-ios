@@ -8,7 +8,7 @@ public struct SiteFinderPanel: Hashable, Sendable {
   }
 
   /// The search box and the handle over it.
-  public static let collapsedHeight = 88.0
+  public static let collapsedHeight = 77.0
   /// What the top row of controls keeps clear of the panel at its tallest.
   public static let topClearance = 64.0
 

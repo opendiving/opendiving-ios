@@ -1,7 +1,5 @@
 /// What the site finder says.
 public enum SiteFinderText {
-  /// The dive form's sheet: the web's *Find a dive site*, in the phone's title case.
-  public static let diveFormTitle = "Find a Dive Site"
   public static let searchPrompt = "Search sites and places"
   public static let yoursLabel = "Your sites"
   public static let searchThisArea = "Search this area"
