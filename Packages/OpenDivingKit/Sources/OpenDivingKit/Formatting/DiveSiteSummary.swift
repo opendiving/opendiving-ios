@@ -38,15 +38,13 @@ public enum DiveSiteSummary {
   /// The mark on a Commons site, wherever one is listed or shown.
   public static let commonsLabel = "Commons"
 
-  /// What the head of a Commons site's card or page carries.
+  /// What the head of a Commons site's page carries.
   public static func chips(_ site: some DiveSiteCardSource) -> [Chip] {
-    guard site.isCommons else { return [] }
-    return [
-      Chip(text: commonsLabel, accessibilityLabel: "OpenDiving Commons site", kind: .commons)
-    ]
+    site.isCommons ? [DiveSiteMark.commons.chip] : []
   }
 
-  /// The site's card on the sites list: its name, its facts, and its dives, its deepest —
+  /// The site's card on the sites list: its name under its mark, its facts, and its dives, its
+  /// deepest —
   /// a dash where it has none — and its species once there are some, over a map of its pin.
   public static func card(_ site: some DiveSiteCardSource, units: UnitSystem)
     -> RecordCardContent
@@ -59,8 +57,8 @@ public enum DiveSiteSummary {
       figures.append(Figure(label: "Species seen", value: String(site.speciesCount)))
     }
     return RecordCardContent(
-      title: site.name, chips: chips(site), facts: facts(site, units: units), figures: figures,
-      points: points(site))
+      title: site.name, chips: [site.mark.chip], facts: facts(site, units: units),
+      figures: figures, points: points(site))
   }
 
   /// The site's page's head: its card the width of the screen, over a map of its pin when
@@ -210,12 +208,15 @@ public protocol DiveSiteCardSource {
   var altitude: Int? { get }
   var entryTypes: [String] { get }
   var isCommons: Bool { get }
+  var mark: DiveSiteMark { get }
   var diveCount: Int { get }
   var maxDiveDepth: Double? { get }
   var speciesCount: Int { get }
 }
 
-extension DiveSiteRead: DiveSiteCardSource {}
+extension DiveSiteRead: DiveSiteCardSource {
+  public var mark: DiveSiteMark { DiveSiteMark(owner: owner, proposalStatus: proposal?.status) }
+}
 
 extension DiveSiteSearchItem: DiveSiteCardSource {
   public var name: String { site.name }
@@ -226,6 +227,9 @@ extension DiveSiteSearchItem: DiveSiteCardSource {
   public var altitude: Int? { site.altitude }
   public var entryTypes: [String] { site.entryTypes }
   public var isCommons: Bool { site.isCommons }
+  public var mark: DiveSiteMark {
+    DiveSiteMark(owner: site.owner, proposalStatus: proposal?.status)
+  }
   public var diveCount: Int { dives?.diveCount ?? 0 }
   public var maxDiveDepth: Double? { dives?.maxDiveDepth }
   public var speciesCount: Int { dives?.speciesCount ?? 0 }

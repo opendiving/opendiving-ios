@@ -468,8 +468,10 @@ private struct SiteFinderRow: View {
       VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
           Text(content.title).foregroundStyle(Color.primary)
-          if content.isCommons {
-            BadgeView(DiveSiteSummary.commonsLabel, style: .outline) { CommonsMark() }
+          if let mark = content.mark {
+            BadgeView(mark.label, style: .outline) { DiveSiteMarkIcon(mark: mark) }
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(mark.accessibilityLabel)
           }
         }
         if let subtitle = content.subtitle {

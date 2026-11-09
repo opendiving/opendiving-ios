@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The chips over a title: vocabulary abbreviations and a Commons site's mark bordered in the
-/// text's colour, tags filled. Nothing at all when there are none.
+/// The chips over a title: vocabulary abbreviations and a site's mark bordered in the text's
+/// colour, tags filled. Nothing at all when there are none.
 struct ChipsRow: View {
   let chips: [Chip]
 
@@ -23,7 +23,9 @@ private struct ChipView: View {
   var body: some View {
     let shape = RoundedRectangle(cornerRadius: 3)
     HStack(spacing: 2) {
-      if chip.kind == .commons { CommonsMark(side: 12, relativeTo: .caption2) }
+      if case .site(let mark) = chip.kind {
+        DiveSiteMarkIcon(mark: mark, side: 12, relativeTo: .caption2)
+      }
       Text(chip.text).accessibilityLabel(chip.accessibilityLabel)
     }
     .font(.caption2.weight(.semibold))
@@ -33,7 +35,7 @@ private struct ChipView: View {
     .foregroundStyle(isFilled ? Color.white : Color.primary)
     .background {
       switch chip.kind {
-      case .vocabulary, .commons: shape.strokeBorder(Color.primary)
+      case .vocabulary, .site: shape.strokeBorder(Color.primary)
       case .tag, .new: shape.fill(Color.brandTeal)
       case .modified: shape.fill(Color.brandCoral)
       }
@@ -42,7 +44,7 @@ private struct ChipView: View {
 
   private var isFilled: Bool {
     switch chip.kind {
-    case .vocabulary, .commons: false
+    case .vocabulary, .site: false
     case .tag, .new, .modified: true
     }
   }
@@ -52,7 +54,7 @@ private struct ChipView: View {
   ChipsRow(chips: [
     Chip(text: "FW", accessibilityLabel: "Fresh water", kind: .vocabulary),
     Chip(text: "CCR", accessibilityLabel: "Closed circuit", kind: .vocabulary),
-    Chip(text: "Commons", accessibilityLabel: "OpenDiving Commons site", kind: .commons),
+    DiveSiteMark.commons.chip, DiveSiteMark.proposed.chip, DiveSiteMark.private.chip,
     .tag("wreck"), .tag("night"),
   ])
   .padding()
