@@ -148,6 +148,17 @@ jobs:
           path: .build/SourcePackages
           key: ${{ steps.packages.outputs.cache-primary-key }}
 
+      # Xcode's compilation cache, keyed by content, so a pull request or a queue entry replays
+      # every compile its change leaves alone. Only `main` saves it, from a cold build, so the
+      # saved cache holds one build and never accumulates entries nothing will hit again.
+      - name: Restore the compilation cache
+        if: github.event_name != 'push'
+        uses: actions/cache/restore@v6
+        with:
+          path: .build/CompilationCache.noindex
+          key: xcode-cas-${{ runner.os }}-${{ github.sha }}
+          restore-keys: xcode-cas-${{ runner.os }}-
+
       # No index store: nothing reads one on a runner, and writing it slows every compile. The
       # simulator is left for xcodebuild to boot: booted earlier, xcodebuild waits for it before
       # it starts building, and the boot slows whatever else is running.
@@ -158,4 +169,13 @@ jobs:
             -scheme OpenDiving \
             -destination "id=$(scripts/simulator.sh)" \
             -derivedDataPath .build \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$PWD/.build/CompilationCache.noindex"
+
+      - name: Save the compilation cache
+        if: ${{ !cancelled() && github.event_name == 'push' }}
+        uses: actions/cache/save@v6
+        with:
+          path: .build/CompilationCache.noindex
+          key: xcode-cas-${{ runner.os }}-${{ github.sha }}
