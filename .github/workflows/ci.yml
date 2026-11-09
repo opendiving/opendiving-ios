@@ -103,6 +103,34 @@ jobs:
       - name: Show the toolchain
         run: xcodebuild -version
 
+      # The package checkouts and MapLibre's binary, so a run needs nothing from GitHub's
+      # release downloads, which have failed this job before the code compiled. A restored
+      # SourcePackages resolves offline even without a Package.resolved, which the generated
+      # project only gains by resolving — so the manifests that name the pins are the key, and
+      # an older entry seeds a run whose pins moved.
+      - name: Restore the packages
+        id: packages
+        uses: actions/cache/restore@v6
+        with:
+          path: .build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('project.yml', 'Packages/OpenDivingKit/Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Resolve the packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project OpenDiving.xcodeproj \
+            -scheme OpenDiving \
+            -derivedDataPath .build
+
+      # Saved once resolved rather than at the end, so a failing test still leaves the cache.
+      - name: Save the packages
+        if: steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: .build/SourcePackages
+          key: ${{ steps.packages.outputs.cache-primary-key }}
+
       - name: Build and test
         run: |
           xcodebuild test \
