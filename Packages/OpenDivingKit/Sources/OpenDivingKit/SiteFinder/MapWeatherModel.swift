@@ -49,7 +49,8 @@ public final class MapWeatherModel {
   }
 
   /// Shows the weather at `cell`, from what is held or, once the map has rested there, from
-  /// the server. Meant for a task restarted with each cell, whose cancellation is a pan onward.
+  /// the server. An answer lands only while the map still shows `cell`: a pan onward cancels the
+  /// task that asked, but not one a route appearing started.
   public func show(_ cell: Cell?) async {
     shown = cell
     if session.state.origin != origin {
@@ -66,7 +67,7 @@ public final class MapWeatherModel {
       return
     }
     try? await Task.sleep(for: settleDelay)
-    guard !Task.isCancelled else { return }
+    guard isShown(cell) else { return }
     // Another cell's weather would be wrong here, and there is none to show for this one.
     guard let client = try? session.routedClient() else {
       current = nil
@@ -77,17 +78,20 @@ public final class MapWeatherModel {
       read = try await client.currentConditions(
         latitude: cell.latitude, longitude: cell.longitude)
     } catch {
-      if !Task.isCancelled { current = nil }
+      if isShown(cell) { current = nil }
       return
     }
-    guard !Task.isCancelled else { return }
     guard let read else {
       isOff = true
       current = nil
       return
     }
     held[cell] = (now(), read)
-    current = read
+    if isShown(cell) { current = read }
+  }
+
+  private func isShown(_ cell: Cell) -> Bool {
+    !Task.isCancelled && shown == cell
   }
 
   /// Asks about the cell the map shows each time a route appears, until the calling task is

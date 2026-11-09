@@ -164,6 +164,31 @@ struct MapWeatherTests {
     #expect(asked.all == ["28.5,34.5", "27.9,34.3"])
   }
 
+  @Test func anAnswerForACellPannedAwayFromNeverReachesTheBar() async throws {
+    let dahab = Self.dahab
+    let sharm = dahab.replacingOccurrences(of: #""weather_code":2"#, with: #""weather_code":0"#)
+    let gate = Gate()
+    let world = try FormWorld()
+    world.server.override { request, _ in
+      guard request.route == "GET dive-conditions/current" else { return nil }
+      if request.url?.query?.contains("latitude=28.5") == true {
+        await gate.pass()
+        return .json(dahab)
+      }
+      return .json(sharm)
+    }
+    try await world.session.loadAccount()
+    let model = model(world)
+    // Dahab asked about as a route appearing asks, on a task no pan cancels.
+    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)) }
+    await gate.untilArrived()
+    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    #expect(model.current?.weather?.weatherCode == 0)
+    await gate.open()
+    await asking.value
+    #expect(model.current?.weather?.weatherCode == 0)
+  }
+
   @Test func anInstanceThatFetchesNoConditionsIsAskedOnce() async throws {
     let asked = Asked()
     let world = try await world(
