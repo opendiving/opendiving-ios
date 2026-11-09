@@ -176,7 +176,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
   private var statusBarBlur: some View {
     let scene = UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first
     let height = scene?.statusBarManager?.statusBarFrame.height ?? 0
-    return ProgressiveBlur(edge: .top, radius: 3, hold: 0.5)
+    return ProgressiveBlur(edge: .top, radius: 1, hold: 0.5)
       .frame(height: height + 6)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .ignoresSafeArea()
