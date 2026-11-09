@@ -66,7 +66,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
   /// than the content. It starts a third of the way down the card.
   private var glass: some View {
     GeometryReader { proxy in
-      ProgressiveBlur(edge: .bottom, radius: 1)
+      ProgressiveBlur(edge: .bottom, radius: 2)
         .frame(height: proxy.size.height * 0.65)
         .frame(maxHeight: .infinity, alignment: .bottom)
     }
