@@ -17,6 +17,22 @@ struct SiteFinderScreensTests {
     return host.viewIfLoaded
   }
 
+  /// A map with no size yet keeps its cover and its camera for its first layout.
+  @Test func aMapWithNoSizeIsCoveredAndPlacedOnceLaidOut() {
+    let map = MLNMapView(frame: .zero, styleJSON: MapStyleModel.Shown.preview.styleJSON)
+    map.automaticallyAdjustsContentInset = false
+    let coordinator = SiteFinderMap.Coordinator()
+    coordinator.cover(map, with: UIEdgeInsets(top: 50, left: 0, bottom: 300, right: 0))
+    coordinator.move(map, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10))
+    #expect(map.contentInset == .zero)
+    map.frame = CGRect(x: 0, y: 0, width: 320, height: 640)
+    coordinator.laidOut(map)
+    #expect(map.contentInset.bottom == 300)
+    #expect(abs(map.centerCoordinate.latitude - 28.5) < 1e-6)
+    #expect(abs(map.centerCoordinate.longitude - 34.5) < 1e-6)
+    #expect(abs(map.zoomLevel - 10) < 1e-6)
+  }
+
   /// The panel rising leaves the map where it was, its camera now the middle of what shows.
   @Test func coveringTheMapMovesNothingOnScreen() throws {
     let map = MLNMapView(
@@ -27,8 +43,9 @@ struct SiteFinderScreensTests {
       CLLocationCoordinate2D(latitude: 28.5, longitude: 34.5), zoomLevel: 8, animated: false)
     let showingMiddle = CGPoint(x: 160, y: 170)
     let before = map.convert(showingMiddle, toCoordinateFrom: map)
-    SiteFinderMap.Coordinator().cover(
-      map, with: UIEdgeInsets(top: 0, left: 0, bottom: 300, right: 0))
+    let coordinator = SiteFinderMap.Coordinator()
+    coordinator.laidOut(map)
+    coordinator.cover(map, with: UIEdgeInsets(top: 0, left: 0, bottom: 300, right: 0))
     #expect(map.contentInset.bottom == 300)
     let after = map.convert(showingMiddle, toCoordinateFrom: map)
     #expect(abs(after.latitude - before.latitude) < 1e-6)

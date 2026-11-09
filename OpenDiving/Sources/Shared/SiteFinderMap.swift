@@ -24,7 +24,11 @@ struct SiteFinderMap: UIViewRepresentable {
   var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
   func makeUIView(context: Context) -> MLNMapView {
-    let map = MLNMapView(frame: .zero, styleJSON: styleJSON)
+    let map = LaidOutMapView(frame: .zero, styleJSON: styleJSON)
+    map.onLayout = { [weak coordinator = context.coordinator, weak map] in
+      guard let coordinator, let map else { return }
+      coordinator.laidOut(map)
+    }
     map.delegate = context.coordinator
     map.isRotateEnabled = false
     map.isPitchEnabled = false
@@ -89,6 +93,10 @@ struct SiteFinderMap: UIViewRepresentable {
     private var wanted = Layers.empty
     private var camera: MapCamera?
     private var isMoving = false
+    /// What covers a map too small yet to be covered, which its first layout applies.
+    private var pendingCover: UIEdgeInsets?
+    /// The map has had a size: before it, a move does not take and a report says the world.
+    private var isPlaced = false
     /// A tapped cluster's zoom, which is the diver's move although the map is told to make it.
     private var zoomedIntoCluster = false
 
@@ -143,13 +151,15 @@ struct SiteFinderMap: UIViewRepresentable {
     /// The content inset is what puts the camera in the middle of what shows; changed, the map
     /// would keep its centre at the new middle, so it is handed the point already there instead.
     func cover(_ map: MLNMapView, with covered: UIEdgeInsets) {
-      guard covered != map.contentInset else { return }
+      guard covered != (pendingCover ?? map.contentInset) else { return }
       let bounds = map.bounds
       let showing = bounds.inset(by: covered)
-      guard !bounds.isEmpty, showing.height > 0 else {
-        map.contentInset = covered
+      // An inset taller than the map leaves no middle, and the camera's move then goes astray.
+      guard isPlaced, showing.height > 0 else {
+        pendingCover = covered
         return
       }
+      pendingCover = nil
       let middle = map.convert(CGPoint(x: showing.midX, y: showing.midY), toCoordinateFrom: map)
       isMoving = true
       map.contentInset = covered
@@ -161,9 +171,37 @@ struct SiteFinderMap: UIViewRepresentable {
       }
     }
 
+    /// The first layout with a size puts the camera there; a later one applies the cover a map too
+    /// small for it waited for, the camera then in the middle of what shows.
+    func laidOut(_ map: MLNMapView) {
+      guard !map.bounds.isEmpty else { return }
+      var covered: UIEdgeInsets?
+      if let pending = pendingCover, map.bounds.inset(by: pending).height > 0 {
+        covered = pending
+      }
+      guard !isPlaced || covered != nil else { return }
+      isPlaced = true
+      isMoving = true
+      if let covered {
+        pendingCover = nil
+        map.contentInset = covered
+      }
+      if let camera {
+        map.setCenter(
+          CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
+          zoomLevel: camera.zoom, animated: false)
+      }
+      isMoving = false
+      DispatchQueue.main.async { [weak self, weak map] in
+        guard let self, let map else { return }
+        report(map, byGesture: false)
+      }
+    }
+
     func move(_ map: MLNMapView, to camera: MapCamera) {
       guard camera != self.camera else { return }
       self.camera = camera
+      guard isPlaced else { return }
       isMoving = true
       map.setCenter(
         CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
@@ -325,11 +363,22 @@ struct SiteFinderMap: UIViewRepresentable {
     }
 
     private func report(_ map: MLNMapView, byGesture: Bool) {
+      guard isPlaced else { return }
       let reported = MapCamera(
         latitude: map.centerCoordinate.latitude, longitude: map.centerCoordinate.longitude,
         zoom: map.zoomLevel)
       camera = reported
       onCameraChange?(reported, byGesture)
+    }
+  }
+
+  /// A map that says when it is laid out, the first time being when it has a size to cover.
+  final class LaidOutMapView: MLNMapView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      onLayout?()
     }
   }
 

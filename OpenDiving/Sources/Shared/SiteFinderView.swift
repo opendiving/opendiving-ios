@@ -41,8 +41,9 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
           Color(.systemGroupedBackground).ignoresSafeArea()
         }
         topBar
+        // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
         panelView(panel)
-          .frame(maxHeight: .infinity, alignment: .bottom)
+          .offset(y: geometry.size.height - panelHeight(panel))
       }
     }
     // The list is scrolled to reach what the keyboard covers, which dismisses it.
@@ -215,10 +216,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       }
       list
     }
-    .frame(
-      height: map.hasMap ? panel.height(detent, dragged: dragged) : panel.height(.full),
-      alignment: .top
-    )
+    .frame(height: panelHeight(panel), alignment: .top)
     .frame(maxWidth: .infinity)
     .clipShape(shape)
     .background {
@@ -227,6 +225,10 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
         .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
         .ignoresSafeArea(edges: .bottom)
     }
+  }
+
+  private func panelHeight(_ panel: SiteFinderPanel) -> Double {
+    map.hasMap ? panel.height(detent, dragged: dragged) : panel.height(.full)
   }
 
   private static var panelRadius: Double {
