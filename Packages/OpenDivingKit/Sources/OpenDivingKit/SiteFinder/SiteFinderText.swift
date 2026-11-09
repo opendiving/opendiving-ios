@@ -24,7 +24,7 @@ public enum SiteFinderText {
   public static func empty(typed: Bool, yours: Bool) -> String {
     switch (typed, yours) {
     case (true, _): "No dive sites or places match."
-    case (false, true): "No dive sites yet."
+    case (false, true): "None of your dive sites are here."
     case (false, false): "No dive sites here yet."
     }
   }

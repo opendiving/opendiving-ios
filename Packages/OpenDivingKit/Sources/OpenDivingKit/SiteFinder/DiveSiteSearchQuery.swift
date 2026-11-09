@@ -50,7 +50,7 @@ public struct DiveSiteSearchQuery: Hashable, Sendable {
       items.append(URLQueryItem(name: "east", value: Self.text(sent.east)))
     }
     if let until { items.append(URLQueryItem(name: "until", value: until.wireValue)) }
-    if yours { items.append(URLQueryItem(name: "yours", value: "true")) }
+    if yours { items.append(URLQueryItem(name: "my", value: "true")) }
     return items
   }
 
