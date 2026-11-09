@@ -26,6 +26,13 @@ public final class PositionLookup {
 
   public init() {}
 
+  /// A new form's lookup, which asks what is at `pin` from the start: the form opens with its
+  /// position already in the boxes, so no change of position will ask.
+  public convenience init(pinnedAt pin: DeviceLocation?) {
+    self.init()
+    if pin != nil { request = UUID() }
+  }
+
   /// The credit for the place at this position, if it is still the one looked up.
   public func credit(latitude: String, longitude: String) -> String? {
     placed == Placed(latitude: latitude, longitude: longitude) ? credit : nil

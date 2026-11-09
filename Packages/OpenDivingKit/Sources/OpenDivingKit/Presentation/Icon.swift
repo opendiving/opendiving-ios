@@ -28,6 +28,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case idCard = "id-card"
   case landmark
   case locateFixed = "locate-fixed"
+  case lock
   case luggage
   case mapPin = "map-pin"
   case mountain
