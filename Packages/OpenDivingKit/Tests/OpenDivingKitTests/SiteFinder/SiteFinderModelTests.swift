@@ -81,6 +81,22 @@ struct SiteFinderModelTests {
     SiteFinderModel(session: world.session, locator: locator, today: Self.today)
   }
 
+  private static let viewport = (width: 390.0, height: 400.0)
+
+  /// The box a request carries for `camera` over ``viewport``, as the query rounds it.
+  private func box(_ camera: MapCamera) -> [String: String] {
+    let sent = DiveSiteSearchQuery.rounded(
+      camera.bounds(width: Self.viewport.width, height: Self.viewport.height))
+    return [
+      "south": DiveSiteSearchQuery.text(sent.south), "north": DiveSiteSearchQuery.text(sent.north),
+      "west": DiveSiteSearchQuery.text(sent.west), "east": DiveSiteSearchQuery.text(sent.east),
+    ]
+  }
+
+  private func sentBox(_ query: [String: String]) -> [String: String] {
+    query.filter { ["south", "north", "west", "east"].contains($0.key) }
+  }
+
   @Test func theFirstRequestCarriesTheCameraItOpenedOnRounded() async throws {
     let (world, searches) = try await world()
     let model = tab(world, FakeFinderLocator(.success(.init(latitude: 12.3456, longitude: 56.789))))
@@ -107,39 +123,97 @@ struct SiteFinderModelTests {
     #expect(model.camera == .world)
   }
 
+  @Test func withAMapTheOpeningListsTheSitesInView() async throws {
+    let (world, searches) = try await world()
+    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    model.hasMap = true
+    model.viewport = Self.viewport
+    await model.open()
+    #expect(searches.queries.count == 1)
+    #expect(sentBox(try #require(searches.queries.last)) == box(model.camera))
+  }
+
+  @Test func aMapMeasuredAfterTheOpeningSendsItAgainNarrowed() async throws {
+    let (world, searches) = try await world()
+    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    await model.open()
+    #expect(searches.queries.last?["south"] == nil)
+    model.hasMap = true
+    model.viewport = Self.viewport
+    while searches.queries.count < 2 { await Task.yield() }
+    #expect(sentBox(try #require(searches.queries.last)) == box(model.camera))
+    model.viewport = (width: 390, height: 600)
+    for _ in 0..<20 { await Task.yield() }
+    #expect(searches.queries.count == 2)
+  }
+
   @Test func panningSendsNothingAndSearchThisAreaSendsTheView() async throws {
     let (world, searches) = try await world()
     let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    model.hasMap = true
+    model.viewport = Self.viewport
     await model.open()
-    let view = LatLonBounds(south: 28.41, north: 28.62, west: 34.40, east: 34.67)
-    model.mapMoved(
-      to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), showing: view, byGesture: false)
+    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: false)
     #expect(!model.offersSearchThisArea)
-    model.mapMoved(
-      to: MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10), showing: view, byGesture: true)
+    let moved = MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10)
+    model.mapMoved(to: moved, byGesture: true)
     #expect(model.offersSearchThisArea)
     #expect(searches.queries.count == 1)
     await model.searchThisArea()
     let sent = try #require(searches.queries.last)
     #expect(sent["latitude"] == "28.51")
     #expect(sent["longitude"] == "34.53")
-    #expect(sent["south"] == "28.41")
-    #expect(sent["east"] == "34.67")
+    #expect(sentBox(sent) == box(moved))
     #expect(!model.offersSearchThisArea)
+  }
+
+  @Test func shownAgainAMovedMapListsItsView() async throws {
+    let (world, searches) = try await world()
+    let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    model.hasMap = true
+    model.viewport = Self.viewport
+    await model.open()
+    await model.open()
+    #expect(searches.queries.count == 1)
+    let moved = MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10)
+    model.mapMoved(to: moved, byGesture: true)
+    await model.open()
+    #expect(searches.queries.count == 2)
+    #expect(sentBox(try #require(searches.queries.last)) == box(moved))
   }
 
   @Test func yourSitesIsNotNarrowedToTheView() async throws {
     let (world, searches) = try await world()
     let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    model.hasMap = true
+    model.viewport = Self.viewport
     await model.open()
+    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
     await model.setYours(true)
-    model.mapMoved(
-      to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10),
-      showing: LatLonBounds(south: 28, north: 29, west: 34, east: 35), byGesture: true)
+    model.mapMoved(to: MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10), byGesture: true)
     #expect(!model.offersSearchThisArea)
     let sent = try #require(searches.queries.last)
     #expect(sent["yours"] == "true")
     #expect(sent["south"] == nil)
+    await model.setYours(false)
+    #expect(sentBox(try #require(searches.queries.last)) == box(model.camera))
+  }
+
+  @Test func aTypedSearchLooksEverywhere() async throws {
+    let (world, searches) = try await world()
+    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    model.hasMap = true
+    model.viewport = Self.viewport
+    await model.open()
+    model.text = "Blue Hole"
+    await model.typed()
+    let sent = try #require(searches.queries.last)
+    #expect(sent["q"] == "Blue Hole")
+    #expect(sent["latitude"] == "28.50")
+    #expect(sent["south"] == nil)
+    model.text = ""
+    await model.typed()
+    #expect(sentBox(try #require(searches.queries.last)) == box(model.camera))
   }
 
   @Test func typingSendsOneRequestPerTextAndPickingAPlaceListsTheSitesNearIt() async throws {
@@ -165,17 +239,21 @@ struct SiteFinderModelTests {
     #expect(sent["south"] == nil)
   }
 
-  @Test func useMyLocationMovesTheMapAndSendsNothingUntilTheAreaIsSearched() async throws {
+  @Test func useMyLocationMovesTheMapAndListsTheSitesInView() async throws {
     let (world, searches) = try await world()
     let locator = FakeFinderLocator(.failure(.denied))
     let model = tab(world, locator)
-    await model.open()
     model.hasMap = true
+    model.viewport = Self.viewport
+    await model.open()
     locator.outcome = .success(.init(latitude: -8.27, longitude: 115.6))
     await model.useMyLocation()
     #expect(model.camera.latitude == -8.27)
-    #expect(model.offersSearchThisArea)
-    #expect(searches.queries.count == 1)
+    #expect(!model.offersSearchThisArea)
+    #expect(searches.queries.count == 2)
+    let sent = try #require(searches.queries.last)
+    #expect(sent["latitude"] == "-8.27")
+    #expect(sentBox(sent) == box(model.camera))
   }
 
   @Test func withNoMapUseMyLocationSearchesAtOnce() async throws {

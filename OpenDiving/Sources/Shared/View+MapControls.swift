@@ -2,10 +2,13 @@ import SwiftUI
 
 // What floats on a full-screen map: the location picker's and the site finder's.
 extension View {
-  /// A control floating on the map: the toolbar's glass, or its material before iOS 26.
-  @ViewBuilder func pickerControl(in shape: some Shape) -> some View {
+  /// A control floating on the map: the toolbar's glass, or its material before iOS 26; tinted,
+  /// a control switched on.
+  @ViewBuilder func pickerControl(in shape: some Shape, tint: Color? = nil) -> some View {
     if #available(iOS 26, *) {
-      glassEffect(.regular.interactive(), in: shape)
+      glassEffect(.regular.tint(tint).interactive(), in: shape)
+    } else if let tint {
+      background(tint, in: shape)
     } else {
       background(.regularMaterial, in: shape)
     }

@@ -100,4 +100,26 @@ struct MapCameraTests {
     let camera = MapCamera.fit([Self.fiji], width: 48, height: 48)
     #expect(camera.zoom.isFinite)
   }
+
+  @Test func theBoundsAreWhatTheFrameShows() {
+    let camera = MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10)
+    let bounds = camera.bounds(width: 390, height: 400)
+    #expect(abs(bounds.west - (34.5 - degreesAcross(195, at: 10))) < 1e-9)
+    #expect(abs(bounds.east - (34.5 + degreesAcross(195, at: 10))) < 1e-9)
+    #expect(bounds.south < 28.5 && bounds.north > 28.5)
+    // Mercator stretches the north half, so it holds fewer degrees than the south.
+    #expect(bounds.north - 28.5 < 28.5 - bounds.south)
+    let fitted = MapCamera.fit([Self.fiji, Self.samoa, Self.tonga], width: 360, height: 200)
+    let shown = fitted.bounds(width: 360, height: 200)
+    for point in [Self.fiji, Self.tonga] {
+      #expect(shown.south < point.latitude && point.latitude < shown.north)
+    }
+  }
+
+  @Test func theWorldsBoundsStopWhereMercatorIsCut() {
+    let bounds = MapCamera.world.bounds(width: 390, height: 2000)
+    #expect(abs(bounds.north - 85.0511287798066) < 1e-9)
+    #expect(abs(bounds.south + 85.0511287798066) < 1e-9)
+    #expect(bounds.east - bounds.west > 270)
+  }
 }

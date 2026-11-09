@@ -1,25 +1,19 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Sites* tab: the site finder over the diver's sites and the Commons, each site opening its
-/// page, the `+` that adds one and a long press on the map that adds one where it was pressed.
-/// Under *Your sites* it is the diver's list, the most recently dived first, as cards.
+/// The *Sites* tab: the site finder over the diver's sites and the Commons, full screen under no
+/// bar, each site opening its page, the `+` that adds one and a long press on the map that adds
+/// one where it was pressed. Under *Your sites* it is the diver's list, the most recently dived
+/// first, as cards.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
   var body: some View {
     NavigationStack {
       SitesFinder(session: session)
+        // Never shown: it is what a site's page offers to go back to.
         .navigationTitle("Sites")
-        .toolbar {
-          ToolbarItem(placement: .primaryAction) {
-            NavigationLink {
-              DiveSiteFormView(mode: .create)
-            } label: {
-              Label("Add dive site", systemImage: "plus")
-            }
-          }
-        }
+        .toolbar(.hidden, for: .navigationBar)
     }
   }
 }
@@ -50,10 +44,18 @@ private struct SitesFinder: View {
     SiteFinderView(
       model: model, map: map, units: session.units, pointAction: "Open site", showsCards: true,
       onSite: { site in opened = site.ref.serverUUID },
-      onLongPress: { adding = PinnedNewSite(pin: $0) }
-    ) {
-      proposalsRow
-    }
+      onLongPress: { adding = PinnedNewSite(pin: $0) },
+      leading: { proposalsButton },
+      trailing: {
+        NavigationLink {
+          DiveSiteFormView(mode: .create)
+        } label: {
+          Image(Icon.plus)
+        }
+        .accessibilityLabel("Add dive site")
+        .buttonStyle(MapRoundButtonStyle())
+      }
+    )
     .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
     // Nothing else on this tab asks the server what it is until a card with a pin draws its map.
@@ -61,24 +63,15 @@ private struct SitesFinder: View {
   }
 
   /// Only where the instance takes proposals, whose routes answer nowhere else.
-  @ViewBuilder private var proposalsRow: some View {
+  @ViewBuilder private var proposalsButton: some View {
     if session.isCommonsPrimary {
       NavigationLink {
         YourProposalsView()
       } label: {
-        HStack(spacing: 8) {
-          Label(YourProposalsView.title, icon: .landmark)
-            .frame(maxWidth: .infinity, alignment: .leading)
-          Image(systemName: "chevron.right")
-            .foregroundStyle(.tertiary)
-            .accessibilityHidden(true)
-        }
-        .font(.subheadline)
-        .padding(12)
-        .background(
-          Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        CommonsMark(side: 22, relativeTo: .body)
       }
-      .buttonStyle(.plain)
+      .accessibilityLabel(YourProposalsView.title)
+      .buttonStyle(MapRoundButtonStyle())
     }
   }
 }

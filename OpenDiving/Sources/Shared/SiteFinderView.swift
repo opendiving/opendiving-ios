@@ -2,11 +2,12 @@ import CoreLocation
 import OpenDivingKit
 import SwiftUI
 
-/// The site finder the Sites tab is and the dive form's site picker opens: the map over the list,
-/// the search in the bar the system places, *Your sites*, *Search this area* once the map has
-/// moved and *Use my location*. With no map on the instance the list and the search stand alone.
-/// What a site does when chosen, and what goes over the list, are the host's.
-struct SiteFinderView<Header: View>: View {
+/// The site finder the Sites tab is and the dive form's site picker opens: the map full screen
+/// under a panel that holds the search and the list, *Your sites* and *Use my location* floating
+/// over the map's corner above the panel, and *Search this area* once the map has moved. With no
+/// map on the instance the panel stands alone, at its tallest. What a site does when chosen, and
+/// the controls in the top corners, are the host's.
+struct SiteFinderView<Leading: View, Trailing: View>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
   let units: UnitSystem
@@ -21,23 +22,40 @@ struct SiteFinderView<Header: View>: View {
   /// What the dive form lists while the search cannot reach the server: the phone's lookup rows.
   var offlineRows: ((String) -> [FormPickerRow])?
   var onOfflineRow: (FormPickerRow) -> Void = { _ in }
-  @ViewBuilder let header: () -> Header
+  @ViewBuilder let leading: () -> Leading
+  @ViewBuilder let trailing: () -> Trailing
+
+  @State private var detent = SiteFinderPanel.Detent.half
+  /// How far the panel's drag has pulled it up.
+  @GestureState(resetTransaction: Transaction(animation: .snappy)) private var dragged = 0.0
+  @FocusState private var typing: Bool
 
   var body: some View {
     @Bindable var model = model
-    VStack(spacing: 0) {
-      if let style = map.shown {
-        mapArea(style)
-          .containerRelativeFrame(.vertical) { height, _ in height * 0.42 }
+    GeometryReader { geometry in
+      let panel = SiteFinderPanel(available: geometry.size.height)
+      ZStack(alignment: .top) {
+        if let style = map.shown {
+          mapArea(style, geometry: geometry, panel: panel)
+        } else {
+          Color(.systemGroupedBackground).ignoresSafeArea()
+        }
+        topBar
+        // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
+        panelView(panel, below: geometry.safeAreaInsets.bottom)
+          .offset(y: geometry.size.height - panelHeight(panel))
       }
-      controls
-      list
     }
-    .background(Color(.systemGroupedBackground))
-    .searchable(text: $model.text, prompt: SiteFinderText.searchPrompt)
-    .autocorrectionDisabled()
+    // The list is scrolled to reach what the keyboard covers, which dismisses it.
+    .ignoresSafeArea(.keyboard)
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
+    .onChange(of: typing) { _, typing in
+      if typing { withAnimation(.snappy) { detent = .full } }
+    }
+    .onChange(of: detent) { _, detent in
+      if detent != .full { typing = false }
+    }
     .task { await model.open() }
     .task { await model.points.load() }
     .task { await model.followRoute() }
@@ -58,103 +76,219 @@ struct SiteFinderView<Header: View>: View {
 
   // MARK: - The map
 
-  private func mapArea(_ style: MapStyleModel.Shown) -> some View {
-    ZStack {
+  /// The detent the map makes room for: at its tallest the panel hides the map, which keeps the
+  /// half it had.
+  private var mapDetent: SiteFinderPanel.Detent {
+    detent == .full ? .half : detent
+  }
+
+  private func mapArea(
+    _ style: MapStyleModel.Shown, geometry: GeometryProxy, panel: SiteFinderPanel
+  ) -> some View {
+    let covered = UIEdgeInsets(
+      top: geometry.safeAreaInsets.top, left: 0,
+      bottom: geometry.safeAreaInsets.bottom + panel.height(mapDetent), right: 0)
+    let shown = (
+      width: Double(geometry.size.width),
+      height: max(0, geometry.size.height - panel.height(mapDetent))
+    )
+    let height = panel.height(detent, dragged: dragged)
+    return ZStack(alignment: .bottom) {
       SiteFinderMap(
-        styleJSON: style.styleJSON, camera: model.camera,
+        styleJSON: style.styleJSON, camera: model.camera, covered: covered,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
         selected: model.selected,
-        onCameraChange: { camera, view, byGesture in
-          model.mapMoved(to: camera, showing: view, byGesture: byGesture)
-        },
+        onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
         onPoint: { model.select($0) },
         onLongPress: onLongPress.map { add in
           { add(DeviceLocation(latitude: $0.latitude, longitude: $0.longitude)) }
         }
       )
       .accessibilityLabel("Map of dive sites")
-      .onGeometryChange(for: CGSize.self) {
-        $0.size
-      } action: {
-        model.viewport = (width: $0.width, height: $0.height)
+      .ignoresSafeArea()
+      .onChange(of: [shown.width, shown.height], initial: true) {
+        model.viewport = shown
       }
-      VStack {
-        if model.offersSearchThisArea {
-          Button(SiteFinderText.searchThisArea) {
-            Task { await model.searchThisArea() }
-          }
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.primary)
-          .padding(.horizontal, 16)
-          .frame(height: 36)
-          .buttonStyle(.plain)
-          .pickerControl(in: Capsule())
-          .padding(.top, 12)
-        }
+      HStack(alignment: .bottom) {
+        MapCredit(credit: style.credit)
         Spacer()
-        HStack(alignment: .bottom) {
-          MapCredit(credit: style.credit)
-          Spacer()
+        VStack(spacing: 12) {
+          yoursButton
           locateButton
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
       }
+      .padding(.horizontal, 12)
+      .padding(.bottom, height + 12)
+      // Over the half the panel opens to, they would sit over the list.
+      .opacity(height > panel.height(.half) + 1 ? 0 : 1)
+      .animation(.snappy, value: detent)
     }
-    .clipped()
   }
 
   private var locateButton: some View {
     Button {
       Task { await model.useMyLocation() }
     } label: {
-      Group {
-        if model.isLocating {
-          BubbleSpinner()
-        } else {
-          Image(Icon.locateFixed)
-        }
+      if model.isLocating {
+        BubbleSpinner()
+      } else {
+        Image(Icon.locateFixed)
       }
-      .frame(width: 44, height: 44)
-      .contentShape(Circle())
     }
     .accessibilityLabel(model.isLocating ? SiteFinderText.locating : SiteFinderText.useMyLocation)
-    .foregroundStyle(.primary)
-    .buttonStyle(.plain)
+    .buttonStyle(MapRoundButtonStyle())
     .disabled(model.isLocating)
-    .pickerControl(in: Circle())
   }
 
-  // MARK: - The filter
+  private var yoursButton: some View {
+    Button {
+      Task { await model.setYours(!model.yours) }
+    } label: {
+      Image(Icon.bookmark)
+    }
+    .accessibilityLabel(SiteFinderText.yoursLabel)
+    .accessibilityAddTraits(model.yours ? .isSelected : [])
+    .buttonStyle(MapRoundButtonStyle(isOn: model.yours))
+  }
 
-  private var controls: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack {
-        Toggle(
-          SiteFinderText.yoursLabel,
-          isOn: Binding(
-            get: { model.yours }, set: { on in Task { await model.setYours(on) } })
-        )
-        .toggleStyle(.button)
-        .buttonStyle(.bordered)
-        .tint(model.yours ? Color.brandTeal : Color.secondary)
-        Spacer()
-        if !map.hasMap {
-          Button {
-            Task { await model.useMyLocation() }
-          } label: {
-            Label(SiteFinderText.useMyLocation, icon: .locateFixed)
-          }
-          .disabled(model.isLocating)
-        }
+  // MARK: - Over the map
+
+  /// The host's corners, *Search this area* between them; without a map, the filter and the
+  /// location, which have no map to float over, beside the host's trailing control.
+  private var topBar: some View {
+    HStack(alignment: .top, spacing: 12) {
+      leading()
+      Spacer(minLength: 0)
+      if !map.hasMap {
+        yoursButton
+        locateButton
       }
-      if let failure = model.locationFailure {
-        FieldMessage(SiteFinderText.locationFailure(failure))
+      trailing()
+    }
+    .overlay(alignment: .top) {
+      if model.offersSearchThisArea && map.hasMap {
+        Button(SiteFinderText.searchThisArea) {
+          Task { await model.searchThisArea() }
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 16)
+        .frame(height: 36)
+        .buttonStyle(.plain)
+        .pickerControl(in: Capsule())
+        .padding(.top, 4)
       }
     }
-    .font(.subheadline)
-    .padding(.horizontal)
-    .padding(.vertical, 8)
+    .padding(.horizontal, 16)
+    .padding(.top, 8)
+  }
+
+  // MARK: - The panel
+
+  /// `below` is the safe area under the panel, the tab bar's or the home indicator's, which its
+  /// fill runs on through.
+  private func panelView(_ panel: SiteFinderPanel, below: Double) -> some View {
+    let shape = UnevenRoundedRectangle(
+      topLeadingRadius: Self.panelRadius, topTrailingRadius: Self.panelRadius)
+    return VStack(spacing: 0) {
+      VStack(spacing: 0) {
+        if map.hasMap { handle(panel) }
+        searchField
+          .padding(.horizontal, 16)
+          .padding(.top, map.hasMap ? 0 : 16)
+          .padding(.bottom, 12)
+      }
+      .contentShape(Rectangle())
+      .gesture(map.hasMap ? drag(panel) : nil)
+      if let failure = model.locationFailure {
+        FieldMessage(SiteFinderText.locationFailure(failure))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 16)
+          .padding(.bottom, 8)
+      }
+      list
+    }
+    .frame(height: panelHeight(panel), alignment: .top)
+    .frame(maxWidth: .infinity)
+    .clipShape(shape)
+    .background {
+      shape
+        .fill(Color(.systemGroupedBackground))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
+        .padding(.bottom, -below)
+    }
+  }
+
+  private func panelHeight(_ panel: SiteFinderPanel) -> Double {
+    map.hasMap ? panel.height(detent, dragged: dragged) : panel.height(.full)
+  }
+
+  private static var panelRadius: Double {
+    if #available(iOS 26, *) { 26 } else { 12 }
+  }
+
+  /// Drags the panel, and steps it for VoiceOver and a tap.
+  private func handle(_ panel: SiteFinderPanel) -> some View {
+    Capsule()
+      .fill(.tertiary)
+      .frame(width: 36, height: 5)
+      .padding(.vertical, 8)
+      .frame(maxWidth: .infinity)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        withAnimation(.snappy) { detent = detent == .half ? .full : .half }
+      }
+      .accessibilityElement()
+      .accessibilityLabel("List of dive sites")
+      .accessibilityValue(Self.spoken(detent))
+      .accessibilityAdjustableAction { direction in
+        let all = SiteFinderPanel.Detent.allCases
+        guard let at = all.firstIndex(of: detent) else { return }
+        switch direction {
+        case .increment where at + 1 < all.count: detent = all[at + 1]
+        case .decrement where at > 0: detent = all[at - 1]
+        default: break
+        }
+      }
+  }
+
+  private static func spoken(_ detent: SiteFinderPanel.Detent) -> String {
+    switch detent {
+    case .collapsed: "Collapsed"
+    case .half: "Half screen"
+    case .full: "Full screen"
+    }
+  }
+
+  private func drag(_ panel: SiteFinderPanel) -> some Gesture {
+    DragGesture(minimumDistance: 8, coordinateSpace: .global)
+      .updating($dragged) { value, state, _ in state = -value.translation.height }
+      .onEnded { value in
+        withAnimation(.snappy) {
+          detent = panel.settle(from: detent, predicted: -value.predictedEndTranslation.height)
+        }
+      }
+  }
+
+  private var searchField: some View {
+    @Bindable var model = model
+    return HStack(spacing: 8) {
+      Image(Icon.search)
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+      TextField(SiteFinderText.searchPrompt, text: $model.text)
+        .autocorrectionDisabled()
+        .submitLabel(.search)
+        .focused($typing)
+      if !model.text.isEmpty {
+        Button("Clear search", systemImage: "xmark.circle.fill") { model.text = "" }
+          .labelStyle(.iconOnly)
+          .foregroundStyle(.secondary)
+      }
+    }
+    .padding(.horizontal, 14)
+    .frame(height: 44)
+    .background(Color(.secondarySystemGroupedBackground), in: Capsule())
   }
 
   // MARK: - The list
@@ -162,10 +296,10 @@ struct SiteFinderView<Header: View>: View {
   private var list: some View {
     ScrollView {
       LazyVStack(spacing: 12) {
-        header()
         content
       }
-      .padding()
+      .padding(.horizontal)
+      .padding(.bottom)
     }
     .scrollDismissesKeyboard(.immediately)
     .bubbleRefreshable { await model.list?.refresh() }
@@ -224,6 +358,8 @@ struct SiteFinderView<Header: View>: View {
       .buttonStyle(.plain)
     case .place(let item):
       Button {
+        typing = false
+        withAnimation(.snappy) { detent = .half }
         Task { await model.pick(item) }
       } label: {
         SiteFinderRow(content: SiteFinderRowContent(row, units: units))
@@ -321,7 +457,7 @@ private struct SiteFinderPointSheet: View {
         session: session, locator: CoreLocationProvider(),
         today: CalendarDate(year: 2026, month: 11, day: 8)!),
       map: MapStyleModel(session: session), units: .metric, pointAction: "Open site",
-      onSite: { _ in }, header: { EmptyView() })
+      onSite: { _ in }, leading: { EmptyView() }, trailing: { EmptyView() })
   }
   .environment(session)
 }

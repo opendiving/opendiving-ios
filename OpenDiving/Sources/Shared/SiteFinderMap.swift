@@ -9,19 +9,25 @@ import SwiftUI
 /// point's tap names it; a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
-  /// Where the map looks. A change jumps it there; every move comes back through
-  /// `onCameraChange`, saying whether a gesture made it.
+  /// Where the map looks, at the middle of what `covered` leaves showing. A change jumps it there;
+  /// every move comes back through `onCameraChange`, saying whether a gesture made it.
   let camera: MapCamera
+  /// What the screen draws over the map, which a change leaves where it was.
+  var covered = UIEdgeInsets.zero
   /// Nil hides the Commons layer.
   let commons: CommonsDiveSitePoints?
   let yours: [DiveSitePoint]
   let selected: SiteFinderPoint?
-  let onCameraChange: (MapCamera, LatLonBounds, Bool) -> Void
+  let onCameraChange: (MapCamera, Bool) -> Void
   let onPoint: (UUID) -> Void
   var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
   func makeUIView(context: Context) -> MLNMapView {
-    let map = MLNMapView(frame: .zero, styleJSON: styleJSON)
+    let map = LaidOutMapView(frame: .zero, styleJSON: styleJSON)
+    map.onLayout = { [weak coordinator = context.coordinator, weak map] in
+      guard let coordinator, let map else { return }
+      coordinator.laidOut(map)
+    }
     map.delegate = context.coordinator
     map.isRotateEnabled = false
     map.isPitchEnabled = false
@@ -31,6 +37,7 @@ struct SiteFinderMap: UIViewRepresentable {
     map.attributionButton.isHidden = true
     map.minimumZoomLevel = MapCamera.minZoom
     map.maximumZoomLevel = MapCamera.maxZoom
+    map.automaticallyAdjustsContentInset = false
     context.coordinator.styleJSON = styleJSON
     context.coordinator.fonts = MapStyleFonts.textFont(in: styleJSON)
     context.coordinator.listen(on: map)
@@ -55,6 +62,7 @@ struct SiteFinderMap: UIViewRepresentable {
           [MapPoint(name: $0.name, latitude: $0.latitude, longitude: $0.longitude)]
         } ?? []),
       on: map)
+    coordinator.cover(map, with: covered)
     coordinator.move(map, to: camera)
   }
 
@@ -72,7 +80,7 @@ struct SiteFinderMap: UIViewRepresentable {
   }
 
   final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
-    var onCameraChange: ((MapCamera, LatLonBounds, Bool) -> Void)?
+    var onCameraChange: ((MapCamera, Bool) -> Void)?
     var onPoint: ((UUID) -> Void)?
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
     var styleJSON = ""
@@ -83,6 +91,10 @@ struct SiteFinderMap: UIViewRepresentable {
     private var wanted = Layers.empty
     private var camera: MapCamera?
     private var isMoving = false
+    /// What covers a map too small yet to be covered, which its first layout applies.
+    private var pendingCover: UIEdgeInsets?
+    /// The map has had a size: before it, a move does not take and a report says the world.
+    private var isPlaced = false
     /// A tapped cluster's zoom, which is the diver's move although the map is told to make it.
     private var zoomedIntoCluster = false
 
@@ -130,9 +142,60 @@ struct SiteFinderMap: UIViewRepresentable {
       drawn = layers
     }
 
+    /// The content inset is what puts the camera in the middle of what shows; changed, the map
+    /// would keep its centre at the new middle, so it is handed the point already there instead.
+    func cover(_ map: MLNMapView, with covered: UIEdgeInsets) {
+      guard covered != (pendingCover ?? map.contentInset) else { return }
+      let bounds = map.bounds
+      let showing = bounds.inset(by: covered)
+      // An inset taller than the map leaves no middle, and the camera's move then goes astray.
+      guard isPlaced, showing.height > 0 else {
+        pendingCover = covered
+        return
+      }
+      pendingCover = nil
+      let middle = map.convert(CGPoint(x: showing.midX, y: showing.midY), toCoordinateFrom: map)
+      isMoving = true
+      map.contentInset = covered
+      map.setCenter(middle, zoomLevel: map.zoomLevel, animated: false)
+      isMoving = false
+      DispatchQueue.main.async { [weak self, weak map] in
+        guard let self, let map else { return }
+        report(map, byGesture: false)
+      }
+    }
+
+    /// The first layout with a size puts the camera there; a later one applies the cover a map too
+    /// small for it waited for, the camera then in the middle of what shows.
+    func laidOut(_ map: MLNMapView) {
+      guard !map.bounds.isEmpty else { return }
+      var covered: UIEdgeInsets?
+      if let pending = pendingCover, map.bounds.inset(by: pending).height > 0 {
+        covered = pending
+      }
+      guard !isPlaced || covered != nil else { return }
+      isPlaced = true
+      isMoving = true
+      if let covered {
+        pendingCover = nil
+        map.contentInset = covered
+      }
+      if let camera {
+        map.setCenter(
+          CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
+          zoomLevel: camera.zoom, animated: false)
+      }
+      isMoving = false
+      DispatchQueue.main.async { [weak self, weak map] in
+        guard let self, let map else { return }
+        report(map, byGesture: false)
+      }
+    }
+
     func move(_ map: MLNMapView, to camera: MapCamera) {
       guard camera != self.camera else { return }
       self.camera = camera
+      guard isPlaced else { return }
       isMoving = true
       map.setCenter(
         CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
@@ -291,17 +354,22 @@ struct SiteFinderMap: UIViewRepresentable {
     }
 
     private func report(_ map: MLNMapView, byGesture: Bool) {
+      guard isPlaced else { return }
       let reported = MapCamera(
         latitude: map.centerCoordinate.latitude, longitude: map.centerCoordinate.longitude,
         zoom: map.zoomLevel)
       camera = reported
-      let bounds = map.visibleCoordinateBounds
-      onCameraChange?(
-        reported,
-        LatLonBounds(
-          south: bounds.sw.latitude, north: bounds.ne.latitude, west: bounds.sw.longitude,
-          east: bounds.ne.longitude),
-        byGesture)
+      onCameraChange?(reported, byGesture)
+    }
+  }
+
+  /// A map that says when it is laid out, the first time being when it has a size to cover.
+  final class LaidOutMapView: MLNMapView {
+    var onLayout: (() -> Void)?
+
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      onLayout?()
     }
   }
 
@@ -330,5 +398,5 @@ struct SiteFinderMap: UIViewRepresentable {
       DiveSitePoint(
         longitude: 34.5372, latitude: 28.5722, uuid: UUID(), name: "Blue Hole",
         owner: DiveSiteOwner.account)
-    ], selected: nil, onCameraChange: { _, _, _ in }, onPoint: { _ in })
+    ], selected: nil, onCameraChange: { _, _ in }, onPoint: { _ in })
 }

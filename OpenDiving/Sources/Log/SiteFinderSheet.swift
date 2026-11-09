@@ -33,22 +33,27 @@ struct SiteFinderSheet: View {
           form.remember(row)
           form.addSite(row.ref)
           dismiss()
-        }
-      ) {
-        EmptyView()
-      }
-      .navigationTitle(SiteFinderText.diveFormTitle)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
-        }
-        ToolbarItem(placement: .primaryAction) {
-          Button(FormPicker.diveSites.addLabel, systemImage: "plus") {
-            adding = AddingSite(pin: nil)
+        },
+        leading: {
+          Button {
+            dismiss()
+          } label: {
+            Image(Icon.x)
           }
+          .accessibilityLabel("Cancel")
+          .buttonStyle(MapRoundButtonStyle())
+        },
+        trailing: {
+          Button {
+            adding = AddingSite(pin: nil)
+          } label: {
+            Image(Icon.plus)
+          }
+          .accessibilityLabel(FormPicker.diveSites.addLabel)
+          .buttonStyle(MapRoundButtonStyle())
         }
-      }
+      )
+      .toolbar(.hidden, for: .navigationBar)
       .sheet(item: $adding) { site in
         FormPicker.diveSites.addSheet(
           pin: site.pin,

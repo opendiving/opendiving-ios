@@ -7,8 +7,13 @@ import Observation
 /// **The camera is the anchor.** Every request carries the camera's centre — unless the finder
 /// rests, unmoved, on the world its opening rule ended on, which sends none and lists the diver's
 /// sites by last use. What moved the camera is never sent: a pan, a picked place, the dive's fix
-/// and *Use my location* only move it. The list never re-runs while the diver pans; a moved map
-/// offers *Search this area*, which sends the view as a box too.
+/// and *Use my location* only move it.
+///
+/// **Untyped, the list is the sites in view.** The opening, *Use my location*, a picked place,
+/// *Your sites* toggled and *Search this area* each send the part of the map the diver sees as a
+/// box; a pan sends nothing and offers *Search this area*. A typed search looks everywhere,
+/// nearest the camera first, and *Your sites* lists every one of the diver's, which the server
+/// does not narrow to a view.
 ///
 /// **The list is the server's order.** Nothing re-sorts or re-filters it, except that the dive
 /// form leaves out a site already on the dive.
@@ -28,7 +33,7 @@ public final class SiteFinderModel {
   /// *Your sites*: only the diver's own sites and the Commons records they saved.
   public private(set) var yours = false
   /// Where the map looks. A change moves the map there; the map's own moves come back through
-  /// ``mapMoved(to:showing:byGesture:)``.
+  /// ``mapMoved(to:byGesture:)``.
   public private(set) var camera = MapCamera.world
   /// The opening rule has not answered yet, and the camera waits on the world.
   public private(set) var isOpening = true
@@ -41,12 +46,17 @@ public final class SiteFinderModel {
   /// The point the diver touched on the map.
   public var selected: SiteFinderPoint?
   public let points: DiveSitePointsModel
-  /// Whether the map is drawn: without one, *Use my location* searches at once, since there is no
-  /// map to offer *Search this area* over.
-  public var hasMap = false
-  /// The map's size in points, which the opening fits its places to.
+  /// Whether the map is drawn: without one there is no view to narrow the list to.
+  public var hasMap = false {
+    didSet { narrowOpening() }
+  }
+  /// The part of the map the diver sees, in points: what the opening fits its places to and the
+  /// box an untyped list is narrowed to.
   @ObservationIgnored public var viewport = (width: 0.0, height: 0.0) {
-    didSet { refit() }
+    didSet {
+      refit()
+      narrowOpening()
+    }
   }
 
   /// The query the list shows.
@@ -66,7 +76,6 @@ public final class SiteFinderModel {
   @ObservationIgnored private var restsOnWorld = false
   /// The camera sits, unmoved, where the opening put it, so a map measured late is fitted again.
   @ObservationIgnored private var restsOnOpening = false
-  @ObservationIgnored private var view: LatLonBounds?
 
   /// The Sites tab's finder.
   public init(session: Session, locator: any LocationProvider, today: CalendarDate) {
@@ -103,9 +112,13 @@ public final class SiteFinderModel {
   // MARK: - Opening
 
   /// Runs the host's opening rule once, moves the camera once, and sends the first request with
-  /// the camera it opened on.
+  /// the camera it opened on. Shown again, a list the map has moved away from follows the view.
   public func open() async {
-    guard isOpening, !isResolving else { return }
+    guard isOpening else {
+      if offersSearchThisArea, !isTyped { await searchThisArea() }
+      return
+    }
+    guard !isResolving else { return }
     isResolving = true
     showKeptWhileOpening()
     let opened: SiteFinderOpening
@@ -168,12 +181,18 @@ public final class SiteFinderModel {
     camera = opening.camera(width: viewport.width, height: viewport.height)
   }
 
+  /// The opening's list again, narrowed to the view, where it was sent before a map was drawn and
+  /// measured to say what the view is.
+  private func narrowOpening() {
+    guard restsOnOpening, !isOpening, !isTyped, query?.box == nil, shownBox != nil else { return }
+    Task { await search() }
+  }
+
   // MARK: - The diver
 
   /// The map came to rest: a gesture's move, or its account of one asked of it.
-  public func mapMoved(to camera: MapCamera, showing view: LatLonBounds?, byGesture: Bool) {
+  public func mapMoved(to camera: MapCamera, byGesture: Bool) {
     self.camera = camera
-    self.view = view
     guard byGesture, !isOpening else { return }
     restsOnWorld = false
     restsOnOpening = false
@@ -192,9 +211,9 @@ public final class SiteFinderModel {
     await search()
   }
 
-  /// The list again, for the camera and the view the map shows now.
+  /// The list again, for the camera and the view the map shows now, typed or not.
   public func searchThisArea() async {
-    await search(box: view)
+    await search(inView: true)
   }
 
   /// A place row: the camera moves to the place — its footprint where the geocoder gave one — and
@@ -217,8 +236,7 @@ public final class SiteFinderModel {
     await search()
   }
 
-  /// Moves the camera to the phone's position and sends nothing; the map then offers *Search this
-  /// area*. Without a map there is nothing to offer it over, so the list follows at once.
+  /// Moves the camera to the phone's position and lists the sites around it.
   public func useMyLocation() async {
     isLocating = true
     locationFailure = nil
@@ -232,11 +250,7 @@ public final class SiteFinderModel {
     }
     isLocating = false
     move(to: .point(here))
-    if hasMap {
-      offersSearchThisArea = !yours
-    } else {
-      await search()
-    }
+    await search()
   }
 
   /// The point the diver touched, or nothing where the map has no such site.
@@ -267,12 +281,14 @@ public final class SiteFinderModel {
     restsOnOpening = false
   }
 
-  private func search(box: LatLonBounds? = nil) async {
+  /// `inView` narrows a typed search to the view as well, which an untyped one always is.
+  private func search(inView: Bool = false) async {
+    let narrowed = inView || text.trimmedOfWhitespace.isEmpty
     let query = DiveSiteSearchQuery(
       text: text,
       camera: restsOnWorld
         ? nil : DeviceLocation(latitude: camera.latitude, longitude: camera.longitude),
-      box: yours ? nil : box, until: form?.values.startTime, yours: yours)
+      box: narrowed ? shownBox : nil, until: form?.values.startTime, yours: yours)
     self.query = query
     offersSearchThisArea = false
     let list = PagedList<DiveSiteSearchRow>(
@@ -283,6 +299,17 @@ public final class SiteFinderModel {
     }
     self.list = list
     await list.load()
+  }
+
+  /// What the diver sees of the map, where there is a map, measured, off the world the opening
+  /// rests on; never under *Your sites*, whose list the server does not narrow.
+  private var shownBox: LatLonBounds? {
+    guard hasMap, Self.isMeasured(viewport), !restsOnWorld, !yours else { return nil }
+    return camera.bounds(width: viewport.width, height: viewport.height)
+  }
+
+  private static func isMeasured(_ size: (width: Double, height: Double)) -> Bool {
+    size.width > 0 && size.height > 0
   }
 
   /// The Sites tab keeps its untyped lists, so the tab shows the last one at once and offline;

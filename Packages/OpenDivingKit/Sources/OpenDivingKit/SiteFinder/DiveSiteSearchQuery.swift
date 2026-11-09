@@ -5,7 +5,7 @@ import Foundation
 #endif
 
 /// What one request of `GET /dive-sites/search` asks: the text typed, the camera, the view when
-/// *Search this area* narrowed to it, and the filters.
+/// the list is narrowed to it, and the filters.
 ///
 /// Every coordinate leaves the phone rounded to two decimals, about a kilometre, whatever moved
 /// the camera: the server keeps none, but its access logs hold the query string. The view is
