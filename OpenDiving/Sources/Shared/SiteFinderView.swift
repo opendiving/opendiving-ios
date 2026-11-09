@@ -354,9 +354,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       case .loaded where model.rows.isEmpty:
         note(SiteFinderText.empty(typed: model.isTyped, yours: model.yours))
       case .loaded:
-        // Every new list shows its kept pages while its request is on its way: the line is for
-        // kept pages a failed request leaves standing.
-        if let lastUpdated = list.lastUpdated, !model.isOpening, !model.isSearching {
+        if let lastUpdated = model.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
         }
         ForEach(model.rows) { row in

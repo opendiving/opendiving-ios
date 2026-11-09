@@ -213,7 +213,7 @@ struct SiteFinderModelTests {
     #expect(sentBox(try #require(searches.queries.last)) == box(last))
   }
 
-  @Test func aMoveCancelsTheRequestOnItsWayAndTheListShownStaysUntilAnAnswerLands() async throws {
+  @Test func aMoveCancelsTheRequestOnItsWayAndTheKeptRowsShowUndatedMeanwhile() async throws {
     let gate = Gate()
     let (world, searches) = try await world(gate: gate)
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
@@ -222,18 +222,19 @@ struct SiteFinderModelTests {
     model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
     while searches.queries.count < 2 { await Task.yield() }
     #expect(model.isSearching)
-    #expect(model.list === opened)
-    #expect(model.list?.lastUpdated == nil)
+    #expect(model.list !== opened)
+    #expect(model.list?.lastUpdated != nil)
+    #expect(model.lastUpdated == nil)
+    #expect(model.rows.count == 3)
     let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
     model.mapMoved(to: last, byGesture: true)
     while searches.queries.count < 3 { await Task.yield() }
-    #expect(model.list === opened)
     gate.isHeld = false
     await model.settling?.value
     while model.isSearching { await Task.yield() }
     #expect(searches.queries.count == 3)
-    #expect(model.list !== opened)
     #expect(model.list?.phase == .loaded)
+    #expect(model.list?.lastUpdated == nil)
     #expect(sentBox(try #require(searches.queries.last)) == box(last))
   }
 
@@ -434,7 +435,7 @@ struct SiteFinderModelTests {
     let again = tab(world, FakeFinderLocator(.failure(.denied)))
     await again.open()
     #expect(again.rows.count == 3)
-    #expect(again.list?.lastUpdated != nil)
+    #expect(again.lastUpdated != nil)
   }
 
   @Test func theTabShowsItsLastListWhileItWaitsForAFix() async throws {
@@ -448,6 +449,7 @@ struct SiteFinderModelTests {
     #expect(again.isOpening)
     #expect(again.rows.count == 3)
     #expect(again.list?.lastUpdated != nil)
+    #expect(again.lastUpdated == nil)
     #expect(searches.queries.count == 1)
     locator.isHeld = false
     await opening.value

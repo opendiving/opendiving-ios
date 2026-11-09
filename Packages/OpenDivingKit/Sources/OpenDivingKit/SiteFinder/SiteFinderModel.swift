@@ -41,7 +41,7 @@ public final class SiteFinderModel {
   /// The opening rule has not answered yet, and the camera waits on the world.
   public private(set) var isOpening = true
   public private(set) var list: PagedList<DiveSiteSearchRow>?
-  /// A request is on its way; the list shows what it showed until the answer lands.
+  /// A request is on its way.
   public private(set) var isSearching = false
   public private(set) var isLocating = false
   /// Why the last *Use my location* found nothing.
@@ -88,8 +88,6 @@ public final class SiteFinderModel {
   @ObservationIgnored private var generation = 0
   /// The last list answered for each *Your sites* setting, and what it asked.
   @ObservationIgnored private var answered: [Bool: Answer] = [:]
-  /// The *Your sites* setting the list shown was asked with.
-  @ObservationIgnored private var shownYours: Bool?
 
   private typealias Answer = (query: DiveSiteSearchQuery, list: PagedList<DiveSiteSearchRow>)
 
@@ -112,6 +110,13 @@ public final class SiteFinderModel {
     today = nil
     host = .diveForm
     points = DiveSitePointsModel(session: form.session)
+  }
+
+  /// When the rows shown were fetched, once they are kept pages no request will replace: a new
+  /// list shows its kept pages while its request is on its way, the last answer for the same
+  /// setting, which says nothing about how old the list is until that request has failed.
+  public var lastUpdated: Date? {
+    isOpening || isSearching ? nil : list?.lastUpdated
   }
 
   /// The rows to show, in the server's order.
@@ -186,7 +191,6 @@ public final class SiteFinderModel {
     ) { _, _, _ in throw APIError.noRoute }
     kept.showKept()
     list = kept
-    shownYours = false
   }
 
   private func refit() {
@@ -305,9 +309,6 @@ public final class SiteFinderModel {
   }
 
   /// `inView` narrows a typed search to the view as well, which an untyped one always is.
-  ///
-  /// A list already showing rows for the same setting stays until the new one has its answer,
-  /// so the kept pages a new list shows first never flash in its place.
   private func search(inView: Bool = false) async {
     settling?.cancel()
     settling = nil
@@ -327,7 +328,6 @@ public final class SiteFinderModel {
       searching = nil
       isSearching = false
       list = last.list
-      shownYours = query.yours
       return
     }
     let list = PagedList<DiveSiteSearchRow>(
@@ -336,16 +336,11 @@ public final class SiteFinderModel {
     ) { client, page, itemsPerPage in
       try await client.searchDiveSites(query, page: page, itemsPerPage: itemsPerPage).listPage
     }
-    if self.list?.phase != .loaded || shownYours != query.yours {
-      self.list = list
-      shownYours = query.yours
-    }
+    self.list = list
     isSearching = true
     let task = Task { [weak self] in
       await list.load()
       guard let self, generation == self.generation else { return }
-      self.list = list
-      shownYours = query.yours
       answered[query.yours] = (query, list)
       searching = nil
       isSearching = false
