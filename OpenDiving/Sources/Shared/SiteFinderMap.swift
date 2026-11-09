@@ -250,8 +250,10 @@ struct SiteFinderMap: UIViewRepresentable {
       halo.predicate = NSPredicate(format: "cluster == YES")
       halo.circleColor = NSExpression(forConstantValue: SiteMapMarker.shadow)
       halo.circleRadius = NSExpression(
-        format: "mgl_step:from:stops:(point_count, 16, %@)", [25: 20, 250: 24])
-      halo.circleBlur = NSExpression(forConstantValue: 0.4)
+        format: "mgl_step:from:stops:(point_count, 17, %@)", [25: 21, 250: 25])
+      halo.circleBlur = NSExpression(forConstantValue: 0.45)
+      halo.circleTranslation = NSExpression(
+        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: 1)))
       style.addLayer(halo)
       let cluster = MLNCircleStyleLayer(identifier: Layer.clusters, source: source)
       cluster.predicate = NSPredicate(format: "cluster == YES")

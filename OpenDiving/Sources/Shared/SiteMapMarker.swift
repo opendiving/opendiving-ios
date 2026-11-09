@@ -17,7 +17,7 @@ enum SiteMapMarker {
   /// middle of the circle.
   private static let bubbleShift = CGVector(dx: -0.43, dy: -0.72)
   /// Room around the mark for its shadow, in points.
-  private static let margin: CGFloat = 2.5
+  private static let margin: CGFloat = 3.5
 
   /// The mark's radius on the map, to the outside of its outline.
   static let outerRadius = (radius + stroke / 2) * scale
@@ -37,7 +37,7 @@ enum SiteMapMarker {
     dark ? UIColor(white: 0.8, alpha: 1) : .white
   }
 
-  static let shadow = UIColor.black.withAlphaComponent(0.25)
+  static let shadow = UIColor.black.withAlphaComponent(0.35)
 
   static func image(_ mark: DiveSiteMark, dark: Bool) -> UIImage {
     let side = outerRadius * 2 + margin * 2
@@ -47,7 +47,7 @@ enum SiteMapMarker {
       cg.scaleBy(x: scale, y: scale)
       cg.translateBy(x: -center.x, y: -center.y)
       // One layer, so the shape casts a single shadow rather than one per stroke.
-      cg.setShadow(offset: CGSize(width: 0, height: 0.5), blur: 1.5, color: shadow.cgColor)
+      cg.setShadow(offset: CGSize(width: 0, height: 1), blur: 2.5, color: shadow.cgColor)
       cg.beginTransparencyLayer(auxiliaryInfo: nil)
       let outline = UIBezierPath(ovalIn: circle(x: center.x, y: center.y, radius: radius))
       fill(mark, dark: dark).setFill()
