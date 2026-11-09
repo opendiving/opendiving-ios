@@ -41,6 +41,7 @@ struct SiteFinderMap: UIViewRepresentable {
     map.automaticallyAdjustsContentInset = false
     context.coordinator.styleJSON = styleJSON
     context.coordinator.fonts = MapStyleFonts.textFont(in: styleJSON)
+    context.coordinator.isDark = context.environment.colorScheme == .dark
     context.coordinator.listen(on: map)
     context.coordinator.adopt(map)
     return map
@@ -54,6 +55,7 @@ struct SiteFinderMap: UIViewRepresentable {
     if styleJSON != coordinator.styleJSON {
       coordinator.styleJSON = styleJSON
       coordinator.fonts = MapStyleFonts.textFont(in: styleJSON)
+      coordinator.isDark = context.environment.colorScheme == .dark
       map.styleJSON = styleJSON
     }
     coordinator.show(
@@ -86,6 +88,9 @@ struct SiteFinderMap: UIViewRepresentable {
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
     var styleJSON = ""
     var fonts: [String]?
+    /// The appearance the marks are drawn for, taken from SwiftUI with the style that matches it:
+    /// the first style can load before the map is in a window to take traits from.
+    var isDark = false
 
     /// What the style's sources hold now; emptied when a style loads, which brings none.
     private var drawn = Layers.empty
@@ -206,7 +211,7 @@ struct SiteFinderMap: UIViewRepresentable {
     func mapView(_ map: MLNMapView, didFinishLoading style: MLNStyle) {
       drawn = .empty
       // A change of appearance loads the other style, so the marks are drawn again for it.
-      install(on: style, dark: map.traitCollection.userInterfaceStyle == .dark)
+      install(on: style, dark: isDark)
       show(wanted, on: map)
     }
 
