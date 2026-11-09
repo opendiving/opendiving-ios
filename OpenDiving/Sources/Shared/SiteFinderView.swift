@@ -234,31 +234,11 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .frame(maxWidth: .infinity)
     .clipShape(shape)
     .background {
-      panelFill(shape, isGlass: isGlass(panel))
-        .padding(.bottom, -below)
-        .animation(.snappy, value: isGlass(panel))
-    }
-  }
-
-  /// Glass over the map, as Apple Maps' sheet is, until the panel nears its tallest and covers the
-  /// map, where the list reads on the grouped background.
-  @ViewBuilder private func panelFill(_ shape: some Shape, isGlass: Bool) -> some View {
-    if isGlass {
-      if #available(iOS 26, *) {
-        Color.clear.glassEffect(.regular, in: shape)
-      } else {
-        shape.fill(.regularMaterial)
-          .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
-      }
-    } else {
       shape
         .fill(Color(.systemGroupedBackground))
         .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
+        .padding(.bottom, -below)
     }
-  }
-
-  private func isGlass(_ panel: SiteFinderPanel) -> Bool {
-    map.hasMap && panelHeight(panel) < (panel.height(.half) + panel.height(.full)) / 2
   }
 
   private func panelHeight(_ panel: SiteFinderPanel) -> Double {
