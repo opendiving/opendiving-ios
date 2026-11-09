@@ -97,7 +97,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       SiteFinderMap(
         styleJSON: style.styleJSON, camera: model.camera, covered: covered,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
-        listed: listedPins, selected: model.selected,
+        selected: model.selected,
         onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
         onPoint: { model.select($0) },
         onLongPress: onLongPress.map { add in
@@ -122,16 +122,6 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       // Over the half the panel opens to, they would sit over the list.
       .opacity(height > panel.height(.half) + 1 ? 0 : 1)
       .animation(.snappy, value: detent)
-    }
-  }
-
-  /// The list's sites that have a pin, ringed on the map.
-  private var listedPins: [MapPoint] {
-    model.rows.compactMap { row in
-      guard case .site(let item) = row, let latitude = item.latitude,
-        let longitude = item.longitude
-      else { return nil }
-      return MapPoint(name: item.name, latitude: latitude, longitude: longitude)
     }
   }
 
@@ -312,7 +302,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       .padding(.bottom)
     }
     .scrollDismissesKeyboard(.immediately)
-    .refreshable { await model.list?.refresh() }
+    .bubbleRefreshable { await model.list?.refresh() }
   }
 
   @ViewBuilder private var content: some View {

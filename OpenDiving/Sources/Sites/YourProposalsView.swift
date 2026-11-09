@@ -51,7 +51,7 @@ private struct ProposalList: View {
       }
     }
     .background(Color(.systemGroupedBackground))
-    .refreshable { await list.refresh() }
+    .bubbleRefreshable { await list.refresh() }
     .task { await list.load() }
     .proposalWithdrawalAlert(model.withdrawal)
   }

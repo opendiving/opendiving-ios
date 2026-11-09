@@ -99,7 +99,7 @@ private struct DivesList: View {
           )
         )
       }
-      .refreshable { await list.refresh() }
+      .bubbleRefreshable { await list.refresh() }
     case .loaded:
       ScrollView {
         LazyVStack(spacing: 12) {
@@ -121,7 +121,7 @@ private struct DivesList: View {
         .padding()
       }
       .background(Color(.systemGroupedBackground))
-      .refreshable { await list.refresh() }
+      .bubbleRefreshable { await list.refresh() }
     }
   }
 
