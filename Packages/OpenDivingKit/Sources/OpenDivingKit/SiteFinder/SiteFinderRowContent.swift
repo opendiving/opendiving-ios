@@ -1,7 +1,7 @@
 import Foundation
 
 /// One row of the site finder's list as it is drawn: a site, with its distance from the camera,
-/// its mark and its credit where it is a Commons record; or a place, with how many sites are near.
+/// its mark, and its credit where it is a Commons record; or a place, with how many sites are near.
 public struct SiteFinderRowContent: Hashable, Sendable, Identifiable {
   public let id: String
   public let title: String
@@ -10,7 +10,8 @@ public struct SiteFinderRowContent: Hashable, Sendable, Identifiable {
   /// `4.2 km` from the camera; nil without one, and for a site with no pin.
   public let distance: String?
   public let isPlace: Bool
-  public let isCommons: Bool
+  /// A site's mark; nil on a place.
+  public let mark: DiveSiteMark?
   /// A site's credit, owed beside it; a place's goes once under the list.
   public let credit: String?
   /// A place's count of sites near it.
@@ -24,7 +25,7 @@ public struct SiteFinderRowContent: Hashable, Sendable, Identifiable {
       title = item.name
       subtitle = item.location?.name
       isPlace = false
-      isCommons = item.site.isCommons
+      mark = item.mark
       credit = item.attribution
       nearby = nil
     case .place(let item):
@@ -32,7 +33,7 @@ public struct SiteFinderRowContent: Hashable, Sendable, Identifiable {
       title = name.isEmpty ? item.place.location : name
       subtitle = name.isEmpty || item.place.location == name ? nil : item.place.location
       isPlace = true
-      isCommons = false
+      mark = nil
       credit = nil
       nearby = Self.nearby(item.sitesNearby)
     }

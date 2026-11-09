@@ -1,7 +1,8 @@
+import OpenDivingKit
 import SwiftUI
 
 /// A short label in a capsule: a gear item's Rented and Archived, a gas and its role, a
-/// site's tags, a card's agency and expiry, and a Commons site's mark before its word.
+/// site's tags, a card's agency and expiry, and a site's mark before its word.
 struct BadgeView<Icon: View>: View {
   /// The web's badge variants that the phone's screens use.
   enum Style {
@@ -84,7 +85,11 @@ extension BadgeView where Icon == EmptyView {
       BadgeView("Expires in 20 days", style: .coral)
       BadgeView("Expired", style: .destructive)
     }
-    BadgeView("Commons", style: .outline) { CommonsMark() }
+    HStack {
+      ForEach(DiveSiteMark.allCases.reversed(), id: \.self) { mark in
+        BadgeView(mark.label, style: .outline) { DiveSiteMarkIcon(mark: mark) }
+      }
+    }
   }
   .padding()
 }

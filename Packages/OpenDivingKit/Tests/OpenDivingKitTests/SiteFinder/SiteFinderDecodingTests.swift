@@ -55,7 +55,17 @@ struct SiteFinderDecodingTests {
     #expect(points.points[0].longitude == 34.5372)
     #expect(points.points[0].latitude == 28.5687)
     #expect(!points.points[0].isCommons)
+    #expect(points.points[0].mark == .proposed)
     #expect(points.points[1].isCommons)
+    #expect(points.points[1].proposal == nil)
+  }
+
+  @Test func aPointWithoutItsProposalIsPrivate() throws {
+    let sent =
+      #"{"points":[[34.5,28.5,"01a14b2e-0c3d-7a10-9f00-4a2b3c4d5e6f","Canyon","account"]]}"#
+    let points = try APICoding.decoder().decode(DiveSitePoints.self, from: Data(sent.utf8))
+    #expect(points.points[0].proposal == nil)
+    #expect(points.points[0].mark == .private)
   }
 
   @Test func theCommonsDocumentKeepsItsSourceKeysAsSent() throws {

@@ -3,10 +3,11 @@ import MapLibre
 import OpenDivingKit
 import SwiftUI
 
-/// The site finder's map: every Commons record and the diver's own sites as clustered shape
-/// sources, which MapLibre draws as a few circles where an annotation per site would be
-/// thousands of views, and the touched one ringed over them. A cluster's tap zooms into it and a
-/// point's tap names it; a long press is where a site is added.
+/// The site finder's map: every Commons record and the diver's own sites as one clustered shape
+/// source, which MapLibre draws as a few circles where an annotation per site would be thousands
+/// of views, each site a pin in its mark's colour and the touched one ringed over them. A group
+/// takes the colour of its highest mark. A cluster's tap zooms into it and a point's tap names it;
+/// a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
   /// Where the map looks, at the middle of what `covered` leaves showing. A change jumps it there;
@@ -114,30 +115,22 @@ struct SiteFinderMap: UIViewRepresentable {
 
     func show(_ layers: Layers, on map: MLNMapView) {
       wanted = layers
-      guard let style = map.style, style.source(withIdentifier: Source.commons) != nil else {
+      guard let style = map.style, style.source(withIdentifier: Source.sites) != nil else {
         return
       }
       if layers.commons?.version != drawn.commons?.version
-        || (layers.commons == nil) != (drawn.commons == nil)
+        || (layers.commons == nil) != (drawn.commons == nil) || layers.yours != drawn.yours
       {
-        if let commons = layers.commons {
-          set(
-            Source.commons, commons.points.map { Self.feature($0.uuid, $0.latitude, $0.longitude) },
-            style)
-        }
-        for id in [Layer.commonsClusters, Layer.commonsCounts, Layer.commonsPoints] {
-          style.layer(withIdentifier: id)?.isVisible = layers.commons != nil
-        }
-      }
-      if layers.yours != drawn.yours {
         set(
-          Source.yours, layers.yours.map { Self.feature($0.uuid, $0.latitude, $0.longitude) }, style
-        )
+          Source.sites,
+          SiteFinderMapMark.marks(commons: layers.commons, yours: layers.yours).map {
+            Self.feature($0.uuid, $0.latitude, $0.longitude, mark: $0.mark)
+          }, style)
       }
       if layers.selected != drawn.selected {
         set(
-          Source.selected, layers.selected.map { Self.feature(nil, $0.latitude, $0.longitude) },
-          style)
+          Source.selected,
+          layers.selected.map { Self.feature(nil, $0.latitude, $0.longitude, mark: nil) }, style)
       }
       drawn = layers
     }
@@ -219,7 +212,7 @@ struct SiteFinderMap: UIViewRepresentable {
     /// A style given as JSON can finish loading inside the map's initializer, before there is a
     /// delegate to hear it.
     func adopt(_ map: MLNMapView) {
-      guard let style = map.style, style.source(withIdentifier: Source.commons) == nil else {
+      guard let style = map.style, style.source(withIdentifier: Source.sites) == nil else {
         return
       }
       mapView(map, didFinishLoading: style)
@@ -228,28 +221,27 @@ struct SiteFinderMap: UIViewRepresentable {
     private func install(on style: MLNStyle) {
       let clustered: [MLNShapeSourceOption: Any] = [
         .clustered: true, .clusterRadius: 44, .maximumZoomLevelForClustering: 12,
+        .clusterProperties: [
+          Self.markKey: [
+            NSExpression(format: "max:({$featureAccumulated, %K})", Self.markKey),
+            NSExpression(forKeyPath: Self.markKey),
+          ]
+        ],
       ]
-      for id in [Source.commons, Source.yours] {
-        style.addSource(MLNShapeSource(identifier: id, features: [], options: clustered))
-      }
+      style.addSource(MLNShapeSource(identifier: Source.sites, features: [], options: clustered))
       style.addSource(MLNShapeSource(identifier: Source.selected, features: [], options: nil))
-      addPoints(
-        source: Source.commons, clusters: Layer.commonsClusters, counts: Layer.commonsCounts,
-        points: Layer.commonsPoints, color: UIColor(Color.brandTeal), to: style)
-      addPoints(
-        source: Source.yours, clusters: Layer.yoursClusters, counts: Layer.yoursCounts,
-        points: Layer.yoursPoints, color: UIColor(Color.brandCoral), to: style)
-      addRing(Layer.selected, source: Source.selected, radius: 13, width: 3, to: style)
+      for mark in DiveSiteMark.allCases {
+        style.setImage(SiteMapPin.image(mark), forName: Self.pinName(mark))
+      }
+      addSites(to: style)
+      addRing(Layer.selected, source: Source.selected, to: style)
     }
 
-    private func addPoints(
-      source id: String, clusters: String, counts: String, points: String, color: UIColor,
-      to style: MLNStyle
-    ) {
-      guard let source = style.source(withIdentifier: id) else { return }
-      let cluster = MLNCircleStyleLayer(identifier: clusters, source: source)
+    private func addSites(to style: MLNStyle) {
+      guard let source = style.source(withIdentifier: Source.sites) else { return }
+      let cluster = MLNCircleStyleLayer(identifier: Layer.clusters, source: source)
       cluster.predicate = NSPredicate(format: "cluster == YES")
-      cluster.circleColor = NSExpression(forConstantValue: color)
+      cluster.circleColor = Self.byMark { NSExpression(forConstantValue: UIColor($0.color)) }
       cluster.circleOpacity = NSExpression(forConstantValue: 0.85)
       cluster.circleRadius = NSExpression(
         format: "mgl_step:from:stops:(point_count, 13, %@)", [25: 17, 250: 21])
@@ -258,7 +250,7 @@ struct SiteFinderMap: UIViewRepresentable {
       style.addLayer(cluster)
       // A style's glyphs serve its own fonts alone; without one the circles still say where.
       if let fonts {
-        let count = MLNSymbolStyleLayer(identifier: counts, source: source)
+        let count = MLNSymbolStyleLayer(identifier: Layer.counts, source: source)
         count.predicate = NSPredicate(format: "cluster == YES")
         count.text = NSExpression(format: "CAST(point_count, 'NSString')")
         count.textFontNames = NSExpression(forConstantValue: fonts)
@@ -268,24 +260,39 @@ struct SiteFinderMap: UIViewRepresentable {
         count.textIgnoresPlacement = NSExpression(forConstantValue: true)
         style.addLayer(count)
       }
-      let point = MLNCircleStyleLayer(identifier: points, source: source)
+      let point = MLNSymbolStyleLayer(identifier: Layer.points, source: source)
       point.predicate = NSPredicate(format: "cluster != YES")
-      point.circleColor = NSExpression(forConstantValue: color)
-      point.circleRadius = NSExpression(forConstantValue: 6)
-      point.circleStrokeColor = NSExpression(forConstantValue: UIColor.white)
-      point.circleStrokeWidth = NSExpression(forConstantValue: 1.5)
+      point.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
+      point.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
+      point.iconAllowsOverlap = NSExpression(forConstantValue: true)
+      point.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(point)
     }
 
-    private func addRing(
-      _ id: String, source sourceID: String, radius: Double, width: Double, to style: MLNStyle
-    ) {
+    /// `value` for the mark a point carries, or the highest a cluster gathers.
+    private static func byMark(_ value: (DiveSiteMark) -> NSExpression) -> NSExpression {
+      var cases: [NSExpression: NSExpression] = [:]
+      for mark in DiveSiteMark.allCases where mark != .private {
+        cases[NSExpression(forConstantValue: mark.rawValue)] = value(mark)
+      }
+      return NSExpression(
+        forMLNMatchingKey: NSExpression(forKeyPath: markKey), in: cases, default: value(.private))
+    }
+
+    private static func pinName(_ mark: DiveSiteMark) -> String {
+      "finder-pin-\(mark.rawValue)"
+    }
+
+    /// A ring around the pin's head, which stands over the point it marks.
+    private func addRing(_ id: String, source sourceID: String, to style: MLNStyle) {
       guard let source = style.source(withIdentifier: sourceID) else { return }
       let ring = MLNCircleStyleLayer(identifier: id, source: source)
       ring.circleColor = NSExpression(forConstantValue: UIColor.clear)
-      ring.circleRadius = NSExpression(forConstantValue: radius)
+      ring.circleRadius = NSExpression(forConstantValue: SiteMapPin.headRadius + 4)
+      ring.circleTranslation = NSExpression(
+        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: -SiteMapPin.headHeight)))
       ring.circleStrokeColor = NSExpression(forConstantValue: UIColor.label)
-      ring.circleStrokeWidth = NSExpression(forConstantValue: width)
+      ring.circleStrokeWidth = NSExpression(forConstantValue: 3)
       style.addLayer(ring)
     }
 
@@ -294,43 +301,42 @@ struct SiteFinderMap: UIViewRepresentable {
         MLNShapeCollectionFeature(shapes: features)
     }
 
-    private static func feature(_ uuid: UUID?, _ latitude: Double, _ longitude: Double)
-      -> MLNPointFeature
-    {
+    private static func feature(
+      _ uuid: UUID?, _ latitude: Double, _ longitude: Double, mark: DiveSiteMark?
+    ) -> MLNPointFeature {
       let feature = MLNPointFeature()
       feature.coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-      if let uuid { feature.attributes = [Self.uuidKey: uuid.uuidString] }
+      var attributes: [String: Any] = [:]
+      if let uuid { attributes[Self.uuidKey] = uuid.uuidString }
+      if let mark { attributes[Self.markKey] = mark.rawValue }
+      feature.attributes = attributes
       return feature
     }
 
     private static let uuidKey = "uuid"
+    /// A point's ``DiveSiteMark`` raw value, and on a cluster the highest of its points'.
+    private static let markKey = "mark"
 
     // MARK: - Touches
 
     @objc private func tapped(_ tap: UITapGestureRecognizer) {
       guard let map = tap.view as? MLNMapView else { return }
       let point = tap.location(in: map)
-      // The diver's layer is drawn over the Commons', so it answers first.
-      for (source, layers) in [
-        (Source.yours, [Layer.yoursClusters, Layer.yoursPoints]),
-        (Source.commons, [Layer.commonsClusters, Layer.commonsPoints]),
-      ] {
-        let hits = map.visibleFeatures(at: point, styleLayerIdentifiers: Set(layers))
-        if let cluster = hits.first(where: { $0 is MLNPointFeatureCluster })
-          as? MLNPointFeatureCluster,
-          let shapes = map.style?.source(withIdentifier: source) as? MLNShapeSource
-        {
-          let zoom = min(shapes.zoomLevel(forExpanding: cluster), MapCamera.maxZoom)
-          zoomedIntoCluster = true
-          map.setCenter(cluster.coordinate, zoomLevel: max(zoom, map.zoomLevel + 1), animated: true)
-          return
-        }
-        if let id = hits.lazy.compactMap({ $0.attribute(forKey: Self.uuidKey) as? String }).first,
-          let uuid = UUID(uuidString: id)
-        {
-          onPoint?(uuid)
-          return
-        }
+      let hits = map.visibleFeatures(
+        at: point, styleLayerIdentifiers: [Layer.clusters, Layer.points])
+      if let cluster = hits.first(where: { $0 is MLNPointFeatureCluster })
+        as? MLNPointFeatureCluster,
+        let shapes = map.style?.source(withIdentifier: Source.sites) as? MLNShapeSource
+      {
+        let zoom = min(shapes.zoomLevel(forExpanding: cluster), MapCamera.maxZoom)
+        zoomedIntoCluster = true
+        map.setCenter(cluster.coordinate, zoomLevel: max(zoom, map.zoomLevel + 1), animated: true)
+        return
+      }
+      if let id = hits.lazy.compactMap({ $0.attribute(forKey: Self.uuidKey) as? String }).first,
+        let uuid = UUID(uuidString: id)
+      {
+        onPoint?(uuid)
       }
     }
 
@@ -374,18 +380,14 @@ struct SiteFinderMap: UIViewRepresentable {
   }
 
   private enum Source {
-    static let commons = "finder-commons"
-    static let yours = "finder-yours"
+    static let sites = "finder-sites"
     static let selected = "finder-selected"
   }
 
   private enum Layer {
-    static let commonsClusters = "finder-commons-clusters"
-    static let commonsCounts = "finder-commons-counts"
-    static let commonsPoints = "finder-commons-points"
-    static let yoursClusters = "finder-yours-clusters"
-    static let yoursCounts = "finder-yours-counts"
-    static let yoursPoints = "finder-yours-points"
+    static let clusters = "finder-clusters"
+    static let counts = "finder-counts"
+    static let points = "finder-points"
     static let selected = "finder-selected"
   }
 }

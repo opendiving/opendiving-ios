@@ -253,7 +253,7 @@ struct CommonsSiteTests {
     #expect(DiveSiteSummary.hero(site, units: .metric).chips.map(\.text) == ["Commons"])
     #expect(
       DiveSiteSummary.chips(site) == [
-        Chip(text: "Commons", accessibilityLabel: "OpenDiving Commons site", kind: .commons)
+        Chip(text: "Commons", accessibilityLabel: "OpenDiving Commons site", kind: .site(.commons))
       ])
     #expect(
       DiveSiteSummary.sharedMembers(site, units: .metric).map(\.label) == [
@@ -261,6 +261,7 @@ struct CommonsSiteTests {
         "OpenStreetMap",
       ])
     let own = try read(["owner": DiveSiteOwner.account])
-    #expect(DiveSiteSummary.card(own, units: .metric).chips.isEmpty)
+    #expect(DiveSiteSummary.card(own, units: .metric).chips.map(\.text) == ["Private"])
+    #expect(DiveSiteSummary.hero(own, units: .metric).chips.isEmpty)
   }
 }

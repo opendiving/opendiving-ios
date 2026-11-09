@@ -9,7 +9,7 @@ public struct DiveSitePoints: Codable, Hashable, Sendable {
   }
 }
 
-/// One site of ``DiveSitePoints``, sent as `[longitude, latitude, uuid, name, owner]`.
+/// One site of ``DiveSitePoints``, sent as `[longitude, latitude, uuid, name, owner, proposal]`.
 public struct DiveSitePoint: Codable, Hashable, Sendable {
   public let longitude: Double
   public let latitude: Double
@@ -17,16 +17,25 @@ public struct DiveSitePoint: Codable, Hashable, Sendable {
   public let name: String
   /// `account` or `opendivingcommons`, as ``DiveSiteOwner`` spells them.
   public let owner: String
+  /// The status of the reader's latest proposal on the site, as ``DiveSiteProposalStatus``
+  /// spells it; nil with none, and from a server that sends five members.
+  public let proposal: String?
 
-  public init(longitude: Double, latitude: Double, uuid: UUID, name: String, owner: String) {
+  public init(
+    longitude: Double, latitude: Double, uuid: UUID, name: String, owner: String,
+    proposal: String? = nil
+  ) {
     self.longitude = longitude
     self.latitude = latitude
     self.uuid = uuid
     self.name = name
     self.owner = owner
+    self.proposal = proposal
   }
 
   public var isCommons: Bool { owner == DiveSiteOwner.commons }
+
+  public var mark: DiveSiteMark { DiveSiteMark(owner: owner, proposalStatus: proposal) }
 
   public init(from decoder: any Decoder) throws {
     var c = try decoder.unkeyedContainer()
@@ -35,6 +44,7 @@ public struct DiveSitePoint: Codable, Hashable, Sendable {
     uuid = try c.decode(UUID.self)
     name = try c.decode(String.self)
     owner = try c.decode(String.self)
+    proposal = try c.decodeIfPresent(String.self)
   }
 
   public func encode(to encoder: any Encoder) throws {
@@ -44,5 +54,6 @@ public struct DiveSitePoint: Codable, Hashable, Sendable {
     try c.encode(uuid)
     try c.encode(name)
     try c.encode(owner)
+    try c.encode(proposal)
   }
 }

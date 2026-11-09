@@ -86,23 +86,14 @@ struct SiteFinderScreensTests {
       try await Task.sleep(for: .milliseconds(50))
     }
     let style = try #require(map.style)
-    #expect(style.source(withIdentifier: "finder-commons") is MLNShapeSource)
+    #expect(style.source(withIdentifier: "finder-sites") is MLNShapeSource)
     #expect(style.layers.count > 1)
-    #expect(
-      (style.layer(withIdentifier: "finder-commons-counts") != nil) == (coordinator.fonts != nil))
-    let points = CommonsDiveSitePoints(
-      version: "v1", sources: [:],
-      points: [
-        CommonsDiveSitePoint(
-          longitude: 34.5, latitude: 28.5, uuid: UUID(), name: "Canyon", source: "osm")
-      ])
-    coordinator.show(
-      SiteFinderMap.Layers(commons: points, yours: [], selected: []), on: map)
-    #expect(style.layer(withIdentifier: "finder-commons-points")?.isVisible == true)
-    // *Your sites* hides the Commons layer, and the diver's stays.
-    coordinator.show(
-      SiteFinderMap.Layers(commons: nil, yours: [], selected: []), on: map)
-    #expect(style.layer(withIdentifier: "finder-commons-points")?.isVisible == false)
-    #expect(style.layer(withIdentifier: "finder-yours-points")?.isVisible == true)
+    #expect((style.layer(withIdentifier: "finder-counts") != nil) == (coordinator.fonts != nil))
+    for mark in DiveSiteMark.allCases {
+      #expect(style.image(forName: "finder-pin-\(mark.rawValue)") != nil)
+    }
+    #expect(style.layer(withIdentifier: "finder-points") is MLNSymbolStyleLayer)
+    #expect(style.layer(withIdentifier: "finder-clusters") is MLNCircleStyleLayer)
   }
+
 }

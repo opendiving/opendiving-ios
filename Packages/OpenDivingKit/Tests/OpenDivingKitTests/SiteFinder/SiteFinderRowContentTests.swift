@@ -11,10 +11,10 @@ struct SiteFinderRowContentTests {
     #expect(own.title == "Canyon")
     #expect(own.subtitle == "Dahab, South Sinai, Egypt")
     #expect(own.distance == "4.2 km")
-    #expect(!own.isCommons)
+    #expect(own.mark == .proposed)
     #expect(own.credit == nil)
     let commons = SiteFinderRowContent(rows[1], units: .imperial)
-    #expect(commons.isCommons)
+    #expect(commons.mark == .commons)
     #expect(commons.credit?.contains("OpenStreetMap") == true)
     #expect(commons.distance == "1457.1 mi")
   }
@@ -23,6 +23,7 @@ struct SiteFinderRowContentTests {
     let rows = try KitFixture.decode(DiveSiteSearchPage.self, "dive-site-search").rows
     let place = SiteFinderRowContent(rows[2], units: .metric)
     #expect(place.isPlace)
+    #expect(place.mark == nil)
     #expect(place.title == "Canyon City")
     #expect(place.subtitle == "Canyon City, Colorado, United States")
     #expect(place.nearby == "No sites nearby")
@@ -40,6 +41,7 @@ struct SiteFinderRowContentTests {
     let card = DiveSiteSummary.card(item, units: .metric)
     #expect(card.figures.map(\.value) == ["3", "31 m", "7"])
     #expect(card.points.count == 1)
+    #expect(card.chips.map(\.text) == ["Proposed"])
   }
 
   @Test func clusterCountsUseTheStylesOwnFont() {
