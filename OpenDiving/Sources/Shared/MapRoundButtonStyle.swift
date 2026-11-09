@@ -20,16 +20,13 @@ struct MapRoundButtonStyle: ButtonStyle {
 
 extension View {
   /// A round button floating on the map, the size and glass of a top bar's button; teal while on.
+  /// From iOS 26 its label is `glassLabelSide` square, which the glass pads out to the bar's 44.
   @ViewBuilder func mapRoundButton(isOn: Bool = false) -> some View {
     if #available(iOS 26, *) {
-      let sized = frame(
-        width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide
-      )
-      .buttonBorderShape(.circle)
       if isOn {
-        sized.buttonStyle(.glassProminent).tint(Color.brandTeal)
+        buttonBorderShape(.circle).buttonStyle(.glassProminent).tint(Color.brandTeal)
       } else {
-        sized.buttonStyle(.glass).foregroundStyle(Color.primary)
+        buttonBorderShape(.circle).buttonStyle(.glass).foregroundStyle(Color.primary)
       }
     } else {
       buttonStyle(MapRoundButtonStyle(isOn: isOn))
@@ -61,12 +58,14 @@ extension MapRoundButtonStyle {
   HStack(spacing: 12) {
     Button {
     } label: {
-      Image(Icon.locateFixed)
+      Image(Icon.locateFixed).frame(
+        width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
     .mapRoundButton()
     Button {
     } label: {
-      Image(Icon.bookmark)
+      Image(Icon.bookmark).frame(
+        width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
     .mapRoundButton(isOn: true)
   }

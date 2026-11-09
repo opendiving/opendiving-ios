@@ -60,6 +60,8 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       bar()
     }
     .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+    // The host's title names the back button on what it opens; the bar over the map shows none.
+    .navigationBarTitleDisplayMode(.inline)
     .toolbar(removing: .title)
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
@@ -143,11 +145,14 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     Button {
       Task { await model.useMyLocation() }
     } label: {
-      if model.isLocating {
-        BubbleSpinner()
-      } else {
-        Image(Icon.locateFixed)
+      Group {
+        if model.isLocating {
+          BubbleSpinner()
+        } else {
+          Image(Icon.locateFixed)
+        }
       }
+      .frame(width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
     .accessibilityLabel(model.isLocating ? SiteFinderText.locating : SiteFinderText.useMyLocation)
     .disabled(model.isLocating)
@@ -158,6 +163,8 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       Task { await model.setYours(!model.yours) }
     } label: {
       Image(Icon.bookmark)
+        .frame(
+          width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
     .accessibilityLabel(SiteFinderText.yoursLabel)
     .accessibilityAddTraits(model.yours ? .isSelected : [])
