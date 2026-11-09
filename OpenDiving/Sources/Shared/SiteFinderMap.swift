@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The site finder's map: every Commons record and the diver's own sites as one clustered shape
 /// source, which MapLibre draws as a few circles where an annotation per site would be thousands
-/// of views, each site a round mark in its mark's colour and the touched one ringed over them. A group
+/// of views, each site a pin in its mark's colour and the touched one ringed over them. A group
 /// takes the colour of its highest mark. A cluster's tap zooms into it and a point's tap names it;
 /// a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
@@ -237,7 +237,7 @@ struct SiteFinderMap: UIViewRepresentable {
       style.addSource(MLNShapeSource(identifier: Source.sites, features: [], options: clustered))
       style.addSource(MLNShapeSource(identifier: Source.selected, features: [], options: nil))
       for mark in DiveSiteMark.allCases {
-        style.setImage(SiteMapMarker.image(mark, dark: dark), forName: Self.imageName(mark))
+        style.setImage(SiteMapPin.image(mark, dark: dark), forName: Self.pinName(mark))
       }
       addSites(to: style, dark: dark)
       addRing(Layer.selected, source: Source.selected, to: style)
@@ -245,10 +245,10 @@ struct SiteFinderMap: UIViewRepresentable {
 
     private func addSites(to style: MLNStyle, dark: Bool) {
       guard let source = style.source(withIdentifier: Source.sites) else { return }
-      // The marks' shadow, for a group: a blurred ring just outside its outline.
+      // The pins' shadow, for a group: a blurred ring just outside its outline.
       let halo = MLNCircleStyleLayer(identifier: Layer.halos, source: source)
       halo.predicate = NSPredicate(format: "cluster == YES")
-      halo.circleColor = NSExpression(forConstantValue: SiteMapMarker.shadow)
+      halo.circleColor = NSExpression(forConstantValue: SiteMapPin.shadow)
       halo.circleRadius = NSExpression(
         format: "mgl_step:from:stops:(point_count, 17, %@)", [25: 21, 250: 25])
       halo.circleBlur = NSExpression(forConstantValue: 0.45)
@@ -258,12 +258,12 @@ struct SiteFinderMap: UIViewRepresentable {
       let cluster = MLNCircleStyleLayer(identifier: Layer.clusters, source: source)
       cluster.predicate = NSPredicate(format: "cluster == YES")
       cluster.circleColor = Self.byMark {
-        NSExpression(forConstantValue: SiteMapMarker.fill($0, dark: dark))
+        NSExpression(forConstantValue: SiteMapPin.fill($0, dark: dark))
       }
       cluster.circleOpacity = NSExpression(forConstantValue: 0.9)
       cluster.circleRadius = NSExpression(
         format: "mgl_step:from:stops:(point_count, 13, %@)", [25: 17, 250: 21])
-      cluster.circleStrokeColor = NSExpression(forConstantValue: SiteMapMarker.edge(dark: dark))
+      cluster.circleStrokeColor = NSExpression(forConstantValue: SiteMapPin.edge(dark: dark))
       cluster.circleStrokeWidth = NSExpression(forConstantValue: 1.5)
       style.addLayer(cluster)
       // A style's glyphs serve its own fonts alone; without one the circles still say where.
@@ -280,8 +280,11 @@ struct SiteFinderMap: UIViewRepresentable {
       }
       let point = MLNSymbolStyleLayer(identifier: Layer.points, source: source)
       point.predicate = NSPredicate(format: "cluster != YES")
-      point.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.imageName($0)) }
+      point.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
       point.iconOpacity = NSExpression(forConstantValue: 0.9)
+      point.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
+      point.iconOffset = NSExpression(
+        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: SiteMapPin.tipOffset)))
       point.iconAllowsOverlap = NSExpression(forConstantValue: true)
       point.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(point)
@@ -297,16 +300,18 @@ struct SiteFinderMap: UIViewRepresentable {
         forMLNMatchingKey: NSExpression(forKeyPath: markKey), in: cases, default: value(.private))
     }
 
-    private static func imageName(_ mark: DiveSiteMark) -> String {
-      "finder-mark-\(mark.rawValue)"
+    private static func pinName(_ mark: DiveSiteMark) -> String {
+      "finder-pin-\(mark.rawValue)"
     }
 
-    /// A ring around the touched site's mark.
+    /// A ring around the pin's head, which stands over the point it marks.
     private func addRing(_ id: String, source sourceID: String, to style: MLNStyle) {
       guard let source = style.source(withIdentifier: sourceID) else { return }
       let ring = MLNCircleStyleLayer(identifier: id, source: source)
       ring.circleColor = NSExpression(forConstantValue: UIColor.clear)
-      ring.circleRadius = NSExpression(forConstantValue: SiteMapMarker.outerRadius + 4)
+      ring.circleRadius = NSExpression(forConstantValue: SiteMapPin.headRadius + 4)
+      ring.circleTranslation = NSExpression(
+        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: -SiteMapPin.headHeight)))
       ring.circleStrokeColor = NSExpression(forConstantValue: UIColor.label)
       ring.circleStrokeWidth = NSExpression(forConstantValue: 3)
       style.addLayer(ring)
