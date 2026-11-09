@@ -21,7 +21,7 @@ struct DiveSiteSearchQueryTests {
     #expect(sent["latitude"] == "28.57")
     #expect(sent["longitude"] == "-0.50")
     #expect(sent["south"] == nil)
-    #expect(sent["yours"] == nil)
+    #expect(sent["my"] == nil)
   }
 
   @Test func theViewIsRoundedOutward() {
@@ -64,11 +64,12 @@ struct DiveSiteSearchQueryTests {
     #expect(sent["east"] == "180.00")
   }
 
-  @Test func noCameraSendsNoCoordinatesAndYoursIsSaid() {
+  @Test func noCameraSendsNoCoordinatesAndYourSitesIsSentAsMy() {
     let sent = values(DiveSiteSearchQuery(yours: true))
     #expect(sent["latitude"] == nil)
     #expect(sent["longitude"] == nil)
-    #expect(sent["yours"] == "true")
+    #expect(sent["my"] == "true")
+    #expect(sent["yours"] == nil)
     #expect(sent["q"] == nil)
   }
 }

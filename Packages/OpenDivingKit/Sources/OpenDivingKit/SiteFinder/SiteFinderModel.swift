@@ -12,8 +12,7 @@ import Observation
 /// **Untyped, the list is the sites in view.** The opening, *Use my location*, a picked place,
 /// *Your sites* toggled and *Search this area* each send the part of the map the diver sees as a
 /// box; a pan sends nothing and offers *Search this area*. A typed search looks everywhere,
-/// nearest the camera first, and *Your sites* lists every one of the diver's, which the server
-/// does not narrow to a view.
+/// nearest the camera first.
 ///
 /// **The list is the server's order.** Nothing re-sorts or re-filters it, except that the dive
 /// form leaves out a site already on the dive.
@@ -38,7 +37,7 @@ public final class SiteFinderModel {
   /// The opening rule has not answered yet, and the camera waits on the world.
   public private(set) var isOpening = true
   public private(set) var list: PagedList<DiveSiteSearchRow>?
-  /// The camera moved since the last request, outside *Your sites*, whose list ignores the view.
+  /// The camera moved since the last request.
   public private(set) var offersSearchThisArea = false
   public private(set) var isLocating = false
   /// Why the last *Use my location* found nothing.
@@ -196,7 +195,7 @@ public final class SiteFinderModel {
     guard byGesture, !isOpening else { return }
     restsOnWorld = false
     restsOnOpening = false
-    if !yours { offersSearchThisArea = true }
+    offersSearchThisArea = true
   }
 
   /// The search box's text, once the diver has paused: nothing is sent for text already searched.
@@ -302,9 +301,9 @@ public final class SiteFinderModel {
   }
 
   /// What the diver sees of the map, where there is a map, measured, off the world the opening
-  /// rests on; never under *Your sites*, whose list the server does not narrow.
+  /// rests on.
   private var shownBox: LatLonBounds? {
-    guard hasMap, Self.isMeasured(viewport), !restsOnWorld, !yours else { return nil }
+    guard hasMap, Self.isMeasured(viewport), !restsOnWorld else { return nil }
     return camera.bounds(width: viewport.width, height: viewport.height)
   }
 

@@ -5,7 +5,7 @@ import Foundation
 public struct DiveSiteSearchPage: Decodable, Sendable {
   public let rows: [DiveSiteSearchRow]
   public let hasMore: Bool
-  /// With `yours`, how many site rows the filters admit.
+  /// With `my`, how many site rows the filters admit.
   public let totalCount: Int?
   public let page: Int
   public let itemsPerPage: Int

@@ -182,21 +182,29 @@ struct SiteFinderModelTests {
     #expect(sentBox(try #require(searches.queries.last)) == box(moved))
   }
 
-  @Test func yourSitesIsNotNarrowedToTheView() async throws {
+  @Test func yourSitesIsNarrowedToTheView() async throws {
     let (world, searches) = try await world()
     let model = tab(world, FakeFinderLocator(.failure(.denied)))
     model.hasMap = true
     model.viewport = Self.viewport
     await model.open()
-    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    let first = MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10)
+    model.mapMoved(to: first, byGesture: true)
     await model.setYours(true)
-    model.mapMoved(to: MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10), byGesture: true)
-    #expect(!model.offersSearchThisArea)
-    let sent = try #require(searches.queries.last)
-    #expect(sent["yours"] == "true")
-    #expect(sent["south"] == nil)
+    let toggled = try #require(searches.queries.last)
+    #expect(toggled["my"] == "true")
+    #expect(sentBox(toggled) == box(first))
+    let moved = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
+    model.mapMoved(to: moved, byGesture: true)
+    #expect(model.offersSearchThisArea)
+    await model.searchThisArea()
+    let searched = try #require(searches.queries.last)
+    #expect(searched["my"] == "true")
+    #expect(sentBox(searched) == box(moved))
     await model.setYours(false)
-    #expect(sentBox(try #require(searches.queries.last)) == box(model.camera))
+    let off = try #require(searches.queries.last)
+    #expect(off["my"] == nil)
+    #expect(sentBox(off) == box(model.camera))
   }
 
   @Test func aTypedSearchLooksEverywhere() async throws {
