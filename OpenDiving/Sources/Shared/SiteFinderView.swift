@@ -316,8 +316,17 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
 
   // MARK: - The list
 
-  /// No pull to refresh: a drag down from the list's top moves the panel instead.
-  private func list(_ panel: SiteFinderPanel) -> some View {
+  /// Over a map a drag down from the list's top moves the panel, so only the panel with no map,
+  /// which stands still, pulls to refresh.
+  @ViewBuilder private func list(_ panel: SiteFinderPanel) -> some View {
+    if map.hasMap {
+      scrolledList(panel)
+    } else {
+      scrolledList(panel).bubbleRefreshable { await model.list?.refresh() }
+    }
+  }
+
+  private func scrolledList(_ panel: SiteFinderPanel) -> some View {
     ScrollView {
       LazyVStack(spacing: 12) {
         content
