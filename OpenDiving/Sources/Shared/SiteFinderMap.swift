@@ -260,6 +260,7 @@ struct SiteFinderMap: UIViewRepresentable {
       cluster.circleColor = Self.byMark {
         NSExpression(forConstantValue: SiteMapMarker.fill($0, dark: dark))
       }
+      cluster.circleOpacity = NSExpression(forConstantValue: 0.85)
       cluster.circleRadius = NSExpression(
         format: "mgl_step:from:stops:(point_count, 13, %@)", [25: 17, 250: 21])
       cluster.circleStrokeColor = NSExpression(forConstantValue: SiteMapMarker.edge(dark: dark))
@@ -280,6 +281,7 @@ struct SiteFinderMap: UIViewRepresentable {
       let point = MLNSymbolStyleLayer(identifier: Layer.points, source: source)
       point.predicate = NSPredicate(format: "cluster != YES")
       point.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.imageName($0)) }
+      point.iconOpacity = NSExpression(forConstantValue: 0.85)
       point.iconAllowsOverlap = NSExpression(forConstantValue: true)
       point.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(point)
