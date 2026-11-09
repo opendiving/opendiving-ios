@@ -42,7 +42,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
         }
         topBar
         // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
-        panelView(panel)
+        panelView(panel, below: geometry.safeAreaInsets.bottom)
           .offset(y: geometry.size.height - panelHeight(panel))
       }
     }
@@ -195,7 +195,9 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
 
   // MARK: - The panel
 
-  private func panelView(_ panel: SiteFinderPanel) -> some View {
+  /// `below` is the safe area under the panel, the tab bar's or the home indicator's, which its
+  /// fill runs on through.
+  private func panelView(_ panel: SiteFinderPanel, below: Double) -> some View {
     let shape = UnevenRoundedRectangle(
       topLeadingRadius: Self.panelRadius, topTrailingRadius: Self.panelRadius)
     return VStack(spacing: 0) {
@@ -223,7 +225,7 @@ struct SiteFinderView<Leading: View, Trailing: View>: View {
       shape
         .fill(Color(.systemGroupedBackground))
         .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
-        .ignoresSafeArea(edges: .bottom)
+        .padding(.bottom, -below)
     }
   }
 
