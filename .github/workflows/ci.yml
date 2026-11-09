@@ -79,7 +79,23 @@ jobs:
       - name: Compare the libdivecomputer commits
         run: scripts/libdivecomputer-pins.sh
 
-  # The app and both test bundles, on a simulator. The image and the Xcode on it are named
+  # The Kit on Apple's Foundation, beside app-macos rather than inside its simulator run, where
+  # its test bundle would share the build's three cores. Same image and Xcode as app-macos.
+  kit-macos:
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test the Kit
+        run: swift test --package-path Packages/OpenDivingKit
+
+  # The app and its test bundle, on a simulator. The image and the Xcode on it are named
   # rather than left to defaults; see DECISIONS.md, "CI builds the app on macos-15 with
   # Xcode 26.3". The project has to build under the maintainers' newer Xcode as well, which
   # is checked locally.
@@ -139,7 +155,9 @@ jobs:
           xcrun simctl boot "$udid"
           echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
 
-      # No index store: nothing reads one on a runner, and writing it slows every compile.
+      # Only the app bundle, which also keeps the Kit's test bundle out of the build: kit-macos
+      # tests the Kit. No index store: nothing reads one on a runner, and writing it slows
+      # every compile.
       - name: Build and test
         run: |
           xcodebuild test \
@@ -147,4 +165,5 @@ jobs:
             -scheme OpenDiving \
             -destination "id=$SIMULATOR_UDID" \
             -derivedDataPath .build \
+            -only-testing:OpenDivingTests \
             COMPILER_INDEX_STORE_ENABLE=NO

@@ -76,7 +76,8 @@ prints its UDID every time after. Never point the test command at a shared, name
 test runs installing the app on the same device kill each other's test host, and two checkouts of
 this repository can easily be testing at once.
 
-Test the Kit alone — quicker, and what CI runs on Linux:
+Test the Kit alone — quicker, and what CI runs on Linux and on macOS, its simulator run testing
+only the app bundle:
 
 ```bash
 swift test --package-path Packages/OpenDivingKit
