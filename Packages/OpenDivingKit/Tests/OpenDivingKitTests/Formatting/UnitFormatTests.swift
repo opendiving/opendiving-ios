@@ -118,6 +118,14 @@ struct UnitFormatTests {
     #expect(NumberText.round(28.000000000000004, decimals: 2) == 28)
   }
 
+  /// `units.test.ts:418-425`: the API sends metres per second, which nobody reads a wind in.
+  @Test func windSpeedsAreWholeKilometresOrMilesPerHour() {
+    #expect(UnitFormat.windSpeed(5.9, .metric) == "21 km/h")
+    #expect(UnitFormat.windSpeed(5.9, .imperial) == "13 mph")
+    #expect(UnitFormat.windSpeed(0, .metric) == "0 km/h")
+    #expect(Measure.speed.word(.imperial) == "miles per hour")
+  }
+
   /// `units.test.ts:196-213`.
   @Test func labelsAndWords() {
     #expect(Measure.depth.label(.metric) == "m")

@@ -2,9 +2,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// The *Sites* tab: the site finder over the diver's sites and the Commons, full screen under a
-/// top bar with no background, each site opening its page, the `+` that adds one and a long press on the map that adds
-/// one where it was pressed. Under *Your sites* it is the diver's list, the most recently dived
-/// first, as cards.
+/// top bar with no background, each site opening its page, the weather at the map's centre, the
+/// `+` that adds one and a long press on the map that adds one where it was pressed. Under *Your
+/// sites* it is the diver's list, the most recently dived first, as cards.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -28,6 +28,7 @@ extension SitesView {
 private struct SitesFinder: View {
   @State private var model: SiteFinderModel
   @State private var map: MapStyleModel
+  @State private var weather: MapWeatherModel
   /// The site a row or a point opened.
   @State private var opened: UUID?
   /// Where a long press asked for a new site.
@@ -37,6 +38,7 @@ private struct SitesFinder: View {
   init(session: Session) {
     _model = State(initialValue: SitesView.finder(session))
     _map = State(initialValue: MapStyleModel(session: session))
+    _weather = State(initialValue: MapWeatherModel(session: session))
   }
 
   var body: some View {
@@ -47,6 +49,17 @@ private struct SitesFinder: View {
       bar: {
         if session.isCommonsPrimary {
           ToolbarItem(placement: .topBarLeading) { proposalsButton }
+        }
+        // Always there, even empty: it stands in for the title, which names the back button on
+        // what the tab opens and is never shown over the map.
+        ToolbarItem(placement: .principal) {
+          if let current = weather.current,
+            let content = MapWeatherContent(current, units: session.units)
+          {
+            MapWeatherBar(content: content, place: weather.place) { await weather.lookUpPlace() }
+          } else {
+            Color.clear.frame(width: 1, height: 1)
+          }
         }
         ToolbarItem(placement: .primaryAction) {
           NavigationLink {
@@ -60,8 +73,15 @@ private struct SitesFinder: View {
     )
     .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
+    .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
+    .task { await weather.followRoute() }
     // Nothing else on this tab asks the server what it is until a card with a pin draws its map.
     .task { await session.loadServerInfo() }
+  }
+
+  /// Where the bar's weather is for: the map's centre, and nowhere with no map.
+  private var weatherCell: MapWeatherModel.Cell? {
+    map.hasMap ? MapWeatherModel.cell(model.camera) : nil
   }
 
   /// Only where the instance takes proposals, whose routes answer nowhere else.

@@ -63,9 +63,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       bar()
     }
     .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-    // The host's title names the back button on what it opens; the bar over the map shows none.
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar(removing: .title)
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: typing) { _, typing in

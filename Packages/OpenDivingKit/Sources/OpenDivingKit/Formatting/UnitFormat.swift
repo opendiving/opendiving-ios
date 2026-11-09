@@ -77,6 +77,11 @@ public enum UnitFormat {
     format(barPerMinute, .sac, units, decimals: decimals)
   }
 
+  /// A wind speed in metres per second, whole in both systems: `"21 km/h"` or `"13 mph"`.
+  public static func windSpeed(_ metersPerSecond: Double, _ units: UnitSystem) -> String {
+    format(metersPerSecond * 3.6, .speed, units)
+  }
+
   /// A respiratory minute volume in L/min, as `"18.24 L/min"` or `"0.64 cuft/min"`.
   public static func rmv(_ litersPerMinute: Double, _ units: UnitSystem, decimals: Int? = nil)
     -> String
