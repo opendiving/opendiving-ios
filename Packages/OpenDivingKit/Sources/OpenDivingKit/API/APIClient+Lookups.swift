@@ -146,6 +146,27 @@ extension APIClient {
     return .named(result)
   }
 
+  // MARK: - Conditions
+
+  /// `GET /dive-conditions/current`: the weather at a position now. Nil where the instance fetches
+  /// no conditions, which answers 404.
+  public func currentConditions(latitude: Double, longitude: Double) async throws
+    -> DiveConditionsCurrentRead?
+  {
+    do {
+      return try await authorizedDecoded(
+        DiveConditionsCurrentRead.self,
+        Call(
+          path: "dive-conditions/current",
+          query: [
+            URLQueryItem(name: "latitude", value: String(latitude)),
+            URLQueryItem(name: "longitude", value: String(longitude)),
+          ]))
+    } catch APIError.http(status: 404, _) {
+      return nil
+    }
+  }
+
   // MARK: - The account
 
   /// `GET /user/storage`.

@@ -17,6 +17,9 @@ public enum Measure: Sendable, Hashable, CaseIterable {
   /// Respiratory minute volume, L/min.
   case rmv
   case gasVolume
+  /// A wind speed. Kilometres per hour are its metric value, not the metres per second the API
+  /// sends, so ``UnitFormat/windSpeed(_:_:)`` converts before it formats.
+  case speed
 
   /// The short unit, as it follows a value: `"m"`, `"°F"`, `"psi/min"`.
   public func label(_ units: UnitSystem) -> String {
@@ -35,6 +38,8 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case (.rmv, .imperial): "cuft/min"
     case (.gasVolume, .metric): "L"
     case (.gasVolume, .imperial): "cuft"
+    case (.speed, .metric): "km/h"
+    case (.speed, .imperial): "mph"
     }
   }
 
@@ -55,6 +60,8 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case (.rmv, .imperial): "cubic feet per minute"
     case (.gasVolume, .metric): "liters"
     case (.gasVolume, .imperial): "cubic feet"
+    case (.speed, .metric): "kilometers per hour"
+    case (.speed, .imperial): "miles per hour"
     }
   }
 
@@ -74,6 +81,7 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case .weight: return metric / UnitFormat.kgPerPound
     case .pressure, .sac: return metric * UnitFormat.psiPerBar
     case .rmv, .gasVolume: return metric / UnitFormat.litersPerCubicFoot
+    case .speed: return metric * 1000 / (UnitFormat.metersPerFoot * UnitFormat.feetPerMile)
     }
   }
 
@@ -92,6 +100,7 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case .weight: return display * UnitFormat.kgPerPound
     case .pressure, .sac: return display / UnitFormat.psiPerBar
     case .rmv, .gasVolume: return display * UnitFormat.litersPerCubicFoot
+    case .speed: return display * UnitFormat.metersPerFoot * UnitFormat.feetPerMile / 1000
     }
   }
 
@@ -116,9 +125,10 @@ public enum Measure: Sendable, Hashable, CaseIterable {
   }
 
   /// Fixed metric decimals, or nil for up to two with trailing zeros trimmed. Visibility
-  /// and altitude are whole metres: both are integer columns.
+  /// and altitude are whole metres: both are integer columns. A wind speed is whole, as the web
+  /// shows it.
   var metricDecimals: Int? {
-    self == .visibility || self == .altitude ? 0 : nil
+    self == .visibility || self == .altitude || self == .speed ? 0 : nil
   }
 
   /// Whole numbers for everything but the rates: a whole psi/min is one significant

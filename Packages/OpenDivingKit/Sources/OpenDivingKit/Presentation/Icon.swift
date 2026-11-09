@@ -11,6 +11,11 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case building2 = "building-2"
   case calendar
   case chartLine = "chart-line"
+  case cloud
+  case cloudFog = "cloud-fog"
+  case cloudLightning = "cloud-lightning"
+  case cloudRain = "cloud-rain"
+  case cloudSnow = "cloud-snow"
   case cloudSun = "cloud-sun"
   case dive
   case diveComputer = "dive-computer"
@@ -26,12 +31,14 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case luggage
   case mapPin = "map-pin"
   case mountain
+  case navigation2 = "navigation-2"
   case paperclip
   case phone
   case plus
   case search
   case settings
   case ship
+  case sun
   case tabDive = "tab-dive"
   case tabDiveSite = "tab-dive-site"
   case tabIdCard = "tab-id-card"
