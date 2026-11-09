@@ -12,6 +12,12 @@ struct PositionLookupTests {
     #expect(lookup.request != nil)
   }
 
+  @Test func aPinnedFormAsksFromTheStart() {
+    #expect(
+      PositionLookup(pinnedAt: DeviceLocation(latitude: 27.8, longitude: 34.3)).request != nil)
+    #expect(PositionLookup(pinnedAt: nil).request == nil)
+  }
+
   @Test func eachChangeIsANewRequest() {
     let lookup = PositionLookup()
     lookup.positionChanged(latitude: "27.8", longitude: "34.3")
