@@ -26,7 +26,8 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
   @ToolbarContentBuilder let bar: () -> Bar
 
   @State private var detent = SiteFinderPanel.Detent.half
-  /// How far a drag on the handle, the search or the list from its top has pulled the panel up.
+  /// How far a drag on the handle, the search or the list from its top has pulled the panel up,
+  /// and whether it is on the move.
   @State private var drag = SiteFinderPanelDrag()
   @FocusState private var typing: Bool
 
@@ -68,7 +69,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: typing) { _, typing in
-      if typing { withAnimation(.snappy) { detent = .full } }
+      if typing { move(to: .full) }
     }
     .onChange(of: detent) { _, detent in
       if detent != .full { typing = false }
@@ -210,7 +211,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .contentShape(Rectangle())
       .gesture(
         PanelPan(
-          isEnabled: map.hasMap, onChanged: { drag.dragged = -$0 },
+          isEnabled: map.hasMap, onChanged: { drag.follow(-$0) },
           onEnded: { letGo(panel, velocity: -$0) }))
       if let failure = model.locationFailure {
         FieldMessage(SiteFinderText.locationFailure(failure))
@@ -220,15 +221,18 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       }
       list(panel)
     }
-    // Its tallest at every detent, moved rather than resized, so a drag lays nothing out again.
-    .frame(height: panel.height(.full), alignment: .top)
+    .frame(
+      height: map.hasMap && !drag.isMoving ? panel.height(detent) : panel.height(.full),
+      alignment: .top
+    )
     .frame(maxWidth: .infinity)
     .clipShape(shape)
     .background {
       shape
         .fill(Color(.systemGroupedBackground))
         .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
-        // A spring settling at the tallest carries the foot a little above the screen's.
+        // Runs on under a panel that lands a little short of its height, or a spring that
+        // carries its foot above the screen's.
         .padding(.bottom, -below - 40)
     }
   }
@@ -246,7 +250,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .frame(maxWidth: .infinity)
       .contentShape(Rectangle())
       .onTapGesture {
-        withAnimation(.snappy) { detent = detent == .half ? .full : .half }
+        move(to: detent == .half ? .full : .half)
       }
       .accessibilityElement()
       .accessibilityLabel("List of dive sites")
@@ -274,9 +278,20 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
   /// finger's speed rather than from rest. `velocity` is upward positive.
   private func letGo(_ panel: SiteFinderPanel, velocity: Double) {
     let release = panel.release(from: detent, dragged: drag.dragged, velocity: velocity)
-    withAnimation(.interpolatingSpring(.snappy, initialVelocity: release.velocity)) {
-      detent = release.detent
-      drag.dragged = 0
+    move(
+      to: release.detent,
+      on: .interpolatingSpring(.snappy, initialVelocity: release.velocity))
+  }
+
+  /// Moves the panel to `target`, laid out at its tallest until it lands rather than resized on
+  /// every frame of the way.
+  private func move(to target: SiteFinderPanel.Detent, on animation: Animation = .snappy) {
+    let number = drag.begin()
+    withAnimation(animation) {
+      detent = target
+      drag.letGo()
+    } completion: {
+      drag.end(number)
     }
   }
 
@@ -323,12 +338,10 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .background {
         if map.hasMap {
           PanelDragFromScrollTop(
-            onChanged: { drag.dragged = -$0 }, onEnded: { letGo(panel, velocity: -$0) })
+            onChanged: { drag.follow(-$0) }, onEnded: { letGo(panel, velocity: -$0) })
         }
       }
     }
-    // What of the panel lies below the screen at its detent, which the last rows scroll above.
-    .contentMargins(.bottom, map.hasMap ? panel.height(.full) - panel.height(detent) : 0)
     .scrollDismissesKeyboard(.immediately)
   }
 
@@ -386,7 +399,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     case .place(let item):
       Button {
         typing = false
-        withAnimation(.snappy) { detent = .half }
+        move(to: .half)
         Task { await model.pick(item) }
       } label: {
         SiteFinderRow(content: SiteFinderRowContent(row, units: units))
@@ -421,7 +434,8 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
 
 /// Moves what it modifies with the panel's top edge, which is `foot` less the panel's height
 /// from where it sits: the panel is placed from the top of the finder, the controls riding on
-/// it from the bottom. Only this reads the drag, so a drag draws nothing else again.
+/// it from the bottom. Only this reads how far the panel is dragged, so a drag draws nothing else
+/// again.
 private struct RidesPanel: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
