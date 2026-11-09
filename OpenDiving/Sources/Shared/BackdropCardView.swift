@@ -63,11 +63,12 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
   }
 
   /// A blur rather than `glassEffect`, which is iOS 26's and for controls over the content rather
-  /// than the content. It starts at the card's middle, as the web's glass does.
+  /// than the content. It starts a third of the way down the card.
   private var glass: some View {
-    VStack(spacing: 0) {
-      Color.clear
-      ProgressiveBlur(edge: .bottom, radius: 3)
+    GeometryReader { proxy in
+      ProgressiveBlur(edge: .bottom, radius: 1)
+        .frame(height: proxy.size.height * 0.65)
+        .frame(maxHeight: .infinity, alignment: .bottom)
     }
   }
 }
