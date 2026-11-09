@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// What the site finder's map draws: every Commons record with a pin, and the diver's own and
-/// saved sites over them.
+/// saved sites, whose copy of a saved record stands in for the Commons'.
 ///
 /// The Commons document is one for every account on the server, kept in the server's directory
 /// with its `ETag` and asked for again once per launch, so a held copy draws at once and offline
@@ -30,7 +30,7 @@ public final class DiveSitePointsModel {
     _ = await (commons, yours)
   }
 
-  /// The point of `uuid`, the diver's before the Commons', as the map's top layer is.
+  /// The point of `uuid`, the diver's before the Commons', as the map keeps the diver's copy.
   public func point(_ uuid: UUID) -> SiteFinderPoint? {
     if let mine = yours.first(where: { $0.uuid == uuid }) {
       let credit = mine.isCommons ? commonsCredit(uuid) : nil

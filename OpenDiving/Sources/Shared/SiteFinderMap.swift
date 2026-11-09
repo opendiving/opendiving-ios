@@ -15,7 +15,7 @@ struct SiteFinderMap: UIViewRepresentable {
   let camera: MapCamera
   /// What the screen draws over the map, which a change leaves where it was.
   var covered = UIEdgeInsets.zero
-  /// Nil hides the Commons layer.
+  /// Nil leaves the Commons records off the map, the diver's saved ones staying.
   let commons: CommonsDiveSitePoints?
   let yours: [DiveSitePoint]
   let selected: SiteFinderPoint?
