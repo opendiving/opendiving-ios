@@ -149,6 +149,21 @@ struct MapWeatherTests {
     #expect(model.current == nil)
   }
 
+  @Test func withNoRouteTheBarEmptiesAndARouteAppearingAsksAgain() async throws {
+    let asked = Asked()
+    let world = try await world(asked, answer: .json(Self.dahab))
+    let model = model(world)
+    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    #expect(model.current != nil)
+    world.route.isRouteAvailable = false
+    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    #expect(model.current == nil)
+    world.route.isRouteAvailable = true
+    await model.routeAppeared()
+    #expect(model.current != nil)
+    #expect(asked.all == ["28.5,34.5", "27.9,34.3"])
+  }
+
   @Test func anInstanceThatFetchesNoConditionsIsAskedOnce() async throws {
     let asked = Asked()
     let world = try await world(

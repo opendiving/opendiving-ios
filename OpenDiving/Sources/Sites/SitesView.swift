@@ -74,6 +74,7 @@ private struct SitesFinder: View {
     .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
     .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
+    .task { await weather.followRoute() }
     // Nothing else on this tab asks the server what it is until a card with a pin draws its map.
     .task { await session.loadServerInfo() }
   }

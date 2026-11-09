@@ -28,6 +28,8 @@ public final class MapWeatherModel {
   @ObservationIgnored var settleDelay = Duration.milliseconds(600)
   @ObservationIgnored var now: @Sendable () -> Date = { Date() }
   @ObservationIgnored private var held: [Cell: (at: Date, read: DiveConditionsCurrentRead)] = [:]
+  /// The cell the map last showed, which a route appearing asks about again.
+  @ObservationIgnored private var shown: Cell?
   /// The server the answers are from, and whether it fetches no conditions at all.
   @ObservationIgnored private var origin: ServerOrigin?
   @ObservationIgnored private var isOff = false
@@ -49,6 +51,7 @@ public final class MapWeatherModel {
   /// Shows the weather at `cell`, from what is held or, once the map has rested there, from
   /// the server. Meant for a task restarted with each cell, whose cancellation is a pan onward.
   public func show(_ cell: Cell?) async {
+    shown = cell
     if session.state.origin != origin {
       origin = session.state.origin
       held = [:]
@@ -63,13 +66,17 @@ public final class MapWeatherModel {
       return
     }
     try? await Task.sleep(for: settleDelay)
-    guard !Task.isCancelled, let client = try? session.routedClient() else { return }
+    guard !Task.isCancelled else { return }
+    // Another cell's weather would be wrong here, and there is none to show for this one.
+    guard let client = try? session.routedClient() else {
+      current = nil
+      return
+    }
     let read: DiveConditionsCurrentRead?
     do {
       read = try await client.currentConditions(
         latitude: cell.latitude, longitude: cell.longitude)
     } catch {
-      // Another cell's weather would be wrong here, and there is none to show for this one.
       if !Task.isCancelled { current = nil }
       return
     }
@@ -81,5 +88,16 @@ public final class MapWeatherModel {
     }
     held[cell] = (now(), read)
     current = read
+  }
+
+  /// Asks about the cell the map shows each time a route appears, until the calling task is
+  /// cancelled: a pan with no route left the bar empty.
+  public func followRoute() async {
+    await session.connectivity.eachRouteAppearance { await routeAppeared() }
+  }
+
+  func routeAppeared() async {
+    guard current == nil else { return }
+    await show(shown)
   }
 }
