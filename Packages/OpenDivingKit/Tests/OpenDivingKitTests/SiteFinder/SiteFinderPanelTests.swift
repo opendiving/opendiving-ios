@@ -35,3 +35,50 @@ struct SiteFinderPanelTests {
     #expect(panel.settle(from: .full, predicted: -400) == .half)
   }
 }
+
+/// A drag lets go at a detent with the finger's speed, as a share of the way left to it.
+struct SiteFinderPanelReleaseTests {
+  private let panel = SiteFinderPanel(available: 700)
+
+  @Test func aDragLetGoStillSettlesAtTheNearest() {
+    let release = panel.release(from: .half, dragged: 40, velocity: 0)
+    #expect(release == SiteFinderPanel.Release(detent: .half, velocity: 0))
+  }
+
+  @Test func aFlickCarriesPastTheNearestAsAScrollViewWould() {
+    #expect(panel.release(from: .half, dragged: 40, velocity: 600).detent == .full)
+    #expect(panel.release(from: .half, dragged: 40, velocity: 200).detent == .half)
+  }
+
+  @Test func theSpeedIsAShareOfTheWayLeft() {
+    let release = panel.release(from: .half, dragged: 0, velocity: 1000)
+    #expect(release.detent == .full)
+    #expect(abs(release.velocity - 1000 / (panel.height(.full) - panel.height(.half))) < 1e-9)
+  }
+
+  @Test func aFlickJustShortOfTheTopIsHeldUnderTheLimit() {
+    let release = panel.release(from: .half, dragged: 340, velocity: 2000)
+    #expect(release == SiteFinderPanel.Release(detent: .full, velocity: 10))
+  }
+
+  @Test func aFingerAlreadyAtTheDetentPassesNoSpeed() {
+    #expect(panel.release(from: .full, dragged: 50, velocity: 3000).velocity == 0)
+  }
+}
+
+/// The controls on the panel's edge fade out above the half it opens to.
+struct SiteFinderPanelControlsTests {
+  private let panel = SiteFinderPanel(available: 700)
+
+  @Test func theyShowUpToTheHalf() {
+    #expect(panel.controlsOpacity(shown: panel.height(.collapsed)) == 1)
+    #expect(panel.controlsOpacity(shown: panel.height(.half)) == 1)
+  }
+
+  @Test func theyFadeOverTheDistanceAboveIt() {
+    let half = panel.height(.half)
+    #expect(panel.controlsOpacity(shown: half + SiteFinderPanel.controlsFade / 2) == 0.5)
+    #expect(panel.controlsOpacity(shown: half + SiteFinderPanel.controlsFade) == 0)
+    #expect(panel.controlsOpacity(shown: panel.height(.full)) == 0)
+  }
+}

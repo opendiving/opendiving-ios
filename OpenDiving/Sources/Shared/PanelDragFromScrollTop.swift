@@ -9,7 +9,7 @@ import UIKit
 struct PanelDragFromScrollTop: UIViewRepresentable {
   /// The drag's translation since it took the panel, downward positive.
   let onChanged: (Double) -> Void
-  /// Where the drag would have come to rest, flicked on as the scroll view would decelerate.
+  /// The speed the finger let go at, in points a second downward, or 0 when the drag was taken.
   let onEnded: (Double) -> Void
 
   func makeCoordinator() -> Coordinator { Coordinator() }
@@ -73,13 +73,11 @@ struct PanelDragFromScrollTop: UIViewRepresentable {
         scrollView.contentOffset.y = top
         onChanged(translation - start)
       case .ended, .cancelled, .failed:
-        guard let start else { return }
-        self.start = nil
+        guard start != nil else { return }
+        start = nil
         // Stops the deceleration the scroll view began from the flick, which would bounce.
         scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: top), animated: false)
-        let velocity = pan.state == .ended ? Double(pan.velocity(in: nil).y) : 0
-        let rate = Double(UIScrollView.DecelerationRate.normal.rawValue)
-        onEnded(translation - start + velocity / 1000 * rate / (1 - rate))
+        onEnded(pan.state == .ended ? Double(pan.velocity(in: nil).y) : 0)
       default:
         break
       }
