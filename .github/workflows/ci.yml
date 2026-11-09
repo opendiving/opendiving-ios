@@ -174,7 +174,7 @@ jobs:
             COMPILATION_CACHE_CAS_PATH="$PWD/.build/CompilationCache.noindex"
 
       - name: Save the compilation cache
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.event_name == 'push' }}
         uses: actions/cache/save@v6
         with:
           path: .build/CompilationCache.noindex
