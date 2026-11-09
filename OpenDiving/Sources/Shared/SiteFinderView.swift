@@ -104,7 +104,6 @@ struct SiteFinderView<Header: View>: View {
     .clipped()
   }
 
-  /// The list's sites that have a pin, ringed on the map.
   private var locateButton: some View {
     Button {
       Task { await model.useMyLocation() }

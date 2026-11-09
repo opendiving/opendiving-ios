@@ -5,7 +5,8 @@ import SwiftUI
 
 /// The site finder's map: every Commons record and the diver's own sites as clustered shape
 /// sources, which MapLibre draws as a few circles where an annotation per site would be
-/// thousands of views, and the touched one ringed over them. A cluster's tap zooms into it and a point's tap names it; a long press is where a site is added.
+/// thousands of views, and the touched one ringed over them. A cluster's tap zooms into it and a
+/// point's tap names it; a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
   /// Where the map looks. A change jumps it there; every move comes back through
