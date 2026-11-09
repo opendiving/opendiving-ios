@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
-/// water standing in for one — above the details, which sit over its foot on frosted glass.
+/// water standing in for one — above the details, which sit over its foot on a blur.
 /// However tall the details grow, the band shows as much of itself. The backdrop is handed the
 /// card's width and how many points of its foot the details cover. A map's credit sits in the
 /// card's top corner on glass of its own, out of the details, so a list's cards are one height
@@ -62,15 +62,14 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
     .allowsHitTesting(false)
   }
 
-  /// A material rather than `glassEffect`, which is iOS 26's and for controls over the content
-  /// rather than the content: one path for every iOS the app runs on, and its own tint lands on
-  /// the colours of the web's glass, so nothing is laid over it.
+  /// A blur rather than `glassEffect`, which is iOS 26's and for controls over the content rather
+  /// than the content. It starts a third of the way down the card.
   private var glass: some View {
-    Rectangle()
-      .fill(.thinMaterial)
-      .mask {
-        LinearGradient(colors: [.clear, .black], startPoint: .center, endPoint: .bottom)
-      }
+    GeometryReader { proxy in
+      ProgressiveBlur(edge: .bottom, radius: 2)
+        .frame(height: proxy.size.height * 0.65)
+        .frame(maxHeight: .infinity, alignment: .bottom)
+    }
   }
 }
 
