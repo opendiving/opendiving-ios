@@ -237,6 +237,25 @@ struct SiteFinderModelTests {
     #expect(sentBox(try #require(searches.queries.last)) == box(last))
   }
 
+  @Test func aPanCancellingTheListOnScreenShowsNoFailure() async throws {
+    let gate = Gate()
+    let (world, searches) = try await world(gate: gate)
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    gate.isHeld = true
+    let toggled = Task { await model.setYours(true) }
+    while searches.queries.count < 2 { await Task.yield() }
+    let shown = try #require(model.list)
+    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    await toggled.value
+    #expect(shown.phase == .idle)
+    #expect(shown.pageError == nil)
+    gate.isHeld = false
+    await model.settling?.value
+    while model.isSearching { await Task.yield() }
+    #expect(model.list?.phase == .loaded)
+    #expect(searches.queries.last?["my"] == "true")
+  }
+
   @Test func aPanBackToTheViewLastAnsweredSendsNothing() async throws {
     let (world, searches) = try await world()
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))

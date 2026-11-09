@@ -5,8 +5,9 @@ import SwiftUI
 /// The site finder the Sites tab is and the dive form's site picker opens: the map full screen
 /// under a panel that holds the search and the list, *Your sites* and *Use my location* floating
 /// over the map's corner above the panel, and a spinner under the top bar while the list is asked
-/// for again. With no map on the instance the panel stands alone, at its tallest. What a site does when chosen, and
-/// the top bar's buttons, are the host's; the bar draws no background over the map.
+/// for again. With no map on the instance the panel stands alone, at its tallest. What a site
+/// does when chosen, and the top bar's buttons, are the host's; the bar draws no background over
+/// the map.
 struct SiteFinderView<Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel

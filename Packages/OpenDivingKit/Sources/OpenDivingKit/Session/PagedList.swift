@@ -22,6 +22,9 @@ import Observation
 /// A list made `routed` asks for nothing while the phone believes it has no route: it fails at
 /// once with ``APIError/noRoute``, quietly behind kept pages, and the page that owns it reads
 /// again when one appears.
+///
+/// A load whose task is cancelled has no outcome: nothing it shows says it failed, and a list
+/// with nothing fetched is idle again, so the next ``load()`` asks once more.
 @MainActor
 @Observable
 public final class PagedList<Item: Codable & Sendable> {
@@ -102,7 +105,7 @@ public final class PagedList<Item: Codable & Sendable> {
       pageError = nil
       keep(fetchedUnder: stores, firstPage: false)
     } catch {
-      guard generation == self.generation else { return }
+      guard generation == self.generation, !Task.isCancelled else { return }
       pageError = APIError(error)
     }
   }
@@ -165,7 +168,9 @@ public final class PagedList<Item: Codable & Sendable> {
       keep(fetchedUnder: stores, firstPage: true)
     } catch {
       guard generation == self.generation else { return }
-      if fetched.isEmpty {
+      if Task.isCancelled {
+        if fetched.isEmpty { phase = .idle }
+      } else if fetched.isEmpty {
         phase = .failed(APIError(error))
       } else if APIError(error) != .noRoute {
         pageError = APIError(error)
