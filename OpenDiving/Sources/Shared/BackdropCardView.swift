@@ -67,7 +67,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
   private var glass: some View {
     VStack(spacing: 0) {
       Color.clear
-      ProgressiveBlur(edge: .bottom, radius: 16)
+      ProgressiveBlur(edge: .bottom, radius: 3)
     }
   }
 }
