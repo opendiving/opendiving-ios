@@ -63,7 +63,7 @@ struct SiteFinderView<Header: View>: View {
       SiteFinderMap(
         styleJSON: style.styleJSON, camera: model.camera,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
-        listed: listedPins, selected: model.selected,
+        selected: model.selected,
         onCameraChange: { camera, view, byGesture in
           model.mapMoved(to: camera, showing: view, byGesture: byGesture)
         },
@@ -105,15 +105,6 @@ struct SiteFinderView<Header: View>: View {
   }
 
   /// The list's sites that have a pin, ringed on the map.
-  private var listedPins: [MapPoint] {
-    model.rows.compactMap { row in
-      guard case .site(let item) = row, let latitude = item.latitude,
-        let longitude = item.longitude
-      else { return nil }
-      return MapPoint(name: item.name, latitude: latitude, longitude: longitude)
-    }
-  }
-
   private var locateButton: some View {
     Button {
       Task { await model.useMyLocation() }

@@ -64,11 +64,11 @@ struct SiteFinderScreensTests {
           longitude: 34.5, latitude: 28.5, uuid: UUID(), name: "Canyon", source: "osm")
       ])
     coordinator.show(
-      SiteFinderMap.Layers(commons: points, yours: [], listed: [], selected: []), on: map)
+      SiteFinderMap.Layers(commons: points, yours: [], selected: []), on: map)
     #expect(style.layer(withIdentifier: "finder-commons-points")?.isVisible == true)
     // *Your sites* hides the Commons layer, and the diver's stays.
     coordinator.show(
-      SiteFinderMap.Layers(commons: nil, yours: [], listed: [], selected: []), on: map)
+      SiteFinderMap.Layers(commons: nil, yours: [], selected: []), on: map)
     #expect(style.layer(withIdentifier: "finder-commons-points")?.isVisible == false)
     #expect(style.layer(withIdentifier: "finder-yours-points")?.isVisible == true)
   }
