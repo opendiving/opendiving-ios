@@ -5,8 +5,8 @@ import SwiftUI
 
 /// The site finder's map: every Commons record and the diver's own sites as clustered shape
 /// sources, which MapLibre draws as a few circles where an annotation per site would be
-/// thousands of views; the list's sites ringed over them, and the touched one ringed again. A
-/// cluster's tap zooms into it and a point's tap names it; a long press is where a site is added.
+/// thousands of views, and the touched one ringed over them. A cluster's tap zooms into it and a
+/// point's tap names it; a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
   /// Where the map looks. A change jumps it there; every move comes back through
@@ -15,7 +15,6 @@ struct SiteFinderMap: UIViewRepresentable {
   /// Nil hides the Commons layer.
   let commons: CommonsDiveSitePoints?
   let yours: [DiveSitePoint]
-  let listed: [MapPoint]
   let selected: SiteFinderPoint?
   let onCameraChange: (MapCamera, LatLonBounds, Bool) -> Void
   let onPoint: (UUID) -> Void
@@ -51,7 +50,7 @@ struct SiteFinderMap: UIViewRepresentable {
     }
     coordinator.show(
       Layers(
-        commons: commons, yours: yours, listed: listed,
+        commons: commons, yours: yours,
         selected: selected.map {
           [MapPoint(name: $0.name, latitude: $0.latitude, longitude: $0.longitude)]
         } ?? []),
@@ -67,10 +66,9 @@ struct SiteFinderMap: UIViewRepresentable {
   struct Layers: Equatable {
     var commons: CommonsDiveSitePoints?
     var yours: [DiveSitePoint]
-    var listed: [MapPoint]
     var selected: [MapPoint]
 
-    static let empty = Layers(commons: nil, yours: [], listed: [], selected: [])
+    static let empty = Layers(commons: nil, yours: [], selected: [])
   }
 
   final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
@@ -124,10 +122,6 @@ struct SiteFinderMap: UIViewRepresentable {
           Source.yours, layers.yours.map { Self.feature($0.uuid, $0.latitude, $0.longitude) }, style
         )
       }
-      if layers.listed != drawn.listed {
-        set(
-          Source.listed, layers.listed.map { Self.feature(nil, $0.latitude, $0.longitude) }, style)
-      }
       if layers.selected != drawn.selected {
         set(
           Source.selected, layers.selected.map { Self.feature(nil, $0.latitude, $0.longitude) },
@@ -175,16 +169,13 @@ struct SiteFinderMap: UIViewRepresentable {
       for id in [Source.commons, Source.yours] {
         style.addSource(MLNShapeSource(identifier: id, features: [], options: clustered))
       }
-      for id in [Source.listed, Source.selected] {
-        style.addSource(MLNShapeSource(identifier: id, features: [], options: nil))
-      }
+      style.addSource(MLNShapeSource(identifier: Source.selected, features: [], options: nil))
       addPoints(
         source: Source.commons, clusters: Layer.commonsClusters, counts: Layer.commonsCounts,
         points: Layer.commonsPoints, color: UIColor(Color.brandTeal), to: style)
       addPoints(
         source: Source.yours, clusters: Layer.yoursClusters, counts: Layer.yoursCounts,
         points: Layer.yoursPoints, color: UIColor(Color.brandCoral), to: style)
-      addRing(Layer.listed, source: Source.listed, radius: 9, width: 2, to: style)
       addRing(Layer.selected, source: Source.selected, radius: 13, width: 3, to: style)
     }
 
@@ -317,7 +308,6 @@ struct SiteFinderMap: UIViewRepresentable {
   private enum Source {
     static let commons = "finder-commons"
     static let yours = "finder-yours"
-    static let listed = "finder-listed"
     static let selected = "finder-selected"
   }
 
@@ -328,7 +318,6 @@ struct SiteFinderMap: UIViewRepresentable {
     static let yoursClusters = "finder-yours-clusters"
     static let yoursCounts = "finder-yours-counts"
     static let yoursPoints = "finder-yours-points"
-    static let listed = "finder-listed"
     static let selected = "finder-selected"
   }
 }
@@ -341,5 +330,5 @@ struct SiteFinderMap: UIViewRepresentable {
       DiveSitePoint(
         longitude: 34.5372, latitude: 28.5722, uuid: UUID(), name: "Blue Hole",
         owner: DiveSiteOwner.account)
-    ], listed: [], selected: nil, onCameraChange: { _, _, _ in }, onPoint: { _ in })
+    ], selected: nil, onCameraChange: { _, _, _ in }, onPoint: { _ in })
 }
