@@ -93,7 +93,12 @@ struct SiteFinderScreensTests {
       #expect(style.image(forName: "finder-pin-\(mark.rawValue)") != nil)
     }
     #expect(style.layer(withIdentifier: "finder-points") is MLNSymbolStyleLayer)
-    #expect(style.layer(withIdentifier: "finder-clusters") is MLNCircleStyleLayer)
+    #expect(style.layer(withIdentifier: "finder-clusters") is MLNSymbolStyleLayer)
+    for mark in DiveSiteMark.allCases {
+      for size in 0..<3 {
+        #expect(style.image(forName: "finder-group-\(mark.rawValue)-\(size)") != nil)
+      }
+    }
   }
 
 }

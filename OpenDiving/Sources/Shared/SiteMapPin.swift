@@ -2,10 +2,10 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The site finder's pin: the dive-site symbol with its inside filled in the mark's colour, the
-/// outline and the bubbles over it, its tip on the point it marks. A soft shadow edges it where
-/// the outline meets land as pale as itself; in the dark the fill is deeper and the outline grey,
-/// so the marks do not glare.
+/// The site finder's marks. A site's pin is the dive-site symbol with its inside filled in the
+/// mark's colour, the outline and the bubbles over it, its tip on the point it marks; a group's is
+/// a circle in its highest mark's colour. A soft shadow edges both where the outline meets land as
+/// pale as itself; in the dark the fill is deeper and the outline grey, so the marks do not glare.
 enum SiteMapPin {
   /// Points per unit of the symbol's 24-unit grid.
   private static let scale: CGFloat = 1.1
@@ -60,6 +60,25 @@ enum SiteMapPin {
       let bubble = UIBezierPath(ovalIn: circle(x: 14.02, y: 8.64, radius: 2.2))
       bubble.lineWidth = stroke
       bubble.stroke()
+      cg.endTransparencyLayer()
+    }
+  }
+
+  /// A group's circle, `radius` to the inside of its outline. An image rather than a circle layer,
+  /// so it fades in and out with the pins and the counts as groups split and gather.
+  static func group(_ mark: DiveSiteMark, radius: CGFloat, dark: Bool) -> UIImage {
+    let side = (radius + stroke + margin) * 2
+    return UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { context in
+      let cg = context.cgContext
+      cg.setShadow(offset: CGSize(width: 0, height: 1), blur: 2.5, color: shadow.cgColor)
+      cg.beginTransparencyLayer(auxiliaryInfo: nil)
+      let circle = UIBezierPath(
+        ovalIn: circle(x: side / 2, y: side / 2, radius: radius + stroke / 2))
+      fill(mark, dark: dark).setFill()
+      circle.fill()
+      edge(dark: dark).setStroke()
+      circle.lineWidth = stroke
+      circle.stroke()
       cg.endTransparencyLayer()
     }
   }

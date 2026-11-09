@@ -238,6 +238,11 @@ struct SiteFinderMap: UIViewRepresentable {
       style.addSource(MLNShapeSource(identifier: Source.selected, features: [], options: nil))
       for mark in DiveSiteMark.allCases {
         style.setImage(SiteMapPin.image(mark, dark: dark), forName: Self.pinName(mark))
+        for (size, group) in Self.groupSizes.enumerated() {
+          style.setImage(
+            SiteMapPin.group(mark, radius: group.radius, dark: dark),
+            forName: Self.groupName(mark, size: size))
+        }
       }
       addSites(to: style, dark: dark)
       addRing(Layer.selected, source: Source.selected, to: style)
@@ -245,26 +250,20 @@ struct SiteFinderMap: UIViewRepresentable {
 
     private func addSites(to style: MLNStyle, dark: Bool) {
       guard let source = style.source(withIdentifier: Source.sites) else { return }
-      // The pins' shadow, for a group: a blurred ring just outside its outline.
-      let halo = MLNCircleStyleLayer(identifier: Layer.halos, source: source)
-      halo.predicate = NSPredicate(format: "cluster == YES")
-      halo.circleColor = NSExpression(forConstantValue: SiteMapPin.shadow)
-      halo.circleRadius = NSExpression(
-        format: "mgl_step:from:stops:(point_count, 17, %@)", [25: 21, 250: 25])
-      halo.circleBlur = NSExpression(forConstantValue: 0.45)
-      halo.circleTranslation = NSExpression(
-        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: 1)))
-      style.addLayer(halo)
-      let cluster = MLNCircleStyleLayer(identifier: Layer.clusters, source: source)
+      let cluster = MLNSymbolStyleLayer(identifier: Layer.clusters, source: source)
       cluster.predicate = NSPredicate(format: "cluster == YES")
-      cluster.circleColor = Self.byMark {
-        NSExpression(forConstantValue: SiteMapPin.fill($0, dark: dark))
+      cluster.iconImageName = Self.byMark { mark in
+        var stops: [Int: String] = [:]
+        for (size, group) in Self.groupSizes.enumerated().dropFirst() {
+          stops[group.from] = Self.groupName(mark, size: size)
+        }
+        return NSExpression(
+          format: "mgl_step:from:stops:(point_count, %@, %@)", Self.groupName(mark, size: 0),
+          stops)
       }
-      cluster.circleOpacity = NSExpression(forConstantValue: 0.9)
-      cluster.circleRadius = NSExpression(
-        format: "mgl_step:from:stops:(point_count, 13, %@)", [25: 17, 250: 21])
-      cluster.circleStrokeColor = NSExpression(forConstantValue: SiteMapPin.edge(dark: dark))
-      cluster.circleStrokeWidth = NSExpression(forConstantValue: 1.5)
+      cluster.iconOpacity = NSExpression(forConstantValue: 0.9)
+      cluster.iconAllowsOverlap = NSExpression(forConstantValue: true)
+      cluster.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(cluster)
       // A style's glyphs serve its own fonts alone; without one the circles still say where.
       if let fonts {
@@ -302,6 +301,15 @@ struct SiteFinderMap: UIViewRepresentable {
 
     private static func pinName(_ mark: DiveSiteMark) -> String {
       "finder-pin-\(mark.rawValue)"
+    }
+
+    /// A group's circle by how many sites it gathers: from that count, that radius.
+    private static let groupSizes: [(from: Int, radius: CGFloat)] = [
+      (0, 13), (25, 17), (250, 21),
+    ]
+
+    private static func groupName(_ mark: DiveSiteMark, size: Int) -> String {
+      "finder-group-\(mark.rawValue)-\(size)"
     }
 
     /// A ring around the pin's head, which stands over the point it marks.
@@ -406,7 +414,6 @@ struct SiteFinderMap: UIViewRepresentable {
   }
 
   private enum Layer {
-    static let halos = "finder-halos"
     static let clusters = "finder-clusters"
     static let counts = "finder-counts"
     static let points = "finder-points"
