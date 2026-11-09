@@ -180,6 +180,7 @@ schemes:
         OpenDiving: all
     test:
       gatherCoverageData: false
+      # The Kit's tests run under `swift test`: in this scheme they would compile beside the app
+      # in every simulator run, since Xcode 26's `-only-testing` still builds them.
       targets:
         - OpenDivingTests
-        - package: OpenDivingKit/OpenDivingKitTests

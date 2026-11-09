@@ -4,7 +4,7 @@ import Foundation
 /// on every platform: keys sorted, no whitespace, a whole number with no fraction, and every
 /// other number in Swift's shortest round-trip spelling. Foundation's serializers are not used
 /// because their number spelling is the platform's, and the writer's goldens are compared as
-/// bytes on Linux and on the simulator alike.
+/// bytes on Linux and on macOS alike.
 enum ArchiveJSON: Hashable, Sendable {
   case object([String: ArchiveJSON])
   case array([ArchiveJSON])

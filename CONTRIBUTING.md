@@ -64,7 +64,7 @@ xcodebuild build -project OpenDiving.xcodeproj -scheme OpenDiving \
   -destination 'generic/platform=iOS Simulator' -derivedDataPath .build
 ```
 
-Test the app bundle and the Kit together, on a simulator of this checkout's own:
+Test the app bundle on a simulator of this checkout's own:
 
 ```bash
 xcodebuild test -project OpenDiving.xcodeproj -scheme OpenDiving \
@@ -76,7 +76,7 @@ prints its UDID every time after. Never point the test command at a shared, name
 test runs installing the app on the same device kill each other's test host, and two checkouts of
 this repository can easily be testing at once.
 
-Test the Kit alone — quicker, and what CI runs on Linux:
+Test the Kit, which the app's scheme leaves out — CI runs this on Linux and on macOS:
 
 ```bash
 swift test --package-path Packages/OpenDivingKit

@@ -256,7 +256,7 @@ recordings those exports made.
 An archive needs SHA-256 for each member, SHA-1 for the version-5 uuids and CRC-32 for the zip,
 and nothing the Kit imports on Linux has them; CryptoKit is Apple-only. They are written in
 Swift and tested against their published vectors, so the writer's goldens are the same bytes on
-Linux and the simulator. Rejected: a digest seam the app conforms over CryptoKit, which would
+Linux and macOS. Rejected: a digest seam the app conforms over CryptoKit, which would
 make the goldens a fake's output wherever the Kit's tests run.
 
 ## A dive's body is the shared reader's, and its identity the Kit's
