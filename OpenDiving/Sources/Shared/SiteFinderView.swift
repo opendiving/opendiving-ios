@@ -463,28 +463,34 @@ private struct SiteFinderRow: View {
       Image(content.isPlace ? Icon.mapPin : Icon.diveSite)
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
+      // The credit sits outside the distance's row, so it runs on under the distance rather
+      // than wrapping in the narrower column beside it.
       VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
-          Text(content.title).foregroundStyle(Color.primary)
-          if let mark = content.mark {
-            BadgeView(mark.label, style: .outline) { DiveSiteMarkIcon(mark: mark) }
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel(mark.accessibilityLabel)
+        HStack(alignment: .top, spacing: 12) {
+          VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+              Text(content.title).foregroundStyle(Color.primary)
+              if let mark = content.mark {
+                BadgeView(mark.label, style: .outline) { DiveSiteMarkIcon(mark: mark) }
+                  .accessibilityElement(children: .ignore)
+                  .accessibilityLabel(mark.accessibilityLabel)
+              }
+            }
+            if let subtitle = content.subtitle {
+              Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+            }
+            if let nearby = content.nearby {
+              Text(nearby).font(.footnote).foregroundStyle(.secondary)
+            }
           }
-        }
-        if let subtitle = content.subtitle {
-          Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
-        }
-        if let nearby = content.nearby {
-          Text(nearby).font(.footnote).foregroundStyle(.secondary)
+          Spacer(minLength: 0)
+          if let distance = content.distance {
+            Text(distance).font(.subheadline).foregroundStyle(.secondary)
+          }
         }
         if let credit = content.credit {
           AttributionLine(credits: [credit])
         }
-      }
-      Spacer(minLength: 0)
-      if let distance = content.distance {
-        Text(distance).font(.subheadline).foregroundStyle(.secondary)
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
