@@ -18,8 +18,9 @@ struct DiveSiteSummaryTests {
   }
 
   @Test func theInformationCardHoldsEveryFieldTheSiteRecords() throws {
-    // The fixture's location is the panel's head's, not the card's.
+    // The fixture's location, and a site's tags, are the panel's head's, not the card's.
     #expect(DiveSiteSummary.info(try Self.site(), units: .metric).isEmpty)
+    #expect(DiveSiteSummary.info(try Self.site(["tags": ["wall"]]), units: .metric).isEmpty)
     let info = DiveSiteSummary.info(
       try Self.site([
         "other_names": ["Bells", "The Bells"], "latitude": 28.57, "longitude": 34.53,
@@ -36,7 +37,6 @@ struct DiveSiteSummaryTests {
     #expect(info.waterType == "Fresh water")
     #expect(info.altitude == "420 m")
     #expect(info.entryTypes == "Shore, Boat")
-    #expect(info.tags == ["wall"])
     #expect(
       info.registries == [
         .init(label: "Wikidata", identifier: "Q123", link: "https://www.wikidata.org/wiki/Q123"),

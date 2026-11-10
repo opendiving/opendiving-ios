@@ -334,13 +334,21 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
 
   // MARK: - An opened site
 
-  /// Where the search stood: the site's mark, name and location, beside the way back to the list
-  /// with the host's action under it.
+  /// Where the search stood: the site's mark and tags, name and location, beside the way back to
+  /// the list with the host's action under it.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
     HStack(alignment: .top, spacing: 8) {
       VStack(alignment: .leading, spacing: 4) {
-        if let mark = opened.mark {
-          DiveSiteMarkBadge(mark: mark)
+        let tags = opened.site?.tags ?? []
+        if opened.mark != nil || !tags.isEmpty {
+          FlowLayout(spacing: 6) {
+            if let mark = opened.mark {
+              DiveSiteMarkBadge(mark: mark)
+            }
+            ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
+              BadgeView(tag, style: .outline)
+            }
+          }
         }
         Text(opened.name ?? "")
           .font(.title2.bold())

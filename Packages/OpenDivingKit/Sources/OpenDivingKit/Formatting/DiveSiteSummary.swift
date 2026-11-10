@@ -1,7 +1,7 @@
 /// What a dive site's panel and its information card print, from the site as the API reads it.
 public enum DiveSiteSummary {
-  /// The site's *Dive Site Information* card, every field the site records but its name, its
-  /// location, which the panel's head carries, and its notes, in the site form's order: each
+  /// The site's information card, every field the site records but its name, its location and
+  /// its tags, which the panel's head carries, and its notes, in the site form's order: each
   /// member only where the site records it.
   public struct Info: Hashable, Sendable {
     /// The other names, `Bells, The Bells`.
@@ -12,13 +12,12 @@ public enum DiveSiteSummary {
     public var waterType: String?
     public var altitude: String?
     public var entryTypes: String?
-    public var tags: [String]
     public var registries: [Registry]
 
     /// A site recording none of them draws no card.
     public var isEmpty: Bool {
       [alsoKnownAs, coordinates, depth, waterType, altitude, entryTypes]
-        .allSatisfy { $0 == nil } && tags.isEmpty && registries.isEmpty
+        .allSatisfy { $0 == nil } && registries.isEmpty
     }
   }
 
@@ -61,7 +60,6 @@ public enum DiveSiteSummary {
       altitude: site.altitude.map { UnitFormat.altitude(Double($0), units) },
       entryTypes: site.entryTypes.isEmpty
         ? nil : site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", "),
-      tags: site.tags,
       registries: registries(site))
   }
 

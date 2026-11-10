@@ -93,14 +93,10 @@ private struct SitePanelContent: View {
     .replaceWithCommonsAlert(model.replacement)
   }
 
-  /// What stands on the site, every field it records, and its notes.
+  /// What stands on the site, every field it records with its credit under them, and its notes.
   @ViewBuilder private func info(_ site: DiveSiteRead) -> some View {
     if let lastUpdated = model.lastUpdated {
       LastUpdatedLine(date: lastUpdated)
-    }
-    if let attribution = site.attribution {
-      AttributionLine(credits: [attribution])
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
     if model.hasPendingEdit {
       PendingEditLine()
@@ -113,11 +109,27 @@ private struct SitePanelContent: View {
         match: match, replacement: model.replacement, open: { onOpen(match.uuid) },
         replace: { replacing = match })
     }
-    SiteInformationCard(info: DiveSiteSummary.info(site, units: session.units))
+    VStack(alignment: .leading, spacing: 6) {
+      SiteInformationCard(info: DiveSiteSummary.info(site, units: session.units))
+      if let attribution = site.attribution {
+        AttributionLine(credits: [attribution])
+          .padding(.horizontal, 16)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
     if !site.notes.isEmpty {
-      SectionCard(title: "Notes", icon: .fileText) {
-        Text(site.notes)
+      VStack(alignment: .leading, spacing: 6) {
+        // Over the card, as a form's section header stands over its rows.
+        FormSectionHeader(title: "Notes", icon: .fileText)
+          .font(.footnote)
           .foregroundStyle(.secondary)
+          .padding(.horizontal, 16)
+          .accessibilityAddTraits(.isHeader)
+        Text(site.notes)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 11)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .background(Color.cardFill, in: .formSection)
       }
     }
   }
@@ -219,60 +231,92 @@ private struct SiteDives: View {
   }
 }
 
-/// Every field the site records but its name, location and notes; no card for a site recording
-/// none.
+/// Every field the site records but its name, location, tags and notes, a row each as the
+/// record's info sheet listed them: the label, and its value across from it, or under it where
+/// it is a list. No card for a site recording none.
 private struct SiteInformationCard: View {
   let info: DiveSiteSummary.Info
 
   var body: some View {
     if !info.isEmpty {
-      SectionCard(title: "Dive Site Information", icon: .diveSite) {
-        VStack(alignment: .leading, spacing: 16) {
-          if let alsoKnownAs = info.alsoKnownAs {
-            InfoRow(label: "Also known as") {
-              Text(alsoKnownAs)
+      VStack(alignment: .leading, spacing: 0) {
+        Group(subviews: rows) { rows in
+          ForEach(rows.indices, id: \.self) { index in
+            if index > 0 {
+              Divider().padding(.leading, 16)
             }
+            rows[index]
           }
-          if let coordinates = info.coordinates {
-            InfoRow(label: "Coordinates") {
-              Text(coordinates)
-                .monospacedDigit()
-                .textSelection(.enabled)
-            }
-          }
-          if let depth = info.depth {
-            InfoRow(label: "Depth") { Text(depth) }
-          }
-          if let waterType = info.waterType {
-            InfoRow(label: "Water type") { Text(waterType) }
-          }
-          if let altitude = info.altitude {
-            InfoRow(label: "Altitude") { Text(altitude) }
-          }
-          if let entryTypes = info.entryTypes {
-            InfoRow(label: "Entry types") { Text(entryTypes) }
-          }
-          if !info.tags.isEmpty {
-            InfoRow(label: "Tags") {
-              FlowLayout(spacing: 6) {
-                ForEach(Array(info.tags.enumerated()), id: \.offset) { _, tag in
-                  BadgeView(tag, style: .outline)
-                }
-              }
-            }
-          }
-          if !info.registries.isEmpty {
-            InfoRow(label: "In other registries") {
-              VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(info.registries.enumerated()), id: \.offset) { _, registry in
-                  RegistryLine(registry: registry)
-                }
-              }
-            }
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Color.cardFill, in: .formSection)
+    }
+  }
+
+  @ViewBuilder private var rows: some View {
+    if let alsoKnownAs = info.alsoKnownAs {
+      InfoLine(label: "Also known as") { Text(alsoKnownAs) }
+    }
+    if let coordinates = info.coordinates {
+      InfoLine(label: "Coordinates") {
+        Text(coordinates)
+          .monospacedDigit()
+          .textSelection(.enabled)
+      }
+    }
+    if let depth = info.depth {
+      InfoLine(label: "Depth") { Text(depth) }
+    }
+    if let waterType = info.waterType {
+      InfoLine(label: "Water type") { Text(waterType) }
+    }
+    if let altitude = info.altitude {
+      InfoLine(label: "Altitude") { Text(altitude) }
+    }
+    if let entryTypes = info.entryTypes {
+      InfoLine(label: "Entry types") { Text(entryTypes) }
+    }
+    if !info.registries.isEmpty {
+      InfoLine(label: "In other registries", isWide: true) {
+        VStack(alignment: .leading, spacing: 4) {
+          ForEach(Array(info.registries.enumerated()), id: \.offset) { _, registry in
+            RegistryLine(registry: registry)
           }
         }
       }
     }
+  }
+}
+
+/// One row of the information card: its label, and the value across from it in the secondary
+/// colour, or under it where `isWide`.
+private struct InfoLine<Value: View>: View {
+  let label: String
+  var isWide = false
+  @ViewBuilder let value: () -> Value
+
+  var body: some View {
+    Group {
+      if isWide {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(label)
+          value().foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      } else {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+          Text(label)
+          Spacer(minLength: 0)
+          value()
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.trailing)
+        }
+      }
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 11)
+    .accessibilityElement(children: .combine)
   }
 }
 
