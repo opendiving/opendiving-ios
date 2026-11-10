@@ -13,7 +13,8 @@ extension PlainCardContent {
     {
       badges.append(status.badge)
     }
-    let facts = [VocabularyLabels.gearType(item.type), item.brand].compactMap { $0 }
+    let facts =
+      [VocabularyLabels.gearType(item.type), item.brand].compactMap { $0 }
       .filter { !$0.isEmpty } + VesselFacts.parts(item, units: units)
     return PlainCardContent(
       title: item.name, badges: badges, facts: facts.map { Fact(text: $0) },

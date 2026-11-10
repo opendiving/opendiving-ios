@@ -57,4 +57,15 @@ public final class GearItemDetailModel {
   /// Whether the delete offers *Archive instead*: not for gear archived already, which the
   /// toggle would bring back instead.
   public static func offersArchiveInstead(_ item: GearItemRead) -> Bool { !item.isArchived }
+
+  /// Queues `operation`, an archive or a delete from the page; the reason it could not, where
+  /// the outbox refused it.
+  public static func queue(_ operation: OutboxOperation, in outbox: OutboxModel) -> String? {
+    do {
+      try outbox.queue(operation)
+      return nil
+    } catch {
+      return RecordSheetModel<GearItemFormValues>.sentence(error)
+    }
+  }
 }
