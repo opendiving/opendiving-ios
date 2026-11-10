@@ -1,8 +1,8 @@
 import Foundation
 
 /// How many of the session's requests are on the wire, for whatever waits until the app has
-/// stopped loading. Uploads are not counted: a file syncing behind the screens is not a screen
-/// loading.
+/// stopped loading. Uploads and downloads are not counted: a file moving behind the screens is
+/// not a screen loading.
 @MainActor
 public final class RequestActivity {
   public private(set) var inFlight = 0

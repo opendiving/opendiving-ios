@@ -59,10 +59,41 @@ public final class URLSessionTransport: HTTPTransport {
       box.cancel()
     }
   }
+
+  public func download(_ request: URLRequest) async throws -> (URL, HTTPURLResponse) {
+    // The completion-handler task, as for the upload.
+    let box = TaskBox()
+    return try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        let task = session.downloadTask(with: request) { location, response, error in
+          if let error {
+            continuation.resume(throwing: error)
+            return
+          }
+          guard let location, let http = response as? HTTPURLResponse else {
+            continuation.resume(throwing: URLError(.badServerResponse))
+            return
+          }
+          // The system removes its file once this handler returns.
+          let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("download-\(UUID().uuidString)")
+          do {
+            try FileManager.default.moveItem(at: location, to: file)
+            continuation.resume(returning: (file, http))
+          } catch {
+            continuation.resume(throwing: error)
+          }
+        }
+        box.start(task)
+      }
+    } onCancel: {
+      box.cancel()
+    }
+  }
 }
 
-/// The upload task, handed from the continuation to the cancellation handler, which may run
-/// on another thread and before the task exists.
+/// The task, handed from the continuation to the cancellation handler, which may run on another
+/// thread and before the task exists.
 private final class TaskBox: Sendable {
   private let state = Mutex<(task: URLSessionTask?, cancelled: Bool)>((nil, false))
 

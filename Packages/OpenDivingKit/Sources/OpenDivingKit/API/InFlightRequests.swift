@@ -9,20 +9,18 @@ import Synchronization
 /// tasks that sent them — a refresh runs in a task of the client's own, which no caller's
 /// cancellation reaches.
 final class InFlightRequests: Sendable {
-  private typealias Send = Task<(Data, HTTPURLResponse), any Error>
-
-  private let state = Mutex<(cancelled: Bool, sends: [UUID: Send])>((false, [:]))
+  private let state = Mutex<(cancelled: Bool, sends: [UUID: @Sendable () -> Void])>((false, [:]))
 
   /// Runs `send` until it answers, and cancels it with the caller. Throws `CancellationError`
   /// once ``cancelAll()`` has run, whether the request was on the wire then or sent after.
-  func run(_ send: @escaping @Sendable () async throws -> (Data, HTTPURLResponse)) async throws
-    -> (Data, HTTPURLResponse)
+  func run<Answer: Sendable>(_ send: @escaping @Sendable () async throws -> Answer) async throws
+    -> Answer
   {
     let id = UUID()
-    let task: Send? = state.withLock { state in
+    let task: Task<Answer, any Error>? = state.withLock { state in
       guard !state.cancelled else { return nil }
-      let task = Send { try await send() }
-      state.sends[id] = task
+      let task = Task { try await send() }
+      state.sends[id] = { task.cancel() }
       return task
     }
     guard let task else { throw CancellationError() }
@@ -46,6 +44,6 @@ final class InFlightRequests: Sendable {
       defer { state.sends = [:] }
       return Array(state.sends.values)
     }
-    for send in sends { send.cancel() }
+    for cancel in sends { cancel() }
   }
 }

@@ -7,4 +7,10 @@ public struct StorageUsageRead: Codable, Hashable, Sendable {
   public let diveFilesBytes: Int
   public let certificationFilesBytes: Int
   public let picturesBytes: Int
+  public let diveFilesCount: Int
+  /// How many dives the dive-computer files are attached to.
+  public let divesWithFilesCount: Int
+  public let certificationFilesCount: Int
+  /// How many certifications hold at least one card image.
+  public let certificationsWithFilesCount: Int
 }
