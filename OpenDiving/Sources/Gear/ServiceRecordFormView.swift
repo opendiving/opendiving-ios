@@ -71,7 +71,7 @@ private struct ServiceRecordForm: View {
     RecordSheetForm(
       title: model.isEditing ? "Edit Service" : "Log Service", isReopened: model.isReopened,
       createLabel: "Log service", isPushed: true, failure: model.failure,
-      saveError: model.saveError, deletion: deletion, save: { model.save() != nil }
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
       Section {
         Picker("Service type *", selection: $model.values.kind) {
@@ -102,6 +102,10 @@ private struct ServiceRecordForm: View {
           error: model.message("notes"))
       }
     }
+  }
+
+  private func save() -> Bool {
+    model.save() != nil
   }
 
   private var deletion: RecordDeletion? {
