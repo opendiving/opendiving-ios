@@ -30,7 +30,6 @@ struct RecordSheetForm<Content: View>: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
     } else {
       NavigationStack {
         form(showsSaveError: true)

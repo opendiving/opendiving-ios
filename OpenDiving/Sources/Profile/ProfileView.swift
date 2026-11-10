@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The diver's own page, opened from the sites map by their picture: their name over the places
 /// their trips went, with the logbook's figures, as the web's Home has it; the dive-computer
-/// button, the `+` that logs a dive, imports files or adds a trip, and the settings in the top
-/// bar; and under the head their dives, their trips or their check-in sheet, one at a time.
+/// button, the `+` that logs a dive, imports files or adds a trip or a site, and the settings in
+/// the top bar; and under the head their dives, their trips or their check-in sheet, one at a time.
 struct ProfileView: View {
   let avatar: AvatarModel
   @Environment(Session.self) private var session
@@ -37,7 +37,7 @@ enum ProfileSection: Hashable, CaseIterable {
 
 /// Where the top bar's buttons lead.
 private enum ProfileRoute: Hashable {
-  case logDive, importFiles, addTrip, diveComputer, settings
+  case logDive, importFiles, addTrip, addSite, diveComputer, settings
 }
 
 private struct ProfileContent: View {
@@ -110,6 +110,11 @@ private struct ProfileContent: View {
           } label: {
             Label(menuItem: "Add trip", icon: .luggage)
           }
+          Button {
+            route = .addSite
+          } label: {
+            Label(menuItem: "Add dive site", icon: .diveSite)
+          }
         }
         Button("Settings", systemImage: "gearshape") { route = .settings }
       }
@@ -119,6 +124,7 @@ private struct ProfileContent: View {
       case .logDive: DiveFormView(mode: .create)
       case .importFiles: ImportView()
       case .addTrip: TripFormView(mode: .create)
+      case .addSite: DiveSiteFormView(mode: .create)
       case .diveComputer: DiveComputerView()
       case .settings: SettingsView()
       }

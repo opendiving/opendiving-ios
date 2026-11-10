@@ -19,7 +19,7 @@ struct DiveComputerView: View {
   }
 }
 
-/// The screen over the shell's download model, which a preview or a test gives a fake link.
+/// The screen over the app's download model, which a preview or a test gives a fake link.
 /// Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads

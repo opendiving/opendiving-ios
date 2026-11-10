@@ -295,7 +295,7 @@ a shared archive while a download waits.
 A SwiftUI view hosted in the test bundle exposes no accessibility tree — the labels are built
 only for an assistive client, and the in-process walk finds none. So a screen's words and rows
 come from a Kit value or a static function beside the view (`PendingSummary`,
-`PendingScreen.edit(_:)`, `DivesView.list(_:)`), the app test asserts on that over real stores,
+`PendingScreen.edit(_:)`, `ProfileDives.list(_:)`), the app test asserts on that over real stores,
 and hosting the view checks only that it draws. What UIKit itself draws is the exception — a
 text box's placeholder, the navigation title, a picker's current choice — which is how the
 record sheets' tests find the web's fields.

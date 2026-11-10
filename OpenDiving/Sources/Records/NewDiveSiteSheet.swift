@@ -49,8 +49,8 @@ struct SiteProposalHandBack {
   var onReplaced: (Set<RecordRef>, DiveSiteRead) -> Void = { _, _ in }
 }
 
-/// The dive site form as a screen of its own: a new site pinned on the sites map, a site's page's edit,
-/// a queued edit the server refused, or the propose flow's *Edit*. A Commons record opens its own
+/// The dive site form as a screen of its own: the profile's new site or one pinned on the sites
+/// map, a site's page's edit, a queued edit the server refused, or the propose flow's *Edit*. A Commons record opens its own
 /// form, and one off the diver's list none.
 struct DiveSiteFormView: View {
   let mode: RecordFormMode<DiveSiteRead>
