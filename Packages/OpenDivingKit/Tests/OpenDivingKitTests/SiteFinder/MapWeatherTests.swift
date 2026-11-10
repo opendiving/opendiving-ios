@@ -258,6 +258,25 @@ struct MapWeatherTests {
     #expect(try #require(MapWeatherContent(read, units: .metric)).sea.isEmpty)
   }
 
+  @Test func noRainReadsAsZeroInEitherSystemAndAShowerKeepsItsPlaces() throws {
+    func rain(_ millimetres: Double, _ units: UnitSystem) throws -> MapWeatherContent.Detail? {
+      try #require(
+        MapWeatherContent(
+          Self.read(
+            ConditionsWeather(
+              airTemperature: 21, windSpeed: nil, windDirection: nil, precipitation: millimetres,
+              weatherCode: 0)),
+          units: units)
+      ).details.first { $0.label == "Rain, last hour" }
+    }
+    #expect(try rain(0, .imperial)?.value == "0 in")
+    #expect(try rain(0, .imperial)?.spokenValue == "0 inches")
+    // Under half a hundredth of an inch rounds away too.
+    #expect(try rain(0.1, .imperial)?.value == "0 in")
+    #expect(try rain(0.5, .imperial)?.value == "0.02 in")
+    #expect(try rain(0, .metric)?.value == "0 mm")
+  }
+
   @Test func aFigureTheProviderLacksIsLeftOutAndNoRainIsStillSaid() throws {
     let content = try #require(
       MapWeatherContent(

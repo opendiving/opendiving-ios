@@ -130,11 +130,14 @@ public struct MapWeatherContent: Hashable, Sendable {
       details.append(percent("Cloud cover", cover))
     }
     if let rain = weather.precipitation {
+      // Inches keep two places so a light shower shows, but no rain is `0 in`, not `0.00 in`.
+      let none = NumberText.round(Measure.precipitation.toDisplay(rain, units), decimals: 2) == 0
+      let number = none ? "0" : UnitFormat.number(rain, .precipitation, units)
       details.append(
         Detail(
-          label: "Rain, last hour", value: UnitFormat.format(rain, .precipitation, units),
-          spokenValue: UnitFormat.number(rain, .precipitation, units) + " "
-            + Measure.precipitation.word(units)))
+          label: "Rain, last hour",
+          value: number + Measure.precipitation.separator + Measure.precipitation.label(units),
+          spokenValue: number + " " + Measure.precipitation.word(units)))
     }
     if let humidity = weather.relativeHumidity {
       details.append(percent("Humidity", humidity))
