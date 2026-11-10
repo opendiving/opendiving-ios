@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The gear the diver took — type, brand and name, marked when rented or archived — and
-/// the weight they carried.
+/// The gear the diver took — type, brand and name, marked when rented or archived, the name
+/// opening the item's page — and the weight they carried.
 struct DiveDetailGearCard: View {
   let gear: DiveDetailContent.Gear
 
@@ -23,7 +23,12 @@ struct DiveDetailGearCard: View {
               Text(item.type).foregroundStyle(.secondary)
               Text(item.brand)
               VStack(alignment: .leading, spacing: 4) {
-                Text(item.name).fontWeight(.medium)
+                if let uuid = item.uuid {
+                  NavigationLink(item.name) { GearItemDetailView(gearItemUUID: uuid) }
+                    .fontWeight(.medium)
+                } else {
+                  Text(item.name).fontWeight(.medium)
+                }
                 if item.rented || item.archived {
                   HStack(spacing: 4) {
                     if item.rented { BadgeView("Rented") }

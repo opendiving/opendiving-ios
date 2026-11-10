@@ -43,7 +43,7 @@ struct DiveDetailModelTests {
 
     let content = try #require(model.content)
     #expect(content.navigationTitle == "#212")
-    #expect(content.course == "Solo Diver")
+    #expect(content.course?.title == "Solo Diver")
     #expect(content.location?.trip?.name == "Dahab 2026 (September)")
     #expect(content.location?.diveCenter?.name == "Big Blue Tech")
     #expect(model.neighbors?.previous?.diveNumber == 531)

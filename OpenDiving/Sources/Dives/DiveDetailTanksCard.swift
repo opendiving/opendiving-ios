@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The dive's cylinders, one card each — the gas and its role, what was recorded of it, its
-/// pressures and its MOD — then the dive-wide MOD warning.
+/// The dive's cylinders, one card each — the gas and its role, the diver's cylinder it names
+/// and what was recorded of it, its pressures and its MOD — then the dive-wide MOD warning.
 struct DiveDetailTanksCard: View {
   let tanks: DiveDetailContent.Tanks
 
@@ -49,7 +49,19 @@ private struct TankView: View {
         }
       }
       .accessibilityElement(children: .combine)
-      FactsLine(facts: tank.facts.map { Fact(text: $0) })
+      if let vessel = tank.vessel {
+        FlowLayout(spacing: 4, lineSpacing: 2) {
+          VesselLink(vessel: vessel)
+          if !tank.facts.isEmpty {
+            Text("·").accessibilityHidden(true)
+            FactsLine(facts: tank.facts.map { Fact(text: $0) })
+          }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      } else {
+        FactsLine(facts: tank.facts.map { Fact(text: $0) })
+      }
       HStack(alignment: .top, spacing: 16) {
         figure("Start", value: tank.start)
         figure("End", value: tank.end)
@@ -84,6 +96,19 @@ private struct TankView: View {
         .foregroundStyle(value == nil ? Color.secondary : Color.primary)
     }
     .accessibilityElement(children: .combine)
+  }
+}
+
+/// The diver's own cylinder a tank names, opening its page where the server has it.
+private struct VesselLink: View {
+  let vessel: RecordLink
+
+  var body: some View {
+    if let uuid = vessel.uuid {
+      NavigationLink(vessel.title) { GearItemDetailView(gearItemUUID: uuid) }
+    } else {
+      Text(vessel.title)
+    }
   }
 }
 
