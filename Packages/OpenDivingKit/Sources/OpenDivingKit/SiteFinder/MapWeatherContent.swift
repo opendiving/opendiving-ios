@@ -26,9 +26,11 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
   /// has it.
   public let details: [Detail]
-  /// The sea's temperature, its waves and swell, and the tide with its last and next turn, each
-  /// where the marine model has it; empty inland. The tide is left to ``tide`` where that draws it.
+  /// The sea's temperature, and the tide with its last and next turn where ``tide`` cannot draw
+  /// it, each where the marine model has it; empty inland. The waves are ``waves``'s.
   public let sea: [Detail]
+  /// The waves and swell drawn on one scale; nil without either height.
+  public let waves: WaveProfile?
   /// The tide drawn from the turn before the hour to the turn after; nil without both.
   public let tide: TideCurve?
   /// The provider's source line, as markdown links.
@@ -68,9 +70,14 @@ public struct MapWeatherContent: Hashable, Sendable {
     summary = Self.sentence(written)
     accessibilityLabel = Self.sentence(spoken)
     details = Self.details(weather, units: units)
-    let drawn = read.sea.flatMap { Self.tide($0, now: read.at) }
-    tide = drawn
-    sea = read.sea.map { Self.sea($0, units: units, drawsTide: drawn != nil) } ?? []
+    let drawnTide = read.sea.flatMap { Self.tide($0, now: read.at) }
+    let drawnWaves = read.sea.flatMap { WaveProfile($0, units: units) }
+    tide = drawnTide
+    waves = drawnWaves
+    sea =
+      read.sea.map {
+        Self.sea($0, units: units, drawsTide: drawnTide != nil)
+      } ?? []
     attribution = read.attribution
   }
 
@@ -83,16 +90,11 @@ public struct MapWeatherContent: Hashable, Sendable {
           spokenValue: UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
             + Measure.temperature.word(units)))
     }
-    if let height = sea.waveHeight {
-      details.append(length("Wave height", height, units: units))
-    }
-    if let period = sea.wavePeriod {
+    // A period with no height has no strip to read on.
+    if sea.waveHeight == nil, let period = sea.wavePeriod {
       let whole = NumberText.fixed(NumberText.round(period), decimals: 0)
       details.append(
         Detail(label: "Wave period", value: whole + " s", spokenValue: whole + " seconds"))
-    }
-    if let swell = sea.swellWaveHeight {
-      details.append(length("Swell", swell, units: units))
     }
     guard !drawsTide else { return details }
     if let state = sea.tideState, let label = tideStates[state] {
@@ -109,13 +111,6 @@ public struct MapWeatherContent: Hashable, Sendable {
   private static func tide(_ sea: ConditionsSea, now: DiveTimestamp?) -> TideCurve? {
     guard let previous = sea.previousExtreme, let next = sea.nextExtreme else { return nil }
     return TideCurve(previous: previous, next: next, now: now, state: sea.tideState)
-  }
-
-  private static func length(_ label: String, _ meters: Double, units: UnitSystem) -> Detail {
-    Detail(
-      label: label, value: UnitFormat.depth(meters, units, decimals: 1),
-      spokenValue: UnitFormat.number(meters, .depth, units, decimals: 1) + " "
-        + Measure.depth.word(units))
   }
 
   static let tideStates = [

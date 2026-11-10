@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The weather at the centre of the Sites map, in its top bar: the sky, the air temperature and
 /// the wind with an arrow along it. A tap shows where it is, the reading in words with the rest of
-/// it under, the sea with its tide drawn below that, and whose data it is, which the providers' licences
+/// it under, the sea with its waves and tide drawn below that, and whose data it is, which the providers' licences
 /// ask to be shown.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
@@ -53,10 +53,13 @@ struct MapWeatherBar: View {
         if !content.details.isEmpty {
           DetailRows(details: content.details)
         }
-        if !content.sea.isEmpty || content.tide != nil {
+        if !content.sea.isEmpty || content.waves != nil || content.tide != nil {
           Divider()
           if !content.sea.isEmpty {
             DetailRows(details: content.sea)
+          }
+          if let waves = content.waves {
+            WaveProfileView(profile: waves)
           }
           if let tide = content.tide {
             TideCurveView(curve: tide)

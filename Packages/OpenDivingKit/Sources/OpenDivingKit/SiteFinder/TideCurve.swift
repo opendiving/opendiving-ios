@@ -8,10 +8,7 @@ import Foundation
 ///
 /// Every point is a fraction of the drawing's box, `y` growing downward; the height keeps no scale.
 public struct TideCurve: Hashable, Sendable {
-  public struct Point: Hashable, Sendable {
-    public let x: Double
-    public let y: Double
-  }
+  public typealias Point = CurvePoint
 
   /// A turn's label under the curve, centred on `x`.
   public struct Turn: Hashable, Sendable {

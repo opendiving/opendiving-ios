@@ -28,9 +28,9 @@ struct TideCurveView: View {
           .position(x: turn.x * geometry.size.width, y: geometry.size.height / 2)
         }
       }
-      .frame(height: 16)
+      .frame(height: 20)
     }
-    .font(.caption)
+    .font(.subheadline)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(curve.accessibilityLabel)
   }

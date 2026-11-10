@@ -116,20 +116,57 @@ struct MapWeatherTests {
         of: "2026-11-09T14:00:00+02:00", with: "2026-11-10T19:00:00+02:00"
       ).dropLast()) + "," + blueHoleSea + "}"
 
-  @Test func theTapListsTheSeaWithTheTideDrawnRatherThanListed() throws {
+  @Test func theTapListsTheSeaWithTheWavesAndTheTideDrawnRatherThanListed() throws {
     let read = try APICoding.decoder().decode(
       DiveConditionsCurrentRead.self, from: Data(Self.blueHole.utf8))
     let metric = try #require(MapWeatherContent(read, units: .metric))
-    #expect(metric.sea.map(\.label) == ["Sea temperature", "Wave height", "Wave period", "Swell"])
-    #expect(metric.sea.map(\.value) == ["26°C", "0.9 m", "4 s", "0.1 m"])
-    #expect(
-      metric.sea.map(\.spokenValue) == [
-        "26 degrees Celsius", "0.9 meters", "4 seconds", "0.1 meters",
-      ])
+    #expect(metric.sea.map(\.label) == ["Sea temperature"])
+    #expect(metric.sea.map(\.value) == ["26°C"])
+    #expect(metric.sea.map(\.spokenValue) == ["26 degrees Celsius"])
     #expect(metric.tide != nil)
+    let waves = try #require(metric.waves)
+    #expect(waves.strips.map(\.label) == ["Waves", "Swell"])
+    #expect(waves.strips.map(\.value) == ["0.9 m · 4 s", "0.1 m"])
+    #expect(waves.accessibilityLabel == "Waves 0.9 meters every 4 seconds, swell 0.1 meters")
 
     let imperial = try #require(MapWeatherContent(read, units: .imperial))
-    #expect(imperial.sea.map(\.value) == ["78°F", "3 ft", "4 s", "0 ft"])
+    #expect(imperial.sea.map(\.value) == ["78°F"])
+    #expect(imperial.waves?.strips.map(\.value) == ["3 ft · 4 s", "0 ft"])
+  }
+
+  /// How far a strip's surface strays from its middle, as a fraction of the strip.
+  private static func reach(_ strip: WaveProfile.Strip) -> Double {
+    strip.points.map { abs($0.y - 0.5) }.max() ?? 0
+  }
+
+  @Test func theWavesAndTheSwellShareOneScaleOfAtLeastAMetre() throws {
+    let calm = try #require(
+      WaveProfile(
+        ConditionsSea(waveHeight: 0.94, wavePeriod: 3.7, swellWaveHeight: 0.1), units: .metric))
+    // Crest to trough over a metre-tall strip, eight tenths of which a crest and trough span.
+    #expect((0.36...0.376 + 1e-9).contains(Self.reach(calm.strips[0])))
+    #expect((0.035...0.04 + 1e-9).contains(Self.reach(calm.strips[1])))
+    #expect(calm.strips.allSatisfy { $0.points.first?.x == 0 && $0.points.last?.x == 1 })
+
+    let rough = try #require(
+      WaveProfile(ConditionsSea(waveHeight: 3, wavePeriod: 8, swellWaveHeight: 1.5), units: .metric)
+    )
+    #expect((0.39...0.4 + 1e-9).contains(Self.reach(rough.strips[0])))
+    #expect((0.19...0.2 + 1e-9).contains(Self.reach(rough.strips[1])))
+  }
+
+  @Test func aSeaWithNoHeightsDrawsNoWavesAndAPeriodAloneIsListed() throws {
+    #expect(WaveProfile(ConditionsSea(seaSurfaceTemperature: 20), units: .metric) == nil)
+    let content = try #require(
+      MapWeatherContent(
+        DiveConditionsCurrentRead(
+          attribution: "",
+          weather: ConditionsWeather(
+            airTemperature: 21, windSpeed: nil, windDirection: nil, weatherCode: nil),
+          sea: ConditionsSea(wavePeriod: 6)),
+        units: .metric))
+    #expect(content.waves == nil)
+    #expect(content.sea.map(\.value) == ["6 s"])
   }
 
   @Test func theTideRunsFromTurnToTurnWithTheHourOnItOnThePlacesClock() throws {
