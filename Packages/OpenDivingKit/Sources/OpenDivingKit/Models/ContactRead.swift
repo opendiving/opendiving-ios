@@ -1,7 +1,9 @@
 import Foundation
 
 /// A contact — on this phone's screens, the dive centre on a dive or a card.
-public struct ContactRead: Codable, Hashable, Sendable {
+public struct ContactRead: Codable, Hashable, Sendable, Identifiable {
+  public var id: UUID { uuid }
+
   public let uuid: UUID
   public let name: String
   public let phone: String?
