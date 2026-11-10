@@ -19,7 +19,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
     details()
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(CardBackdropFrame.glassPadding)
-      .background { GlassCard() }
+      .background { GlassCard(shape: .formSection(inset: CardBackdropFrame.glassInset)) }
       .padding([.horizontal, .bottom], CardBackdropFrame.glassInset)
       .onGeometryChange(for: CGSize.self) {
         $0.size

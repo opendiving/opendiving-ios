@@ -7,6 +7,8 @@ import UIKit
 /// radius of its own, which no material lets one set; not the system's glass effect either, which
 /// iOS 26 draws close to opaque over dark tiles.
 struct GlassCard: View {
+  var shape: RoundedRectangle = .formSection
+
   private static let blurRadius = 6.0
 
   /// Lighter than what lies behind in both appearances, as the folder's glass is.
@@ -27,23 +29,23 @@ struct GlassCard: View {
   var body: some View {
     ZStack {
       ProgressiveBlur(edge: .top, radius: Self.blurRadius, hold: 1)
-        .clipShape(.formSection)
+        .clipShape(shape)
       // A material's tint, which the bare blur has none of, keeps the text readable.
-      RoundedRectangle.formSection.fill(Self.frost)
-      RoundedRectangle.formSection.strokeBorder(Self.rim, lineWidth: 1)
+      shape.fill(Self.frost)
+      shape.strokeBorder(Self.rim, lineWidth: 1)
     }
     .background { shadow }
   }
 
   /// Outside the card alone: under the glass it would be blurred into it.
   private var shadow: some View {
-    RoundedRectangle.formSection
+    shape
       .fill(.black)
       .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
       .mask {
         Rectangle()
           .padding(-48)
-          .overlay { RoundedRectangle.formSection.blendMode(.destinationOut) }
+          .overlay { shape.blendMode(.destinationOut) }
           .compositingGroup()
       }
   }
