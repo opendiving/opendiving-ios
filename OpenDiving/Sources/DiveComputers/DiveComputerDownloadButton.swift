@@ -43,6 +43,12 @@ struct DiveComputerDownloadButtonLabel: View {
     if #available(iOS 26, *) { MapRoundButtonStyle.glassLabelSide } else { size }
   }
 
+  /// Within the bar's glass, which cuts an item off a few points inside its own edge; before
+  /// iOS 26, on the button's edge.
+  private static var ringSide: CGFloat {
+    if #available(iOS 26, *) { 34 } else { size }
+  }
+
   var body: some View {
     Button(action: action) {
       // The size of the bar's own symbols: the `+` stands as tall.
@@ -59,9 +65,9 @@ struct DiveComputerDownloadButtonLabel: View {
                 .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
               ring(content)
             }
-            // On the glass's edge, past the label it pads, its stroke inside it.
+            // Its stroke inside its side.
             .padding(Self.ringWidth / 2)
-            .frame(width: Self.size, height: Self.size)
+            .frame(width: Self.ringSide, height: Self.ringSide)
           }
         }
         .animation(.easeOut(duration: 0.2), value: content == nil)
