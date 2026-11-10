@@ -121,4 +121,30 @@ struct PendingTextTests {
       KeptText.forgetMessage(summary)
         == "1 other change has not been saved to the server and will be lost.")
   }
+
+  @Test func theMoreTabsWritesAreNamedInThePendingWords() {
+    let ref = RecordRef.server(UUID())
+    let card = CertificationCardUpload(side: .front, filename: "f.jpg", contentType: "image/jpeg")
+    let items = [
+      Self.item(.updateGearItem(ref, GearItemUpdate(archived: true))),
+      Self.item(.deleteGearSet(ref)),
+      Self.item(.putCertificationFile(ref, card)),
+      Self.item(.deleteCertificationFile(ref, .back)),
+      Self.item(.createCertification(CertificationCreate(agency: "padi", name: "Rescue"))),
+      Self.item(
+        .updateServiceSchedule(ref, gearItem: ref, GearServiceScheduleUpdate(active: false))),
+    ]
+    #expect(
+      PendingText.waiting(items)
+        == "A piece of gear, a service schedule, a certification, a card image and 2 deletions"
+        + " waiting to sync")
+    #expect(PendingText.title(of: items[0]) == "Archived gear")
+    #expect(PendingText.title(of: items[1]) == "A deleted gear set")
+    #expect(PendingText.title(of: items[2]) == "Card image, front")
+    #expect(PendingText.title(of: items[4]) == "Certification: Rescue")
+    #expect(PendingText.title(of: items[5]) == "A paused service schedule")
+    #expect(
+      PendingText.title(of: Self.item(.updatePerson(ref, PersonUpdate(name: "Sam"))))
+        == "Changes to buddy: Sam")
+  }
 }

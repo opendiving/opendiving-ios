@@ -47,7 +47,8 @@ final class OutboxServer: HTTPTransport {
     var fixtures: [String: String] = [:]
     for name in [
       "user", "people-page", "dive-detail", "dive-site", "trip", "course", "contact",
-      "gear-item", "dive-draft", "gear-sets-page", "dives-page",
+      "gear-item", "dive-draft", "gear-sets-page", "dives-page", "gear-service-schedule",
+      "gear-service-record", "certification-front-only",
     ] {
       fixtures[name] = try KitFixture.text(name)
     }
@@ -152,6 +153,9 @@ final class OutboxServer: HTTPTransport {
       case "gear-item": fixture = fixtures["gear-item"]!
       case "gear-set": fixture = Self.firstRow(fixtures["gear-sets-page"]!)
       case "person": fixture = Self.firstRow(fixtures["people-page"]!)
+      case "gear-service-schedule": fixture = fixtures["gear-service-schedule"]!
+      case "gear-service-record": fixture = fixtures["gear-service-record"]!
+      case "certification": fixture = fixtures["certification-front-only"]!
       default: return .json(#"{"detail":"Not Found"}"#, status: 404)
       }
       var created = Self.with(fixture, uuid: uuid.uuidString.lowercased())
@@ -168,6 +172,8 @@ final class OutboxServer: HTTPTransport {
       return .json(created, status: 201)
     case ("PUT", "dive-site"):
       return .json(Self.with(fixtures["dive-site"]!, uuid: segments[1]))
+    case ("PUT", "certification"):
+      return .json(#"{"side":"\#(segments.last!)","content_type":"image/jpeg","size":3}"#)
     case ("PATCH", _): return .json(#"{"message":"Updated"}"#)
     case ("DELETE", _): return .json(#"{"message":"Deleted"}"#)
     default: return .json(#"{"detail":"Not Found"}"#, status: 404)

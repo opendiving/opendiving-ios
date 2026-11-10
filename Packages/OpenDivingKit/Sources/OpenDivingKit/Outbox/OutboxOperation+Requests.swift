@@ -160,11 +160,15 @@ extension OutboxOperation {
     case .updateServiceRecord(_, _, let body):
       return patched(body.contact).map { [($0, .contact)] } ?? []
     case .createCertification(let body):
-      return [(body.course, OutboxRecordKind.course), (body.contact, .contact),
-        (body.instructor, .person)].compactMap { ref, kind in ref.map { ($0, kind) } }
+      return [
+        (body.course, OutboxRecordKind.course), (body.contact, .contact),
+        (body.instructor, .person),
+      ].compactMap { ref, kind in ref.map { ($0, kind) } }
     case .updateCertification(_, let body):
-      return [(body.course, OutboxRecordKind.course), (body.contact, .contact),
-        (body.instructor, .person)].compactMap { patch, kind in patched(patch).map { ($0, kind) } }
+      return [
+        (body.course, OutboxRecordKind.course), (body.contact, .contact),
+        (body.instructor, .person),
+      ].compactMap { patch, kind in patched(patch).map { ($0, kind) } }
     default:
       return []
     }
