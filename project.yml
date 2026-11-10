@@ -75,8 +75,8 @@ targets:
         # #FF7F50's P3 components, written as sRGB, and serves nothing else.
         UILaunchScreen:
           UIColorName: LaunchCoral
-        # Without it an iPhone holds what the app moves itself, the finder's panel following a
-        # finger and its spring, to 60 Hz on a 120 Hz screen, where the system's sheets run at 120.
+        # Without it an iPhone with a 120 Hz screen caps the app's own display links and Core
+        # Animation at 60 Hz.
         CADisableMinimumFrameDurationOnPhone: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
