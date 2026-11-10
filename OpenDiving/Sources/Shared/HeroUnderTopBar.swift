@@ -59,8 +59,8 @@ private struct HeroUnderTopBar: ViewModifier {
     min(max(Double(pull - 8) / 40, 0), 1)
   }
 
-  /// Named, because a glass button in the bar — the profile's dive-computer button — otherwise
-  /// draws the bar's edge hard across the map.
+  /// Named, because a bar item drawing glass of its own, with the bar's hidden, otherwise draws
+  /// the bar's edge hard across the map.
   @ViewBuilder
   private func softTopEdge(_ content: some View) -> some View {
     if #available(iOS 26, *) {
