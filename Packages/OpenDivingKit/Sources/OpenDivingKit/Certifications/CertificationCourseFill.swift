@@ -40,8 +40,7 @@ public struct CertificationCourseFill: Hashable, Sendable {
       instructorNumber: body.instructorNumber ?? "")
   }
 
-  /// A picker's row, which carries no agency and no number: what the phone has offline for a
-  /// course it has never opened.
+  /// A picker's row, which carries no agency and no number, so a pick leaves both alone.
   public init(_ row: CourseLookupItem) {
     self.init(
       name: row.name, contact: row.contact, instructor: Self.instructor(row.people),
@@ -53,30 +52,18 @@ public struct CertificationCourseFill: Hashable, Sendable {
     people.first { $0.role == "instructor" }?.person
   }
 
-  /// The course `ref` as the form fills from it: the server's copy, read as the web reads it on
-  /// a pick; offline, the copy the phone keeps from its page, the body a course made here waits
-  /// with, or else the picker's row. Nil when the phone knows nothing of it.
+  /// The course `ref` as a pick fills the form from it, asking the server nothing: a course
+  /// made on the phone from the body it waits with, any other from the picker's row. Nil when
+  /// the phone holds neither.
   @MainActor
-  public static func read(
-    _ ref: RecordRef, session: Session, outbox: OutboxModel, rows: [CourseLookupItem]
-  ) async -> CertificationCourseFill? {
-    switch ref {
-    case .server(let uuid):
-      if let client = try? session.routedClient(), let course = try? await client.course(uuid) {
-        return CertificationCourseFill(course)
-      }
-      if let kept = AccountStores.current(session)?.cache.record(.course, uuid) {
-        return CertificationCourseFill(kept.value)
-      }
-    case .local:
-      let queued = outbox.items.lazy.compactMap { item -> CourseCreate? in
-        guard item.creates == ref, case .createCourse(let body) = item.operation else {
-          return nil
-        }
-        return body
-      }.first
-      if let queued { return CertificationCourseFill(queued) }
-    }
+  public static func picked(
+    _ ref: RecordRef, outbox: OutboxModel, rows: [CourseLookupItem]
+  ) -> CertificationCourseFill? {
+    let queued = outbox.items.lazy.compactMap { item -> CourseCreate? in
+      guard item.creates == ref, case .createCourse(let body) = item.operation else { return nil }
+      return body
+    }.first
+    if let queued { return CertificationCourseFill(queued) }
     return rows.first { $0.ref == ref }.map(CertificationCourseFill.init)
   }
 }

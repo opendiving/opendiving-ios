@@ -81,7 +81,6 @@ private struct CertificationSheetForm: View {
   let reopenedCard: CertificationCardEdits.CardReopening?
   let onDeleted: () -> Void
 
-  @Environment(Session.self) private var session
   @Environment(\.dismiss) private var dismiss
   /// The sides the phone could not keep after the card itself was queued.
   @State private var notKept: [CertificationSide] = []
@@ -150,20 +149,17 @@ private struct CertificationSheetForm: View {
     }
   }
 
-  /// Picking a course on a new card fills it from the course, once the course is read, unless
-  /// another pick or a clear came first. An edit relinks the card and changes nothing else.
+  /// Picking a course on a new card fills it from the picker's row. An edit relinks the card and
+  /// changes nothing else.
   private var course: Binding<RecordRef?> {
     Binding(
       get: { model.values.course },
       set: { ref in
         model.values.course = ref
-        guard let ref, !model.isEditing else { return }
-        Task {
-          let fill = await CertificationCourseFill.read(
-            ref, session: session, outbox: outbox, rows: lookups.courses)
-          guard let fill, model.values.course == ref else { return }
-          model.values.fill(from: fill)
-        }
+        guard let ref, !model.isEditing,
+          let fill = CertificationCourseFill.picked(ref, outbox: outbox, rows: lookups.courses)
+        else { return }
+        model.values.fill(from: fill)
       })
   }
 

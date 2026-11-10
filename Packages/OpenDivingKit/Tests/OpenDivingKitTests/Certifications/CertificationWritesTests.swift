@@ -107,18 +107,27 @@ struct CertificationWritesTests {
 
   // MARK: - A pick's course
 
-  @Test func aPickReadsTheServersCourse() async throws {
+  @Test func aPickFillsFromThePickersRowAndAsksTheServerNothing() async throws {
     let world = try OutboxWorld()
     try await world.load()
-    let course = try KitFixture.decode(CourseRead.self, "course")
-    let text = try KitFixture.text("course")
-    world.server.override { request, _ in
-      request.route.hasPrefix("GET course/") ? .json(text) : nil
-    }
-    let fill = await CertificationCourseFill.read(
-      .server(course.uuid), session: world.session, outbox: world.outbox(), rows: [])
-    #expect(fill == CertificationCourseFill(course))
-    #expect(fill?.agency == "sdi" && fill?.instructorNumber == "00000")
+    let mark = world.server.mark
+    let kim = RecordRef.server(UUID())
+    let shop = RecordRef.server(UUID())
+    let ref = RecordRef.server(UUID())
+    let row = CourseLookupItem(
+      ref: ref, name: "Rescue", contact: shop,
+      people: [
+        PersonReference(person: RecordRef.server(UUID()), role: "student"),
+        PersonReference(person: kim, role: "instructor"),
+      ])
+    let fill = CertificationCourseFill.picked(ref, outbox: world.outbox(), rows: [row])
+    #expect(fill == CertificationCourseFill(row))
+    #expect(fill?.contact == shop && fill?.instructor == kim)
+    #expect(fill?.agency == nil && fill?.instructorNumber == nil)
+    #expect(
+      world.server.count("GET course/\(ref.serverUUID!.uuidString.lowercased())", since: mark) == 0)
+    #expect(
+      CertificationCourseFill.picked(.server(UUID()), outbox: world.outbox(), rows: [row]) == nil)
   }
 
   @Test func aCourseMadeOnThePhoneFillsFromTheBodyItWaitsWith() async throws {
@@ -132,23 +141,11 @@ struct CertificationWritesTests {
         CourseCreate(
           name: "Cave 1", agency: "gue", instructorNumber: "G-7",
           people: [PersonReference(person: kim, role: "instructor")])))
-    let fill = await CertificationCourseFill.read(
-      try #require(made.creates), session: world.session, outbox: outbox, rows: [])
+    let fill = CertificationCourseFill.picked(
+      try #require(made.creates), outbox: outbox, rows: [])
     #expect(fill?.name == "Cave 1" && fill?.agency == "gue")
     #expect(fill?.instructor == kim && fill?.instructorNumber == "G-7")
     await outbox.settled()
-  }
-
-  @Test func offlineAPickFallsBackToThePickersRow() async throws {
-    let world = try OutboxWorld()
-    try await world.load()
-    world.server.override { _, _ in throw URLError(.notConnectedToInternet) }
-    let ref = RecordRef.server(UUID())
-    let row = CourseLookupItem(ref: ref, name: "Rescue")
-    let fill = await CertificationCourseFill.read(
-      ref, session: world.session, outbox: world.outbox(), rows: [row])
-    #expect(fill == CertificationCourseFill(row))
-    #expect(fill?.instructorNumber == nil)
   }
 
   // MARK: - Kept card images
