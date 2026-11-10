@@ -78,8 +78,8 @@ struct HeroView<Leading: View>: View {
       ChipsRow(chips: content.chips)
       HStack(alignment: .top, spacing: 12) {
         leading()
-        // On glass the line sits close under the name, as a card's does.
-        VStack(alignment: .leading, spacing: detailsOnGlass ? 2 : 6) {
+        // On glass the line sits under the name as a figure's value does under its label.
+        VStack(alignment: .leading, spacing: detailsOnGlass ? 0 : 6) {
           TitleLine(
             title: content.title, isCourse: content.isCourse, rating: content.rating,
             font: .title2.bold())
@@ -139,11 +139,17 @@ private struct GlassCard: View {
     .background { shadow }
   }
 
+  /// Darker in the dark appearance, where a light one would not show on the map.
+  private static let shadowColor = Color(
+    UIColor { traits in
+      UIColor(white: 0, alpha: traits.userInterfaceStyle == .dark ? 0.85 : 0.12)
+    })
+
   /// Outside the card alone: under the glass it would be blurred into it.
   private var shadow: some View {
     RoundedRectangle.formSection
       .fill(.black)
-      .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
+      .shadow(color: Self.shadowColor, radius: 8, y: 3)
       .mask {
         Rectangle()
           .padding(-48)
