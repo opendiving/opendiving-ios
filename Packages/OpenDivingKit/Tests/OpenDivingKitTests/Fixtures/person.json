@@ -1,0 +1,11 @@
+{
+  "uuid": "01a0e2ed-1be6-72f8-8057-0b0caa945758",
+  "name": "Dana Reyes",
+  "email": "dana@example.com",
+  "phone": "+1 555 0104",
+  "notes": "Teaches the cave courses.",
+  "username": null,
+  "dive_count": 3,
+  "created_at": "2026-09-27T12:53:05.111807Z",
+  "updated_at": null
+}
