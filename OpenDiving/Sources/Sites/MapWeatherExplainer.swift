@@ -65,8 +65,9 @@ struct MapWeatherExplainer: View {
   }
 
   private func card(in window: CGSize) -> some View {
-    // Under the bar's top edge, and short of the home indicator.
-    let height = window.height - barFrame.minY - 40
+    // From the bar's top edge to as far again and a little more from the bottom: centred there,
+    // the card sits just above the screen's middle, where it reads as centred.
+    let height = window.height - 2 * barFrame.minY - 40
     return ViewThatFits(in: .vertical) {
       MapWeatherCard(content: content, place: place)
       ScrollView { MapWeatherCard(content: content, place: place) }
@@ -75,7 +76,7 @@ struct MapWeatherExplainer: View {
     .frame(maxHeight: height, alignment: .top)
     .fixedSize(horizontal: false, vertical: true)
     .matchedGeometryEffect(id: "card", in: morph)
-    .frame(width: window.width)
+    .frame(width: window.width, height: height)
     .padding(.top, barFrame.minY)
     .transition(
       .asymmetric(
