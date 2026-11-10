@@ -6,7 +6,7 @@ import SwiftUI
 /// The site finder's map: every Commons record and the diver's own sites as one clustered shape
 /// source, which MapLibre draws as a few circles where an annotation per site would be thousands
 /// of views, each site a pin in its mark's colour and the touched one ringed over them. A group
-/// takes the colour of its highest mark. A cluster's tap zooms into it and a point's tap names it;
+/// takes the colour of its highest mark. A cluster's tap fits its sites and a point's tap names it;
 /// a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
@@ -342,6 +342,10 @@ struct SiteFinderMap: UIViewRepresentable {
       return feature
     }
 
+    /// How far in from the edge of what shows an opened group's outermost sites land, which
+    /// leaves a pin's head room over its tip.
+    private static let groupPadding = 32.0
+
     private static let uuidKey = "uuid"
     /// A point's ``DiveSiteMark`` raw value, and on a cluster the highest of its points'.
     private static let markKey = "mark"
@@ -357,9 +361,20 @@ struct SiteFinderMap: UIViewRepresentable {
         as? MLNPointFeatureCluster,
         let shapes = map.style?.source(withIdentifier: Source.sites) as? MLNShapeSource
       {
-        let zoom = min(shapes.zoomLevel(forExpanding: cluster), MapCamera.maxZoom)
+        let splitting = shapes.zoomLevel(forExpanding: cluster)
+        let sites = shapes.leaves(of: cluster, offset: 0, limit: cluster.clusterPointCount).map {
+          MapPoint(name: "", latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
+        }
+        let showing = map.bounds.inset(by: map.contentInset)
+        guard
+          let camera = MapCamera.group(
+            sites, splitting: splitting >= 0 ? splitting : map.zoomLevel + 1,
+            width: showing.width, height: showing.height, padding: Self.groupPadding)
+        else { return }
         zoomedIntoCluster = true
-        map.setCenter(cluster.coordinate, zoomLevel: max(zoom, map.zoomLevel + 1), animated: true)
+        map.setCenter(
+          CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
+          zoomLevel: camera.zoom, animated: true)
         return
       }
       if let id = hits.lazy.compactMap({ $0.attribute(forKey: Self.uuidKey) as? String }).first,
