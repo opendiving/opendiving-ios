@@ -80,12 +80,6 @@ struct SettingsModelTests {
     #expect(model.sections == SettingsSection.allCases)
   }
 
-  @Test func aSectionsWebPageIsOnTheServersOrigin() {
-    #expect(
-      SettingsSection.checkin.webURL(on: origin).absoluteString
-        == origin.description + "/settings/checkin")
-  }
-
   @Test func aFailedSignOutKeepsTheSessionAndSaysWhy() async throws {
     let (model, _, session, _) = try signedIn([
       "POST auth/logout": .json(#"{"detail":"Something broke"}"#, status: 500)

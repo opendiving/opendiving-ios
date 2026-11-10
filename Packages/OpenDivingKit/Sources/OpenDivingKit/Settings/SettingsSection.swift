@@ -1,5 +1,3 @@
-import Foundation
-
 /// One section of *Settings*, in the order the web's settings navigation lists them, each a row
 /// on the list pushing its own screen.
 public enum SettingsSection: String, CaseIterable, Hashable, Sendable, Identifiable {
@@ -35,12 +33,6 @@ public enum SettingsSection: String, CaseIterable, Hashable, Sendable, Identifia
     case .preferences: .slidersHorizontal
     case .invitations: .mailPlus
     }
-  }
-
-  /// The section's page on the web app, which is served from the server's own origin.
-  public func webURL(on origin: ServerOrigin) -> URL {
-    origin.url.appendingPathComponent("settings", isDirectory: true)
-      .appendingPathComponent(rawValue, isDirectory: false)
   }
 
   /// The sections a server offers: every one, except *Invitations* once the server has said

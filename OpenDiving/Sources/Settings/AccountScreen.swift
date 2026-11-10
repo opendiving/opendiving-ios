@@ -19,9 +19,9 @@ struct AccountScreen: View {
           }
           .foregroundStyle(.secondary)
         }
+      } footer: {
+        Text("Your name, username and email are changed on the web.")
       }
-      ManagedOnTheWebSection(
-        section: .account, sentence: "Your name, username and email are changed on the web.")
     }
     .navigationTitle("Account")
     .followsAccount(session)

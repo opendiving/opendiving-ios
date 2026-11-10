@@ -6,10 +6,10 @@ struct DataScreen: View {
   @Environment(Session.self) private var session
 
   var body: some View {
-    List {
-      ManagedOnTheWebSection(section: .data, sentence: "Storage and data export are on the web.")
-    }
-    .navigationTitle("Data")
+    ManagedOnTheWebView(
+      title: SettingsSection.data.title, icon: SettingsSection.data.icon,
+      message: "Storage and data export are on the web."
+    )
     .followsAccount(session)
   }
 }

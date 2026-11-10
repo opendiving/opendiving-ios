@@ -6,11 +6,10 @@ struct CheckinScreen: View {
   @Environment(Session.self) private var session
 
   var body: some View {
-    List {
-      ManagedOnTheWebSection(
-        section: .checkin, sentence: "Your check-in details are changed on the web.")
-    }
-    .navigationTitle("Check-in")
+    ManagedOnTheWebView(
+      title: SettingsSection.checkin.title, icon: SettingsSection.checkin.icon,
+      message: "Your check-in details are changed on the web."
+    )
     .followsAccount(session)
   }
 }

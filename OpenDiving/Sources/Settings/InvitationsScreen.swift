@@ -6,10 +6,10 @@ struct InvitationsScreen: View {
   @Environment(Session.self) private var session
 
   var body: some View {
-    List {
-      ManagedOnTheWebSection(section: .invitations, sentence: "Invitations are sent on the web.")
-    }
-    .navigationTitle("Invitations")
+    ManagedOnTheWebView(
+      title: SettingsSection.invitations.title, icon: SettingsSection.invitations.icon,
+      message: "Invitations are sent on the web."
+    )
     .followsAccount(session)
   }
 }
