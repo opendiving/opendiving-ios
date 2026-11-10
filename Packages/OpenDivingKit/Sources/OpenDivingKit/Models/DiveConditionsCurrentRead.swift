@@ -3,13 +3,20 @@
 public struct DiveConditionsCurrentRead: Decodable, Hashable, Sendable {
   /// The source line the data's licence asks for, as markdown links.
   public let attribution: String
+  /// The hour described, spelled at the place's offset; nil where the provider has nothing for
+  /// the position.
+  public let at: DiveTimestamp?
   /// Nil where the provider has nothing for the position.
   public let weather: ConditionsWeather?
   /// Nil inland, where the marine model has nothing, or where it could not be asked.
   public let sea: ConditionsSea?
 
-  public init(attribution: String, weather: ConditionsWeather?, sea: ConditionsSea? = nil) {
+  public init(
+    attribution: String, at: DiveTimestamp? = nil, weather: ConditionsWeather?,
+    sea: ConditionsSea? = nil
+  ) {
     self.attribution = attribution
+    self.at = at
     self.weather = weather
     self.sea = sea
   }

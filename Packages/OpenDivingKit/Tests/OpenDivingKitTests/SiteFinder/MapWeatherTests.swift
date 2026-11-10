@@ -104,30 +104,79 @@ struct MapWeatherTests {
 
   /// The API's live answer for the Blue Hole: the sea the marine model gives.
   private static let blueHoleSea: String =
-    #""sea":{"model":"best_match","sea_level_height":0.33,"tide_state":"high","#
+    #""sea":{"model":"best_match","sea_level_height":0.33,"tide_state":"falling","#
     + #""previous_extreme":{"kind":"high","at":"2026-11-10T18:00:00+02:00","height":0.33},"#
     + #""next_extreme":{"kind":"low","at":"2026-11-11T01:00:00+02:00","height":-0.27},"#
     + #""sea_surface_temperature":25.5,"wave_height":0.94,"wave_period":3.7,"#
     + #""swell_wave_height":0.1}"#
-  private static let blueHole: String = String(dahab.dropLast()) + "," + blueHoleSea + "}"
+  /// An hour after the high water, so it lies on the curve between the two turns.
+  private static let blueHole: String =
+    String(
+      dahab.replacingOccurrences(
+        of: "2026-11-09T14:00:00+02:00", with: "2026-11-10T19:00:00+02:00"
+      ).dropLast()) + "," + blueHoleSea + "}"
 
-  @Test func theTapListsTheSeaAndTheTideOnThePlacesClock() throws {
+  @Test func theTapListsTheSeaWithTheTideDrawnRatherThanListed() throws {
     let read = try APICoding.decoder().decode(
       DiveConditionsCurrentRead.self, from: Data(Self.blueHole.utf8))
     let metric = try #require(MapWeatherContent(read, units: .metric))
+    #expect(metric.sea.map(\.label) == ["Sea temperature", "Wave height", "Wave period", "Swell"])
+    #expect(metric.sea.map(\.value) == ["26°C", "0.9 m", "4 s", "0.1 m"])
     #expect(
-      metric.sea.map(\.label) == [
-        "Sea temperature", "Wave height", "Wave period", "Swell", "Tide", "Last high", "Next low",
-      ])
-    #expect(
-      metric.sea.map(\.value) == ["26°C", "0.9 m", "4 s", "0.1 m", "High", "18:00", "01:00"])
-    #expect(
-      metric.sea.prefix(4).map(\.spokenValue) == [
+      metric.sea.map(\.spokenValue) == [
         "26 degrees Celsius", "0.9 meters", "4 seconds", "0.1 meters",
       ])
+    #expect(metric.tide != nil)
 
     let imperial = try #require(MapWeatherContent(read, units: .imperial))
-    #expect(imperial.sea.prefix(4).map(\.value) == ["78°F", "3 ft", "4 s", "0 ft"])
+    #expect(imperial.sea.map(\.value) == ["78°F", "3 ft", "4 s", "0 ft"])
+  }
+
+  @Test func theTideRunsFromTurnToTurnWithTheHourOnItOnThePlacesClock() throws {
+    let read = try APICoding.decoder().decode(
+      DiveConditionsCurrentRead.self, from: Data(Self.blueHole.utf8))
+    let content = try #require(MapWeatherContent(read, units: .metric))
+    let tide = try #require(content.tide)
+    let close = { (a: Double, b: Double) in abs(a - b) < 1e-9 }
+
+    #expect(tide.turns.map(\.label) == ["High", "Low"])
+    #expect(tide.turns.map(\.clock) == ["18:00", "01:00"])
+    // Seven hours between the turns, and a quarter of that past each: 10.5 hours drawn.
+    #expect(close(tide.turns[0].x, 1.75 / 10.5))
+    #expect(close(tide.turns[1].x, 8.75 / 10.5))
+    // High water at the top, low at the bottom, a tenth in from each edge.
+    let first = try #require(tide.between.first)
+    let last = try #require(tide.between.last)
+    #expect(close(first.y, 0.1) && close(last.y, 0.9))
+    #expect(close(try #require(tide.before.first).x, 0))
+    #expect(close(try #require(tide.after.last).x, 1))
+    #expect(tide.before.last == first && tide.after.first == last)
+
+    let now = try #require(tide.now)
+    #expect(close(now.x, 2.75 / 10.5))
+    #expect(close(now.y, 0.5 - cos(Double.pi / 7) * 0.4))
+    #expect(
+      tide.accessibilityLabel
+        == "Tide: high water at 18:00, low water at 01:00; now 19:00, on the falling tide")
+  }
+
+  @Test func withOneTurnTheTideIsListedAndNotDrawn() throws {
+    let turn = try #require(DiveTimestamp(wireValue: "2026-11-10T19:20:00+02:00"))
+    let content = try #require(
+      MapWeatherContent(
+        DiveConditionsCurrentRead(
+          attribution: "",
+          weather: ConditionsWeather(
+            airTemperature: 21, windSpeed: nil, windDirection: nil, weatherCode: nil),
+          sea: ConditionsSea(
+            tideState: "rising",
+            nextExtreme: ConditionsExtreme(
+              kind: "high", at: turn,
+              height: 0.3))),
+        units: .metric))
+    #expect(content.tide == nil)
+    #expect(content.sea.map(\.label) == ["Tide", "Next high"])
+    #expect(content.sea.map(\.value) == ["Rising", "19:20"])
   }
 
   @Test func inlandThereIsNoSea() throws {

@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The weather at the centre of the Sites map, in its top bar: the sky, the air temperature and
 /// the wind with an arrow along it. A tap shows where it is, the reading in words with the rest of
-/// it under, the sea and its tide below that, and whose data it is, which the providers' licences
+/// it under, the sea with its tide drawn below that, and whose data it is, which the providers' licences
 /// ask to be shown.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
@@ -53,9 +53,14 @@ struct MapWeatherBar: View {
         if !content.details.isEmpty {
           DetailRows(details: content.details)
         }
-        if !content.sea.isEmpty {
+        if !content.sea.isEmpty || content.tide != nil {
           Divider()
-          DetailRows(details: content.sea)
+          if !content.sea.isEmpty {
+            DetailRows(details: content.sea)
+          }
+          if let tide = content.tide {
+            TideCurveView(curve: tide)
+          }
         }
         // A credit a line, so neither wraps; not underlined, as the credits over a map are, since
         // one credit is a single link and the other two with text between.
@@ -121,6 +126,7 @@ extension View {
           if let content = MapWeatherContent(
             DiveConditionsCurrentRead(
               attribution: "[Weather data by Open-Meteo.com](https://open-meteo.com/)",
+              at: DiveTimestamp(wireValue: "2026-11-10T17:00:00+02:00"),
               weather: ConditionsWeather(
                 airTemperature: 24.4, relativeHumidity: 61.6, windSpeed: 5.9, windDirection: 45,
                 windGusts: 8.3, cloudCover: 40, precipitation: 0.4, pressure: 1012.3,

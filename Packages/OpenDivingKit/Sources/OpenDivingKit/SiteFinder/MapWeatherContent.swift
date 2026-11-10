@@ -27,8 +27,10 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// has it.
   public let details: [Detail]
   /// The sea's temperature, its waves and swell, and the tide with its last and next turn, each
-  /// where the marine model has it; empty inland.
+  /// where the marine model has it; empty inland. The tide is left to ``tide`` where that draws it.
   public let sea: [Detail]
+  /// The tide drawn from the turn before the hour to the turn after; nil without both.
+  public let tide: TideCurve?
   /// The provider's source line, as markdown links.
   public let attribution: String
 
@@ -66,11 +68,13 @@ public struct MapWeatherContent: Hashable, Sendable {
     summary = Self.sentence(written)
     accessibilityLabel = Self.sentence(spoken)
     details = Self.details(weather, units: units)
-    sea = read.sea.map { Self.sea($0, units: units) } ?? []
+    let drawn = read.sea.flatMap { Self.tide($0, now: read.at) }
+    tide = drawn
+    sea = read.sea.map { Self.sea($0, units: units, drawsTide: drawn != nil) } ?? []
     attribution = read.attribution
   }
 
-  private static func sea(_ sea: ConditionsSea, units: UnitSystem) -> [Detail] {
+  private static func sea(_ sea: ConditionsSea, units: UnitSystem, drawsTide: Bool) -> [Detail] {
     var details: [Detail] = []
     if let celsius = sea.seaSurfaceTemperature {
       details.append(
@@ -90,6 +94,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     if let swell = sea.swellWaveHeight {
       details.append(length("Swell", swell, units: units))
     }
+    guard !drawsTide else { return details }
     if let state = sea.tideState, let label = tideStates[state] {
       details.append(Detail(label: "Tide", value: label, spokenValue: label))
     }
@@ -99,6 +104,11 @@ public struct MapWeatherContent: Hashable, Sendable {
       details.append(Detail(label: "\(when) \(extreme.kind)", value: clock, spokenValue: clock))
     }
     return details
+  }
+
+  private static func tide(_ sea: ConditionsSea, now: DiveTimestamp?) -> TideCurve? {
+    guard let previous = sea.previousExtreme, let next = sea.nextExtreme else { return nil }
+    return TideCurve(previous: previous, next: next, now: now, state: sea.tideState)
   }
 
   private static func length(_ label: String, _ meters: Double, units: UnitSystem) -> Detail {
