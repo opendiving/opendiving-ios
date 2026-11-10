@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A code redeemed into something only the web can finish: an account whose sign-up was never
-/// completed, or one scheduled for deletion.
+/// A code redeemed into an account whose sign-up was never completed, which only the web can
+/// finish.
 struct OutcomeScreen: View {
   let title: String
   let systemImage: String
@@ -27,24 +27,12 @@ struct OutcomeScreen: View {
   }
 }
 
-#Preview("Onboarding") {
+#Preview {
   let origin = ServerOrigin("https://opendiving.app")
   NavigationStack {
     OutcomeScreen(
       title: "Finish signing up on the web", systemImage: "person.crop.circle.badge.questionmark",
       message: SignInFlow.onboardingMessage(email: "sam@example.com", origin: origin),
-      origin: origin
-    ) {}
-  }
-}
-
-#Preview("Deletion pending") {
-  let origin = ServerOrigin("https://opendiving.app")
-  NavigationStack {
-    OutcomeScreen(
-      title: "This account is scheduled for deletion", systemImage: "trash",
-      message: SignInFlow.deletionMessage(
-        email: "sam@example.com", purgeAfter: "Nov 21, 2026", origin: origin),
       origin: origin
     ) {}
   }

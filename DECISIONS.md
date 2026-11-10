@@ -319,12 +319,12 @@ the server holds the pair.
 
 The phone saves every server it is pointed at until it is forgotten, and moving between them
 signs nothing out: each keeps its token, its account and its directory, so going back needs no
-code and a server that is gone never stands in front of another. Only *Sign out* and *Forget*
-end a session, and both wait ten seconds at most, less when the user stops waiting: *Sign out*
-then leaves the session as it was, and *Forget* removes everything anyway and says the session
-may stay open on the server. Rejected: signing out before the server screen, which leaves a
-cancelled change signed out and blocks on a server that cannot answer; signing out of the
-server left after switching.
+code and a server that is gone never stands in front of another. Only *Sign out*, *Forget* and
+deleting the account end a session, and the first two wait ten seconds at most, less when the
+user stops waiting: *Sign out* then leaves the session as it was, and *Forget* removes everything
+anyway and says the session may stay open on the server. Rejected: signing out before the server
+screen, which leaves a cancelled change signed out and blocks on a server that cannot answer;
+signing out of the server left after switching.
 
 Leaving a server cancels every request still out to it, a refresh's included, so a server that
 does not answer never reports its timeout under the next one. A refresh cut off after the server

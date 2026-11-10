@@ -111,7 +111,7 @@ struct SessionTests {
       try await session.verifyCode(requestID: UUID(), code: "111111")
         == .onboardingRequired(email: "sam@example.com", name: "Sam"))
     guard
-      case .deletionPending(let email, let purgeAfter) = try await session.verifyCode(
+      case .deletionPending(let email, let purgeAfter, let restore) = try await session.verifyCode(
         requestID: UUID(), code: "222222")
     else {
       Issue.record("Expected deletion pending")
@@ -119,6 +119,7 @@ struct SessionTests {
     }
     #expect(email == "sam@example.com")
     #expect(purgeAfter != nil)
+    #expect(restore != nil)
     #expect(session.state == .signingIn(origin))
   }
 

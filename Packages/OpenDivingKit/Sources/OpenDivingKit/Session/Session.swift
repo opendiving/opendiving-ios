@@ -28,12 +28,13 @@ public final class Session {
     }
   }
 
-  /// What redeeming a code led to. Only ``signedIn`` started a session; the other two are
-  /// finished on the web.
+  /// What redeeming a code led to. Only ``signedIn`` started a session. An unfinished sign-up
+  /// is finished on the web; an account scheduled for deletion comes with the offer
+  /// ``restore(_:)`` redeems, which is never redeemed without the diver asking.
   public enum SignInOutcome: Hashable, Sendable {
     case signedIn
     case onboardingRequired(email: String?, name: String?)
-    case deletionPending(email: String?, purgeAfter: DiveTimestamp?)
+    case deletionPending(email: String?, purgeAfter: DiveTimestamp?, restore: RestoreOffer?)
   }
 
   public private(set) var state: State
@@ -324,10 +325,36 @@ public final class Session {
     case "onboarding_required":
       return .onboardingRequired(email: outcome.email, name: outcome.name)
     case "deletion_pending":
-      return .deletionPending(email: outcome.email, purgeAfter: outcome.purgeAfter)
+      return .deletionPending(
+        email: outcome.email, purgeAfter: outcome.purgeAfter,
+        restore: outcome.restoreToken.map(RestoreOffer.init(token:)))
     default:
       throw APIError.unreadableResponse("Unknown sign-in outcome \"\(outcome.status)\"")
     }
+  }
+
+  /// Brings back an account scheduled for deletion and signs in to it, as an authenticated code
+  /// does: ``loadAccount()`` is what fetches the account. A refused offer is the API's
+  /// sentence, and changes nothing.
+  public func restore(_ offer: RestoreOffer) async throws {
+    let client = try requireClient()
+    let outcome = try await client.restoreAccount(offer)
+    guard outcome.status == "authenticated" else {
+      throw APIError.unreadableResponse("Unknown restore outcome \"\(outcome.status)\"")
+    }
+    transition(to: .signedIn(client.origin))
+  }
+
+  /// `DELETE /user`, then the session on this server ends as a sign-out ends it: the token and
+  /// the remembered account go, and the server's directory — the writes waiting to sync, the
+  /// check-in sheet, the copies kept for offline — stays for a restore to find, until the
+  /// server is forgotten. A direct call, online only: with no route nothing is sent and nothing
+  /// changes, and a refusal changes nothing either.
+  public func deleteAccount() async throws -> AccountDeletionRead {
+    let client = try routedClient()
+    let deletion = try await client.deleteAccount()
+    endSession(on: client.origin)
+    return deletion
   }
 
   /// A cold start's refresh, then the account and the people table, as signing in loads
