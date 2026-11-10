@@ -611,6 +611,35 @@ struct SiteFinderModelTests {
     #expect(model.opened?.weatherTitle == nil)
   }
 
+  @Test func theWeatherIsTheOpenSitesElseTheSiteNearestTheMiddleOnceZoomedIn() async throws {
+    let (model, _) = try await withPoints()
+    // Canyon is in view, The Canyon well outside it.
+    await pan(model, to: MapCamera(latitude: 28.55, longitude: 34.52, zoom: 10))
+    let nearest = try #require(model.weatherSite)
+    #expect(nearest.uuid == Self.canyon)
+    #expect(nearest.pin == DeviceLocation(latitude: 28.5687, longitude: 34.5372))
+    // The list's row names the place the point does not.
+    #expect(nearest.title == "Dahab, South Sinai, Egypt")
+
+    await pan(model, to: MapCamera(latitude: 28.55, longitude: 34.52, zoom: 8.9))
+    #expect(model.weatherSite == nil)
+    await pan(model, to: MapCamera(latitude: 10, longitude: 10, zoom: 12))
+    #expect(model.weatherSite == nil)
+
+    model.open(uuid: UUID())
+    #expect(model.weatherSite == nil)
+    model.select(Self.canyon)
+    #expect(model.weatherSite?.uuid == Self.canyon)
+  }
+
+  @Test func aBoxHoldsAPositionAcrossTheAntimeridian() {
+    let box = LatLonBounds(south: -10, north: 10, west: 179, east: 181)
+    #expect(SiteFinderModel.contains(box, latitude: 0, longitude: -179.5))
+    #expect(SiteFinderModel.contains(box, latitude: 0, longitude: 179.5))
+    #expect(!SiteFinderModel.contains(box, latitude: 0, longitude: 178))
+    #expect(!SiteFinderModel.contains(box, latitude: 11, longitude: 180))
+  }
+
   @Test func theSitesMapOpenedOnASiteCentresItsPinAndAsksNothingOfTheLocation() async throws {
     let (world, searches) = try await world(points: try KitFixture.text("dive-site-points"))
     await DiveSitePointsModel(session: world.session).load()

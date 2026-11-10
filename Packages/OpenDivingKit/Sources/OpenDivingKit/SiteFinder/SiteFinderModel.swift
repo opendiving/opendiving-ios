@@ -456,7 +456,7 @@ public final class SiteFinderModel {
 
   /// What the diver sees of the map, where there is a map, measured, off the world the opening
   /// rests on.
-  private var shownBox: LatLonBounds? {
+  var shownBox: LatLonBounds? {
     guard hasMap, Self.isMeasured(viewport), !restsOnWorld else { return nil }
     return camera.bounds(width: viewport.width, height: viewport.height)
   }

@@ -1,11 +1,11 @@
 import Foundation
 import Observation
 
-/// The weather at the dive site the Sites map has open, for its weather bar; with no site open
-/// the bar is empty.
+/// The weather at a dive site on the Sites map, for its weather bar: the one the finder picks,
+/// ``SiteFinderModel/weatherSite``; with none the bar is empty.
 ///
-/// Only a site's pin is asked about, never the map's centre: divers open the same sites, so the
-/// instance's provider budget, shared by every account, buys answers its cache shares between
+/// Only a site's pin is asked about, never the map's centre: divers look at the same sites, so
+/// the instance's provider budget, shared by every account, buys answers its cache shares between
 /// them rather than one per pan. A pin is asked about as the server rounds it, to two decimals,
 /// about a kilometre, so two sites a stone's throw apart share one answer. An answer is kept for
 /// a quarter of an hour, so opening a site again costs nothing.
