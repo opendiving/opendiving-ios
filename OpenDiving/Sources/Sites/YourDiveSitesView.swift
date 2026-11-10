@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Every dive site of the account's, pinned or not, most recently dived first, each opening on the
 /// map.
+/// A placeholder for now, which says the record is managed on the web.
 struct YourDiveSitesView: View {
   var body: some View {
     ManagedOnTheWebView(

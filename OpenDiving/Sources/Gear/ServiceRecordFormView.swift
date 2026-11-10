@@ -4,6 +4,7 @@ import SwiftUI
 /// A gear item's service form: a service logged for `gearItem`, for `schedule` where it is logged
 /// against one, a service's edit by its uuid, a queued edit the server refused, or with
 /// `failedItem` a queued create the server refused.
+/// A placeholder for now, which says the record is managed on the web.
 struct ServiceRecordFormView: View {
   /// The gear item serviced.
   let gearItem: RecordRef

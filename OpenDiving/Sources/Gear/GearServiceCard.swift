@@ -2,6 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// A gear item's service schedules, with their status, and its service history, on the item's page.
+/// A placeholder for now, which says the record is managed on the web.
 struct GearServiceCard: View {
   let gearItem: GearItemRead
 

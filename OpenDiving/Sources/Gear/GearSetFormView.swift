@@ -3,6 +3,7 @@ import SwiftUI
 
 /// The gear set form as a screen of its own: a new set, a copy of `duplicateOf`, a set's edit from
 /// its row, or a queued edit the server refused.
+/// A placeholder for now, which says the record is managed on the web.
 struct GearSetFormView: View {
   let mode: RecordFormMode<GearSetRead>
   /// With `.create`: the set the new one starts as a copy of.

@@ -3,6 +3,7 @@ import SwiftUI
 
 /// A gear item's service schedule form: a new schedule for `gearItem`, a schedule's edit by its
 /// uuid, a queued edit the server refused, or with `failedItem` a queued create the server refused.
+/// A placeholder for now, which says the record is managed on the web.
 struct ServiceScheduleFormView: View {
   /// The gear item the schedule is for.
   let gearItem: RecordRef

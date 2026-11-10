@@ -4,6 +4,7 @@ import SwiftUI
 /// The certification form as a screen of its own: a new card, one for `course` filled from it once,
 /// a card's edit, a queued edit or card image the server refused, or with `failedItem` a queued
 /// create the server refused.
+/// A placeholder for now, which says the record is managed on the web.
 struct CertificationFormView: View {
   let mode: RecordFormMode<CertificationRead>
   /// With `.create`: the course the card is for, which fills it once.

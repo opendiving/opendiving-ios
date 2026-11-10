@@ -2,6 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The diver's life list, most recently seen first.
+/// A placeholder for now, which says the record is managed on the web.
 struct MarineLifeListView: View {
   var body: some View {
     ManagedOnTheWebView(
