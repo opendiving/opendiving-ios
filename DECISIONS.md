@@ -121,7 +121,10 @@ once no queued item or edit draft names the local ref. Rejected: a sync log of s
 A 4xx is the server's answer and retrying it changes nothing, so the item fails and every item
 naming its record waits behind it — sent first, the dive would lose the site the diver may yet
 correct. A discard is the diver's answer: what named the record drops the reference and goes on,
-because a dive without its site is still a dive. Rejected: cascading the discard.
+because a dive without its site is still a dive. What cannot exist without it — a write to the
+record, a schedule or a service for discarded gear, a card for a discarded certification — goes
+with it, and so on down what those would have created. Rejected: cascading the discard to writes
+that only name the record.
 
 ## A success this build cannot read is done
 

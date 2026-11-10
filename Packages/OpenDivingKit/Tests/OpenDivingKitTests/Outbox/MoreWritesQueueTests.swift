@@ -251,6 +251,8 @@ struct MoreWritesQueueTests {
       .updateServiceSchedule(
         schedule.creates!, gearItem: Self.item, GearServiceScheduleUpdate(active: false)))
     let edit = try outbox.queue(.updateGearItem(Self.item, GearItemUpdate(archived: true)))
+    try outbox.queue(
+      .deleteServiceRecord(.server(UUID()), gearItem: Self.item))
     let delete = try outbox.queue(.deleteGearItem(Self.item))
     #expect(outbox.items.map(\.id) == [delete.id])
     #expect(outbox.item(edit.id) == nil)

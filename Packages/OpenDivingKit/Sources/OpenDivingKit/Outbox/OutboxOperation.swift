@@ -161,6 +161,9 @@ public enum OutboxOperation: Hashable, Sendable {
     switch self {
     case .createServiceSchedule(let body): [body.gearItem]
     case .createServiceRecord(let body): [body.gearItem]
+    case .updateServiceSchedule(let ref, let item, _), .deleteServiceSchedule(let ref, let item),
+      .updateServiceRecord(let ref, let item, _), .deleteServiceRecord(let ref, let item):
+      [ref, item]
     default: target.map { [$0] } ?? []
     }
   }
