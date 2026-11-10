@@ -157,13 +157,31 @@ struct MapWeatherTests {
     let model = model(world)
     await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
     #expect(model.current != nil)
+    #expect(!model.isUnreachable)
     world.route.isRouteAvailable = false
     await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
     #expect(model.current == nil)
+    #expect(model.isUnreachable)
     world.route.isRouteAvailable = true
     await model.routeAppeared()
     #expect(model.current != nil)
+    #expect(!model.isUnreachable)
     #expect(asked.all == ["28.5,34.5", "27.9,34.3"])
+  }
+
+  @Test func aRequestThatNeverArrivesSaysSoAndZoomingOutClearsIt() async throws {
+    let world = try FormWorld()
+    world.server.override { request, _ in
+      guard request.route == "GET dive-conditions/current" else { return nil }
+      throw URLError(.timedOut)
+    }
+    try await world.session.loadAccount()
+    let model = model(world)
+    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    #expect(model.current == nil)
+    #expect(model.isUnreachable)
+    await model.show(nil)
+    #expect(!model.isUnreachable)
   }
 
   @Test func anAnswerForACellPannedAwayFromNeverReachesTheBar() async throws {
@@ -283,6 +301,8 @@ struct MapWeatherTests {
     #expect(model.current != nil)
     await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
     #expect(model.current == nil)
+    // The server answered, so the bar says nothing of the connection.
+    #expect(!model.isUnreachable)
     // A 503 says nothing about the instance: the next cell is asked about.
     await model.show(MapWeatherModel.Cell(latitude: 27.8, longitude: 34.3))
     #expect(asked.all.count == 3)

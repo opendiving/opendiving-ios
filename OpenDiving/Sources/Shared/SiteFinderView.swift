@@ -29,6 +29,8 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
   /// the spring after it is moving it.
   @State private var drag = SiteFinderPanelDrag()
   @FocusState private var typing: Bool
+  /// Where the panel stood when the search took focus, which its close button returns it to.
+  @State private var detentBeforeTyping: SiteFinderPanel.Detent?
 
   var body: some View {
     @Bindable var model = model
@@ -40,7 +42,6 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
         } else {
           Color(.systemGroupedBackground).ignoresSafeArea()
         }
-        if map.hasMap && model.isSearching { searchingSpinner }
         // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
         panelView(panel, below: geometry.safeAreaInsets.bottom)
           .modifier(
@@ -66,7 +67,12 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: typing) { _, typing in
-      if typing { move(to: .full) }
+      if typing {
+        detentBeforeTyping = detent
+        move(to: .full)
+      } else {
+        detentBeforeTyping = nil
+      }
     }
     .task { await model.open() }
     .task { await model.points.load() }
@@ -176,17 +182,6 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .ignoresSafeArea()
   }
 
-  // MARK: - Over the map
-
-  /// Under the top bar, while the list follows the camera.
-  private var searchingSpinner: some View {
-    BubbleSpinner()
-      .frame(width: 36, height: 36)
-      .pickerControl(in: Circle())
-      .padding(.top, 8)
-      .accessibilityLabel(SiteFinderText.searching)
-  }
-
   // MARK: - The panel
 
   /// `below` is the safe area under the panel, the tab bar's or the home indicator's, which its
@@ -197,10 +192,13 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     return VStack(spacing: 0) {
       VStack(spacing: 0) {
         if map.hasMap { handle(panel) }
-        searchField
-          .padding(.horizontal, 16)
-          .padding(.top, map.hasMap ? 0 : 16)
-          .padding(.bottom, 12)
+        HStack(spacing: 8) {
+          searchField
+          if typing { closeSearchButton }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, map.hasMap ? 0 : 16)
+        .padding(.bottom, 12)
       }
       .contentShape(Rectangle())
       .gesture(
@@ -298,6 +296,21 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .padding(.horizontal, 14)
     .frame(height: 44)
     .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+  }
+
+  private var closeSearchButton: some View {
+    Button {
+      let back = detentBeforeTyping ?? .half
+      typing = false
+      move(to: back)
+    } label: {
+      Image(systemName: "xmark")
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
+    }
+    .accessibilityLabel("Close search")
+    .buttonStyle(.plain)
+    .background(Color(.secondarySystemGroupedBackground), in: Circle())
   }
 
   // MARK: - The list
