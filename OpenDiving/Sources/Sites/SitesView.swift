@@ -60,6 +60,8 @@ private struct SitesFinder: View {
             let content = MapWeatherContent(current, units: session.units)
           {
             MapWeatherBar(content: content, place: weather.place) { await weather.lookUpPlace() }
+          } else if weather.isUnreachable {
+            MapWeatherOfflineBar()
           } else {
             Color.clear.frame(width: 1, height: 1)
           }
@@ -87,7 +89,8 @@ private struct SitesFinder: View {
     NavigationLink {
       YourProposalsView()
     } label: {
-      CommonsMark(side: 22, relativeTo: .body)
+      // The mark's bubbles cross as the spinner's do while the map's sites are looked up.
+      CommonsLoadingMark(isLoading: model.isSearching)
     }
     .accessibilityLabel(YourProposalsView.title)
     .mapBarButton()

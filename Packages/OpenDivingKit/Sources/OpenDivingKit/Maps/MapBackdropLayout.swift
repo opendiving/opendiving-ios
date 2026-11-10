@@ -169,17 +169,19 @@ public struct MapBackdropLayout: Hashable, Sendable {
       west: centreX - halfX, east: centreX + halfX)
   }
 
-  /// The deepest zoom at which `box` fits `width` by `height`, capped at ``maxZoom``, which is
+  /// The deepest zoom at which `box` fits `width` by `height`, capped at `deepest`, which is
   /// also the answer when there is no room at all.
-  static func fitZoom(_ box: LatLonBounds, width: Double, height: Double) -> Double {
-    guard width >= 0, height >= 0 else { return Double(maxZoom) }
+  static func fitZoom(
+    _ box: LatLonBounds, width: Double, height: Double, deepest: Double = Double(maxZoom)
+  ) -> Double {
+    guard width >= 0, height >= 0 else { return deepest }
     let spanX =
       (WebMercator.x(longitude: box.east) - WebMercator.x(longitude: box.west))
       * WebMercator.tileSize
     let spanY =
       (WebMercator.y(latitude: WebMercator.clamp(latitude: box.south))
         - WebMercator.y(latitude: WebMercator.clamp(latitude: box.north))) * WebMercator.tileSize
-    return min(log2(min(width / spanX, height / spanY)), Double(maxZoom))
+    return min(log2(min(width / spanX, height / spanY)), deepest)
   }
 
   private struct Placed {

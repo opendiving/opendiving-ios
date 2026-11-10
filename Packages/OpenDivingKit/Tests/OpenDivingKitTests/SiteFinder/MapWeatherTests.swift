@@ -45,6 +45,14 @@ struct MapWeatherTests {
   private func model(_ world: FormWorld) -> MapWeatherModel {
     let model = MapWeatherModel(session: world.session)
     model.settleDelay = .zero
+    model.retryDelay = .zero
+    return model
+  }
+
+  /// A model whose failed ask waits for the test, which pans or brings a route back.
+  private func patientModel(_ world: FormWorld) -> MapWeatherModel {
+    let model = model(world)
+    model.retryDelay = .seconds(3600)
     return model
   }
 
@@ -154,16 +162,38 @@ struct MapWeatherTests {
   @Test func withNoRouteTheBarEmptiesAndARouteAppearingAsksAgain() async throws {
     let asked = Asked()
     let world = try await world(asked, answer: .json(Self.dahab))
-    let model = model(world)
+    let model = patientModel(world)
     await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
     #expect(model.current != nil)
+    #expect(!model.isUnreachable)
     world.route.isRouteAvailable = false
-    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3)) }
+    while !model.isUnreachable { await Task.yield() }
     #expect(model.current == nil)
     world.route.isRouteAvailable = true
-    await model.routeAppeared()
+    model.routeAppeared()
+    await asking.value
     #expect(model.current != nil)
+    #expect(!model.isUnreachable)
     #expect(asked.all == ["28.5,34.5", "27.9,34.3"])
+  }
+
+  @Test func aRequestThatNeverArrivesSaysSoAndZoomingOutClearsIt() async throws {
+    let world = try FormWorld()
+    world.server.override { request, _ in
+      guard request.route == "GET dive-conditions/current" else { return nil }
+      throw URLError(.timedOut)
+    }
+    try await world.session.loadAccount()
+    let model = patientModel(world)
+    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)) }
+    while !model.isUnreachable { await Task.yield() }
+    #expect(model.current == nil)
+    // As a zoom out does: the task asking about the cell is cancelled, and the next shows none.
+    asking.cancel()
+    await model.show(nil)
+    await asking.value
+    #expect(!model.isUnreachable)
   }
 
   @Test func anAnswerForACellPannedAwayFromNeverReachesTheBar() async throws {
@@ -181,7 +211,8 @@ struct MapWeatherTests {
     }
     try await world.session.loadAccount()
     let model = model(world)
-    // Dahab asked about as a route appearing asks, on a task no pan cancels.
+    // Dahab asked about on a task left running, so only the map no longer showing Dahab keeps
+    // its answer off the bar.
     let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)) }
     await gate.untilArrived()
     await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
@@ -256,6 +287,29 @@ struct MapWeatherTests {
     #expect(asked.all.count == 3)
   }
 
+  @Test func aFirstAskTheServerFailsIsAskedAgainWithNoPanAndNoRouteAppearing() async throws {
+    let asked = Asked()
+    let failures = Mutex(1)
+    let dahab = Self.dahab
+    let world = try FormWorld()
+    world.server.override { request, _ in
+      guard request.route == "GET dive-conditions/current" else { return nil }
+      asked.record(request.url)
+      let failing = failures.withLock { left in
+        defer { left -= 1 }
+        return left > 0
+      }
+      return failing
+        ? .json(#"{"detail":"The weather could not be looked up now."}"#, status: 503)
+        : .json(dahab)
+    }
+    try await world.session.loadAccount()
+    let model = model(world)
+    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    #expect(model.current?.weather?.weatherCode == 2)
+    #expect(asked.all == ["28.5,34.5", "28.5,34.5"])
+  }
+
   @Test func anInstanceThatFetchesNoConditionsIsAskedOnce() async throws {
     let asked = Asked()
     let world = try await world(
@@ -278,13 +332,20 @@ struct MapWeatherTests {
         ?? .json(#"{"detail":"Conditions could not be looked up now."}"#, status: 503)
     }
     try await world.session.loadAccount()
-    let model = model(world)
+    let model = patientModel(world)
     await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
     #expect(model.current != nil)
-    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
-    #expect(model.current == nil)
+    let sharm = Task { await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3)) }
+    while model.current != nil { await Task.yield() }
+    // The server answered, so the bar says nothing of the connection.
+    #expect(!model.isUnreachable)
     // A 503 says nothing about the instance: the next cell is asked about.
-    await model.show(MapWeatherModel.Cell(latitude: 27.8, longitude: 34.3))
+    sharm.cancel()
+    let next = Task { await model.show(MapWeatherModel.Cell(latitude: 27.8, longitude: 34.3)) }
+    while asked.all.count < 3 { await Task.yield() }
+    next.cancel()
+    await sharm.value
+    await next.value
     #expect(asked.all.count == 3)
   }
 }
