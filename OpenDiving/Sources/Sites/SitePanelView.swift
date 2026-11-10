@@ -1,127 +1,160 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One dive site's page, pushed from the dive page and the sites list: its hero, every dive
-/// there, what it records about itself, its notes and the species seen on its dives.
-struct SiteDetailView: View {
+/// Everything about one dive site, as the sites map's panel shows it under the site's name: its
+/// chips, facts and figures with the ways to edit it and read its fields, what stands on it — a
+/// proposal, a Commons match, an edit waiting to land — what it records about itself, its notes,
+/// the species seen on its dives, and every dive there last.
+struct SitePanelView: View {
   let siteUUID: UUID
+  /// The site, each time it is read.
+  let onRead: (DiveSiteRead) -> Void
+  /// Another site for the panel: the Commons record this one matches, or the one it was replaced
+  /// with.
+  let onOpen: (UUID) -> Void
+  let onDeleted: () -> Void
   @Environment(Session.self) private var session
-  /// The Commons record that replaced the site while its page was open.
-  @State private var record: UUID?
 
   var body: some View {
-    let shown = record ?? siteUUID
-    SiteDetailContent(model: DiveSiteDetailModel(session: session, siteUUID: shown)) {
-      record = $0
-    }
-    .id(shown)
+    SitePanelContent(
+      model: DiveSiteDetailModel(session: session, siteUUID: siteUUID), onRead: onRead,
+      onOpen: onOpen, onDeleted: onDeleted
+    )
+    .id(siteUUID)
   }
 }
 
-private struct SiteDetailContent: View {
+private struct SitePanelContent: View {
   @Environment(Session.self) private var session
-  @Environment(\.dismiss) private var dismiss
   @State private var model: DiveSiteDetailModel
   @State private var replacing: DiveSiteCommonsMatch?
-  let onReplaced: (UUID) -> Void
+  let onRead: (DiveSiteRead) -> Void
+  let onOpen: (UUID) -> Void
+  let onDeleted: () -> Void
 
-  init(model: DiveSiteDetailModel, onReplaced: @escaping (UUID) -> Void) {
+  init(
+    model: DiveSiteDetailModel, onRead: @escaping (DiveSiteRead) -> Void,
+    onOpen: @escaping (UUID) -> Void, onDeleted: @escaping () -> Void
+  ) {
     _model = State(initialValue: model)
-    self.onReplaced = onReplaced
+    self.onRead = onRead
+    self.onOpen = onOpen
+    self.onDeleted = onDeleted
   }
 
   var body: some View {
     Group {
       switch model.phase {
       case .loading:
-        EmptyOrErrorView(status: .loading)
+        BubbleSpinner()
+          .frame(maxWidth: .infinity)
+          .padding(.top, 24)
       case .notFound:
-        EmptyOrErrorView(status: .notFound(message: "Dive site not found."))
+        message("Dive site not found.")
       case .failed(let error):
-        EmptyOrErrorView(
-          status: .failed(
-            message: error.isUnreachable ? OfflineText.siteNotShown : error.message)
-        ) {
-          Task { await model.load() }
+        VStack(alignment: .leading, spacing: 8) {
+          message(error.isUnreachable ? OfflineText.siteNotShown : error.message)
+          Button("Try again") { Task { await model.load() } }
+            .buttonStyle(.bordered)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
       case .loaded(let site):
-        ScrollView {
-          LazyVStack(spacing: 16) {
-            HeroView(content: DiveSiteSummary.hero(site, units: session.units))
-            Group {
-              if let lastUpdated = model.lastUpdated {
-                LastUpdatedLine(date: lastUpdated)
-              }
-              if let attribution = site.attribution {
-                AttributionLine(credits: [attribution])
-                  .frame(maxWidth: .infinity, alignment: .leading)
-              }
-              if model.hasPendingEdit {
-                PendingEditLine()
-              }
-              if let notice = site.proposal.flatMap(DiveSiteProposalSummary.notice) {
-                ProposalNotice(notice: notice, model: model)
-              }
-              if let match = site.commonsMatch {
-                CommonsMatchNotice(match: match, replacement: model.replacement) {
-                  replacing = match
-                }
-              }
-              SiteDives(list: model.dives, units: session.units)
-              PageEndTrigger(list: model.dives)
-              SiteInformationCard(info: DiveSiteSummary.info(site))
-              if !site.notes.isEmpty {
-                SectionCard(title: "Notes", icon: .fileText) {
-                  Text(site.notes)
-                    .foregroundStyle(.secondary)
-                }
-              }
-              SiteSpecies(model: model)
-            }
-            .padding(.horizontal)
+        LazyVStack(spacing: 16) {
+          SiteHead(site: site, units: session.units, onDeleted: onDeleted, onReplaced: onOpen)
+          if let lastUpdated = model.lastUpdated {
+            LastUpdatedLine(date: lastUpdated)
           }
-          .padding(.bottom)
+          if let attribution = site.attribution {
+            AttributionLine(credits: [attribution])
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          if model.hasPendingEdit {
+            PendingEditLine()
+          }
+          if let notice = site.proposal.flatMap(DiveSiteProposalSummary.notice) {
+            ProposalNotice(notice: notice, model: model)
+          }
+          if let match = site.commonsMatch {
+            CommonsMatchNotice(
+              match: match, replacement: model.replacement, open: { onOpen(match.uuid) }
+            ) {
+              replacing = match
+            }
+          }
+          SiteInformationCard(info: DiveSiteSummary.info(site))
+          if !site.notes.isEmpty {
+            SectionCard(title: "Notes", icon: .fileText) {
+              Text(site.notes)
+                .foregroundStyle(.secondary)
+            }
+          }
+          SiteSpecies(model: model)
+          SiteDives(list: model.dives, units: session.units)
+          PageEndTrigger(list: model.dives)
         }
-        .heroUnderTopBar { await model.refresh() }
       }
     }
-    .background(Color.pageBackground)
-    .navigationTitle(title)
-    .navigationBarTitleDisplayMode(.inline)
-    // The title names the page in the back button's history; the head says it on screen.
-    .toolbar(removing: .title)
-    .toolbar {
-      if case .loaded(let site) = model.phase {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-          RecordInfoButton(
-            title: "Dive Site Information",
-            sections: DiveSiteSummary.recordInfo(site, units: session.units))
-          if !site.isUnsavedCommons {
-            NavigationLink {
-              DiveSiteFormView(
-                mode: .edit(site), onDeleted: { dismiss() }, onReplaced: onReplaced)
-            } label: {
-              Label("Edit dive site", systemImage: "pencil")
-            }
-          }
-        }
-      }
+    .onChange(of: loaded, initial: true) { _, site in
+      if let site { onRead(site) }
     }
     .task {
       await model.load()
       await model.followRoute()
     }
     .proposalWithdrawalAlert(model.withdrawal)
-    .replaceWithCommonsConfirmation(siteName: title, target: $replacing) { match in
+    .replaceWithCommonsConfirmation(siteName: loaded?.name ?? "Dive site", target: $replacing) {
+      match in
       Task {
-        if let record = await model.replace(with: match.uuid) { onReplaced(record.uuid) }
+        if let record = await model.replace(with: match.uuid) { onOpen(record.uuid) }
       }
     }
     .replaceWithCommonsAlert(model.replacement)
   }
 
-  private var title: String {
-    if case .loaded(let site) = model.phase { site.name } else { "Dive site" }
+  private var loaded: DiveSiteRead? {
+    if case .loaded(let site) = model.phase { site } else { nil }
+  }
+
+  private func message(_ text: String) -> some View {
+    Text(text)
+      .font(.subheadline)
+      .foregroundStyle(.secondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+/// What the page's head said under the name, which the panel shows over it: the site's chips,
+/// facts and figures, then the ways to edit it and to read its own fields.
+private struct SiteHead: View {
+  let site: DiveSiteRead
+  let units: UnitSystem
+  let onDeleted: () -> Void
+  let onReplaced: (UUID) -> Void
+
+  var body: some View {
+    let content = DiveSiteSummary.hero(site, units: units)
+    VStack(alignment: .leading, spacing: 12) {
+      ChipsRow(chips: content.chips)
+      FactsLine(facts: content.facts)
+      FiguresRow(figures: content.figures)
+      HStack(spacing: 8) {
+        if !site.isUnsavedCommons {
+          NavigationLink {
+            DiveSiteFormView(mode: .edit(site), onDeleted: onDeleted, onReplaced: onReplaced)
+          } label: {
+            Label("Edit", systemImage: "pencil")
+          }
+          .buttonStyle(.bordered)
+        }
+        RecordInfoButton(
+          title: "Dive Site Information",
+          sections: DiveSiteSummary.recordInfo(site, units: units)
+        )
+        .buttonStyle(.bordered)
+      }
+      .tint(Color.brandTeal)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
@@ -153,18 +186,17 @@ private struct ProposalNotice: View {
   }
 }
 
-/// The diver's own site shares a registry entry with a Commons record: which one, opening its
-/// page, and the way to take it instead. On every instance, as the route is.
+/// The diver's own site shares a registry entry with a Commons record: which one, opening it in
+/// the panel, and the way to take it instead. On every instance, as the route is.
 private struct CommonsMatchNotice: View {
   let match: DiveSiteCommonsMatch
   let replacement: CommonsSiteReplacement
+  let open: () -> Void
   let replace: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      NavigationLink {
-        SiteDetailView(siteUUID: match.uuid)
-      } label: {
+      Button(action: open) {
         Text(DiveSiteProposalSummary.commonsMatch(match))
           .font(.subheadline)
           .multilineTextAlignment(.leading)
@@ -337,7 +369,10 @@ private struct SiteSpecies: View {
 
 #Preview {
   NavigationStack {
-    SiteDetailView(siteUUID: UUID())
+    ScrollView {
+      SitePanelView(siteUUID: UUID(), onRead: { _ in }, onOpen: { _ in }, onDeleted: {})
+        .padding()
+    }
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

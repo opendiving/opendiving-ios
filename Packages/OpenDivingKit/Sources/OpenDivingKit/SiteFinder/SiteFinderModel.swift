@@ -24,7 +24,7 @@ import Observation
 @Observable
 public final class SiteFinderModel {
   public enum Host: Hashable, Sendable {
-    /// The sites map: a row opens the site's page.
+    /// The sites map: a row or a point opens the site in the panel.
     case sitesMap
     /// The dive form's site picker: a row puts the site on the dive.
     case diveForm
@@ -46,8 +46,12 @@ public final class SiteFinderModel {
   public private(set) var isLocating = false
   /// Why the last *Use my location* found nothing.
   public private(set) var locationFailure: LocationFailure?
-  /// The point the diver touched on the map.
+  /// The point the diver touched on the dive form's map.
   public var selected: SiteFinderPoint?
+  /// The site the sites map's panel shows in place of the search and the list.
+  public private(set) var opened: OpenedSite?
+  /// The camera's last move is drawn as a glide rather than a jump: an opened site being centred.
+  public private(set) var glides = false
   public let points: DiveSitePointsModel
   /// Whether the map is drawn: without one there is no view to narrow the list to.
   public var hasMap = false {
@@ -74,6 +78,8 @@ public final class SiteFinderModel {
   /// The day a trip part must hold for the sites map to open on it.
   @ObservationIgnored private let today: CalendarDate?
   @ObservationIgnored private var opening: SiteFinderOpening?
+  /// The site the sites map opens on, in place of its opening rule.
+  @ObservationIgnored private let openingSite: UUID?
   @ObservationIgnored private var isResolving = false
   /// The camera sits, unmoved, on the world the opening rule ended on.
   @ObservationIgnored private var restsOnWorld = false
@@ -91,11 +97,14 @@ public final class SiteFinderModel {
 
   private typealias Answer = (query: DiveSiteSearchQuery, list: PagedList<DiveSiteSearchRow>)
 
-  /// The sites map's finder.
-  public init(session: Session, locator: any LocationProvider, today: CalendarDate) {
+  /// The sites map's finder, opened on `site` where one is given.
+  public init(
+    session: Session, locator: any LocationProvider, today: CalendarDate, site: UUID? = nil
+  ) {
     self.session = session
     self.locator = locator
     self.today = today
+    openingSite = site
     form = nil
     host = .sitesMap
     points = DiveSitePointsModel(session: session)
@@ -108,6 +117,7 @@ public final class SiteFinderModel {
     self.locator = locator
     self.form = form
     today = nil
+    openingSite = nil
     host = .diveForm
     points = DiveSitePointsModel(session: form.session)
   }
@@ -139,7 +149,9 @@ public final class SiteFinderModel {
     isResolving = true
     showKeptWhileOpening()
     let opened: SiteFinderOpening
-    if let form {
+    if let site = openingSite {
+      opened = openSite(site)
+    } else if let form {
       let facts = form.siteFinderFacts
       var location: DeviceLocation?
       if facts.needsLocation {
@@ -161,6 +173,7 @@ public final class SiteFinderModel {
     restsOnWorld = opened.isWorld
     restsOnOpening = true
     camera = opened.camera(width: viewport.width, height: viewport.height)
+    glides = false
     isOpening = false
     isResolving = false
     await search()
@@ -196,6 +209,18 @@ public final class SiteFinderModel {
   private func refit() {
     guard restsOnOpening, let opening else { return }
     camera = opening.camera(width: viewport.width, height: viewport.height)
+    glides = false
+  }
+
+  /// The site the finder opens on, and the opening that centres it where the map has its point.
+  private func openSite(_ uuid: UUID) -> SiteFinderOpening {
+    points.showHeld()
+    let point = points.point(uuid)
+    opened = OpenedSite(uuid: uuid, name: point?.name, isPlaced: point != nil)
+    guard let point else { return .world }
+    return SiteFinderOpening(points: [
+      MapPoint(name: point.name, latitude: point.latitude, longitude: point.longitude)
+    ])
   }
 
   /// The opening's list again, narrowed to the view, where it was sent before a map was drawn and
@@ -210,6 +235,7 @@ public final class SiteFinderModel {
   /// The map came to rest: a gesture's move, or its account of one asked of it.
   public func mapMoved(to camera: MapCamera, byGesture: Bool) {
     self.camera = camera
+    glides = false
     guard byGesture, !isOpening else { return }
     restsOnWorld = false
     restsOnOpening = false
@@ -270,9 +296,61 @@ public final class SiteFinderModel {
     if hasMap { settle() } else { await search() }
   }
 
-  /// The point the diver touched, or nothing where the map has no such site.
+  /// The point the diver touched, or nothing where the map has no such site: the dive form's
+  /// sheet names it, and the sites map opens it in the panel, its pin glided to the middle of
+  /// what shows at the zoom the map is at.
   public func select(_ uuid: UUID) {
-    selected = points.point(uuid)
+    guard let point = points.point(uuid) else { return }
+    switch host {
+    case .diveForm:
+      selected = point
+    case .sitesMap:
+      opened = OpenedSite(uuid: uuid, name: point.name, isPlaced: true)
+      centre(latitude: point.latitude, longitude: point.longitude, zoom: camera.zoom)
+    }
+  }
+
+  /// A row of the sites map's list, opened in the panel, its pin glided to the middle of what
+  /// shows at a town's worth of map at least.
+  public func open(_ site: DiveSiteLookupItem) {
+    guard let uuid = site.ref.serverUUID else { return }
+    let placed = site.latitude != nil && site.longitude != nil
+    opened = OpenedSite(uuid: uuid, name: site.name, isPlaced: placed)
+    if let latitude = site.latitude, let longitude = site.longitude {
+      centre(latitude: latitude, longitude: longitude, zoom: pointZoom)
+    }
+  }
+
+  /// Another site in the panel, by its uuid alone: a Commons record the open one matches, or the
+  /// record that replaced it. Its pin is centred once its page has read where it is.
+  public func open(uuid: UUID) {
+    opened = OpenedSite(uuid: uuid, name: points.point(uuid)?.name, isPlaced: false)
+  }
+
+  /// The open site as its page read it: its name now, and its pin glided to the middle where
+  /// the finder had nowhere to put it when it opened.
+  public func read(_ site: DiveSiteRead) {
+    guard var opened, opened.uuid == site.uuid else { return }
+    opened.name = site.name
+    if !opened.isPlaced, let latitude = site.latitude, let longitude = site.longitude {
+      opened.isPlaced = true
+      centre(latitude: latitude, longitude: longitude, zoom: pointZoom)
+    }
+    self.opened = opened
+  }
+
+  /// The panel goes back to the search and the list, the map staying where the site put it.
+  public func closeSite() {
+    opened = nil
+  }
+
+  private var pointZoom: Double {
+    max(camera.zoom, SiteFinderOpening.pointZoom)
+  }
+
+  private func centre(latitude: Double, longitude: Double, zoom: Double) {
+    move(to: MapCamera(latitude: latitude, longitude: longitude, zoom: zoom))
+    glides = true
   }
 
   /// The next page, once `row` is the last shown.
@@ -298,6 +376,7 @@ public final class SiteFinderModel {
 
   private func move(to camera: MapCamera) {
     self.camera = camera
+    glides = false
     restsOnWorld = false
     restsOnOpening = false
   }

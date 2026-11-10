@@ -22,7 +22,7 @@ struct SiteFinderSheet: View {
   var body: some View {
     NavigationStack {
       SiteFinderView(
-        model: model, map: map, units: session.units, pointAction: "Add to dive",
+        model: model, map: map, units: session.units,
         onSite: { site in
           form.addFound(site)
           dismiss()
@@ -34,6 +34,8 @@ struct SiteFinderSheet: View {
           form.addSite(row.ref)
           dismiss()
         },
+        // The dive form names a touched point under its sheet and opens no site in the panel.
+        site: { _ in EmptyView() },
         bar: {
           ToolbarItem(placement: .cancellationAction) {
             Button {

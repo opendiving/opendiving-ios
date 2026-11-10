@@ -76,7 +76,9 @@ struct SiteFinderModelTests {
 
   /// A phone over a server answering the search with the fixture's page and empty trips and
   /// dives, its account loaded.
-  private func world(gate: Gate = Gate()) async throws -> (FormWorld, Searches) {
+  private func world(gate: Gate = Gate(), points: String = #"{"points":[]}"#) async throws -> (
+    FormWorld, Searches
+  ) {
     let world = try FormWorld()
     let searches = Searches()
     let page = Self.page
@@ -88,7 +90,7 @@ struct SiteFinderModelTests {
         try await gate.pass()
         return .json(page)
       case "GET trips", "GET dives": return .json(empty)
-      case "GET dive-sites/points": return .json(#"{"points":[]}"#)
+      case "GET dive-sites/points": return .json(points)
       default: return nil
       }
     }
@@ -467,5 +469,111 @@ struct SiteFinderModelTests {
     await opening.value
     #expect(searches.queries.last?["latitude"] == "28.50")
     #expect(again.list?.lastUpdated == nil)
+  }
+
+  // MARK: - An opened site
+
+  private static let canyon = UUID(uuidString: "01a14b2e-0c3d-7a10-9f00-4a2b3c4d5e6f")!
+
+  /// A finder over a map whose points hold the diver's Canyon at 28.5687, 34.5372.
+  private func withPoints() async throws -> (SiteFinderModel, Searches) {
+    let (world, searches) = try await world(points: try KitFixture.text("dive-site-points"))
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    await model.points.load()
+    return (model, searches)
+  }
+
+  /// The fixture's site, at `uuid` and placed at `latitude`, `longitude`.
+  private func site(_ uuid: UUID, latitude: Double?, longitude: Double?) throws -> DiveSiteRead {
+    var object = try #require(
+      JSONSerialization.jsonObject(with: KitFixture.data("dive-site")) as? [String: Any])
+    object["uuid"] = uuid.uuidString
+    object["name"] = "Renamed"
+    object["latitude"] = latitude ?? NSNull()
+    object["longitude"] = longitude ?? NSNull()
+    return try APICoding.decoder().decode(
+      DiveSiteRead.self, from: JSONSerialization.data(withJSONObject: object))
+  }
+
+  @Test func aTouchedPointOpensInThePanelAndGlidesToTheMiddleAtTheZoomItIsAt() async throws {
+    let (model, searches) = try await withPoints()
+    await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 14))
+    let sent = searches.queries.count
+    model.select(Self.canyon)
+    #expect(model.opened?.uuid == Self.canyon)
+    #expect(model.opened?.name == "Canyon")
+    #expect(model.selected == nil)
+    #expect(model.camera == MapCamera(latitude: 28.5687, longitude: 34.5372, zoom: 14))
+    #expect(model.glides)
+    // The glide's landing is the map's own move, which the list does not follow.
+    model.mapMoved(to: model.camera, byGesture: false)
+    #expect(model.settling == nil)
+    #expect(searches.queries.count == sent)
+    model.closeSite()
+    #expect(model.opened == nil)
+  }
+
+  @Test func aRowOpensInThePanelAtATownsWorthOfMapAtLeast() async throws {
+    let (model, _) = try await withPoints()
+    model.open(
+      DiveSiteLookupItem(
+        ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372))
+    #expect(model.opened?.uuid == Self.canyon)
+    #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
+    #expect(model.camera.latitude == 28.5687)
+    #expect(model.glides)
+    await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 15))
+    #expect(!model.glides)
+    model.open(
+      DiveSiteLookupItem(
+        ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372))
+    #expect(model.camera.zoom == 15)
+  }
+
+  @Test func aSiteOpenedByItsUuidIsCentredOnceItsPageReadsWhereItIs() async throws {
+    let (model, _) = try await withPoints()
+    let other = UUID()
+    let before = model.camera
+    model.open(uuid: other)
+    #expect(model.opened?.name == nil)
+    #expect(model.camera == before)
+    // Another site's read says nothing about this one.
+    model.read(try site(Self.canyon, latitude: 1, longitude: 2))
+    #expect(model.opened?.name == nil)
+    model.read(try site(other, latitude: 12.5, longitude: 45.25))
+    #expect(model.opened?.name == "Renamed")
+    #expect(model.camera.latitude == 12.5)
+    #expect(model.glides)
+    // Placed once: a later read renames it and leaves the camera where the diver took it.
+    await pan(model, to: MapCamera(latitude: 3, longitude: 4, zoom: 12))
+    model.read(try site(other, latitude: 12.5, longitude: 45.25))
+    #expect(model.camera == MapCamera(latitude: 3, longitude: 4, zoom: 12))
+  }
+
+  @Test func theSitesMapOpenedOnASiteCentresItsPinAndAsksNothingOfTheLocation() async throws {
+    let (world, searches) = try await world(points: try KitFixture.text("dive-site-points"))
+    await DiveSitePointsModel(session: world.session).load()
+    let locator = FakeFinderLocator(.success(.init(latitude: 1, longitude: 2)))
+    let model = SiteFinderModel(
+      session: world.session, locator: locator, today: Self.today, site: Self.canyon)
+    await model.open()
+    #expect(locator.asked == 0)
+    #expect(model.opened?.uuid == Self.canyon)
+    #expect(model.opened?.name == "Canyon")
+    #expect(model.camera.latitude == 28.5687)
+    #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
+    #expect(searches.queries.last?["latitude"] == "28.57")
+  }
+
+  @Test func theDiveFormsTouchedPointIsNamedUnderItsSheetAndOpensNothing() async throws {
+    let (world, _) = try await world(points: try KitFixture.text("dive-site-points"))
+    let form = await world.form(.create)
+    let model = SiteFinderModel(form: form, locator: FakeFinderLocator(.failure(.denied)))
+    await model.points.load()
+    let before = model.camera
+    model.select(Self.canyon)
+    #expect(model.selected?.uuid == Self.canyon)
+    #expect(model.opened == nil)
+    #expect(model.camera == before)
   }
 }

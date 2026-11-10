@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The head of a dive's, a trip's or a site's page, or of the diver's profile: a map of its
+/// The head of a dive's or a trip's page, or of the diver's profile: a map of its
 /// places, up under the top bar on a page that lets it (``SwiftUI/View/heroUnderTopBar()``) and
 /// on above the page for a pull-down to show, fading into the page's ``Color/pageBackground``,
 /// under its chips, title, facts and figures, and the map's credit after them — or, with

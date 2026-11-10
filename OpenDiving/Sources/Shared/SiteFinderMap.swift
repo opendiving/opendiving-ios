@@ -5,20 +5,22 @@ import SwiftUI
 
 /// The site finder's map: every Commons record and the diver's own sites as one clustered shape
 /// source, which MapLibre draws as a few circles where an annotation per site would be thousands
-/// of views, each site a pin in its mark's colour and the touched one ringed over them. A group
-/// takes the colour of its highest mark. A cluster's tap fits its sites and a point's tap names it;
+/// of views, each site a pin in its mark's colour. The selected site's pin stands larger over the
+/// rest, which fade back. A group takes the colour of its highest mark. A cluster's tap fits its sites and a point's tap names it;
 /// a long press is where a site is added.
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
   /// Where the map looks, at the middle of what `covered` leaves showing. A change jumps it there;
   /// every move comes back through `onCameraChange`, saying whether a gesture made it.
   let camera: MapCamera
+  /// The move to `camera` glides there rather than jumping.
+  var glides = false
   /// What the screen draws over the map, which a change leaves where it was.
   var covered = UIEdgeInsets.zero
   /// Nil leaves the Commons records off the map, the diver's saved ones staying.
   let commons: CommonsDiveSitePoints?
   let yours: [DiveSitePoint]
-  let selected: SiteFinderPoint?
+  let selected: UUID?
   let onCameraChange: (MapCamera, Bool) -> Void
   let onPoint: (UUID) -> Void
   var onLongPress: ((CLLocationCoordinate2D) -> Void)?
@@ -58,15 +60,9 @@ struct SiteFinderMap: UIViewRepresentable {
       coordinator.isDark = context.environment.colorScheme == .dark
       map.styleJSON = styleJSON
     }
-    coordinator.show(
-      Layers(
-        commons: commons, yours: yours,
-        selected: selected.map {
-          [MapPoint(name: $0.name, latitude: $0.latitude, longitude: $0.longitude)]
-        } ?? []),
-      on: map)
+    coordinator.show(Layers(commons: commons, yours: yours, selected: selected), on: map)
     coordinator.cover(map, with: covered)
-    coordinator.move(map, to: camera)
+    coordinator.move(map, to: camera, glides: glides)
   }
 
   func makeCoordinator() -> Coordinator {
@@ -77,9 +73,9 @@ struct SiteFinderMap: UIViewRepresentable {
   struct Layers: Equatable {
     var commons: CommonsDiveSitePoints?
     var yours: [DiveSitePoint]
-    var selected: [MapPoint]
+    var selected: UUID?
 
-    static let empty = Layers(commons: nil, yours: [], selected: [])
+    static let empty = Layers(commons: nil, yours: [], selected: nil)
   }
 
   final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
@@ -103,6 +99,8 @@ struct SiteFinderMap: UIViewRepresentable {
     private var isPlaced = false
     /// A tapped cluster's zoom, which is the diver's move although the map is told to make it.
     private var zoomedIntoCluster = false
+    /// A glide to `camera` has not landed yet.
+    private var isGliding = false
 
     func listen(on map: MLNMapView) {
       let hold = UILongPressGestureRecognizer(target: self, action: #selector(held))
@@ -123,22 +121,46 @@ struct SiteFinderMap: UIViewRepresentable {
       guard let style = map.style, style.source(withIdentifier: Source.sites) != nil else {
         return
       }
-      if layers.commons?.version != drawn.commons?.version
+      let sitesChanged =
+        layers.commons?.version != drawn.commons?.version
         || (layers.commons == nil) != (drawn.commons == nil) || layers.yours != drawn.yours
-      {
+      if sitesChanged {
         set(
           Source.sites,
           SiteFinderMapMark.marks(commons: layers.commons, yours: layers.yours).map {
             Self.feature($0.uuid, $0.latitude, $0.longitude, mark: $0.mark)
           }, style)
       }
-      if layers.selected != drawn.selected {
-        set(
-          Source.selected,
-          layers.selected.map { Self.feature(nil, $0.latitude, $0.longitude, mark: nil) }, style)
+      if sitesChanged || layers.selected != drawn.selected {
+        select(
+          layers.selected.flatMap {
+            SiteFinderMapMark.mark(of: $0, commons: layers.commons, yours: layers.yours)
+          }, in: style)
       }
       drawn = layers
     }
+
+    /// The selected site's pin on a layer of its own, larger and over the others, its copy among
+    /// them left out and the rest faded back; nothing fades for a site the map has no point for.
+    private func select(_ mark: SiteFinderMapMark?, in style: MLNStyle) {
+      set(
+        Source.selected,
+        mark.map { [Self.feature($0.uuid, $0.latitude, $0.longitude, mark: $0.mark)] } ?? [],
+        style)
+      let opacity = NSExpression(forConstantValue: mark == nil ? 0.9 : Self.fadedOpacity)
+      if let points = style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer {
+        points.predicate =
+          mark.map {
+            NSPredicate(format: "cluster != YES AND %K != %@", Self.uuidKey, $0.uuid.uuidString)
+          } ?? NSPredicate(format: "cluster != YES")
+        points.iconOpacity = opacity
+      }
+      (style.layer(withIdentifier: Layer.clusters) as? MLNSymbolStyleLayer)?.iconOpacity = opacity
+      (style.layer(withIdentifier: Layer.counts) as? MLNSymbolStyleLayer)?.textOpacity = opacity
+    }
+
+    /// How far the other sites fade back while one is selected.
+    private static let fadedOpacity = 0.35
 
     /// The content inset is what puts the camera in the middle of what shows; changed, the map
     /// would keep its centre at the new middle, so it is handed the point already there instead.
@@ -152,6 +174,15 @@ struct SiteFinderMap: UIViewRepresentable {
         return
       }
       pendingCover = nil
+      // A glide under way goes on to the middle of what shows now, rather than stopping where
+      // it had got to.
+      if isGliding, let camera {
+        map.contentInset = covered
+        map.setCenter(
+          CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
+          zoomLevel: camera.zoom, animated: true)
+        return
+      }
       let middle = map.convert(CGPoint(x: showing.midX, y: showing.midY), toCoordinateFrom: map)
       isMoving = true
       map.contentInset = covered
@@ -190,14 +221,19 @@ struct SiteFinderMap: UIViewRepresentable {
       }
     }
 
-    func move(_ map: MLNMapView, to camera: MapCamera) {
+    func move(_ map: MLNMapView, to camera: MapCamera, glides: Bool) {
       guard camera != self.camera else { return }
       self.camera = camera
       guard isPlaced else { return }
+      let center = CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude)
+      // A glide reports where it lands when it lands, through the delegate.
+      if glides {
+        isGliding = true
+        map.setCenter(center, zoomLevel: camera.zoom, animated: true)
+        return
+      }
       isMoving = true
-      map.setCenter(
-        CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
-        zoomLevel: camera.zoom, animated: false)
+      map.setCenter(center, zoomLevel: camera.zoom, animated: false)
       isMoving = false
       // After the update that asked for the move: the host's state is not changed inside one.
       DispatchQueue.main.async { [weak self, weak map] in
@@ -245,7 +281,7 @@ struct SiteFinderMap: UIViewRepresentable {
         }
       }
       addSites(to: style, dark: dark)
-      addRing(Layer.selected, source: Source.selected, to: style)
+      addSelected(to: style)
     }
 
     private func addSites(to style: MLNStyle, dark: Bool) {
@@ -312,17 +348,19 @@ struct SiteFinderMap: UIViewRepresentable {
       "finder-group-\(mark.rawValue)-\(size)"
     }
 
-    /// A ring around the pin's head, which stands over the point it marks.
-    private func addRing(_ id: String, source sourceID: String, to style: MLNStyle) {
-      guard let source = style.source(withIdentifier: sourceID) else { return }
-      let ring = MLNCircleStyleLayer(identifier: id, source: source)
-      ring.circleColor = NSExpression(forConstantValue: UIColor.clear)
-      ring.circleRadius = NSExpression(forConstantValue: SiteMapPin.headRadius + 4)
-      ring.circleTranslation = NSExpression(
-        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: -SiteMapPin.headHeight)))
-      ring.circleStrokeColor = NSExpression(forConstantValue: UIColor.label)
-      ring.circleStrokeWidth = NSExpression(forConstantValue: 3)
-      style.addLayer(ring)
+    /// The selected site's pin, a size up from the others, its tip still on its point.
+    private func addSelected(to style: MLNStyle) {
+      guard let source = style.source(withIdentifier: Source.selected) else { return }
+      let pin = MLNSymbolStyleLayer(identifier: Layer.selected, source: source)
+      pin.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
+      pin.iconScale = NSExpression(forConstantValue: 1.35)
+      pin.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
+      // Scaled with the icon, so the tip stays on the point at any size.
+      pin.iconOffset = NSExpression(
+        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: SiteMapPin.tipOffset)))
+      pin.iconAllowsOverlap = NSExpression(forConstantValue: true)
+      pin.iconIgnoresPlacement = NSExpression(forConstantValue: true)
+      style.addLayer(pin)
     }
 
     private func set(_ id: String, _ features: [MLNPointFeature], _ style: MLNStyle) {
@@ -356,7 +394,7 @@ struct SiteFinderMap: UIViewRepresentable {
       guard let map = tap.view as? MLNMapView else { return }
       let point = tap.location(in: map)
       let hits = map.visibleFeatures(
-        at: point, styleLayerIdentifiers: [Layer.clusters, Layer.points])
+        at: point, styleLayerIdentifiers: [Layer.clusters, Layer.points, Layer.selected])
       if let cluster = hits.first(where: { $0 is MLNPointFeatureCluster })
         as? MLNPointFeatureCluster,
         let shapes = map.style?.source(withIdentifier: Source.sites) as? MLNShapeSource
@@ -398,6 +436,7 @@ struct SiteFinderMap: UIViewRepresentable {
       _ map: MLNMapView, regionDidChangeWith reason: MLNCameraChangeReason, animated _: Bool
     ) {
       guard !isMoving else { return }
+      isGliding = false
       let byFinger = !reason.subtracting([.programmatic, .transitionCancelled]).isEmpty
       report(map, byGesture: byFinger || zoomedIntoCluster)
       zoomedIntoCluster = false

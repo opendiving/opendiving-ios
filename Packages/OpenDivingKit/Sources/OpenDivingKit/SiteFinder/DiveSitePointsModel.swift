@@ -53,7 +53,7 @@ public final class DiveSitePointsModel {
     return commons.credit(record)
   }
 
-  private func showHeld() {
+  func showHeld() {
     if commons == nil, let file = commonsFile, let data = try? Data(contentsOf: file.body) {
       commons = try? CommonsDiveSitePoints.decode(data)
     }

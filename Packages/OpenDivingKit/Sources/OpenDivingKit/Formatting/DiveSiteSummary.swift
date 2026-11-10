@@ -1,4 +1,4 @@
-/// What a dive site's card, its page's hero and its information card print, from the site
+/// What a dive site's card, its panel's head and its information card print, from the site
 /// as the API reads it.
 public enum DiveSiteSummary {
   /// The site's *Dive Site Information* card: each member only where the site records it.
@@ -38,7 +38,7 @@ public enum DiveSiteSummary {
   /// The mark on a Commons site, wherever one is listed or shown.
   public static let commonsLabel = "Commons"
 
-  /// What the head of a Commons site's page carries.
+  /// What the head of a Commons site's panel carries.
   public static func chips(_ site: some DiveSiteCardSource) -> [Chip] {
     site.isCommons ? [DiveSiteMark.commons.chip] : []
   }
@@ -61,9 +61,9 @@ public enum DiveSiteSummary {
       figures: figures, points: points(site))
   }
 
-  /// The site's page's head: its card the width of the screen, over a map of its pin when
-  /// it has one. Only the figures the site has are shown, and its last dive last, as the
-  /// one figure wider than the rest.
+  /// The head of the site's panel, whose name stands over it and whose pin is the map's: its
+  /// chips, facts and figures. Only the figures the site has are shown, and its last dive last,
+  /// as the one figure wider than the rest.
   public static func hero(_ site: DiveSiteRead, units: UnitSystem) -> HeroContent {
     var figures = [Figure(label: "Dives", value: String(site.diveCount))]
     if let deepest = deepest(site, units: units) {
@@ -134,7 +134,7 @@ public enum DiveSiteSummary {
   }
 
   /// The site's own fields in the site form's order. A registry entry reads as plain text here;
-  /// the page's information card holds its link.
+  /// the panel's information card holds its link.
   public static func recordInfo(_ site: DiveSiteRead, units: UnitSystem) -> [RecordInfoSection] {
     let depth = { (meters: Double?) in meters.map { UnitFormat.depth($0, units) } }
     let registries = info(site).registries.map { $0.label + " " + $0.identifier }

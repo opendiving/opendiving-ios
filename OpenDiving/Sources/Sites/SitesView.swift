@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// What the app opens on signed in: the site finder over the diver's sites and the Commons, full
-/// screen under a top bar with no background, each site opening its page, the weather at the
+/// screen under a top bar with no background, each site opening in the panel, the weather at the
 /// map's centre, the diver's picture that opens their profile, and a long press on the map that
 /// adds a site where it was pressed. Under *Your sites* it is the diver's list, the most recently
 /// dived first, as cards.
@@ -11,18 +11,28 @@ struct SitesView: View {
 
   var body: some View {
     NavigationStack {
-      SitesFinder(session: session)
-        // Never shown: it is what a site's page offers to go back to.
-        .navigationTitle("Sites")
+      SitesFinder(session: session, site: nil)
     }
   }
 }
 
+/// The sites map pushed opened on one site, its panel showing it: where a dive's page, the
+/// diver's proposals and a proposal's Commons matches open a site.
+struct SiteMapView: View {
+  let siteUUID: UUID
+  @Environment(Session.self) private var session
+
+  var body: some View {
+    SitesFinder(session: session, site: siteUUID)
+  }
+}
+
 extension SitesView {
-  /// The finder, which opens on the phone's location, a trip under way or the last dive.
-  static func finder(_ session: Session) -> SiteFinderModel {
+  /// The finder, which opens on `site`, else the phone's location, a trip under way or the last
+  /// dive.
+  static func finder(_ session: Session, site: UUID?) -> SiteFinderModel {
     SiteFinderModel(
-      session: session, locator: CoreLocationProvider(), today: CalendarDate.today())
+      session: session, locator: CoreLocationProvider(), today: CalendarDate.today(), site: site)
   }
 }
 
@@ -31,14 +41,16 @@ private struct SitesFinder: View {
   @State private var map: MapStyleModel
   @State private var weather: MapWeatherModel
   @State private var avatar: AvatarModel
-  /// The site a row or a point opened.
-  @State private var opened: UUID?
+  /// The map is pushed opened on a site rather than being the app's root, so it has no way to the
+  /// profile or the proposals of its own.
+  private let isPushed: Bool
   /// Where a long press asked for a new site.
   @State private var adding: PinnedNewSite?
   @Environment(Session.self) private var session
 
-  init(session: Session) {
-    _model = State(initialValue: SitesView.finder(session))
+  init(session: Session, site: UUID?) {
+    isPushed = site != nil
+    _model = State(initialValue: SitesView.finder(session, site: site))
     _map = State(initialValue: MapStyleModel(session: session))
     _weather = State(initialValue: MapWeatherModel(session: session))
     _avatar = State(initialValue: AvatarModel(session: session))
@@ -46,11 +58,16 @@ private struct SitesFinder: View {
 
   var body: some View {
     SiteFinderView(
-      model: model, map: map, units: session.units, pointAction: "Open site", showsCards: true,
-      onSite: { site in opened = site.ref.serverUUID },
+      model: model, map: map, units: session.units, showsCards: true,
+      onSite: { model.open($0) },
       onLongPress: { adding = PinnedNewSite(pin: $0) },
+      site: { site in
+        SitePanelView(
+          siteUUID: site.uuid, onRead: { model.read($0) }, onOpen: { model.open(uuid: $0) },
+          onDeleted: { model.closeSite() })
+      },
       bar: {
-        if session.isCommonsPrimary {
+        if session.isCommonsPrimary && !isPushed {
           ToolbarItem(placement: .topBarLeading) { proposalsButton }
         }
         // Always there, even empty: it stands in for the title, which names the back button on
@@ -66,15 +83,18 @@ private struct SitesFinder: View {
             Color.clear.frame(width: 1, height: 1)
           }
         }
-        ProfileToolbarItem(avatar: avatar)
+        if !isPushed {
+          ProfileToolbarItem(avatar: avatar)
+        }
       }
     )
-    .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
+    // Never shown: it is what a page pushed from the map offers to go back to.
+    .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
     .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
     .task { await weather.followRoute() }
-    .task(id: session.user?.avatarSha256) { await avatar.load() }
-    .task { await avatar.followRoute() }
+    .task(id: session.user?.avatarSha256) { if !isPushed { await avatar.load() } }
+    .task { if !isPushed { await avatar.followRoute() } }
     // Nothing else here asks the server what it is until a card with a pin draws its map.
     .task { await session.loadServerInfo() }
   }
@@ -106,4 +126,11 @@ private struct PinnedNewSite: Hashable, Identifiable {
 #Preview {
   SitesView()
     .environment(Session.stub(transport: StubTransport(routes: [:])))
+}
+
+#Preview("Opened on a site") {
+  NavigationStack {
+    SiteMapView(siteUUID: UUID())
+  }
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

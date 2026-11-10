@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// One dive site's page: the site, every dive there a page at a time, and the species seen
+/// One dive site as the sites map's panel shows it: the site, every dive there a page at a time, and the species seen
 /// on them with their photos.
 ///
 /// A site the phone has opened before shows at once from the account's cache, its dives and
@@ -31,9 +31,9 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
 
   /// The queue holds an edit of this site, which the page shows once it lands.
   public private(set) var hasPendingEdit = false
-  /// The *Withdraw* on the page's proposal notice.
+  /// The *Withdraw* on the panel's proposal notice.
   public let withdrawal: ProposalWithdrawal
-  /// The *Replace with Commons site* on the page's match notice.
+  /// The *Replace with Commons site* on the panel's match notice.
   public let replacement: CommonsSiteReplacement
 
   @ObservationIgnored private let session: Session

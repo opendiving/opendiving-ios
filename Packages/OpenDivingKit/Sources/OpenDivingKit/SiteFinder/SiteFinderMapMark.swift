@@ -34,4 +34,18 @@ public struct SiteFinderMapMark: Hashable, Sendable {
     }
     return marks
   }
+
+  /// The mark `uuid` is drawn with, as ``marks(commons:yours:)`` draws it: the diver's copy
+  /// before the Commons'. Nil for a site the map has no point for.
+  public static func mark(of uuid: UUID, commons: CommonsDiveSitePoints?, yours: [DiveSitePoint])
+    -> SiteFinderMapMark?
+  {
+    if let point = yours.first(where: { $0.uuid == uuid }) {
+      return SiteFinderMapMark(
+        uuid: point.uuid, latitude: point.latitude, longitude: point.longitude, mark: point.mark)
+    }
+    guard let point = commons?.points.first(where: { $0.uuid == uuid }) else { return nil }
+    return SiteFinderMapMark(
+      uuid: point.uuid, latitude: point.latitude, longitude: point.longitude, mark: .commons)
+  }
 }
