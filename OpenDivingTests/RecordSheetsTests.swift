@@ -117,7 +117,7 @@ struct RecordSheetsTests {
     let found = try await texts(
       NavigationStack { ServiceRecordFormView(gearItem: .server(UUID()), mode: .create) })
     expectFields(
-      ["Log Service", "Service", "Select a shop...", "A technician's name, or self"], in: found)
+      ["Log Service", "Service", "A technician's name, or self"], in: found)
   }
 
   @Test func thePersonSheetDrawsTheWebsFields() async throws {
