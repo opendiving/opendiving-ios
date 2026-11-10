@@ -14,6 +14,8 @@ public final class SpeciesDetailModel {
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private var photoVersion: String?
+  /// The version on its way, which a second ask leaves to the first.
+  @ObservationIgnored private var fetchingVersion: String?
   @ObservationIgnored private var appearancesAtLoad = 0
 
   public init(session: Session, speciesUUID: UUID) {
@@ -61,18 +63,22 @@ public final class SpeciesDetailModel {
     await loadPhoto()
   }
 
-  /// The photo of the species shown, kept bytes first; nothing when it is already drawn.
+  /// The photo of the species shown, kept bytes first; nothing when it is already drawn or on
+  /// its way.
   public func loadPhoto() async {
     guard case .loaded(let shown) = page.phase else { return }
     guard let version = shown.species.photoSha256 else {
       photo = nil
       photoVersion = nil
+      fetchingVersion = nil
       return
     }
-    guard version != photoVersion || photo == nil else { return }
+    guard version != photoVersion || photo == nil, version != fetchingVersion else { return }
     // Another photo's bytes would sit above this one's credit.
     if version != photoVersion { photo = nil }
+    fetchingVersion = version
     let bytes = await SpeciesPhotos.photo(shown.species.uuid, version: version, session: session)
+    if fetchingVersion == version { fetchingVersion = nil }
     guard let bytes else { return }
     photo = bytes
     photoVersion = version

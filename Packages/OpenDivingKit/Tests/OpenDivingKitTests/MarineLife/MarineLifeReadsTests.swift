@@ -155,6 +155,33 @@ struct MarineLifeReadsTests {
     following.cancel()
     #expect(model.photo == bytes)
   }
+
+  @Test func aPhotoAskedForTwiceWhileOnItsWayIsFetchedOnce() async throws {
+    let (world, _) = try world()
+    try await world.load()
+    let wire = wire
+    let species = try KitFixture.text("species")
+    let gate = Gate()
+    world.server.override { request, _ in
+      switch request.route {
+      case "GET species/\(wire)": return .json(species)
+      case "GET species/\(wire)/photo":
+        await gate.pass()
+        return StubTransport.Response(
+          status: 200, headers: ["Content-Type": "image/webp"], body: Data([1, 2, 3]))
+      default: return nil
+      }
+    }
+    let model = SpeciesDetailModel(session: world.session, speciesUUID: uuid)
+    await model.page.load()
+    let first = Task { await model.loadPhoto() }
+    await gate.untilArrived()
+    await model.loadPhoto()
+    await gate.open()
+    await first.value
+    #expect(model.photo == Data([1, 2, 3]))
+    #expect(world.server.count("GET species/\(wire)/photo") == 1)
+  }
 }
 
 /// The query each route was last sent.
