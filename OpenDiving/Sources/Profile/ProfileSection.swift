@@ -1,7 +1,7 @@
 import OpenDivingKit
 
 /// What the profile shows under its head.
-enum ProfileSection: Hashable, CaseIterable {
+nonisolated enum ProfileSection: TabSection {
   case dives, trips, cards, more
 
   var title: String {

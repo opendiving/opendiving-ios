@@ -547,6 +547,7 @@ struct SiteFinderModelTests {
     model.read(try site(other, latitude: 12.5, longitude: 45.25))
     #expect(model.opened?.name == "Renamed")
     #expect(model.opened?.mark == .private)
+    #expect(model.opened?.location == "Dahab, Egypt")
     #expect(model.camera.latitude == 12.5)
     #expect(model.glides)
     // Placed once: a later read renames it and leaves the camera where the diver took it.

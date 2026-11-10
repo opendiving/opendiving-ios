@@ -1,10 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Everything about one dive site, as the sites map's panel shows it under the site's mark and
-/// name: its figures and the way to edit it, what stands on it — a proposal, a Commons match, an
-/// edit waiting to land — every field it records, its notes, the species seen on its dives, and
-/// every dive there last.
+/// Everything about one dive site, as the sites map's panel shows it under the site's mark, name
+/// and location: its figures and the way to edit it over three tabs — *Info*, with what stands on
+/// it (a proposal, a Commons match, an edit waiting to land), every field it records and its
+/// notes; *Marine life*, the species seen on its dives; and *My dives*, every dive there.
 struct SitePanelView: View {
   let siteUUID: UUID
   /// The site, each time it is read.
@@ -28,6 +28,7 @@ private struct SitePanelContent: View {
   @Environment(Session.self) private var session
   @State private var model: DiveSiteDetailModel
   @State private var replacing: DiveSiteCommonsMatch?
+  @State private var section = SiteSection.info
   let onRead: (DiveSiteRead) -> Void
   let onOpen: (UUID) -> Void
   let onDeleted: () -> Void
@@ -61,36 +62,16 @@ private struct SitePanelContent: View {
       case .loaded(let site):
         LazyVStack(spacing: 16) {
           SiteHead(site: site, units: session.units, onDeleted: onDeleted, onReplaced: onOpen)
-          if let lastUpdated = model.lastUpdated {
-            LastUpdatedLine(date: lastUpdated)
+          SectionTabs(selection: $section)
+            // Across the panel's width, as across the profile's page.
+            .padding(.horizontal, -16)
+          switch section {
+          case .info: info(site)
+          case .marineLife: SiteSpecies(model: model)
+          case .myDives:
+            SiteDives(list: model.dives, units: session.units)
+            PageEndTrigger(list: model.dives)
           }
-          if let attribution = site.attribution {
-            AttributionLine(credits: [attribution])
-              .frame(maxWidth: .infinity, alignment: .leading)
-          }
-          if model.hasPendingEdit {
-            PendingEditLine()
-          }
-          if let notice = site.proposal.flatMap(DiveSiteProposalSummary.notice) {
-            ProposalNotice(notice: notice, model: model)
-          }
-          if let match = site.commonsMatch {
-            CommonsMatchNotice(
-              match: match, replacement: model.replacement, open: { onOpen(match.uuid) }
-            ) {
-              replacing = match
-            }
-          }
-          SiteInformationCard(info: DiveSiteSummary.info(site, units: session.units))
-          if !site.notes.isEmpty {
-            SectionCard(title: "Notes", icon: .fileText) {
-              Text(site.notes)
-                .foregroundStyle(.secondary)
-            }
-          }
-          SiteSpecies(model: model)
-          SiteDives(list: model.dives, units: session.units)
-          PageEndTrigger(list: model.dives)
         }
       }
     }
@@ -109,6 +90,35 @@ private struct SitePanelContent: View {
       }
     }
     .replaceWithCommonsAlert(model.replacement)
+  }
+
+  /// What stands on the site, every field it records, and its notes.
+  @ViewBuilder private func info(_ site: DiveSiteRead) -> some View {
+    if let lastUpdated = model.lastUpdated {
+      LastUpdatedLine(date: lastUpdated)
+    }
+    if let attribution = site.attribution {
+      AttributionLine(credits: [attribution])
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    if model.hasPendingEdit {
+      PendingEditLine()
+    }
+    if let notice = site.proposal.flatMap(DiveSiteProposalSummary.notice) {
+      ProposalNotice(notice: notice, model: model)
+    }
+    if let match = site.commonsMatch {
+      CommonsMatchNotice(
+        match: match, replacement: model.replacement, open: { onOpen(match.uuid) },
+        replace: { replacing = match })
+    }
+    SiteInformationCard(info: DiveSiteSummary.info(site, units: session.units))
+    if !site.notes.isEmpty {
+      SectionCard(title: "Notes", icon: .fileText) {
+        Text(site.notes)
+          .foregroundStyle(.secondary)
+      }
+    }
   }
 
   private var loaded: DiveSiteRead? {
@@ -204,18 +214,14 @@ private struct SiteDives: View {
   let list: PagedList<DiveListItem>
   let units: UnitSystem
 
-  private static let title = "Dives at This Site"
-  private static let icon = Icon.dive
-
   var body: some View {
     switch list.phase {
     case .idle, .loading:
-      SectionCard(title: Self.title, icon: Self.icon) {
-        BubbleSpinner()
-          .frame(maxWidth: .infinity)
-      }
+      BubbleSpinner()
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
     case .failed(let error):
-      SectionCard(title: Self.title, icon: Self.icon) {
+      VStack(alignment: .leading, spacing: 8) {
         Text(
           error.isUnreachable
             ? OfflineText.divesNotShown : "This site's dives could not be loaded."
@@ -225,23 +231,19 @@ private struct SiteDives: View {
         Button("Try again") { Task { await list.load() } }
           .buttonStyle(.bordered)
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
     case .loaded where list.items.isEmpty:
       EmptyOrErrorView(
-        status: .empty(
-          icon: Self.icon, title: "No dives logged at this site yet", message: nil))
+        status: .empty(icon: .dive, title: "No dives logged at this site yet", message: nil))
     case .loaded:
-      SectionCard(title: Self.title, icon: Self.icon) {
-        Text("All dives logged at this dive site")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-        DiveCardLinks(items: list.items, units: units)
-        LoadMoreFooter(list: list)
-      }
+      DiveCardLinks(items: list.items, units: units)
+      LoadMoreFooter(list: list)
     }
   }
 }
 
-/// Every field the site records but its name and its notes; no card for a site recording none.
+/// Every field the site records but its name, location and notes; no card for a site recording
+/// none.
 private struct SiteInformationCard: View {
   let info: DiveSiteSummary.Info
 
@@ -253,9 +255,6 @@ private struct SiteInformationCard: View {
             InfoRow(label: "Also known as") {
               Text(alsoKnownAs)
             }
-          }
-          if let location = info.location {
-            InfoRow(label: "Location") { Text(location) }
           }
           if let coordinates = info.coordinates {
             InfoRow(label: "Coordinates") {
@@ -330,43 +329,36 @@ private struct TrailingIconLabelStyle: LabelStyle {
   }
 }
 
-/// The species seen on the site's dives, read whole; nothing while the site counts none.
+/// The species seen on the site's dives, read whole.
 private struct SiteSpecies: View {
   let model: DiveSiteDetailModel
 
   var body: some View {
     switch model.species {
     case .none:
-      EmptyView()
+      EmptyOrErrorView(
+        status: .empty(
+          icon: .fish, title: "No marine life recorded on your dives here yet", message: nil))
     case .loading:
-      card { message("Loading species...") }
+      BubbleSpinner()
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
     case .failed:
-      card { message("The species could not be loaded.") }
+      Text("The species could not be loaded.")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
     case .loaded(let entries):
-      card {
-        // Lazy, so each card asks for its photo as it scrolls into reach rather than every
-        // one of the site's species at once.
-        LazyVStack(spacing: 12) {
-          ForEach(entries) { entry in
-            CreditedSpeciesCard(
-              speciesUUID: entry.uuid, photoVersion: entry.photoSha256,
-              content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
-            )
-            .onAppear { Task { await model.loadPhoto(entry) } }
-          }
-        }
+      // In the panel's lazy stack, so each card asks for its photo as it scrolls into reach
+      // rather than every one of the site's species at once.
+      ForEach(entries) { entry in
+        CreditedSpeciesCard(
+          speciesUUID: entry.uuid, photoVersion: entry.photoSha256,
+          content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
+        )
+        .onAppear { Task { await model.loadPhoto(entry) } }
       }
     }
-  }
-
-  private func card(@ViewBuilder _ content: () -> some View) -> some View {
-    SectionCard(title: "Species Seen Here", icon: .fish, content: content)
-  }
-
-  private func message(_ text: String) -> some View {
-    Text(text)
-      .font(.subheadline)
-      .foregroundStyle(.secondary)
   }
 }
 

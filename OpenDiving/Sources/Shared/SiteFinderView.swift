@@ -340,7 +340,7 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
 
   // MARK: - An opened site
 
-  /// The site's mark and name where the search stood, and the way back to the list.
+  /// The site's mark, name and location where the search stood, and the way back to the list.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
     HStack(alignment: .top, spacing: 8) {
       VStack(alignment: .leading, spacing: 4) {
@@ -351,6 +351,12 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
           .font(.title2.bold())
           .lineLimit(2)
           .accessibilityAddTraits(.isHeader)
+        if let location = opened.location, !location.isEmpty {
+          Text(location)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
       }
       .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
       closeButton("Close dive site") { model.closeSite() }

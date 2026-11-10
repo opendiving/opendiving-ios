@@ -31,7 +31,8 @@ struct DiveSiteSummaryTests {
   }
 
   @Test func theInformationCardHoldsEveryFieldTheSiteRecords() throws {
-    #expect(DiveSiteSummary.info(try Self.site(["location": NSNull()]), units: .metric).isEmpty)
+    // The fixture's location is the panel's head's, not the card's.
+    #expect(DiveSiteSummary.info(try Self.site(), units: .metric).isEmpty)
     let info = DiveSiteSummary.info(
       try Self.site([
         "other_names": ["Bells", "The Bells"], "latitude": 28.57, "longitude": 34.53,
@@ -43,7 +44,6 @@ struct DiveSiteSummaryTests {
         ],
       ]), units: .metric)
     #expect(info.alsoKnownAs == "Bells, The Bells")
-    #expect(info.location == "Dahab, Egypt")
     #expect(info.coordinates == "28.57, 34.53")
     #expect(info.depth == "5 m – 30.5 m")
     #expect(info.waterType == "Fresh water")

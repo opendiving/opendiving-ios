@@ -1,11 +1,11 @@
 /// What a dive site's panel and its information card print, from the site as the API reads it.
 public enum DiveSiteSummary {
-  /// The site's *Dive Site Information* card, every field the site records but its name and its
-  /// notes, in the site form's order: each member only where the site records it.
+  /// The site's *Dive Site Information* card, every field the site records but its name, its
+  /// location, which the panel's head carries, and its notes, in the site form's order: each
+  /// member only where the site records it.
   public struct Info: Hashable, Sendable {
     /// The other names, `Bells, The Bells`.
     public var alsoKnownAs: String?
-    public var location: String?
     public var coordinates: String?
     /// `5 m – 30 m`, or the one end the site records.
     public var depth: String?
@@ -17,7 +17,7 @@ public enum DiveSiteSummary {
 
     /// A site recording none of them draws no card.
     public var isEmpty: Bool {
-      [alsoKnownAs, location, coordinates, depth, waterType, altitude, entryTypes]
+      [alsoKnownAs, coordinates, depth, waterType, altitude, entryTypes]
         .allSatisfy { $0 == nil } && tags.isEmpty && registries.isEmpty
     }
   }
@@ -66,7 +66,6 @@ public enum DiveSiteSummary {
     let text = { (value: String?) in value.flatMap { $0.isEmpty ? nil : $0 } }
     return Info(
       alsoKnownAs: site.otherNames.isEmpty ? nil : site.otherNames.joined(separator: ", "),
-      location: text(site.location?.name),
       coordinates: CoordinateFormat.format(latitude: site.latitude, longitude: site.longitude),
       depth: depthRange(site, units: units),
       waterType: text(site.waterType).map(VocabularyLabels.waterType),
@@ -95,7 +94,7 @@ public enum DiveSiteSummary {
       if let value, !value.isEmpty { members.append(SharedMember(label: label, value: value)) }
     }
     add("Also known as", info.alsoKnownAs)
-    add("Location", info.location)
+    add("Location", site.location?.name)
     add("Coordinates", info.coordinates)
     add("Depth", info.depth)
     add("Water type", info.waterType)

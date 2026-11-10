@@ -1,16 +1,22 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The profile's sections as tabs across the page: each an icon over its name, the chosen one in
-/// full contrast over a coral underline, on a hairline that runs the page's width.
-struct ProfileSectionTabs: View {
-  @Binding var selection: ProfileSection
+/// What a page shows in tabs, each section under its own: the profile's, and an opened site's.
+nonisolated protocol TabSection: Hashable, CaseIterable where AllCases: RandomAccessCollection {
+  var title: String { get }
+  var icon: Icon { get }
+}
+
+/// A page's sections as tabs across it: each an icon over its name, the chosen one in full
+/// contrast over a coral underline, on a hairline that runs the page's width.
+struct SectionTabs<Section: TabSection>: View {
+  @Binding var selection: Section
 
   @Namespace private var underline
 
   var body: some View {
     HStack(spacing: 0) {
-      ForEach(ProfileSection.allCases, id: \.self) { section in
+      ForEach(Section.allCases, id: \.self) { section in
         tab(section)
       }
     }
@@ -20,7 +26,7 @@ struct ProfileSectionTabs: View {
     }
   }
 
-  private func tab(_ section: ProfileSection) -> some View {
+  private func tab(_ section: Section) -> some View {
     let isSelected = selection == section
     return Button {
       withAnimation(.easeOut(duration: 0.2)) { selection = section }
@@ -53,5 +59,5 @@ struct ProfileSectionTabs: View {
 
 #Preview {
   @Previewable @State var selection = ProfileSection.dives
-  ProfileSectionTabs(selection: $selection)
+  SectionTabs(selection: $selection)
 }
