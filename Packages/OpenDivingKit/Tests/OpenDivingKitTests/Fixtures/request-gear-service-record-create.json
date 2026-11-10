@@ -1,0 +1,10 @@
+{
+  "gear_item_uuid": "01a14b2e-0c3d-7a10-9f00-5a2b3c4d5e6f",
+  "gear_service_schedule_uuid": "01a14b2e-0c3d-7a10-9f00-6a2b3c4d5e6f",
+  "contact_uuid": "01a14b2e-0c3d-7a10-9f00-2a2b3c4d5e6f",
+  "kind": "other",
+  "serviced_on": "2026-10-02",
+  "label": "O-rings",
+  "performed_by": "Example Dive Centre",
+  "notes": "All seals replaced."
+}
