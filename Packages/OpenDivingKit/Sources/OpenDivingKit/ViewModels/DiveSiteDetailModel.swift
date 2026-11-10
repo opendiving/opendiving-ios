@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// One dive site as the sites map's panel shows it: the site, every dive there a page at a time, and the species seen
-/// on them with their photos.
+/// One dive site as the sites map's panel shows it: the site, every dive there a page at a time,
+/// and the species seen on them with their photos.
 ///
 /// A site the phone has opened before shows at once from the account's cache, its dives and
 /// species with it, under ``lastUpdated``, while it is fetched behind; a fetch that fails leaves
@@ -11,9 +11,9 @@ import Observation
 @MainActor
 @Observable
 public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObserver {
-  /// The *Species Seen Here* card's state.
+  /// The *Marine life* tab's state.
   public enum Species: Hashable, Sendable {
-    /// The site counts no species, so nothing is asked for and no card is drawn.
+    /// The site counts no species, so nothing is asked for and the tab says none were seen.
     case none
     case loading
     case loaded([SpeciesLifeListEntry])
@@ -35,7 +35,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   /// Photo bytes by species uuid, as each card asks for its own.
   public private(set) var photos: [UUID: Data] = [:]
 
-  /// The queue holds an edit of this site, which the page shows once it lands.
+  /// The queue holds an edit of this site, which the panel shows once it lands.
   public private(set) var hasPendingEdit = false
   /// The *Withdraw* on the panel's proposal notice.
   public let withdrawal: ProposalWithdrawal
@@ -74,16 +74,6 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     _ = await (list, seen)
   }
 
-  /// Pull-to-refresh: the site, its dives from the first page, and its species again. A
-  /// site already on screen stays there when the refresh fails.
-  public func refresh() async {
-    await readSite()
-    guard case .loaded(let site) = phase else { return }
-    async let list: Void = dives.refresh()
-    async let seen: Void = readSpecies(site)
-    _ = await (list, seen)
-  }
-
   /// The species' photo, once per version, when it has one. A photo that fails to arrive
   /// leaves the card's no-photo backdrop.
   public func loadPhoto(_ entry: SpeciesLifeListEntry) async {
@@ -101,7 +91,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     await withdrawal.withdraw(proposal) { await reloadWithEveryList(on: session) }
   }
 
-  /// Replaces the site with the Commons record, answering the record the page gives way to; nil
+  /// Replaces the site with the Commons record, answering the record the panel gives way to; nil
   /// with the reason on ``replacement``.
   public func replace(with record: UUID) async -> DiveSiteRead? {
     await replacement.replace(siteUUID, with: record) { await reloadWithEveryList(on: session) }
@@ -191,7 +181,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
       } ?? false
   }
 
-  /// A write landed, perhaps this site's edit: the page reads the site again. Its dives are a
+  /// A write landed, perhaps this site's edit: the panel reads the site again. Its dives are a
   /// list, which reads itself.
   func accountListsChanged() {
     guard phase.isLoaded else { return }

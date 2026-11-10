@@ -8,7 +8,7 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// The server's word on proposing, and *Withdraw* on the site's page and on *Your Proposals*:
+/// The server's word on proposing, and *Withdraw* on the site's panel and on *Your Proposals*:
 /// a direct call that reads what it changed again.
 @MainActor
 struct DiveSiteProposalsTests {

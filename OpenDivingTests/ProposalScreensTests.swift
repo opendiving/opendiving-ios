@@ -5,7 +5,7 @@ import UIKit
 
 @testable import OpenDiving
 
-/// What the site's page and *Your Proposals* are given, over the server's own answers. The
+/// What the site's panel and *Your Proposals* are given, over the server's own answers. The
 /// words themselves are the Kit's mapping's, which its tests hold.
 @MainActor
 struct ProposalScreensTests {
