@@ -44,7 +44,7 @@ struct MapWeatherCard: View {
       AttributionLine(credits: [content.attribution], underline: false)
     }
     // Wider than the system's 16: the glass's corners are rounder than a form section's.
-    .padding(24)
+    .padding(32)
   }
 }
 
