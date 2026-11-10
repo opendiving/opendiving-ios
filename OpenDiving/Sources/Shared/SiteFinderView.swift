@@ -530,6 +530,9 @@ private struct RidesPanel: ViewModifier {
     let height = pinned.map { panel.height($0) } ?? drag.height(in: panel)
     let opacity = fades ? panel.controlsOpacity(shown: height) : 1
     content
+      // Moves as one: each view's position would otherwise animate on its own, and one put in
+      // while the panel slides — a site's tags as its read lands — would stand still at the end.
+      .geometryGroup()
       .offset(y: foot - height)
       .opacity(opacity)
       .allowsHitTesting(opacity > 0)
