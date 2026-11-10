@@ -337,10 +337,11 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   /// Where the search stood: the site's mark and tags, name and location, beside the way back to
   /// the list with the host's action under it.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
-    HStack(alignment: .top, spacing: 8) {
+    let tags = opened.site?.tags ?? []
+    let hasBadges = opened.mark != nil || !tags.isEmpty
+    return HStack(alignment: .headFirstLine, spacing: 8) {
       VStack(alignment: .leading, spacing: 4) {
-        let tags = opened.site?.tags ?? []
-        if opened.mark != nil || !tags.isEmpty {
+        if hasBadges {
           FlowLayout(spacing: 6) {
             if let mark = opened.mark {
               DiveSiteMarkBadge(mark: mark)
@@ -349,11 +350,17 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
               BadgeView(tag, style: .outline)
             }
           }
+          .alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
         }
-        Text(opened.name ?? "")
+        let name = Text(opened.name ?? "")
           .font(.title2.bold())
           .lineLimit(2)
           .accessibilityAddTraits(.isHeader)
+        if hasBadges {
+          name
+        } else {
+          name.alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
+        }
         if let location = opened.location, !location.isEmpty {
           Text(location)
             .font(.subheadline)
@@ -370,6 +377,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         }
         siteAction(opened)
       }
+      // The close button's middle, half its 44 points down, on the head's first line, so the
+      // badges stand as far below the handle as its ×.
+      .alignmentGuide(.headFirstLine) { _ in 22 }
     }
   }
 
@@ -605,6 +615,16 @@ private struct SiteFinderRow: View {
 }
 
 extension VerticalAlignment {
+  /// The middle of an opened site's first line — its badges, else its name — which its close
+  /// button is centred on.
+  private enum HeadFirstLine: AlignmentID {
+    static func defaultValue(in context: ViewDimensions) -> CGFloat {
+      context[VerticalAlignment.top]
+    }
+  }
+
+  fileprivate static let headFirstLine = VerticalAlignment(HeadFirstLine.self)
+
   /// The middle of a row's name, which its icon is centred on however many lines follow.
   private enum NameCentre: AlignmentID {
     static func defaultValue(in context: ViewDimensions) -> CGFloat {

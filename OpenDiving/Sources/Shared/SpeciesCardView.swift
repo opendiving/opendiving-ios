@@ -12,6 +12,9 @@ struct SpeciesCardView: View {
         .frame(height: 120)
         .frame(maxWidth: .infinity)
         .clipped()
+        // A photo filled into the frame runs past it untouched by the clip, and would take taps
+        // meant for whatever stands above or below the card.
+        .contentShape(Rectangle())
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 4) {
         Text(content.commonName)

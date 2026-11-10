@@ -4,11 +4,10 @@ import SwiftUI
 /// What a page shows in tabs, each section under its own: the profile's, and an opened site's.
 nonisolated protocol TabSection: Hashable, CaseIterable where AllCases: RandomAccessCollection {
   var title: String { get }
-  var icon: Icon { get }
 }
 
-/// A page's sections as tabs across it: each an icon before its name, the chosen one in full
-/// contrast over a coral underline, on a hairline that runs the page's width.
+/// A page's sections as tabs across it: each its name, the chosen one in full contrast over a
+/// coral underline, on a hairline that runs the page's width.
 struct SectionTabs<Section: TabSection>: View {
   @Binding var selection: Section
   /// What a tab is called, where a count goes with its name.
@@ -33,27 +32,24 @@ struct SectionTabs<Section: TabSection>: View {
     return Button {
       withAnimation(.easeOut(duration: 0.2)) { selection = section }
     } label: {
-      HStack(spacing: 6) {
-        Image(section.icon)
-        Text(title(section))
-          .lineLimit(1)
-          // A count beside a long name still fits a third of a phone's width.
-          .minimumScaleFactor(0.8)
-      }
-      .font(.subheadline.weight(.semibold))
-      .padding(.top, 4)
-      .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-      .frame(maxWidth: .infinity)
-      .padding(.bottom, 10)
-      .overlay(alignment: .bottom) {
-        if isSelected {
-          Rectangle()
-            .fill(Color.brandCoral)
-            .frame(height: 3)
-            .matchedGeometryEffect(id: "underline", in: underline)
+      Text(title(section))
+        .lineLimit(1)
+        // A count beside a long name still fits a third of a phone's width.
+        .minimumScaleFactor(0.8)
+        .font(.subheadline.weight(.semibold))
+        .padding(.top, 4)
+        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 10)
+        .overlay(alignment: .bottom) {
+          if isSelected {
+            Rectangle()
+              .fill(Color.brandCoral)
+              .frame(height: 3)
+              .matchedGeometryEffect(id: "underline", in: underline)
+          }
         }
-      }
-      .contentShape(Rectangle())
+        .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
     .accessibilityAddTraits(isSelected ? .isSelected : [])

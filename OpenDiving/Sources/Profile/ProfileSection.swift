@@ -1,5 +1,3 @@
-import OpenDivingKit
-
 /// What the profile shows under its head.
 nonisolated enum ProfileSection: TabSection {
   case dives, trips, cards, more
@@ -13,12 +11,4 @@ nonisolated enum ProfileSection: TabSection {
     }
   }
 
-  var icon: Icon {
-    switch self {
-    case .dives: .dive
-    case .trips: .luggage
-    case .cards: .idCard
-    case .more: .menu
-    }
-  }
 }

@@ -259,11 +259,7 @@ private struct SiteInformationCard: View {
       InfoLine(label: "Also known as") { Text(alsoKnownAs) }
     }
     if let coordinates = info.coordinates {
-      InfoLine(label: "Coordinates") {
-        Text(coordinates)
-          .monospacedDigit()
-          .textSelection(.enabled)
-      }
+      CoordinatesLine(coordinates: coordinates)
     }
     if let depth = info.depth {
       InfoLine(label: "Depth") { Text(depth) }
@@ -285,6 +281,38 @@ private struct SiteInformationCard: View {
           }
         }
       }
+    }
+  }
+}
+
+/// The coordinates' row, which copies them on a tap and says so for a moment in their place.
+private struct CoordinatesLine: View {
+  let coordinates: String
+  @State private var copied = false
+  /// Counts taps, so a second one keeps *Copied* up for its own while.
+  @State private var copies = 0
+
+  var body: some View {
+    Button {
+      UIPasteboard.general.string = coordinates
+      withAnimation(.easeOut(duration: 0.15)) { copied = true }
+      copies += 1
+    } label: {
+      InfoLine(label: "Coordinates") {
+        Text(copied ? "Copied" : coordinates)
+          .monospacedDigit()
+          .contentTransition(.opacity)
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityHint("Copies the coordinates")
+    .sensoryFeedback(.success, trigger: copies)
+    .task(id: copies) {
+      guard copies > 0 else { return }
+      try? await Task.sleep(for: .seconds(1.5))
+      guard !Task.isCancelled else { return }
+      withAnimation(.easeOut(duration: 0.15)) { copied = false }
     }
   }
 }
