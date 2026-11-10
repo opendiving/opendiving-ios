@@ -7,17 +7,10 @@ struct DiveComputerToolbarItem: ToolbarContent {
   let action: () -> Void
 
   var body: some ToolbarContent {
-    // The toolbar's own glass pads a custom label into a capsule; the button draws its own
-    // circle, the size of the `+` beside it.
-    if #available(iOS 26, *) {
-      ToolbarItem(placement: .topBarLeading) {
-        DiveComputerDownloadButton(action: action)
-      }
-      .sharedBackgroundVisibility(.hidden)
-    } else {
-      ToolbarItem(placement: .topBarLeading) {
-        DiveComputerDownloadButton(action: action)
-      }
+    // In the bar's own glass: a glass of its own, with the bar's hidden, is carried on iOS 26
+    // into the back button of the page it opens, as a square around its chevron.
+    ToolbarItem(placement: .topBarLeading) {
+      DiveComputerDownloadButton(action: action)
     }
   }
 }
@@ -44,14 +37,19 @@ struct DiveComputerDownloadButtonLabel: View {
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
 
+  /// What the bar's glass pads out to `size`; before iOS 26 the bar draws none, and the label is
+  /// the whole button.
+  private static var labelSide: CGFloat {
+    if #available(iOS 26, *) { MapRoundButtonStyle.glassLabelSide } else { size }
+  }
+
   var body: some View {
     Button(action: action) {
       // The size of the bar's own symbols: the `+` stands as tall.
       DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
         .frame(width: 22, height: 22)
-        .frame(width: Self.size, height: Self.size)
-        .contentShape(Circle())
-        .glass()
+        .foregroundStyle(Color.primary)
+        .frame(width: Self.labelSide, height: Self.labelSide)
         // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
         // the coral nearly to white over a bright one.
         .overlay {
@@ -61,13 +59,13 @@ struct DiveComputerDownloadButtonLabel: View {
                 .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
               ring(content)
             }
-            // On the circle's edge, its stroke inside it.
+            // On the glass's edge, past the label it pads, its stroke inside it.
             .padding(Self.ringWidth / 2)
+            .frame(width: Self.size, height: Self.size)
           }
         }
         .animation(.easeOut(duration: 0.2), value: content == nil)
     }
-    .buttonStyle(.plain)
     .accessibilityLabel(DiveComputerText.connect)
     .accessibilityValue(content?.accessibilityValue ?? "")
   }
@@ -100,17 +98,6 @@ struct DiveComputerDownloadButtonLabel: View {
       .trim(from: 0, to: fraction)
       .stroke(color, style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .round))
       .rotationEffect(.degrees(-90))
-  }
-}
-
-extension View {
-  /// The toolbar's glass, as a circle, where the system draws it.
-  @ViewBuilder fileprivate func glass() -> some View {
-    if #available(iOS 26, *) {
-      glassEffect(.regular.interactive(), in: .circle)
-    } else {
-      self
-    }
   }
 }
 
