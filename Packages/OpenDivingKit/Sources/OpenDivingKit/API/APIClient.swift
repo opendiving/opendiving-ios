@@ -162,6 +162,22 @@ public actor APIClient {
       Call(path: "user/portrait", query: [URLQueryItem(name: "v", value: version)], etag: etag))
   }
 
+  /// `GET /user/avatar?v=`, `version` being the account's `avatarSha256`. Ask only when that is
+  /// not null. Sent without an `ETag`: the version is the picture's digest, so a phone holding
+  /// it never asks.
+  public func avatar(version: String) async throws -> FetchedBytes {
+    let (data, response) = try await authorized(
+      Call(path: "user/avatar", query: [URLQueryItem(name: "v", value: version)]))
+    try check(data, response)
+    return FetchedBytes(data: data, contentType: response.value(forHTTPHeaderField: "Content-Type"))
+  }
+
+  /// `GET /user/trip-places`: every place the account's trips went, each once, for a map to
+  /// frame.
+  public func tripPlaces() async throws -> [LocationRead] {
+    try await authorizedDecoded([LocationRead].self, Call(path: "user/trip-places"))
+  }
+
   /// `GET /people`, one page.
   public func people(page: Int, itemsPerPage: Int = listPageSize) async throws
     -> PaginatedListResponse<PersonRead>
