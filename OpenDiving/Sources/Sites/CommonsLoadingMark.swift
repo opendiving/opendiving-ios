@@ -15,13 +15,10 @@ struct CommonsLoadingMark: View {
   /// The blend has reached the mark or the spinner since `isLoading` last changed.
   @State private var isSettled = true
 
-  // Temporarily twice as slow, to judge the motion by eye.
-  private static let slowdown = 2.0
-
   var body: some View {
     TimelineView(.animation(paused: reduceMotion || (isSettled && !isLoading))) { timeline in
       let blend = reduceMotion ? (isLoading ? 1 : 0) : blend(at: timeline.date, loading: isLoading)
-      let elapsed = reduceMotion ? 0 : timeline.date.timeIntervalSince(spinStart) / Self.slowdown
+      let elapsed = reduceMotion ? 0 : timeline.date.timeIntervalSince(spinStart)
       Canvas { context, size in
         let scale = min(size.width, size.height) / 24
         context.translateBy(x: size.width / 2, y: size.height / 2)
@@ -48,7 +45,7 @@ struct CommonsLoadingMark: View {
       isSettled = false
     }
     .task(id: isLoading) {
-      try? await Task.sleep(for: .seconds(CommonsBubbles.morph * Self.slowdown))
+      try? await Task.sleep(for: .seconds(CommonsBubbles.morph))
       if !Task.isCancelled { isSettled = true }
     }
   }
@@ -56,7 +53,7 @@ struct CommonsLoadingMark: View {
   private func blend(at date: Date, loading: Bool) -> Double {
     CommonsBubbles.blend(
       from: blendAtChange, loading: loading,
-      since: date.timeIntervalSince(changedAt) / Self.slowdown)
+      since: date.timeIntervalSince(changedAt))
   }
 }
 
