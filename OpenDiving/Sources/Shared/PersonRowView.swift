@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One person on a dive, a trip or a course: the name, the linked account's `@username`,
-/// and the role under them.
+/// One person on a dive, a trip or a course: the name, opening their page where the server
+/// has them, the linked account's `@username`, and the role under them.
 struct PersonRowView: View {
   let content: PersonRowContent
 
@@ -13,8 +13,13 @@ struct PersonRowView: View {
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-          Text(content.name)
-            .font(.body.weight(.medium))
+          if let uuid = content.uuid {
+            NavigationLink(content.name) { PersonDetailView(personUUID: uuid) }
+              .font(.body.weight(.medium))
+          } else {
+            Text(content.name)
+              .font(.body.weight(.medium))
+          }
           if let username = content.username {
             Text("@\(username)")
               .foregroundStyle(.secondary)

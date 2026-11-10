@@ -281,6 +281,7 @@ struct SiteFinderMap: UIViewRepresentable {
       // A glide reports where it lands when it lands, through the delegate.
       if glides {
         isGliding = true
+        zoomedIntoCluster = false
         map.setCenter(center, zoomLevel: camera.zoom, animated: true)
         return
       }
@@ -498,8 +499,11 @@ struct SiteFinderMap: UIViewRepresentable {
       _ map: MLNMapView, regionDidChangeWith reason: MLNCameraChangeReason, animated _: Bool
     ) {
       guard !isMoving else { return }
-      isGliding = false
       let byFinger = !reason.subtracting([.programmatic, .transitionCancelled]).isEmpty
+      // A move cancelled by a glide's start is not the glide's landing: clearing `isGliding` here
+      // would let the panel's cover, applied next, keep the pin at the screen's centre.
+      if isGliding, reason.contains(.transitionCancelled), !byFinger { return }
+      isGliding = false
       report(map, byGesture: byFinger || zoomedIntoCluster)
       zoomedIntoCluster = false
     }

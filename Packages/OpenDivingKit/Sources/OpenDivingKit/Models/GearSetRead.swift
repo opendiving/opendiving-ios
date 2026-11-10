@@ -2,7 +2,9 @@ import Foundation
 
 /// A gear set, a row of `GET /gear-sets`: the items a diver takes together, in order, and the
 /// ballast that goes with them.
-public struct GearSetRead: Codable, Hashable, Sendable {
+public struct GearSetRead: Codable, Hashable, Sendable, Identifiable {
+  public var id: UUID { uuid }
+
   public let uuid: UUID
   public let name: String
   /// Kilograms.

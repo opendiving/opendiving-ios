@@ -174,7 +174,15 @@ private struct DiveDetailPage: View {
     if let course = content.course {
       SectionCard(title: "Training", icon: .graduationCap) {
         InfoRow(label: "Course") {
-          Label(course, icon: .graduationCap)
+          if let uuid = course.uuid {
+            NavigationLink {
+              CourseDetailView(courseUUID: uuid)
+            } label: {
+              Label(course.title, icon: .graduationCap)
+            }
+          } else {
+            Label(course.title, icon: .graduationCap)
+          }
         }
       }
     }

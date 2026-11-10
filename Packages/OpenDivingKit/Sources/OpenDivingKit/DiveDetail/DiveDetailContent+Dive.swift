@@ -28,7 +28,7 @@ extension DiveDetailContent {
     gear = Self.gear(dive, units: units)
     sightings = dive.sightings.map(Self.sighting)
     notes = dive.notes.isEmpty ? nil : dive.notes
-    self.course = course?.name
+    self.course = course.map { RecordLink(title: $0.name, uuid: $0.uuid) }
     location = Self.location(dive, trip: trip, contact: contact, units: units)
     self.people = PersonRowContent.rows(dive.people, people: people)
     environment = Self.environment(dive.dive, units: units)
@@ -131,9 +131,6 @@ extension DiveDetailContent {
 
     let cards = mixtures.enumerated().map { index, mixture in
       var facts: [String] = []
-      if let item = mixture.gearItem {
-        facts.append(DiveDetailText.gearItemLabel(name: item.name, brand: item.brand))
-      }
       if let volume = mixture.volume { facts.append(NumberText.plain(volume) + " L") }
       if let oxygen = mixture.oxygen { facts.append("O₂ " + NumberText.plain(oxygen) + "%") }
       if showHelium, let helium = mixture.helium {
@@ -151,6 +148,11 @@ extension DiveDetailContent {
         icon: TankIcon(
           volume: mixture.volume, oxygen: mixture.oxygen, helium: mixture.helium,
           left: index == firstParallel),
+        vessel: mixture.gearItem.map {
+          RecordLink(
+            title: DiveDetailText.gearItemLabel(name: $0.name, brand: $0.brand),
+            uuid: $0.ref.serverUUID)
+        },
         gas: GasMath.name(oxygen: mixture.oxygen, helium: mixture.helium),
         role: mixture.role.flatMap { $0.isEmpty ? nil : VocabularyLabels.gasRole($0) },
         facts: facts,
@@ -254,6 +256,7 @@ extension DiveDetailContent {
     return Gear(
       items: dive.gearItems.map {
         Gear.Item(
+          uuid: $0.ref.serverUUID,
           type: VocabularyLabels.gearType($0.type) ?? "-",
           brand: $0.brand.flatMap { $0.isEmpty ? nil : $0 } ?? "-",
           name: $0.name, rented: $0.rented, archived: $0.isArchived)

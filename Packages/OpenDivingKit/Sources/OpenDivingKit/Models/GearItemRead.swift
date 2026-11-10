@@ -1,7 +1,9 @@
 import Foundation
 
-/// A gear item as `POST /gear-item` answers it.
-public struct GearItemRead: Codable, Hashable, Sendable {
+/// A gear item, as `GET /gear-items` lists it and `POST /gear-item` answers it.
+public struct GearItemRead: Codable, Hashable, Sendable, Identifiable {
+  public var id: UUID { uuid }
+
   public let uuid: UUID
   public let name: String
   public let brand: String?
@@ -19,5 +21,7 @@ public struct GearItemRead: Codable, Hashable, Sendable {
   public let diveCount: Int
   /// Seconds in the water on those dives.
   public let diveTime: Int
+  /// Its servicing rules, paused ones included.
+  public let service: [GearServiceScheduleInfo]
   public let createdAt: DiveTimestamp
 }

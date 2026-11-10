@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+  "uuid": "01a0d9e9-bdd0-793a-829f-5dc90613f84f",
+  "roles": [
+    "dive_center",
+    "school",
+    "shop"
+  ],
+  "email": null,
+  "website": null,
+  "name": "Big Blue Tech",
+  "phone": null,
+  "latitude": null,
+  "longitude": null,
+  "notes": "",
+  "address": {
+    "street": null,
+    "city": "Koh Tao",
+    "postcode": null,
+    "region": null,
+    "country": "Thailand"
+  },
+  "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+  "created_at": "2026-09-25T18:52:49.478186Z"
+},
+    {
+      "uuid": "01a0d9e9-bdd0-793a-829f-5dc90613f850",
+      "roles": ["liveaboard_operator"],
+      "email": "hello@example.com",
+      "website": "https://example.com",
+      "name": "Example Liveaboards",
+      "phone": "+20 555 0199",
+      "latitude": 27.25,
+      "longitude": 33.83,
+      "notes": "",
+      "address": null,
+      "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+      "created_at": "2026-09-26T08:00:00Z"
+    }
+  ],
+  "total_count": 2,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 50
+}

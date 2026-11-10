@@ -6,12 +6,15 @@
       "activity",
       "arrow-down-to-line",
       "backpack",
+      "badge-check",
       "bed-double",
       "bell",
+      "book-user",
       "bookmark",
       "building-2",
       "calendar",
       "chart-line",
+      "clipboard-check",
       "clipboard-list",
       "cloud",
       "cloud-fog",
@@ -26,11 +29,15 @@
       "graduation-cap",
       "hard-drive",
       "id-card",
+      "image-off",
       "key-round",
       "landmark",
+      "layers",
+      "list-tree",
       "locate-fixed",
       "lock",
       "luggage",
+      "mail",
       "mail-plus",
       "map-pin",
       "monitor",
@@ -49,6 +56,7 @@
       "waves",
       "waves-arrow-down",
       "weight",
+      "wrench",
       "x",
       "zoom-out"
     ]
@@ -57,8 +65,11 @@
     "scale": 1.35,
     "stroke": 2.2,
     "icons": [
+      "badge-check",
       "dive",
       "dive-site",
+      "file-text",
+      "image-off",
       "luggage"
     ]
   }

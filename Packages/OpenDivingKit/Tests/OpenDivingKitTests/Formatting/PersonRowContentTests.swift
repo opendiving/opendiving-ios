@@ -24,8 +24,9 @@ struct PersonRowContentTests {
         + #"{"person_uuid":"\#(Self.ana)","role":"buddy"}]"#)
     #expect(
       PersonRowContent.rows(refs, people: try people()) == [
-        PersonRowContent(name: "Ben Okafor", role: "Instructor"),
-        PersonRowContent(name: "Ana Diaz", username: "ana", role: "Buddy"),
+        PersonRowContent(uuid: UUID(uuidString: Self.ben), name: "Ben Okafor", role: "Instructor"),
+        PersonRowContent(
+          uuid: UUID(uuidString: Self.ana), name: "Ana Diaz", username: "ana", role: "Buddy"),
       ])
   }
 
@@ -35,8 +36,16 @@ struct PersonRowContentTests {
         + #"{"person_uuid":"\#(Self.ana)","role":null}]"#)
     #expect(
       PersonRowContent.rows(refs, people: try people()) == [
-        PersonRowContent(name: "Ana Diaz", username: "ana")
+        PersonRowContent(uuid: UUID(uuidString: Self.ana), name: "Ana Diaz", username: "ana")
       ])
+  }
+
+  @Test func aPersonTheServerDoesNotHaveYetLinksNowhere() throws {
+    let ana = try #require(UUID(uuidString: Self.ana))
+    let rows = PersonRowContent.rows(
+      [PersonReference(person: .local(ana), role: nil)], people: try people())
+    #expect(rows.map(\.name) == ["Ana Diaz"])
+    #expect(rows.map(\.uuid) == [nil])
   }
 
   @Test func aRoleWithoutALabelFallsBackToItsKey() throws {

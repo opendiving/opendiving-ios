@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="3300" height="2200">
+  <g id="Notes">
+    <rect height="2200" id="artboard" style="fill:white;opacity:1" width="3300" x="0" y="0"/>
+    <text id="template-version" style="stroke:none;fill:black;font-family:sans-serif;font-size:13;" transform="matrix(1 0 0 1 3036 1933)">Template v.3.0</text>
+  </g>
+  <g id="Guides">
+    <line id="Baseline-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="696" y2="696"/>
+    <line id="Capline-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="625.54" y2="625.54"/>
+    <line id="Baseline-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1126" y2="1126"/>
+    <line id="Capline-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1055.54" y2="1055.54"/>
+    <line id="Baseline-L" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1556" y2="1556"/>
+    <line id="Capline-L" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1485.54" y2="1485.54"/>
+    <line id="left-margin-Regular-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="1400" x2="1400" y1="1026" y2="1156"/>
+    <line id="right-margin-Regular-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="1545.8" x2="1545.8" y1="1026" y2="1156"/>
+  </g>
+  <g id="Symbols">
+    <g id="Regular-M" transform="matrix(1 0 0 1 1400 1126)">
+      <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M36.45,32.2 Q17.62,32.2 17.62,13.37 L17.62,-83.83 Q17.62,-102.66 36.45,-102.66 L85.05,-102.66 Q93.89,-102.67 100.13,-96.41 L121.93,-74.62 Q128.19,-68.38 128.18,-59.52 L128.18,13.37 Q128.18,32.2 109.35,32.2 Z M36.45,18.84 L109.35,18.84 Q114.82,18.84 114.82,13.37 L114.82,-59.54 Q114.82,-62.83 112.47,-65.17 L90.67,-86.98 Q88.35,-89.3 85.05,-89.3 L36.45,-89.3 Q30.98,-89.3 30.98,-83.83 L30.98,13.37 Q30.98,18.84 36.45,18.84 Z"/>
+      <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M91.73,-95.98 L91.73,-66.21 L121.5,-66.21 Q124.27,-66.21 126.23,-64.26 Q128.18,-62.3 128.18,-59.53 Q128.18,-56.76 126.23,-54.8 Q124.27,-52.85 121.5,-52.85 L91.12,-52.85 Q78.37,-52.85 78.37,-65.6 L78.37,-95.98 Q78.37,-98.75 80.32,-100.71 Q82.28,-102.66 85.05,-102.66 Q87.82,-102.66 89.78,-100.71 Q91.73,-98.75 91.73,-95.98 Z"/>
+      <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M60.75,-46.77 L48.6,-46.77 Q45.83,-46.77 43.87,-48.73 Q41.92,-50.68 41.92,-53.45 Q41.92,-56.23 43.87,-58.18 Q45.83,-60.14 48.6,-60.14 L60.75,-60.14 Q63.52,-60.14 65.48,-58.18 Q67.43,-56.23 67.43,-53.45 Q67.43,-50.68 65.48,-48.73 Q63.52,-46.77 60.75,-46.77 Z"/>
+      <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M97.2,-22.47 L48.6,-22.47 Q45.83,-22.47 43.87,-24.43 Q41.92,-26.38 41.92,-29.15 Q41.92,-31.93 43.87,-33.88 Q45.83,-35.84 48.6,-35.84 L97.2,-35.84 Q99.97,-35.84 101.93,-33.88 Q103.88,-31.93 103.88,-29.15 Q103.88,-26.38 101.93,-24.43 Q99.97,-22.47 97.2,-22.47 Z"/>
+      <path class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M97.2,1.83 L48.6,1.83 Q45.83,1.83 43.87,-0.13 Q41.92,-2.08 41.92,-4.86 Q41.92,-7.63 43.87,-9.58 Q45.83,-11.54 48.6,-11.54 L97.2,-11.54 Q99.97,-11.54 101.93,-9.58 Q103.88,-7.63 103.88,-4.86 Q103.88,-2.08 101.93,-0.13 Q99.97,1.83 97.2,1.83 Z"/>
+    </g>
+  </g>
+</svg>

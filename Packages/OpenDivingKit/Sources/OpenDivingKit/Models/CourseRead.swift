@@ -1,7 +1,9 @@
 import Foundation
 
 /// A training course. Its instructor is a person in `people`.
-public struct CourseRead: Codable, Hashable, Sendable {
+public struct CourseRead: Codable, Hashable, Sendable, Identifiable {
+  public var id: UUID { uuid }
+
   public let uuid: UUID
   public let name: String
   /// An agency key, as the API sent it; `other` names it in `agencyOther`.

@@ -102,8 +102,8 @@ made during the prompt; a shorter timeout, which still spins and counts the crea
 
 ## A record page reads nothing without a route
 
-A dive's, a site's or a trip's page, the lists on the last two, and the profile's head and its
-*Cards* check the path before reading: with no route they show the phone's copy, or say the record
+A record's page — a dive's, a site's, a trip's, or one of More's — the lists on every page but a
+dive's, and the profile's head and its *Cards* check the path before reading: with no route they show the phone's copy, or say the record
 shows once the server can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
 read too, since the page reads itself the moment it can. Rejected: letting the read wait out the
 minute, which spins over a page the phone could not have filled anyway.
@@ -141,8 +141,9 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives, sites, trips and drafts are written when a screen loads them, never fetched to fill
-the cache, and each kind of detail is bounded to the two hundred most recently opened. It exists so a screen
+Pages, dives, sites, trips, More's records, species photos and drafts are written when a screen
+loads them, never fetched to fill the cache, and each kind of detail is bounded to the two hundred
+most recently opened, a species photo to the five hundred most recently drawn. It exists so a screen
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 

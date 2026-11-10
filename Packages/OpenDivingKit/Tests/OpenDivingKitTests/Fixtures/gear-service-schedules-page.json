@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+  "uuid": "01a21000-0000-7000-8000-0000000000a1",
+  "kind": "service",
+  "starts_on": "2025-09-01",
+  "label": null,
+  "interval_months": 12,
+  "interval_dives": 100,
+  "interval_hours": null,
+  "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+  "gear_item_uuid": "01a14b2e-0c3d-7a10-9f00-1a2b3c4d5e6f",
+  "is_active": true,
+  "dive_count_at_start": 40,
+  "dive_time_at_start": 144000,
+  "last_service_on": "2025-09-01",
+  "next_due_on": "2026-09-01",
+  "next_due_at_dive_count": 140,
+  "next_due_at_dive_time": null,
+  "created_at": "2025-09-01T12:00:00Z"
+},
+    {
+      "uuid": "01a21000-0000-7000-8000-0000000000a3",
+      "kind": "rebuild",
+      "starts_on": "2026-01-10",
+      "label": "Second stage",
+      "interval_months": null,
+      "interval_dives": null,
+      "interval_hours": 50,
+      "user_uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35923",
+      "gear_item_uuid": "01a14b2e-0c3d-7a10-9f00-1a2b3c4d5e6f",
+      "is_active": false,
+      "dive_count_at_start": 100,
+      "dive_time_at_start": 360000,
+      "last_service_on": null,
+      "next_due_on": null,
+      "next_due_at_dive_count": null,
+      "next_due_at_dive_time": 540000,
+      "created_at": "2026-01-10T12:00:00Z"
+    }
+  ],
+  "total_count": 2,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 100
+}

@@ -15,8 +15,8 @@ public struct DiveDetailContent: Hashable, Sendable {
   public var gear: Gear?
   public var sightings: [Sighting]
   public var notes: String?
-  /// The training course's name.
-  public var course: String?
+  /// The training course.
+  public var course: RecordLink?
   public var location: Location?
   public var people: [PersonRowContent]
   /// Air temperature, water type, altitude, current, waves and weather, where recorded.
@@ -50,11 +50,13 @@ public struct DiveDetailContent: Hashable, Sendable {
       /// `#1`.
       public var number: String
       public var icon: TankIcon
+      /// The diver's own cylinder the tank names, leading its facts.
+      public var vessel: RecordLink?
       /// `EAN32`; nil reads *Gas not recorded*.
       public var gas: String?
       /// The role's label, as a badge.
       public var role: String?
-      /// The linked cylinder, the volume, O₂, He and the usage, as recorded.
+      /// The volume, O₂, He and the usage, as recorded.
       public var facts: [String]
       public var start: String?
       public var end: String?
@@ -109,6 +111,8 @@ public struct DiveDetailContent: Hashable, Sendable {
     public var weight: String?
 
     public struct Item: Hashable, Sendable {
+      /// The item's page; nil for one the server does not have yet.
+      public var uuid: UUID?
       public var type: String
       public var brand: String
       public var name: String

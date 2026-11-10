@@ -5,7 +5,7 @@ import SwiftUI
 /// their trips went, with the logbook's figures, as the web's Home has it; the way back to the
 /// map, the dive-computer button, the `+` that logs a dive, imports files or adds a trip or a
 /// site, and the settings in the top bar; and under the head their dives, their trips, their
-/// check-in sheet or, for now empty, *More*, one at a time.
+/// check-in sheet or *More*, the menu of the rest, one at a time.
 struct ProfileView: View {
   let avatar: AvatarModel
   @Environment(Session.self) private var session
@@ -58,7 +58,7 @@ private struct ProfileContent: View {
           case .dives: ProfileDives(list: dives, units: session.units)
           case .trips: ProfileTrips(list: trips, units: session.units)
           case .cards: CheckinSheetView(model: checkin, pictures: pictures)
-          case .more: EmptyView()
+          case .more: MoreMenu(isCommonsPrimary: session.isCommonsPrimary)
           }
         }
         .padding(.horizontal)
