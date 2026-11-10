@@ -2,9 +2,10 @@ import OpenDivingKit
 import SwiftUI
 
 /// The diver's own page, opened from the sites map by their picture: their name over the places
-/// their trips went, with the logbook's figures, as the web's Home has it; the dive-computer
-/// button, the `+` that logs a dive, imports files or adds a trip or a site, and the settings in
-/// the top bar; and under the head their dives, their trips or their check-in sheet, one at a time.
+/// their trips went, with the logbook's figures, as the web's Home has it; the way back to the
+/// map, the dive-computer button, the `+` that logs a dive, imports files or adds a trip or a
+/// site, and the settings in the top bar; and under the head their dives, their trips, their
+/// check-in sheet or, for now empty, *More*, one at a time.
 struct ProfileView: View {
   let avatar: AvatarModel
   @Environment(Session.self) private var session
@@ -16,13 +17,14 @@ struct ProfileView: View {
 
 /// What the profile shows under its head.
 enum ProfileSection: Hashable, CaseIterable {
-  case dives, trips, cards
+  case dives, trips, cards, more
 
   var title: String {
     switch self {
     case .dives: "Dives"
     case .trips: "Trips"
     case .cards: "Cards"
+    case .more: "More"
     }
   }
 
@@ -31,6 +33,7 @@ enum ProfileSection: Hashable, CaseIterable {
     case .dives: .dive
     case .trips: .luggage
     case .cards: .idCard
+    case .more: .menu
     }
   }
 }
@@ -43,6 +46,7 @@ private enum ProfileRoute: Hashable {
 private struct ProfileContent: View {
   let avatar: AvatarModel
   @Environment(Session.self) private var session
+  @Environment(\.dismiss) private var dismiss
   @State private var model: ProfileModel
   @State private var dives: PagedList<DiveListItem>
   @State private var trips: PagedList<TripRead>
@@ -61,7 +65,10 @@ private struct ProfileContent: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 16) {
-        HeroView(content: model.hero(today: .today()), detailsOnGlass: true) {
+        // Three figures to a row on a phone's width, the six in two rows.
+        HeroView(
+          content: model.hero(today: .today()), detailsOnGlass: true, figureMinWidth: 100
+        ) {
           UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
             .background(Color(.tertiarySystemFill), in: Circle())
         }
@@ -71,6 +78,7 @@ private struct ProfileContent: View {
           case .dives: ProfileDives(list: dives, units: session.units)
           case .trips: ProfileTrips(list: trips, units: session.units)
           case .cards: CheckinSheetView(model: checkin)
+          case .more: EmptyView()
           }
         }
         .padding(.horizontal)
@@ -84,6 +92,7 @@ private struct ProfileContent: View {
       case .dives: await dives.refresh()
       case .trips: await trips.refresh()
       case .cards: await checkin.refresh()
+      case .more: break
       }
       await head
     }
@@ -91,7 +100,13 @@ private struct ProfileContent: View {
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
+    // The way back is to the map, which a map says better than a chevron.
+    .navigationBarBackButtonHidden()
+    .swipesBackWithoutBackButton()
     .toolbar {
+      ToolbarItem(placement: .topBarLeading) {
+        Button("Map", systemImage: "map") { dismiss() }
+      }
       DiveComputerToolbarItem { route = .diveComputer }
       ToolbarItemGroup(placement: .topBarTrailing) {
         Menu("Add", systemImage: "plus") {
@@ -143,6 +158,7 @@ private struct ProfileContent: View {
         checkin.load()
         await checkin.refresh()
         await checkin.followRoute()
+      case .more: break
       }
     }
   }

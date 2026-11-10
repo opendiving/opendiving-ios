@@ -31,7 +31,7 @@ struct SectionCard<Content: View>: View {
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color.cardFill, in: RoundedRectangle(cornerRadius: 12))
+    .background(Color.cardFill, in: .formSection)
   }
 }
 

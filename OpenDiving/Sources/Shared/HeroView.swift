@@ -11,6 +11,8 @@ import SwiftUI
 struct HeroView<Leading: View>: View {
   let content: HeroContent
   var detailsOnGlass = false
+  /// The least each figure takes across: wider sets fewer in a row.
+  var figureMinWidth: CGFloat = 72
   @ViewBuilder let leading: () -> Leading
 
   /// How far the band is drawn above the head, out of sight until a pull-down reveals it.
@@ -29,9 +31,10 @@ struct HeroView<Leading: View>: View {
     VStack(alignment: .leading, spacing: 6) {
       if detailsOnGlass {
         creditLine
+        // Thinner than a picker's card, so more of the map shows through.
         details
           .padding(12)
-          .pickerCard()
+          .background(.ultraThinMaterial, in: .formSection)
       } else {
         details
         creditLine
@@ -76,14 +79,15 @@ struct HeroView<Leading: View>: View {
       ChipsRow(chips: content.chips)
       HStack(alignment: .top, spacing: 12) {
         leading()
-        VStack(alignment: .leading, spacing: 6) {
+        // On glass the line sits close under the name, as a card's does.
+        VStack(alignment: .leading, spacing: detailsOnGlass ? 2 : 6) {
           TitleLine(
             title: content.title, isCourse: content.isCourse, rating: content.rating,
             font: .title2.bold())
           FactsLine(facts: content.facts)
         }
       }
-      FiguresRow(figures: content.figures)
+      FiguresRow(figures: content.figures, minWidth: figureMinWidth)
         .padding(.top, 4)
     }
     .frame(maxWidth: .infinity, alignment: .leading)

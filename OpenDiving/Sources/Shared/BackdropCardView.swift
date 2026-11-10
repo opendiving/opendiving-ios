@@ -36,7 +36,7 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
       .background(Color(.systemBackground))
       .overlay(alignment: .topTrailing) { creditChip }
       .onPreferenceChange(MapBackdropView.CardCredit.Key.self) { credit = $0 }
-      .clipShape(RoundedRectangle(cornerRadius: 12))
+      .clipShape(.formSection)
       .accessibilityElement(children: .combine)
   }
 
