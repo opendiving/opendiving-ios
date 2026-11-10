@@ -2,29 +2,6 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The box a c-card is drawn in wherever one is drawn (`CertificationCardFrame`): the card's
-/// shape, the app's corner, and whatever fills it clipped to that corner. A picture fills it, as
-/// a card stored uncropped loses a sliver of its edge rather than sitting in a letterbox.
-struct CertificationCardFrame<Content: View>: View {
-  var isEmpty = false
-  @ViewBuilder let content: Content
-
-  static var aspect: CGFloat { CertificationCardCrop.aspect }
-
-  var body: some View {
-    Color(.secondarySystemFill)
-      .aspectRatio(Self.aspect, contentMode: .fit)
-      .frame(maxWidth: .infinity)
-      .overlay { content }
-      .clipShape(RoundedRectangle(cornerRadius: 10))
-      .overlay {
-        RoundedRectangle(cornerRadius: 10)
-          .strokeBorder(
-            Color(.separator), style: StrokeStyle(lineWidth: 1, dash: isEmpty ? [5] : []))
-      }
-  }
-}
-
 /// One stored side of a card (`CertificationCardImage`): its picture, kept once shown; a PDF as
 /// a labelled file, never drawn; an empty side as a dashed frame.
 struct CertificationSideView: View {

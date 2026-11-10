@@ -109,7 +109,7 @@ private struct CertificationCardView: View {
 
   var body: some View {
     Color.clear
-      .aspectRatio(CertificationCardFrame<EmptyView>.aspect, contentMode: .fit)
+      .aspectRatio(CertificationCardCrop.aspect, contentMode: .fit)
       .frame(maxWidth: .infinity)
       .background { backdrop }
       .overlay(alignment: .bottom) { details }
