@@ -56,8 +56,6 @@ struct DiveComputerDownloadButtonLabel: View {
         .frame(width: 22, height: 22)
         .foregroundStyle(Color.primary)
         .frame(width: Self.metrics.label.width, height: Self.metrics.label.height)
-        // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
-        // the coral nearly to white over a bright one.
         .overlay {
           if let content {
             ZStack {
