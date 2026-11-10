@@ -107,53 +107,6 @@ extension HeroView where Leading == EmptyView {
   }
 }
 
-/// Glass as a folder on the home screen has it: what lies behind blurred through, a light rim
-/// catching its edge, and a soft shadow lifting it off the map. The blur is the cards' own, at a
-/// radius of its own, which no material lets one set; not the system's glass effect either, which
-/// iOS 26 draws close to opaque over dark tiles.
-private struct GlassCard: View {
-  private static let blurRadius = 6.0
-
-  /// Lighter than what lies behind in both appearances, as the folder's glass is.
-  private static let frost = Color(
-    UIColor { traits in
-      UIColor(white: 1, alpha: traits.userInterfaceStyle == .dark ? 0.1 : 0.45)
-    })
-
-  private static let rim = LinearGradient(
-    stops: [
-      .init(color: .white.opacity(0.5), location: 0),
-      .init(color: .white.opacity(0.1), location: 0.35),
-      .init(color: .white.opacity(0.05), location: 0.65),
-      .init(color: .white.opacity(0.3), location: 1),
-    ],
-    startPoint: .topLeading, endPoint: .bottomTrailing)
-
-  var body: some View {
-    ZStack {
-      ProgressiveBlur(edge: .top, radius: Self.blurRadius, hold: 1)
-        .clipShape(.formSection)
-      // A material's tint, which the bare blur has none of, keeps the text readable.
-      RoundedRectangle.formSection.fill(Self.frost)
-      RoundedRectangle.formSection.strokeBorder(Self.rim, lineWidth: 1)
-    }
-    .background { shadow }
-  }
-
-  /// Outside the card alone: under the glass it would be blurred into it.
-  private var shadow: some View {
-    RoundedRectangle.formSection
-      .fill(.black)
-      .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
-      .mask {
-        Rectangle()
-          .padding(-48)
-          .overlay { RoundedRectangle.formSection.blendMode(.destinationOut) }
-          .compositingGroup()
-      }
-  }
-}
-
 #Preview {
   ScrollView {
     HeroView(
