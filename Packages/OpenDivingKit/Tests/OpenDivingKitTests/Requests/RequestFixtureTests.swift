@@ -51,6 +51,20 @@ struct RequestFixtureTests {
     #expect(!replace.commonsSite.isLocal)
   }
 
+  @Test func userUpdate() throws {
+    let update = try sendsItsFixture(UserUpdate.self, "request-user-update")
+    #expect(update.units == .imperial)
+  }
+
+  @Test func aUserUpdateSendsOnlyWhatItSets() throws {
+    let sent = try JSONValue.parse(APICoding.requestEncoder().encode(UserUpdate(units: .metric)))
+    #expect(sent == (try JSONValue.parse(Data(#"{"units":"metric"}"#.utf8))))
+  }
+
+  @Test func tagUpdate() throws {
+    _ = try sendsItsFixture(TagUpdate.self, "request-tag-update")
+  }
+
   @Test func tripCreate() throws {
     _ = try sendsItsFixture(TripCreate.self, "request-trip-create")
   }

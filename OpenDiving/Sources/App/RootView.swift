@@ -3,8 +3,8 @@ import SwiftUI
 
 /// What the window shows — the server and sign-in screens, or the sites map signed in, under the
 /// launch splash until the first of them has loaded — and where the one session, the sign-in
-/// flow Settings reaches back into, the inbox, the outbox and the dive-computer download are
-/// injected.
+/// flow Settings reaches back into, the inbox, the outbox, the dive-computer download and the
+/// appearance are injected.
 struct RootView: View {
   @State private var session: Session
   @State private var signIn: SignInFlow
@@ -13,6 +13,7 @@ struct RootView: View {
   @State private var outbox: OutboxModel
   @State private var downloads: DiveComputerDownloads
   @State private var splash = LaunchSplash()
+  @State private var appearance = AppearanceModel(defaults: .standard)
 
   init(session: Session = .device()) {
     let account = AccountLoader(session: session)
@@ -55,6 +56,7 @@ struct RootView: View {
     .environment(session)
     .environment(signIn)
     .environment(downloads)
+    .appearanceHost(appearance)
     .inboxHost(inbox, session: session)
     .outboxHost(outbox, session: session)
     .task { await account.launch() }

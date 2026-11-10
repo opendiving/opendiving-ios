@@ -1,0 +1,8 @@
+{
+  "name": "Test Diver",
+  "username": "testdiver",
+  "gear_service_emails": false,
+  "renewal_reminder_emails": true,
+  "year_in_review_emails": false,
+  "units": "imperial"
+}

@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Settings*, pushed from the profile: the server card with the servers screen, the account as
-/// read-only rows with signing out, and the app.
+/// *Settings*, pushed from the profile: the server card with the servers screen, a row per
+/// section in the web's order, signing out, and the app — its appearance and its version.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
@@ -34,18 +34,16 @@ private struct SettingsList: View {
         }
       }
       Section {
-        if let user = model.session.user {
-          LabeledContent("Name", value: user.name)
-          LabeledContent("Username", value: user.username)
-          LabeledContent("Email", value: user.email)
-        } else {
-          HStack {
-            BubbleSpinner()
-            Text("Loading your account…")
+        ForEach(model.sections) { section in
+          NavigationLink {
+            Self.screen(section)
+          } label: {
+            Label(section.title, icon: section.icon)
           }
-          .foregroundStyle(.secondary)
         }
-        LabeledContent("Units", value: model.unitsLabel)
+      }
+      .disabled(model.isWorking)
+      Section {
         Button("Sign out") { Task { await model.signOut() } }
           .accentRow()
           .disabled(model.isWorking)
@@ -56,14 +54,31 @@ private struct SettingsList: View {
           Label(error, systemImage: "exclamationmark.triangle")
             .foregroundStyle(Color.danger)
         }
-      } header: {
-        Text("Account")
       }
       Section("App") {
+        NavigationLink {
+          AppearanceScreen()
+        } label: {
+          Label("Appearance", icon: .monitor)
+        }
         LabeledContent("Version", value: Self.appVersion)
       }
     }
     .task { await model.load() }
+    .followsAccount(model.session)
+  }
+
+  @ViewBuilder
+  private static func screen(_ section: SettingsSection) -> some View {
+    switch section {
+    case .account: AccountScreen()
+    case .checkin: CheckinScreen()
+    case .authentication: AuthenticationScreen()
+    case .data: DataScreen()
+    case .notifications: NotificationsScreen()
+    case .preferences: PreferencesScreen()
+    case .invitations: InvitationsScreen()
+    }
   }
 
   private static var appVersion: String {
@@ -81,4 +96,5 @@ private struct SettingsList: View {
   }
   .environment(session)
   .environment(SignInFlow(session: session))
+  .environment(AppearanceModel(defaults: .standard))
 }
