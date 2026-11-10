@@ -3,6 +3,11 @@ import Foundation
 /// The waves and the swell at an hour, drawn as the sea's surface passing a fixed point: a strip
 /// each, on one height scale so the two compare at a glance, and a calm sea draws flat.
 ///
+/// The surface is a trochoid, the shape a wave's water takes: sharp crests over long flat troughs,
+/// each crest leaning toward where the wave travels. The swell is smoothed and upright, as swell
+/// is. Behind each surface runs a fainter row, lower, slower and a third of a wave along, for
+/// depth; it is drawing, not data, and only the front row's height and period are to scale.
+///
 /// Every point is a fraction of its strip's box, `y` growing downward.
 public struct WaveProfile: Hashable, Sendable {
   public struct Strip: Hashable, Sendable {
@@ -10,7 +15,10 @@ public struct WaveProfile: Hashable, Sendable {
     public let label: String
     /// `0.9 m · 4 s`, `0.1 m`.
     public let value: String
-    public let points: [CurvePoint]
+    /// The surface itself, its line drawn.
+    public let surface: [CurvePoint]
+    /// The fainter row behind it, filled only.
+    public let behind: [CurvePoint]
   }
 
   public let strips: [Strip]
@@ -18,13 +26,24 @@ public struct WaveProfile: Hashable, Sendable {
   public let accessibilityLabel: String
 
   /// The seconds a strip shows of the surface passing.
-  static let span = 20.0
+  static let span = 14.0
   /// The height a strip spans from crest to trough, raised to the highest of the two.
   static let minimumScale = 1.0
   /// The model gives the swell no period of its own, so its strip keeps one fixed rhythm, long as
   /// a swell's is: only its height is to scale.
   static let swellPeriod = 12.0
-  static let samples = 96
+
+  /// How far each crest sharpens: 0 is a sine, 1 a cusp.
+  static let waveSteepness = 0.5
+  static let swellSteepness = 0.175
+  /// How far, in radians of a wave, each crest leans ahead of its trough.
+  static let waveLean = 1.0
+
+  static let behindHeight = 0.55
+  static let behindPeriod = 1.15
+  static let behindLean = 0.5
+  static let behindLift = 0.03
+  static let behindPhase = 2 * Double.pi / 3
 
   /// Nil where the sea gives neither a wave height nor a swell height.
   public init?(_ sea: ConditionsSea, units: UnitSystem) {
@@ -38,17 +57,17 @@ public struct WaveProfile: Hashable, Sendable {
       let period = sea.wavePeriod.map { NumberText.fixed(NumberText.round($0), decimals: 0) }
       let shown = UnitFormat.depth(height, units, decimals: 1)
       strips.append(
-        Strip(
-          label: "Waves", value: period.map { "\(shown) · \($0) s" } ?? shown,
-          points: Self.surface(height: height, period: sea.wavePeriod, scale: scale)))
+        Self.strip(
+          "Waves", value: period.map { "\(shown) · \($0) s" } ?? shown, height: height,
+          period: sea.wavePeriod, scale: scale, steepness: Self.waveSteepness, lean: Self.waveLean))
       spoken.append(
         "waves " + Self.spoken(height, units) + (period.map { " every \($0) seconds" } ?? ""))
     }
     if let height = sea.swellWaveHeight {
       strips.append(
-        Strip(
-          label: "Swell", value: UnitFormat.depth(height, units, decimals: 1),
-          points: Self.surface(height: height, period: Self.swellPeriod, scale: scale)))
+        Self.strip(
+          "Swell", value: UnitFormat.depth(height, units, decimals: 1), height: height,
+          period: Self.swellPeriod, scale: scale, steepness: Self.swellSteepness, lean: 0))
       spoken.append("swell " + Self.spoken(height, units))
     }
     self.strips = strips
@@ -56,16 +75,46 @@ public struct WaveProfile: Hashable, Sendable {
     accessibilityLabel = sentence.prefix(1).uppercased() + sentence.dropFirst()
   }
 
-  /// A sine passing for ``span`` seconds, crest to trough `height` against a strip of `scale`; a
-  /// wave with no period passes at the swell's.
-  static func surface(height: Double, period: Double?, scale: Double) -> [CurvePoint] {
+  private static func strip(
+    _ label: String, value: String, height: Double, period: Double?, scale: Double,
+    steepness: Double, lean: Double
+  ) -> Strip {
+    // A wave with no period passes at the swell's.
     let period = period.flatMap { $0 > 0 ? $0 : nil } ?? swellPeriod
+    return Strip(
+      label: label, value: value,
+      surface: surface(
+        height: height, period: period, scale: scale, steepness: steepness, lean: lean),
+      behind: surface(
+        height: height * behindHeight, period: period * behindPeriod, scale: scale,
+        steepness: steepness, lean: lean * behindLean, phase: behindPhase
+      ).map { CurvePoint(x: $0.x, y: $0.y - behindLift) })
+  }
+
+  /// A trochoid passing for ``span`` seconds, crest to trough `height` against a strip of `scale`,
+  /// its crests `phase` radians along.
+  static func surface(
+    height: Double, period: Double, scale: Double, steepness: Double, lean: Double,
+    phase: Double = 0
+  ) -> [CurvePoint] {
     // 0.1 to 0.9 at full scale, so a crest is never drawn against the box's edge.
     let amplitude = height / scale * 0.4
-    return (0...samples).map { step in
-      let x = Double(step) / Double(samples)
-      return CurvePoint(x: x, y: 0.5 - amplitude * sin(2 * Double.pi * x * span / period))
+    let cycles = span / period
+    // From a wave and a half before the strip to one and a half past it, so that wherever the
+    // lean and the phase move the crests, the line reaches both edges.
+    let first = -3 * Double.pi
+    let last = 2 * Double.pi * (cycles + 1.5)
+    let samples = Int((cycles + 3) * 120)
+    var points: [CurvePoint] = []
+    for step in 0...samples {
+      let theta = first + (last - first) * Double(step) / Double(samples)
+      let crest = pow((cos(theta) + 1) / 2, 3)
+      let along = theta - steepness * sin(theta) + lean * crest + phase
+      let x = along / (2 * Double.pi) * period / span
+      guard (-0.02...1.02).contains(x) else { continue }
+      points.append(CurvePoint(x: min(max(x, 0), 1), y: 0.5 - amplitude * cos(theta)))
     }
+    return points
   }
 
   private static func spoken(_ meters: Double, _ units: UnitSystem) -> String {

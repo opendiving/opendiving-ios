@@ -136,7 +136,14 @@ struct MapWeatherTests {
 
   /// How far a strip's surface strays from its middle, as a fraction of the strip.
   private static func reach(_ strip: WaveProfile.Strip) -> Double {
-    strip.points.map { abs($0.y - 0.5) }.max() ?? 0
+    strip.surface.map { abs($0.y - 0.5) }.max() ?? 0
+  }
+
+  /// Where a row's first crest is drawn: its first point higher than both neighbours.
+  private static func firstCrest(_ points: [CurvePoint]) -> Double? {
+    points.indices.dropFirst().dropLast()
+      .first { points[$0].y < points[$0 - 1].y && points[$0].y <= points[$0 + 1].y }
+      .map { points[$0].x }
   }
 
   @Test func theWavesAndTheSwellShareOneScaleOfAtLeastAMetre() throws {
@@ -146,13 +153,31 @@ struct MapWeatherTests {
     // Crest to trough over a metre-tall strip, eight tenths of which a crest and trough span.
     #expect((0.36...0.376 + 1e-9).contains(Self.reach(calm.strips[0])))
     #expect((0.035...0.04 + 1e-9).contains(Self.reach(calm.strips[1])))
-    #expect(calm.strips.allSatisfy { $0.points.first?.x == 0 && $0.points.last?.x == 1 })
+    #expect(
+      calm.strips.allSatisfy {
+        $0.surface.first?.x == 0 && $0.surface.last?.x == 1 && $0.behind.first?.x == 0
+          && $0.behind.last?.x == 1
+      })
 
     let rough = try #require(
       WaveProfile(ConditionsSea(waveHeight: 3, wavePeriod: 8, swellWaveHeight: 1.5), units: .metric)
     )
     #expect((0.39...0.4 + 1e-9).contains(Self.reach(rough.strips[0])))
     #expect((0.19...0.2 + 1e-9).contains(Self.reach(rough.strips[1])))
+  }
+
+  @Test func theRowBehindIsLowerAndItsFirstCrestClearOfTheFrontRows() throws {
+    let profile = try #require(
+      WaveProfile(
+        ConditionsSea(waveHeight: 2.5, wavePeriod: 7, swellWaveHeight: 1.2), units: .metric))
+    for strip in profile.strips {
+      let front = try #require(Self.firstCrest(strip.surface))
+      let behind = try #require(Self.firstCrest(strip.behind))
+      #expect(abs(front - behind) > 0.05, "\(strip.label)")
+      let frontTop = try #require(strip.surface.map(\.y).min())
+      let behindTop = try #require(strip.behind.map(\.y).min())
+      #expect(behindTop > frontTop, "\(strip.label)")
+    }
   }
 
   @Test func aSeaWithNoHeightsDrawsNoWavesAndAPeriodAloneIsListed() throws {
