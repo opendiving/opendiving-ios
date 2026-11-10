@@ -7,7 +7,7 @@ nonisolated protocol TabSection: Hashable, CaseIterable where AllCases: RandomAc
   var icon: Icon { get }
 }
 
-/// A page's sections as tabs across it: each an icon over its name, the chosen one in full
+/// A page's sections as tabs across it: each an icon before its name, the chosen one in full
 /// contrast over a coral underline, on a hairline that runs the page's width.
 struct SectionTabs<Section: TabSection>: View {
   @Binding var selection: Section
@@ -33,14 +33,15 @@ struct SectionTabs<Section: TabSection>: View {
     return Button {
       withAnimation(.easeOut(duration: 0.2)) { selection = section }
     } label: {
-      VStack(spacing: 4) {
-        // One height for every icon, so the names line up whatever each icon's own height.
+      HStack(spacing: 6) {
         Image(section.icon)
-          .font(.title2)
-          .frame(height: 28)
         Text(title(section))
-          .font(.subheadline.weight(.semibold))
+          .lineLimit(1)
+          // A count beside a long name still fits a third of a phone's width.
+          .minimumScaleFactor(0.8)
       }
+      .font(.subheadline.weight(.semibold))
+      .padding(.top, 4)
       .foregroundStyle(isSelected ? Color.primary : Color.secondary)
       .frame(maxWidth: .infinity)
       .padding(.bottom, 10)

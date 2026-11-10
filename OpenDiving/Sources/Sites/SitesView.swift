@@ -71,13 +71,10 @@ private struct SitesFinder: View {
               mode: .edit(site), onDeleted: { model.closeSite() },
               onReplaced: { model.open(uuid: $0) })
           } label: {
-            Text("Edit")
-              .foregroundStyle(Color.primary)
-              .padding(.horizontal, 16)
-              .frame(height: 44)
-              .background(Color(.secondarySystemGroupedBackground), in: Capsule())
-              .contentShape(Capsule())
+            Image(systemName: "pencil")
+              .panelRoundButton()
           }
+          .accessibilityLabel("Edit dive site")
           .buttonStyle(.plain)
         }
       },

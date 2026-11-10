@@ -14,7 +14,7 @@ nonisolated enum SiteSection: TabSection {
 
   var icon: Icon {
     switch self {
-    case .info: .diveSite
+    case .info: .info
     case .marineLife: .fish
     case .myDives: .dive
     }

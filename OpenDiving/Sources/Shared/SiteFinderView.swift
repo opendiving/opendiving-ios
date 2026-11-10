@@ -24,7 +24,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   var onOfflineRow: (FormPickerRow) -> Void = { _ in }
   /// What the panel shows of the site the sites map opened.
   @ViewBuilder let site: (SiteFinderModel.OpenedSite) -> Site
-  /// What stands in the opened site's top corner across from its close button: the way to edit it.
+  /// What stands under the opened site's close button: the way to edit it.
   @ViewBuilder let siteAction: (SiteFinderModel.OpenedSite) -> SiteAction
   @ToolbarContentBuilder let bar: () -> Bar
 
@@ -32,8 +32,6 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   /// the spring after it is moving it.
   @State private var drag = SiteFinderPanelDrag()
   @FocusState private var typing: Bool
-  /// Where the panel stood when the search took focus, which its close button returns it to.
-  @State private var detentBeforeTyping: SiteFinderPanel.Detent?
 
   var body: some View {
     @Bindable var model = model
@@ -75,12 +73,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       move(to: .half)
     }
     .onChange(of: typing) { _, typing in
-      if typing {
-        detentBeforeTyping = drag.target
-        move(to: .full)
-      } else {
-        detentBeforeTyping = nil
-      }
+      if typing { move(to: .full) }
     }
     .task { await model.open() }
     .task { await model.points.load() }
@@ -321,36 +314,30 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     .background(Color(.secondarySystemGroupedBackground), in: Capsule())
   }
 
+  /// Clears the search and sends the panel back to where it opens.
   private var closeSearchButton: some View {
     closeButton("Close search") {
-      let back = detentBeforeTyping ?? .half
+      model.text = ""
       typing = false
-      move(to: back)
+      move(to: .half)
     }
   }
 
   private func closeButton(_ label: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Image(systemName: "xmark")
-        .frame(width: 44, height: 44)
-        .contentShape(Circle())
+        .panelRoundButton()
     }
     .accessibilityLabel(label)
     .buttonStyle(.plain)
-    .background(Color(.secondarySystemGroupedBackground), in: Circle())
   }
 
   // MARK: - An opened site
 
-  /// Where the search stood: the host's action and the way back to the list in the top corners,
-  /// over the site's mark, name and location.
+  /// Where the search stood: the site's mark, name and location, beside the way back to the list
+  /// with the host's action under it.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack {
-        siteAction(opened)
-        Spacer(minLength: 0)
-        closeButton("Close dive site") { model.closeSite() }
-      }
+    HStack(alignment: .top, spacing: 8) {
       VStack(alignment: .leading, spacing: 4) {
         if let mark = opened.mark {
           DiveSiteMarkBadge(mark: mark)
@@ -367,6 +354,14 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
+      VStack(spacing: 8) {
+        closeButton("Close dive site") {
+          model.closeSite()
+          // The list comes back where the panel opens, as the search's close leaves it.
+          if map.hasMap { move(to: .half) }
+        }
+        siteAction(opened)
+      }
     }
   }
 
