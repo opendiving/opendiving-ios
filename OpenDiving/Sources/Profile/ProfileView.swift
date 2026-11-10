@@ -107,6 +107,7 @@ private struct ProfileContent: View {
       ToolbarItem(placement: .topBarLeading) {
         Button("Map", systemImage: "map") { dismiss() }
       }
+      ToolbarIslandGap(placement: .topBarLeading)
       DiveComputerToolbarItem { route = .diveComputer }
       ToolbarItemGroup(placement: .topBarTrailing) {
         Menu("Add", systemImage: "plus") {

@@ -37,10 +37,14 @@ struct DiveComputerDownloadButtonLabel: View {
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
 
-  /// What the bar's glass pads out to `size`; before iOS 26 the bar draws none, and the label is
-  /// the whole button.
-  private static var labelSide: CGFloat {
-    if #available(iOS 26, *) { MapRoundButtonStyle.glassLabelSide } else { size }
+  /// What the bar's glass pads out to a circle of `size`, by 10 a side across: measured, as the
+  /// system names neither. Before iOS 26 the bar draws none, and the label is the whole button.
+  private static var labelSize: CGSize {
+    if #available(iOS 26, *) {
+      CGSize(width: 24, height: 30)
+    } else {
+      CGSize(width: size, height: size)
+    }
   }
 
   /// Within the bar's glass, which cuts an item off a few points inside its own edge; before
@@ -55,7 +59,7 @@ struct DiveComputerDownloadButtonLabel: View {
       DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
         .frame(width: 22, height: 22)
         .foregroundStyle(Color.primary)
-        .frame(width: Self.labelSide, height: Self.labelSide)
+        .frame(width: Self.labelSize.width, height: Self.labelSize.height)
         // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
         // the coral nearly to white over a bright one.
         .overlay {
