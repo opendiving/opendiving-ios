@@ -39,7 +39,7 @@ struct ProposalScreensTests {
     return host.viewIfLoaded
   }
 
-  @Test func theSitesTabOffersTheListOnlyWhereTheServerIsThePrimary() async {
+  @Test func theSitesMapOffersTheListOnlyWhereTheServerIsThePrimary() async {
     #expect(await session(primary: true).isCommonsPrimary)
     #expect(await !session(primary: false).isCommonsPrimary)
     #expect(await !session(primary: nil).isCommonsPrimary)

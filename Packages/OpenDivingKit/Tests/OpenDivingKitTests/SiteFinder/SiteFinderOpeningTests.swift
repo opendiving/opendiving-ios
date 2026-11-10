@@ -38,25 +38,25 @@ struct SiteFinderOpeningTests {
   }
 
   @Test func theSitesTabOpensOnThePhonesLocationFirst() throws {
-    let opened = SiteFinderOpening.sitesTab(
+    let opened = SiteFinderOpening.sitesMap(
       location: here, trips: try trips(), dives: try lastDive(entry: true), today: today)
     #expect(opened.points.map(\.latitude) == [12.34])
     #expect(opened.camera(width: 400, height: 300).zoom == SiteFinderOpening.pointZoom)
   }
 
   @Test func theSitesTabOpensOnATripPartHoldingToday() throws {
-    let opened = SiteFinderOpening.sitesTab(
+    let opened = SiteFinderOpening.sitesMap(
       location: nil, trips: try trips(), dives: try lastDive(entry: true), today: today)
     #expect(opened.points.first?.name == "Dahab, Egypt")
     #expect(opened.points.first?.bounds != nil)
   }
 
   @Test func aPartWithOnlyAStartHoldsThatDayAlone() throws {
-    let opened = SiteFinderOpening.sitesTab(
+    let opened = SiteFinderOpening.sitesMap(
       location: nil, trips: try trips(ends: false), dives: [],
       today: CalendarDate(year: 2026, month: 9, day: 6)!)
     #expect(opened.points.first?.name == "Dahab, Egypt")
-    let later = SiteFinderOpening.sitesTab(
+    let later = SiteFinderOpening.sitesMap(
       location: nil, trips: try trips(ends: false), dives: [],
       today: CalendarDate(year: 2026, month: 9, day: 7)!)
     #expect(later.isWorld)
@@ -64,17 +64,17 @@ struct SiteFinderOpeningTests {
 
   @Test func theSitesTabOpensOnTheLastDivesFixThenItsFirstSitesPin() throws {
     let past = CalendarDate(year: 2020, month: 1, day: 1)!
-    let fixed = SiteFinderOpening.sitesTab(
+    let fixed = SiteFinderOpening.sitesMap(
       location: nil, trips: try trips(), dives: try lastDive(entry: true), today: past)
     #expect(fixed.points.map(\.latitude) == [28.420546])
-    let pinned = SiteFinderOpening.sitesTab(
+    let pinned = SiteFinderOpening.sitesMap(
       location: nil, trips: [], dives: try lastDive(entry: false), today: past)
     #expect(pinned.points.map(\.latitude) == [28.5687])
     #expect(pinned.points.first?.name == "Canyon")
   }
 
   @Test func theSitesTabOpensOnTheWorldWithNothing() {
-    let opened = SiteFinderOpening.sitesTab(location: nil, trips: [], dives: [], today: today)
+    let opened = SiteFinderOpening.sitesMap(location: nil, trips: [], dives: [], today: today)
     #expect(opened.isWorld)
     #expect(opened.camera(width: 400, height: 300) == .world)
   }

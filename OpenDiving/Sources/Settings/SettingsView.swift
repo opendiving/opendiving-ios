@@ -1,17 +1,15 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Settings* tab: the server card with the servers screen, the account as read-only rows with
-/// signing out, and the app.
+/// *Settings*, pushed from the profile: the server card with the servers screen, the account as
+/// read-only rows with signing out, and the app.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
 
   var body: some View {
-    NavigationStack {
-      SettingsList(session: session, signIn: signIn)
-        .navigationTitle("Settings")
-    }
+    SettingsList(session: session, signIn: signIn)
+      .navigationTitle("Settings")
   }
 }
 
@@ -78,7 +76,9 @@ private struct SettingsList: View {
 
 #Preview {
   let session = Session.stub(transport: StubTransport(routes: [:]))
-  SettingsView()
-    .environment(session)
-    .environment(SignInFlow(session: session))
+  NavigationStack {
+    SettingsView()
+  }
+  .environment(session)
+  .environment(SignInFlow(session: session))
 }

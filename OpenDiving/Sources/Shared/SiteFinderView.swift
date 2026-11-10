@@ -2,7 +2,7 @@ import CoreLocation
 import OpenDivingKit
 import SwiftUI
 
-/// The site finder the Sites tab is and the dive form's site picker opens: the map full screen
+/// The site finder the sites map is and the dive form's site picker opens: the map full screen
 /// under a panel that holds the search and the list, *Your sites* and *Use my location* floating
 /// over the map's corner above the panel, and a spinner under the top bar while the list is asked
 /// for again. With no map on the instance the panel stands alone, at its tallest. What a site
@@ -14,7 +14,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
   let units: UnitSystem
   /// What choosing a point on the map does, `Open site` or `Add to dive`.
   let pointAction: String
-  /// Under *Your sites*, the Sites tab's cards with their figures rather than plain rows.
+  /// Under *Your sites*, the sites map's cards with their figures rather than plain rows.
   var showsCards = false
   /// A site chosen from the list or the map.
   let onSite: (DiveSiteLookupItem) -> Void
@@ -193,8 +193,8 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
 
   // MARK: - The panel
 
-  /// `below` is the safe area under the panel, the tab bar's or the home indicator's, which its
-  /// fill runs on through.
+  /// `below` is the safe area under the panel, the home indicator's, which its fill runs on
+  /// through.
   private func panelView(_ panel: SiteFinderPanel, below: Double) -> some View {
     let shape = UnevenRoundedRectangle(
       topLeadingRadius: Self.panelRadius, topTrailingRadius: Self.panelRadius)

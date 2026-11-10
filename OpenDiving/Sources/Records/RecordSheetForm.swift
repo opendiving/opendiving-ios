@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The frame every record form shares: the server's sentence about a refused item above the
 /// fields and the reason a save did not keep below them. In a sheet it has the web dialog's title
-/// and *Cancel* and *Create* in teal. Pushed, as a tab's own create and a page's edit are, it is
+/// and *Cancel* and *Create* in teal. Pushed, as the profile's creates and a page's edit are, it is
 /// laid out as the dive form is, with its save button fixed under it and any delete at its end.
 struct RecordSheetForm<Content: View>: View {
   let title: String

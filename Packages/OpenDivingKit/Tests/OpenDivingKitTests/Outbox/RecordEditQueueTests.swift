@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// Edits and deletes of the records a tab lists, through the queue.
+/// Edits and deletes of the records a list shows, through the queue.
 @MainActor
 struct RecordEditQueueTests {
   private static let tripUUID = UUID(uuidString: "01a0a57a-92c3-73d0-8f2c-e200878f9878")!

@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What the window shows — the server and sign-in screens, or the signed-in shell, under the
+/// What the window shows — the server and sign-in screens, or the sites map signed in, under the
 /// launch splash until the first of them has loaded — and where the one session, the sign-in
 /// flow Settings reaches back into, the inbox, the outbox and the dive-computer download are
 /// injected.
@@ -39,9 +39,9 @@ struct RootView: View {
       case .noServer, .signingIn:
         SignInView()
       case .signedIn(let origin):
-        // Switching between two signed-in servers starts the shell over, rather than
+        // Switching between two signed-in servers starts the app over, rather than
         // showing the last server's lists and screens under the new one.
-        MainTabView()
+        SitesView()
           .id(origin)
       }
     }

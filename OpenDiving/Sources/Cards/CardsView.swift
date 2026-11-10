@@ -3,26 +3,20 @@ import PDFKit
 import SwiftUI
 import UIKit
 
-/// The *Cards* tab: the check-in sheet a dive centre reads at a counter. It refreshes on
-/// every signed-in visit and reads from the phone's cache otherwise — which is how the
-/// signed-out root shows it too, as a sheet.
+/// The check-in sheet signed out, presented over sign-in: the phone's copy, with nothing to
+/// refresh it from, and *Sign in to refresh* leading back.
 struct CardsView: View {
   @Environment(Session.self) private var session
 
   var body: some View {
     NavigationStack {
-      CheckinSheetScreen(session: session)
+      CardsScreen(session: session)
     }
   }
 }
 
-/// The card's own shape, `CERTIFICATION_CARD_ASPECT` on the web: every side is drawn at it.
-private let cardAspect: CGFloat = 1013 / 638
-
-private struct CheckinSheetScreen: View {
+private struct CardsScreen: View {
   @State private var model: CheckinSheetModel
-  @State private var pictures = PictureCache()
-  @State private var fullScreen: FullScreenCard?
   @Environment(\.dismiss) private var dismiss
 
   init(session: Session) {
@@ -30,33 +24,42 @@ private struct CheckinSheetScreen: View {
   }
 
   var body: some View {
-    refreshableWhenSignedIn(page)
-      .navigationTitle("Cards")
-      .toolbar {
-        if !model.isSignedIn {
-          ToolbarItem(placement: .confirmationAction) {
-            Button("Done") { dismiss() }
-          }
-        }
-      }
-      .task {
-        model.load()
-        await model.refresh()
-        await model.followRoute()
-      }
-      .fullScreenCover(item: $fullScreen) { card in
-        FullScreenCardView(card: card)
-      }
-  }
-
-  private var page: some View {
     Group {
-      if let content = model.content {
+      if model.content != nil {
         ScrollView {
-          sheet(content)
+          CheckinSheetView(model: model)
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+      } else {
+        CheckinSheetView(model: model)
+      }
+    }
+    .background(Color(.systemGroupedBackground))
+    .navigationTitle("Cards")
+    .toolbar {
+      ToolbarItem(placement: .confirmationAction) {
+        Button("Done") { dismiss() }
+      }
+    }
+    .task { model.load() }
+  }
+}
+
+/// The card's own shape, `CERTIFICATION_CARD_ASPECT` on the web: every side is drawn at it.
+private let cardAspect: CGFloat = 1013 / 638
+
+/// The check-in sheet a dive centre reads at a counter, as the profile's *Cards* and the signed-out
+/// sheet draw it, inside the host's scroll view: or, with none on the phone, why not.
+struct CheckinSheetView: View {
+  let model: CheckinSheetModel
+  @State private var pictures = PictureCache()
+  @State private var fullScreen: FullScreenCard?
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    Group {
+      if let content = model.content {
+        sheet(content)
       } else if model.isRefreshing {
         EmptyOrErrorView(status: .loading)
       } else if let error = model.refreshError {
@@ -71,16 +74,8 @@ private struct CheckinSheetScreen: View {
               ? nil : "Sign in once with a connection and the sheet is kept here."))
       }
     }
-  }
-
-  /// Signed out, the sheet is presented over sign-in with nothing to refresh from, so a pull
-  /// down is left to dismiss it.
-  @ViewBuilder
-  private func refreshableWhenSignedIn(_ content: some View) -> some View {
-    if model.isSignedIn {
-      content.bubbleRefreshable { await model.refresh() }
-    } else {
-      content
+    .fullScreenCover(item: $fullScreen) { card in
+      FullScreenCardView(card: card)
     }
   }
 
@@ -342,7 +337,7 @@ private struct FullScreenCardView: View {
   }
 }
 
-#Preview("Signed in") {
+#Preview {
   CardsView()
-    .environment(Session.stub(transport: StubTransport(routes: [:])))
+    .environment(Session.signedOutStub(transport: StubTransport(routes: [:])))
 }

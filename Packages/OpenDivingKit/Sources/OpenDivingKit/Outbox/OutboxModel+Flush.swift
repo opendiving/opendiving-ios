@@ -71,7 +71,7 @@ private struct Flush {
   struct Outcome {
     var reachedServer = true
     var landedRecord = false
-    /// A write to a record a tab lists landed.
+    /// A write to a record a list shows landed.
     var changedLists = false
   }
 

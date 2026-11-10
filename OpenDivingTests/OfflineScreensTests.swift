@@ -6,7 +6,7 @@ import Testing
 
 @testable import OpenDiving
 
-/// The flush's app-side triggers, and the tab lists offline: what the phone has shown shows
+/// The flush's app-side triggers, and the profile's lists offline: what the phone has shown shows
 /// before a request that is never answered.
 @MainActor
 struct OfflineScreensTests {
@@ -99,7 +99,7 @@ struct OfflineScreensTests {
 
   @Test func theDivesListShowsWhatItLastLoadedBeforeTheFetchAnswers() async throws {
     let result = try await showsItsCopy(page: "GET dives", .json(DivePreviewData.page)) {
-      DivesView.list($0)
+      ProfileDives.list($0)
     }
     #expect(result.shown == 1)
     #expect(result.lastUpdated != nil)
@@ -107,7 +107,7 @@ struct OfflineScreensTests {
   }
 
   @Test func theTripsListShowsWhatItLastLoadedBeforeTheFetchAnswers() async throws {
-    let result = try await showsItsCopy(page: "GET trips", F.page(F.trip)) { TripsView.list($0) }
+    let result = try await showsItsCopy(page: "GET trips", F.page(F.trip)) { ProfileTrips.list($0) }
     #expect(result.shown == 1)
     #expect(result.lastUpdated != nil)
     #expect(result.afterRelease == 1)

@@ -5,7 +5,8 @@ import UIKit
 
 @testable import OpenDiving
 
-/// The Cards view under an injected session, signed in and — from the cache — signed out.
+/// The check-in sheet under an injected session: the profile's signed in, and the signed-out
+/// sheet's from the cache.
 @MainActor
 struct CardsViewTests {
   private static let origin = ServerOrigin("https://stub.opendiving.invalid")!
@@ -44,8 +45,8 @@ struct CardsViewTests {
     "POST auth/logout": .json(#"{"message":"Logged out successfully"}"#),
   ]
 
-  private func host(_ session: Session) -> UIView? {
-    let host = UIHostingController(rootView: CardsView().environment(session))
+  private func host(_ view: some View, _ session: Session) -> UIView? {
+    let host = UIHostingController(rootView: view.environment(session))
     host.loadViewIfNeeded()
     host.view.layoutIfNeeded()
     return host.viewIfLoaded
@@ -53,7 +54,8 @@ struct CardsViewTests {
 
   @Test func hostsSignedIn() {
     let session = Session.stub(origin: Self.origin, transport: StubTransport(routes: Self.routes))
-    #expect(host(session) != nil)
+    let sheet = ScrollView { CheckinSheetView(model: CheckinSheetModel(session: session)) }
+    #expect(host(sheet, session) != nil)
   }
 
   @Test func signedOutItReadsTheCachedSheet() async throws {
@@ -63,7 +65,7 @@ struct CardsViewTests {
     #expect(model.refreshError == nil)
     try await session.signOut()
 
-    #expect(host(session) != nil)
+    #expect(host(CardsView(), session) != nil)
     let signedOut = CheckinSheetModel(session: session)
     signedOut.load()
     #expect(signedOut.content?.name == "Test Diver")

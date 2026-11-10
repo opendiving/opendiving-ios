@@ -1,32 +1,40 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The head of a dive's, a trip's or a site's page: a map of its places, up under the top bar
-/// on a page that lets it (``SwiftUI/View/heroUnderTopBar()``) and on above the page for a
-/// pull-down to show, fading into the page, under
-/// its chips, title, facts and figures, and the map's credit after them. A record
-/// with nowhere to put on a map, or on an instance with no map to draw, gets the band without
-/// one.
-struct HeroView: View {
+/// The head of a dive's, a trip's or a site's page, or of the diver's profile: a map of its
+/// places, up under the top bar on a page that lets it (``SwiftUI/View/heroUnderTopBar()``) and
+/// on above the page for a pull-down to show, fading into the page, under its chips, title,
+/// facts and figures, and the map's credit after them. `leading` stands before the title and
+/// the facts — the profile's picture. A record with nowhere to put on a map, or on an instance
+/// with no map to draw, gets the band without one.
+struct HeroView<Leading: View>: View {
   let content: HeroContent
+  @ViewBuilder let leading: () -> Leading
 
   /// How far the band is drawn above the head, out of sight until a pull-down reveals it.
-  private static let pullReach: CGFloat = 400
+  private static var pullReach: CGFloat { 400 }
 
   @Environment(\.heroTopInset) private var topInset
   @State private var height: CGFloat = 0
   @State private var detailsHeight: CGFloat = 0
   @State private var credit: String?
 
-  private var hasMap: Bool { !content.points.isEmpty || !content.fixes.isEmpty }
+  private var hasMap: Bool {
+    !content.points.isEmpty || !content.fixes.isEmpty || content.mapsTheWorldWhenEmpty
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       ChipsRow(chips: content.chips)
-      TitleLine(
-        title: content.title, isCourse: content.isCourse, rating: content.rating,
-        font: .title2.bold())
-      FactsLine(facts: content.facts)
+      HStack(alignment: .top, spacing: 12) {
+        leading()
+        VStack(alignment: .leading, spacing: 6) {
+          TitleLine(
+            title: content.title, isCourse: content.isCourse, rating: content.rating,
+            font: .title2.bold())
+          FactsLine(facts: content.facts)
+        }
+      }
       FiguresRow(figures: content.figures)
         .padding(.top, 4)
       if let credit {
@@ -59,7 +67,7 @@ struct HeroView: View {
           MapBackdropView(
             points: content.points, fixes: content.fixes,
             overflowTop: Self.pullReach, coveredTop: topInset, coveredBottom: detailsHeight,
-            credit: $credit
+            worldWhenEmpty: content.mapsTheWorldWhenEmpty, credit: $credit
           )
           .allowsHitTesting(false)
           .accessibilityHidden(true)
@@ -67,6 +75,12 @@ struct HeroView: View {
       }
       .frame(height: height + Self.pullReach)
     }
+  }
+}
+
+extension HeroView where Leading == EmptyView {
+  init(content: HeroContent) {
+    self.init(content: content) { EmptyView() }
   }
 }
 

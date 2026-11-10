@@ -85,7 +85,7 @@ public struct AccountCache: Sendable {
   }
 
   /// Drops a dive the server no longer has: its detail, and its row on every kept list of
-  /// dives — the Dives tab's and each site's and trip's page.
+  /// dives — the profile's and each site's and trip's page.
   func removeDive(_ uuid: UUID) {
     remove(Self.divePath(uuid))
     let folder = root.appendingPathComponent("pages", isDirectory: true)

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where the site finder's camera opens: the places it fits, or none, for the world. Each host
-/// has its own rule — the Sites tab's and the dive form's — and the server has no part in either;
+/// has its own rule — the sites map's and the dive form's — and the server has no part in either;
 /// whatever the rule ends on, the opening is one move, made once its answer is in.
 public struct SiteFinderOpening: Hashable, Sendable {
   /// A town's worth of map around a lone point.
@@ -53,12 +53,12 @@ public struct SiteFinderOpening: Hashable, Sendable {
     ])
   }
 
-  // MARK: - The Sites tab
+  // MARK: - The sites map
 
-  /// The Sites tab's rule: the phone's location where the diver allowed it; else the place of
+  /// The sites map's rule: the phone's location where the diver allowed it; else the place of
   /// the first trip part whose dates hold `today`, in the trip list's order; else the last
   /// dive's — its entry fix, else its first site's pin; else the world.
-  public static func sitesTab(
+  public static func sitesMap(
     location: DeviceLocation?, trips: [TripRead], dives: [DiveListItem], today: CalendarDate
   ) -> SiteFinderOpening {
     if let location { return point(location) }

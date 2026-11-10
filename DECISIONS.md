@@ -102,9 +102,9 @@ the prompt; a shorter timeout, which still spins and still counts the create as 
 
 ## A record page reads nothing without a route
 
-A dive's, a site's or a trip's page, the lists on the last two and the Cards tab check the path
-before reading: with no route they show the phone's copy, or say the record shows once the server
-can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
+A dive's, a site's or a trip's page, the lists on the last two, and the profile's head and its
+*Cards* check the path before reading: with no route they show the phone's copy, or say the record
+shows once the server can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
 read too, since the page reads itself the moment it can. Rejected: letting the read wait out the
 minute, which spins over a page the phone could not have filled anyway.
 

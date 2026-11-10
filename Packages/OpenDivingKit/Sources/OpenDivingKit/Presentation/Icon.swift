@@ -42,9 +42,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case sun
   case tabDive = "tab-dive"
   case tabDiveSite = "tab-dive-site"
-  case tabIdCard = "tab-id-card"
   case tabLuggage = "tab-luggage"
-  case tabSettings = "tab-settings"
   case twinTank = "twin-tank"
   case upload
   case user

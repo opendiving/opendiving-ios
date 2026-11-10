@@ -49,7 +49,7 @@ struct SiteProposalHandBack {
   var onReplaced: (Set<RecordRef>, DiveSiteRead) -> Void = { _, _ in }
 }
 
-/// The dive site form as a screen of its own: the *Sites* tab's new site, a site's page's edit,
+/// The dive site form as a screen of its own: a new site pinned on the sites map, a site's page's edit,
 /// a queued edit the server refused, or the propose flow's *Edit*. A Commons record opens its own
 /// form, and one off the diver's list none.
 struct DiveSiteFormView: View {
@@ -314,7 +314,7 @@ private struct DiveSiteSheetForm: View {
     } ?? []
   }
 
-  /// From a dive's picker the record goes on the dive, and from the *Sites* tab on the diver's
+  /// From a dive's picker the record goes on the dive, and from the sites map on the diver's
   /// list; a record of the diver's being corrected or edited has no use for one.
   private var commonsOffer: CommonsOffer? {
     if model.isReopened { return nil }

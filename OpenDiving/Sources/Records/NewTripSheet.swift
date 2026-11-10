@@ -26,7 +26,7 @@ struct NewTripSheet: View {
   }
 }
 
-/// The trip form as a screen of its own: the *Trips* tab's new trip, a trip's page's edit, or a
+/// The trip form as a screen of its own: the profile's new trip, a trip's page's edit, or a
 /// queued edit the server refused.
 struct TripFormView: View {
   let mode: RecordFormMode<TripRead>

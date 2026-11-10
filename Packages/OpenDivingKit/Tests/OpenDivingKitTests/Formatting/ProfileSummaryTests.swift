@@ -21,7 +21,8 @@ struct ProfileSummaryTests {
   }
 
   private let dahab = LocationRead(name: "Dahab, Egypt", latitude: 28.5, longitude: 34.5)
-  private let moalboal = LocationRead(name: "Moalboal, Philippines", latitude: 9.9, longitude: 123.4)
+  private let moalboal = LocationRead(
+    name: "Moalboal, Philippines", latitude: 9.9, longitude: 123.4)
   private let today = CalendarDate(year: 2026, month: 10, day: 8)!
 
   private func hero(
@@ -62,8 +63,10 @@ struct ProfileSummaryTests {
 
   /// "rounds the time to whole hours past the first, and minutes under it".
   @Test func theTimeIsWholeHoursPastTheFirst() throws {
-    #expect(value("Total dive time", hero(try Self.stats(["total_submerged_time": 563_460]))) == "157h")
-    #expect(value("Total dive time", hero(try Self.stats(["total_submerged_time": 2400]))) == "40min")
+    #expect(
+      value("Total dive time", hero(try Self.stats(["total_submerged_time": 563_460]))) == "157h")
+    #expect(
+      value("Total dive time", hero(try Self.stats(["total_submerged_time": 2400]))) == "40min")
   }
 
   @Test func theDepthIsInTheDiversUnits() throws {
@@ -109,7 +112,8 @@ struct ProfileSummaryTests {
       hero(try Self.stats()).facts == [
         Fact(text: "Diving since 2014"), Fact(text: "Last dive 3 days ago"),
       ])
-    #expect(hero(try Self.stats(["first_dive_on": NSNull(), "last_dive_on": NSNull()])).facts == [])
+    #expect(
+      hero(try Self.stats(["first_dive_on": NSNull(), "last_dive_on": NSNull()])).facts == [])
   }
 
   /// `getUserInitials`, and the person `UserAvatar` draws under two letters.

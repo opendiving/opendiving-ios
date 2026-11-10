@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// The *Dive Computers* screen's model for the signed-in shell's whole life, so a download
-/// keeps going when the diver leaves the screen, and the Dives tab's button that leads back to it.
+/// The *Dive Computers* screen's model for the signed-in app's whole life, so a download
+/// keeps going when the diver leaves the screen, and the profile's button that leads back to it.
 ///
 /// The screen reads ``model`` and reports its appearing and disappearing. Left mid-download,
 /// the model is kept and ``button`` shows until the screen is seen again — through the end of
@@ -35,7 +35,7 @@ public final class DiveComputerDownloads {
     return fresh
   }
 
-  /// The download the Dives tab's button draws, while the screen was left mid-download and is
+  /// The download the profile's button draws, while the screen was left mid-download and is
   /// not shown.
   public var button: DiveComputerButtonContent? {
     _ = generation
