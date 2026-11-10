@@ -1,14 +1,20 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The whole reading the weather bar stands for: the site's place, the reading in words with the
-/// rest of the weather under it, the sea with its waves and tide drawn below that, and whose data
+/// The whole reading the weather bar stands for: the site's place, the sky, the wind and the sea's
+/// temperature large across the top, the reading in words with the rest of the weather under it, the sea with its waves and tide drawn below that, and whose data
 /// it is, which the provider's licence asks to be shown. Without a background: ``MapWeatherExplainer``
 /// gives it the one it grows from the bar with.
 struct MapWeatherCard: View {
   let content: MapWeatherContent
   /// The open site's place, else its name; nil while its panel reads it.
   let title: String?
+  /// Where the bar's sky and wind land, when they fly here from the bar rather than being drawn.
+  var slots: MapWeatherSlots?
+  @ScaledMetric(relativeTo: .title2) private var size = MapWeatherCard.size
+
+  /// The top row's text size, before Dynamic Type scales it.
+  static let size: CGFloat = 24
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -16,6 +22,7 @@ struct MapWeatherCard: View {
       Text(title ?? "Place, Region, Country")
         .font(.subheadline.weight(.semibold))
         .redacted(reason: title == nil ? .placeholder : [])
+      top
       Text(content.summary)
         .font(.subheadline)
       if !content.details.isEmpty {
@@ -37,6 +44,44 @@ struct MapWeatherCard: View {
       AttributionLine(credits: [content.attribution], underline: false)
     }
     .padding()
+  }
+}
+
+extension MapWeatherCard {
+  /// The sky, the wind and the sea's temperature, spread across the card. The summary under them
+  /// says the first two in words, so VoiceOver reads only the sea.
+  private var top: some View {
+    HStack {
+      if MapWeatherSky.shows(content) {
+        MapWeatherSky(content: content, size: size)
+          .mapWeatherSlot(.sky, slots)
+          .accessibilityHidden(true)
+      }
+      Spacer(minLength: 8)
+      if MapWeatherWind.shows(content) {
+        MapWeatherWind(content: content, size: size)
+          .mapWeatherSlot(.wind, slots)
+          .accessibilityHidden(true)
+      }
+      if let sea = content.seaTemperature {
+        Spacer(minLength: 8)
+        HStack(spacing: size * 0.4) {
+          Image(loaded: .waves)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size * 1.2, height: size * 1.2)
+          Text(sea.value)
+        }
+        .font(.system(size: size))
+        .monospacedDigit()
+        .lineLimit(1)
+        .fixedSize()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(sea.label)
+        .accessibilityValue(sea.spokenValue)
+      }
+    }
+    .padding(.vertical, 4)
   }
 }
 

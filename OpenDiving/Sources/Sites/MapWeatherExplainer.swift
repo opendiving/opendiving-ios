@@ -6,8 +6,9 @@ import SwiftUI
 ///
 /// It opens on a copy of the bar where the bar is drawn, while the bar itself is hidden, and grows
 /// the copy's glass into the card's; closing shrinks it back before the presentation ends, so the
-/// bar is never seen to leave. Only the glass morphs: the bar's label and the card's lines fade, so
-/// no line is laid out at a size it is never shown at.
+/// bar is never seen to leave. The glass morphs, the bar's sky and wind fly to the top of the card
+/// growing as they go, and the card's other lines fade in once there is room for them, so no line
+/// is laid out at a size it is never shown at.
 struct MapWeatherExplainer: View {
   let content: MapWeatherContent
   /// The open site's place, else its name.
@@ -19,6 +20,8 @@ struct MapWeatherExplainer: View {
 
   @State private var isOpen = false
   @Namespace private var morph
+  @ScaledMetric(relativeTo: .subheadline) private var barSize = MapWeatherBarLabel.size
+  @ScaledMetric(relativeTo: .title2) private var cardSize = MapWeatherCard.size
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.colorScheme) private var colorScheme
 
@@ -43,6 +46,22 @@ struct MapWeatherExplainer: View {
         } else {
           bar
         }
+        // The bar's sky and wind, flown between its slots in the bar and in the card and redrawn
+        // at each size between, over both.
+        ForEach(parts, id: \.self) { part in
+          MapWeatherSized(size: isOpen ? cardSize : barSize) { size in
+            switch part {
+            case .sky: MapWeatherSky(content: content, size: size)
+            case .wind: MapWeatherWind(content: content, size: size)
+            }
+          }
+          .matchedGeometryEffect(
+            id: MapWeatherSlots.id(part, isOpen ? .card : .bar), in: morph,
+            properties: .position, isSource: false
+          )
+          .allowsHitTesting(false)
+          .accessibilityHidden(true)
+        }
       }
     }
     .ignoresSafeArea()
@@ -51,18 +70,14 @@ struct MapWeatherExplainer: View {
   }
 
   private var bar: some View {
-    MapWeatherBarLabel(content: content)
+    MapWeatherBarLabel(content: content, slots: MapWeatherSlots(namespace: morph, place: .bar))
       .mapWeatherBarLayout()
       .frame(width: barFrame.width, height: barFrame.height)
       .matchedGeometryEffect(id: "bar", in: morph)
       .padding(.leading, barFrame.minX)
       .padding(.top, barFrame.minY)
-      // Back only once the glass is nearly home, so the label never floats ahead of it.
-      .transition(
-        .asymmetric(
-          insertion: .opacity.animation(.easeInOut(duration: 0.2).delay(0.25)),
-          removal: .opacity.animation(.easeOut(duration: 0.15)))
-      )
+      // Only slots: the parts themselves are the flying ones.
+      .transition(.identity)
       .accessibilityHidden(true)
   }
 
@@ -71,8 +86,12 @@ struct MapWeatherExplainer: View {
     // the card sits just above the screen's middle, where it reads as centred.
     let height = window.height - 2 * barFrame.minY - 40
     return ViewThatFits(in: .vertical) {
-      MapWeatherCard(content: content, title: title)
-      ScrollView { MapWeatherCard(content: content, title: title) }
+      MapWeatherCard(
+        content: content, title: title, slots: MapWeatherSlots(namespace: morph, place: .card))
+      ScrollView {
+        MapWeatherCard(
+          content: content, title: title, slots: MapWeatherSlots(namespace: morph, place: .card))
+      }
     }
     .frame(width: min(window.width - 32, 380))
     .frame(maxHeight: height, alignment: .top)
@@ -91,6 +110,15 @@ struct MapWeatherExplainer: View {
   /// Darker in dark mode, where a light dim over dark tiles and a black panel barely shows.
   private var dimming: Double {
     colorScheme == .dark ? 0.6 : 0.35
+  }
+
+  private var parts: [MapWeatherPart] {
+    MapWeatherPart.allCases.filter { part in
+      switch part {
+      case .sky: MapWeatherSky.shows(content)
+      case .wind: MapWeatherWind.shows(content)
+      }
+    }
   }
 
   private var morphing: Animation {

@@ -20,30 +20,26 @@ struct MapWeatherBar: View {
   }
 }
 
-/// The bar's sky, temperature and wind, without its capsule: drawn by the bar, and by the copy of
-/// it that grows into the card.
+/// The bar's sky, temperature and wind, without its capsule: drawn by the bar, and laid out by
+/// its copy in the card's presentation, where `slots` marks where its parts fly from.
 struct MapWeatherBarLabel: View {
   let content: MapWeatherContent
+  var slots: MapWeatherSlots?
+  @ScaledMetric(relativeTo: .subheadline) private var size = MapWeatherBarLabel.size
+
+  /// The bar's text size, before Dynamic Type scales it.
+  static let size: CGFloat = 15
 
   var body: some View {
     HStack(spacing: 6) {
-      if let icon = content.icon {
-        Image(loaded: icon)
+      if MapWeatherSky.shows(content) {
+        MapWeatherSky(content: content, size: size)
+          .mapWeatherSlot(.sky, slots)
       }
-      if let temperature = content.temperature {
-        Text(temperature)
-      }
-      if let windSpeed = content.windSpeed {
-        // Wider than the label's: turned, the arrow's corners reach past its frame.
-        HStack(spacing: 5) {
-          if let heading = content.windHeading {
-            Image(loaded: .navigation2)
-              .imageScale(.small)
-              .rotationEffect(.degrees(heading))
-          }
-          Text(windSpeed)
-        }
-        .padding(.leading, 4)
+      if MapWeatherWind.shows(content) {
+        MapWeatherWind(content: content, size: size)
+          .mapWeatherSlot(.wind, slots)
+          .padding(.leading, 4)
       }
     }
   }

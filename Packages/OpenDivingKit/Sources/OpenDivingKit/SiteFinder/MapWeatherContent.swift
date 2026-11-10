@@ -26,8 +26,10 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
   /// has it.
   public let details: [Detail]
-  /// The sea's temperature, and the tide with its last and next turn where ``tide`` cannot draw
-  /// it, each where the marine model has it; empty inland. The waves are ``waves``'s.
+  /// The sea's surface temperature, `26°C`, which the card shows large beside the sky and the wind.
+  public let seaTemperature: Detail?
+  /// The tide with its last and next turn where ``tide`` cannot draw it, and a wave period with no
+  /// height to draw it on, each where the marine model has it; empty inland.
   public let sea: [Detail]
   /// The waves and swell drawn on one scale; nil without either height.
   public let waves: WaveProfile?
@@ -74,6 +76,12 @@ public struct MapWeatherContent: Hashable, Sendable {
     let drawnWaves = read.sea.flatMap { WaveProfile($0, units: units) }
     tide = drawnTide
     waves = drawnWaves
+    seaTemperature = read.sea?.seaSurfaceTemperature.map { celsius in
+      Detail(
+        label: "Sea temperature", value: UnitFormat.temperature(celsius, units, decimals: 0),
+        spokenValue: UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
+          + Measure.temperature.word(units))
+    }
     sea =
       read.sea.map {
         Self.sea($0, units: units, drawsTide: drawnTide != nil)
@@ -83,13 +91,6 @@ public struct MapWeatherContent: Hashable, Sendable {
 
   private static func sea(_ sea: ConditionsSea, units: UnitSystem, drawsTide: Bool) -> [Detail] {
     var details: [Detail] = []
-    if let celsius = sea.seaSurfaceTemperature {
-      details.append(
-        Detail(
-          label: "Sea temperature", value: UnitFormat.temperature(celsius, units, decimals: 0),
-          spokenValue: UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
-            + Measure.temperature.word(units)))
-    }
     // A period with no height has no strip to read on.
     if sea.waveHeight == nil, let period = sea.wavePeriod {
       let whole = NumberText.fixed(NumberText.round(period), decimals: 0)

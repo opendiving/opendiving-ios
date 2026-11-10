@@ -120,9 +120,9 @@ struct MapWeatherTests {
     let read = try APICoding.decoder().decode(
       DiveConditionsCurrentRead.self, from: Data(Self.blueHole.utf8))
     let metric = try #require(MapWeatherContent(read, units: .metric))
-    #expect(metric.sea.map(\.label) == ["Sea temperature"])
-    #expect(metric.sea.map(\.value) == ["26°C"])
-    #expect(metric.sea.map(\.spokenValue) == ["26 degrees Celsius"])
+    #expect(metric.sea.isEmpty)
+    #expect(metric.seaTemperature?.value == "26°C")
+    #expect(metric.seaTemperature?.spokenValue == "26 degrees Celsius")
     #expect(metric.tide != nil)
     let waves = try #require(metric.waves)
     #expect(waves.strips.map(\.label) == ["Waves", "Swell"])
@@ -130,7 +130,7 @@ struct MapWeatherTests {
     #expect(waves.accessibilityLabel == "Waves 0.9 meters every 4 seconds, swell 0.1 meters")
 
     let imperial = try #require(MapWeatherContent(read, units: .imperial))
-    #expect(imperial.sea.map(\.value) == ["78°F"])
+    #expect(imperial.seaTemperature?.value == "78°F")
     #expect(imperial.waves?.strips.map(\.value) == ["3 ft · 4 s", "0 ft"])
   }
 
