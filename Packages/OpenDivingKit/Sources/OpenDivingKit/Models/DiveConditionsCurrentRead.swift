@@ -1,14 +1,69 @@
-/// `GET /dive-conditions/current`: the surface weather the instance's provider has for a position
-/// at the hour nearest now.
+/// `GET /dive-conditions/current`: the surface weather and the sea the instance's provider has for
+/// a position at the hour nearest now.
 public struct DiveConditionsCurrentRead: Decodable, Hashable, Sendable {
   /// The source line the data's licence asks for, as markdown links.
   public let attribution: String
   /// Nil where the provider has nothing for the position.
   public let weather: ConditionsWeather?
+  /// Nil inland, where the marine model has nothing, or where it could not be asked.
+  public let sea: ConditionsSea?
 
-  public init(attribution: String, weather: ConditionsWeather?) {
+  public init(attribution: String, weather: ConditionsWeather?, sea: ConditionsSea? = nil) {
     self.attribution = attribution
     self.weather = weather
+    self.sea = sea
+  }
+}
+
+/// The marine model's sea at an hour, in metric units.
+public struct ConditionsSea: Decodable, Hashable, Sendable {
+  /// Metres above the model's mean sea level, not a chart datum.
+  public let seaLevelHeight: Double?
+  /// `high`, `low`, `rising` or `falling`; high or low within half an hour of a turn.
+  public let tideState: String?
+  /// The last turn of the tide within the day before; nil where none lies there.
+  public let previousExtreme: ConditionsExtreme?
+  /// The next turn of the tide within the day after; nil where none lies there.
+  public let nextExtreme: ConditionsExtreme?
+  /// Degrees Celsius.
+  public let seaSurfaceTemperature: Double?
+  /// Significant wave height, in metres.
+  public let waveHeight: Double?
+  /// Seconds.
+  public let wavePeriod: Double?
+  /// Metres.
+  public let swellWaveHeight: Double?
+
+  public init(
+    seaLevelHeight: Double? = nil, tideState: String? = nil,
+    previousExtreme: ConditionsExtreme? = nil, nextExtreme: ConditionsExtreme? = nil,
+    seaSurfaceTemperature: Double? = nil, waveHeight: Double? = nil, wavePeriod: Double? = nil,
+    swellWaveHeight: Double? = nil
+  ) {
+    self.seaLevelHeight = seaLevelHeight
+    self.tideState = tideState
+    self.previousExtreme = previousExtreme
+    self.nextExtreme = nextExtreme
+    self.seaSurfaceTemperature = seaSurfaceTemperature
+    self.waveHeight = waveHeight
+    self.wavePeriod = wavePeriod
+    self.swellWaveHeight = swellWaveHeight
+  }
+}
+
+/// A high or low water.
+public struct ConditionsExtreme: Decodable, Hashable, Sendable {
+  /// `high` or `low`.
+  public let kind: String
+  /// Spelled at the offset the place has at that instant.
+  public let at: DiveTimestamp
+  /// Metres above the model's mean sea level.
+  public let height: Double
+
+  public init(kind: String, at: DiveTimestamp, height: Double) {
+    self.kind = kind
+    self.at = at
+    self.height = height
   }
 }
 

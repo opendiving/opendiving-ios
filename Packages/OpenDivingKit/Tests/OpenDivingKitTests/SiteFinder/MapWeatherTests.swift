@@ -102,6 +102,40 @@ struct MapWeatherTests {
     #expect(imperial.details[2].spokenValue == "0.02 inches")
   }
 
+  /// The API's live answer for the Blue Hole: the sea the marine model gives.
+  private static let blueHoleSea: String =
+    #""sea":{"model":"best_match","sea_level_height":0.33,"tide_state":"high","#
+    + #""previous_extreme":{"kind":"high","at":"2026-11-10T18:00:00+02:00","height":0.33},"#
+    + #""next_extreme":{"kind":"low","at":"2026-11-11T01:00:00+02:00","height":-0.27},"#
+    + #""sea_surface_temperature":25.5,"wave_height":0.94,"wave_period":3.7,"#
+    + #""swell_wave_height":0.1}"#
+  private static let blueHole: String = String(dahab.dropLast()) + "," + blueHoleSea + "}"
+
+  @Test func theTapListsTheSeaAndTheTideOnThePlacesClock() throws {
+    let read = try APICoding.decoder().decode(
+      DiveConditionsCurrentRead.self, from: Data(Self.blueHole.utf8))
+    let metric = try #require(MapWeatherContent(read, units: .metric))
+    #expect(
+      metric.sea.map(\.label) == [
+        "Sea temperature", "Wave height", "Wave period", "Swell", "Tide", "Last high", "Next low",
+      ])
+    #expect(
+      metric.sea.map(\.value) == ["26°C", "0.9 m", "4 s", "0.1 m", "High", "18:00", "01:00"])
+    #expect(
+      metric.sea.prefix(4).map(\.spokenValue) == [
+        "26 degrees Celsius", "0.9 meters", "4 seconds", "0.1 meters",
+      ])
+
+    let imperial = try #require(MapWeatherContent(read, units: .imperial))
+    #expect(imperial.sea.prefix(4).map(\.value) == ["78°F", "3 ft", "4 s", "0 ft"])
+  }
+
+  @Test func inlandThereIsNoSea() throws {
+    let read = try APICoding.decoder().decode(
+      DiveConditionsCurrentRead.self, from: Data(Self.dahab.utf8))
+    #expect(try #require(MapWeatherContent(read, units: .metric)).sea.isEmpty)
+  }
+
   @Test func aFigureTheProviderLacksIsLeftOutAndNoRainIsStillSaid() throws {
     let content = try #require(
       MapWeatherContent(

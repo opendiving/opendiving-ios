@@ -1,6 +1,6 @@
 /// What the Sites map's weather bar draws for the weather at the map's centre: the sky's icon,
 /// the air temperature, and the wind's speed with an arrow along it; and, under its tap, the rest
-/// of the provider's reading.
+/// of the provider's weather and the sea.
 public struct MapWeatherContent: Hashable, Sendable {
   /// A line of the reading the bar has no room for.
   public struct Detail: Hashable, Sendable {
@@ -26,6 +26,9 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
   /// has it.
   public let details: [Detail]
+  /// The sea's temperature, its waves and swell, and the tide with its last and next turn, each
+  /// where the marine model has it; empty inland.
+  public let sea: [Detail]
   /// The provider's source line, as markdown links.
   public let attribution: String
 
@@ -63,8 +66,51 @@ public struct MapWeatherContent: Hashable, Sendable {
     summary = Self.sentence(written)
     accessibilityLabel = Self.sentence(spoken)
     details = Self.details(weather, units: units)
+    sea = read.sea.map { Self.sea($0, units: units) } ?? []
     attribution = read.attribution
   }
+
+  private static func sea(_ sea: ConditionsSea, units: UnitSystem) -> [Detail] {
+    var details: [Detail] = []
+    if let celsius = sea.seaSurfaceTemperature {
+      details.append(
+        Detail(
+          label: "Sea temperature", value: UnitFormat.temperature(celsius, units, decimals: 0),
+          spokenValue: UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
+            + Measure.temperature.word(units)))
+    }
+    if let height = sea.waveHeight {
+      details.append(length("Wave height", height, units: units))
+    }
+    if let period = sea.wavePeriod {
+      let whole = NumberText.fixed(NumberText.round(period), decimals: 0)
+      details.append(
+        Detail(label: "Wave period", value: whole + " s", spokenValue: whole + " seconds"))
+    }
+    if let swell = sea.swellWaveHeight {
+      details.append(length("Swell", swell, units: units))
+    }
+    if let state = sea.tideState, let label = tideStates[state] {
+      details.append(Detail(label: "Tide", value: label, spokenValue: label))
+    }
+    for (extreme, when) in [(sea.previousExtreme, "Last"), (sea.nextExtreme, "Next")] {
+      guard let extreme, extreme.kind == "high" || extreme.kind == "low" else { continue }
+      let clock = DateText.diveTime(extreme.at)
+      details.append(Detail(label: "\(when) \(extreme.kind)", value: clock, spokenValue: clock))
+    }
+    return details
+  }
+
+  private static func length(_ label: String, _ meters: Double, units: UnitSystem) -> Detail {
+    Detail(
+      label: label, value: UnitFormat.depth(meters, units, decimals: 1),
+      spokenValue: UnitFormat.number(meters, .depth, units, decimals: 1) + " "
+        + Measure.depth.word(units))
+  }
+
+  static let tideStates = [
+    "high": "High", "low": "Low", "rising": "Rising", "falling": "Falling",
+  ]
 
   private static func details(_ weather: ConditionsWeather, units: UnitSystem) -> [Detail] {
     var details: [Detail] = []
