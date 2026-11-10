@@ -1,13 +1,14 @@
 import Foundation
 import Observation
 
-/// A gear item's page: the item, and the dives it was used on a page at a time. Each shows at
-/// once from the account's copy where the phone has shown it, and with no route nothing is
-/// asked for until one appears.
+/// A gear item's page: the item, its service, and the dives it was used on a page at a time. Each
+/// shows at once from the account's copy where the phone has shown it, and with no route nothing
+/// is asked for until one appears.
 @MainActor
 @Observable
 public final class GearItemDetailModel {
   public let page: RecordPage<GearItemRead>
+  public let service: GearServiceModel
   public let dives: PagedList<DiveListItem>
 
   @ObservationIgnored private let session: Session
@@ -16,6 +17,7 @@ public final class GearItemDetailModel {
   public init(session: Session, gearItemUUID: UUID) {
     self.session = session
     page = RecordPage(session: session, gearItem: gearItemUUID)
+    service = GearServiceModel(session: session, gearItemUUID: gearItemUUID)
     dives = PagedList(
       session: session, itemsPerPage: APIClient.nestedListPageSize,
       cache: .gearItemDives(gearItemUUID), routed: true
@@ -24,17 +26,21 @@ public final class GearItemDetailModel {
     }
   }
 
-  /// The item, then its dives; on a return, whatever shows only the phone's copy, again.
+  /// The item, then its service and its dives; on a return, whatever shows only the phone's
+  /// copy, again.
   public func load() async {
     appearancesAtLoad = session.connectivity.routeAppearances
     await page.load()
-    if page.phase.isLoaded { await dives.rereadIfStale() }
+    if page.phase.isLoaded { await rereadLists() }
   }
 
   /// Pull-to-refresh. An item already on screen stays there when the refresh fails.
   public func refresh() async {
     await page.refresh()
-    if page.phase.isLoaded { await dives.refresh() }
+    guard page.phase.isLoaded else { return }
+    async let service: Void = service.refresh()
+    async let dives: Void = dives.refresh()
+    _ = await (service, dives)
   }
 
   /// Reads again what a route can mend, each time one appears, until the calling task is
@@ -46,7 +52,13 @@ public final class GearItemDetailModel {
 
   private func reread() async {
     await page.reread()
-    if page.phase.isLoaded { await dives.rereadIfStale() }
+    if page.phase.isLoaded { await rereadLists() }
+  }
+
+  private func rereadLists() async {
+    async let service: Void = service.rereadIfStale()
+    async let dives: Void = dives.rereadIfStale()
+    _ = await (service, dives)
   }
 
   /// The write archiving `item`, or bringing it back.

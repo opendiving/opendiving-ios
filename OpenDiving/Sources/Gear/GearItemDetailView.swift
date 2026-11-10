@@ -60,7 +60,7 @@ private struct GearItemDetailContent: View {
               if model.page.hasPendingEdit {
                 PendingEditLine()
               }
-              GearServiceCard(gearItem: item)
+              GearServiceCard(gearItem: item, service: model.service)
               RecordDivesSection(
                 list: model.dives, content: .gearItem, units: session.units, logDive: .create)
               if let notes = GearItemPageContent.notes(item) {

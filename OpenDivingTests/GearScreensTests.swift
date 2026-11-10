@@ -13,12 +13,14 @@ struct GearScreensTests {
     #expect(GearListView.gearFailure(.noRoute) == OfflineText.gearNotShown)
     #expect(GearListView.setsFailure(.noRoute) == OfflineText.gearSetsNotShown)
     #expect(GearItemDetailView.failure(.noRoute) == OfflineText.gearItemNotShown)
+    #expect(GearServiceCard.failure(.noRoute) == OfflineText.gearServiceNotShown)
   }
 
   @Test func aFailureOnlineSaysTheWebsSentence() {
     #expect(GearListView.gearFailure(server) == "Failed to load gear. Please try again.")
     #expect(GearListView.setsFailure(server) == "Failed to load gear sets. Please try again.")
     #expect(GearItemDetailView.failure(server) == server.message)
+    #expect(GearServiceCard.failure(server) == server.message)
   }
 
   @Test func theEmptyStatesAreTheWebs() {
