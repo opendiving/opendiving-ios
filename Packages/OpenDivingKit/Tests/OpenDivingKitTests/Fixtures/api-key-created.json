@@ -1,0 +1,10 @@
+{
+  "uuid": "019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a82",
+  "name": "tide sync",
+  "prefix": "odk_Hn4tW7cE",
+  "scope": "read",
+  "created_at": "2026-11-10T12:00:00Z",
+  "last_used_at": null,
+  "expires_at": "2026-12-10T12:00:00Z",
+  "secret": "odk_Hn4tW7cEexampleSecretNotARealKey0123456789a"
+}
