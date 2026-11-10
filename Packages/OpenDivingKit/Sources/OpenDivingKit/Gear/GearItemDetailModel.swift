@@ -50,13 +50,15 @@ public final class GearItemDetailModel {
   }
 
   /// The write archiving `item`, or bringing it back.
-  public static func archiveToggle(_ item: GearItemRead) -> OutboxOperation {
+  nonisolated public static func archiveToggle(_ item: GearItemRead) -> OutboxOperation {
     .updateGearItem(.server(item.uuid), GearItemUpdate(archived: !item.isArchived))
   }
 
   /// Whether the delete offers *Archive instead*: not for gear archived already, which the
   /// toggle would bring back instead.
-  public static func offersArchiveInstead(_ item: GearItemRead) -> Bool { !item.isArchived }
+  nonisolated public static func offersArchiveInstead(_ item: GearItemRead) -> Bool {
+    !item.isArchived
+  }
 
   /// Queues `operation`, an archive or a delete from the page; the reason it could not, where
   /// the outbox refused it.
