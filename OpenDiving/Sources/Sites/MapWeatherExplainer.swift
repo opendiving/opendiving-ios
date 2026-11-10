@@ -60,7 +60,12 @@ struct MapWeatherExplainer: View {
       .matchedGeometryEffect(id: "bar", in: morph)
       .padding(.leading, barFrame.minX)
       .padding(.top, barFrame.minY)
-      .transition(.opacity.animation(.easeOut(duration: 0.12)))
+      // Back only once the glass is nearly home, so the label never floats ahead of it.
+      .transition(
+        .asymmetric(
+          insertion: .opacity.animation(.easeOut(duration: 0.12).delay(0.3)),
+          removal: .opacity.animation(.easeIn(duration: 0.08)))
+      )
       .accessibilityHidden(true)
   }
 
