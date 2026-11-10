@@ -63,8 +63,8 @@ struct MapWeatherExplainer: View {
       // Back only once the glass is nearly home, so the label never floats ahead of it.
       .transition(
         .asymmetric(
-          insertion: .opacity.animation(.easeOut(duration: 0.12).delay(0.3)),
-          removal: .opacity.animation(.easeIn(duration: 0.08)))
+          insertion: .opacity.animation(.easeInOut(duration: 0.2).delay(0.25)),
+          removal: .opacity.animation(.easeOut(duration: 0.15)))
       )
       .accessibilityHidden(true)
   }
@@ -85,8 +85,8 @@ struct MapWeatherExplainer: View {
     .padding(.top, barFrame.minY)
     .transition(
       .asymmetric(
-        insertion: .opacity.animation(.easeOut(duration: 0.2).delay(0.15)),
-        removal: .opacity.animation(.easeIn(duration: 0.1)))
+        insertion: .opacity.animation(.easeInOut(duration: 0.25).delay(0.12)),
+        removal: .opacity.animation(.easeOut(duration: 0.15)))
     )
     .accessibilityAddTraits(.isModal)
   }
