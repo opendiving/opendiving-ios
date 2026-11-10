@@ -69,7 +69,7 @@ struct CertificationFormView: View {
 extension CertificationFormView {
   static let courseHint = "The training this card came out of, if you logged it."
   static let courseFillHint =
-    " Picking one fills in the certification, dive center and instructor below, and the agency if the course names one."
+    " Picking one fills in the certification, dive center and instructor below."
 }
 
 private struct CertificationSheetForm: View {
