@@ -4,6 +4,10 @@ import Testing
 
 @testable import OpenDivingKit
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 /// The profile's head and the diver's picture: read, kept, and shown from the phone's copy at
 /// the next launch with nothing asked for.
 @MainActor
