@@ -7,10 +7,12 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case arrowDownToLine = "arrow-down-to-line"
   case backpack
   case bedDouble = "bed-double"
+  case bell
   case bookmark
   case building2 = "building-2"
   case calendar
   case chartLine = "chart-line"
+  case clipboardList = "clipboard-list"
   case cloud
   case cloudFog = "cloud-fog"
   case cloudLightning = "cloud-lightning"
@@ -25,18 +27,24 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case gauge
   case globe
   case graduationCap = "graduation-cap"
+  case hardDrive = "hard-drive"
   case idCard = "id-card"
+  case keyRound = "key-round"
   case landmark
   case locateFixed = "locate-fixed"
   case lock
   case luggage
+  case mailPlus = "mail-plus"
   case mapPin = "map-pin"
+  case monitor
+  case moon
   case navigation2 = "navigation-2"
   case paperclip
   case phone
   case plus
   case search
   case ship
+  case slidersHorizontal = "sliders-horizontal"
   case sun
   case tabDive = "tab-dive"
   case tabDiveSite = "tab-dive-site"
