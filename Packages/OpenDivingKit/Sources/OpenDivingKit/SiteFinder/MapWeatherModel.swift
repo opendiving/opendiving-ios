@@ -48,11 +48,15 @@ public final class MapWeatherModel {
   @ObservationIgnored private let session: Session
   /// How long the map rests on a cell before it is asked about.
   @ObservationIgnored var settleDelay = Duration.milliseconds(600)
+  /// How long a cell whose ask failed waits to be asked again, doubling to ``longestPause``.
+  @ObservationIgnored var retryDelay = Duration.seconds(15)
+  static let longestPause = Duration.seconds(300)
   @ObservationIgnored var now: @Sendable () -> Date = { Date() }
   @ObservationIgnored private var held: [Cell: (at: Date, read: DiveConditionsCurrentRead)] = [:]
   @ObservationIgnored private var places: [Cell: Place] = [:]
-  /// The cell the map last showed, which a route appearing asks about again.
   @ObservationIgnored private var shown: Cell?
+  /// The waits between asks, which a route appearing ends.
+  @ObservationIgnored private var waits: [UUID: AsyncStream<Never>.Continuation] = [:]
   /// The server the answers are from, and whether it fetches no conditions at all.
   @ObservationIgnored private var origin: ServerOrigin?
   @ObservationIgnored private var isOff = false
@@ -72,8 +76,9 @@ public final class MapWeatherModel {
   }
 
   /// Shows the weather at `cell`, from what is held or, once the map has rested there, from
-  /// the server. An answer lands only while the map still shows `cell`: a pan onward cancels the
-  /// task that asked, but not one a route appearing started.
+  /// the server, asking until it answers: a failed ask waits ``retryDelay``, doubling, or until a
+  /// route appears, and asks again. Ends once the map no longer shows `cell` or the calling task
+  /// is cancelled, as a pan onward does.
   public func show(_ cell: Cell?) async {
     if cell != shown { place = nil }
     shown = cell
@@ -93,35 +98,64 @@ public final class MapWeatherModel {
       return
     }
     try? await Task.sleep(for: settleDelay)
-    guard isShown(cell) else { return }
+    var pause = retryDelay
+    while isShown(cell) {
+      let appearances = session.connectivity.routeAppearances
+      guard await !ask(cell) else { return }
+      // A route that appeared while the ask was out is a reason to ask again now.
+      guard session.connectivity.routeAppearances == appearances else { continue }
+      await wait(pause)
+      pause = min(pause * 2, Self.longestPause)
+    }
+  }
+
+  /// Asks the server about `cell` once; false when it is worth asking again.
+  private func ask(_ cell: Cell) async -> Bool {
     // Another cell's weather would be wrong here, and there is none to show for this one.
     let client: APIClient
     do {
       client = try session.routedClient()
     } catch {
-      current = nil
-      isUnreachable = APIError(error).isUnreachable
-      return
+      return failed(error)
     }
     let read: DiveConditionsCurrentRead?
     do {
       read = try await client.currentConditions(
         latitude: cell.latitude, longitude: cell.longitude)
     } catch {
-      if isShown(cell) {
-        current = nil
-        isUnreachable = APIError(error).isUnreachable
-      }
-      return
+      return isShown(cell) ? failed(error) : true
     }
     guard let read else {
       isOff = true
       current = nil
       isUnreachable = false
-      return
+      return true
     }
     held[cell] = (now(), read)
     if isShown(cell) { current = read }
+    return true
+  }
+
+  /// Empties the bar for a failed ask; false unless the session is over, which no retry mends.
+  private func failed(_ error: any Error) -> Bool {
+    let error = APIError(error)
+    current = nil
+    isUnreachable = error.isUnreachable
+    return error == .signedOut
+  }
+
+  /// Waits `pause`, or until a route appears or the calling task is cancelled.
+  private func wait(_ pause: Duration) async {
+    let id = UUID()
+    let (ended, wake) = AsyncStream<Never>.makeStream()
+    waits[id] = wake
+    defer { waits[id] = nil }
+    await withTaskGroup(of: Void.self) { group in
+      group.addTask { try? await Task.sleep(for: pause) }
+      group.addTask { for await _ in ended {} }
+      await group.next()
+      group.cancelAll()
+    }
   }
 
   private func isShown(_ cell: Cell) -> Bool {
@@ -156,14 +190,13 @@ public final class MapWeatherModel {
     if shown == cell { place = found }
   }
 
-  /// Asks about the cell the map shows each time a route appears, until the calling task is
-  /// cancelled: a pan with no route left the bar empty.
+  /// Ends the wait of a cell whose ask failed each time a route appears, until the calling task
+  /// is cancelled, so the bar fills as soon as the server can be reached again.
   public func followRoute() async {
-    await session.connectivity.eachRouteAppearance { await routeAppeared() }
+    await session.connectivity.eachRouteAppearance { routeAppeared() }
   }
 
-  func routeAppeared() async {
-    guard current == nil else { return }
-    await show(shown)
+  func routeAppeared() {
+    for wake in waits.values { wake.finish() }
   }
 }
