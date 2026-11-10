@@ -12,21 +12,6 @@ struct CertificationContentTests {
     try KitFixture.decode(CertificationRead.self, "certification-front-only")
   }
 
-  // MARK: - File sizes, the web's golden rows
-
-  @Test func aFileSizeReadsAsTheWebWritesIt() {
-    #expect(FileSizeText.size(0) == "0 KB")
-    #expect(FileSizeText.size(1) == "1 KB")
-    #expect(FileSizeText.size(400) == "1 KB")
-    #expect(FileSizeText.size(1024) == "1 KB")
-    #expect(FileSizeText.size(500 * 1024) == "500 KB")
-    #expect(FileSizeText.size(1024 * 1024) == "1.0 MB")
-    #expect(FileSizeText.size(1024 * 1024 - 1).hasSuffix("KB"))
-    #expect(FileSizeText.size(5 * 1024 * 1024 / 2) == "2.5 MB")
-    #expect(FileSizeText.size(5 * 1024 * 1024) == "5.0 MB")
-    #expect(FileSizeText.size(1024 * 1024 * 1024) == "1.0 GB")
-  }
-
   // MARK: - The list's card
 
   @Test func aCardCarriesItsLevelAgencyFiguresAndFront() throws {

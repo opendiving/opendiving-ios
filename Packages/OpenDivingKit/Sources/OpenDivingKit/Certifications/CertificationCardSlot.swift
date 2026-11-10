@@ -48,7 +48,7 @@ public struct CertificationCardSlot: Hashable, Sendable {
       secondary = .discard("Discard the new \(name) image")
       caption =
         "\(stored == nil ? "Added" : "Replaces the stored image") when you save · "
-        + FileSizeText.size(pick.data.count)
+        + DiveDetailText.fileSize(pick.data.count)
     case .remove:
       shown = .empty
       secondary = .keep("Keep the \(name) image")
@@ -57,7 +57,7 @@ public struct CertificationCardSlot: Hashable, Sendable {
       if let stored {
         shown = .stored(stored)
         secondary = .remove("Remove the \(name) image")
-        caption = "\(stored.originalFilename) · \(FileSizeText.size(stored.byteSize))"
+        caption = "\(stored.originalFilename) · \(DiveDetailText.fileSize(stored.byteSize))"
       } else {
         shown = .empty
         secondary = nil

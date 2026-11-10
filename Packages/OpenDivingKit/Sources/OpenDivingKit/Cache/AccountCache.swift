@@ -2,7 +2,7 @@ import Foundation
 
 /// What one account's server answered and the phone has shown, kept under `Cache/` in the
 /// account's directory so it shows at once, and offline: the lists' pages, the dives, sites,
-/// trips and More's records opened, the species photos drawn, the dive drafts, the pickers'
+/// trips and More's records opened, the species photos and card images drawn, the dive drafts, the pickers'
 /// lookups, the highest dive number seen, and the profile's figures, places and picture. Nothing is fetched to fill it. A file this build cannot
 /// read is dropped and fetched again.
 public struct AccountCache: Sendable {
@@ -70,6 +70,9 @@ public struct AccountCache: Sendable {
 
   func writePages<Item: Codable & Sendable>(_ pages: Pages<Item>, key: String) {
     write(Entry(value: pages, fetchedAt: Date()), "pages/\(key).json")
+    for certification in pages.items as? [CertificationRead] ?? [] {
+      dropCardImages(unnamedBy: certification)
+    }
   }
 
   // MARK: - Dives
@@ -158,16 +161,84 @@ public struct AccountCache: Sendable {
     write(
       Entry(value: record, fetchedAt: fetchedAt), Self.detailPath(kind.folder, kind.uuid(record)))
     prune(kind.folder, pages: kind.lists)
+    if let certification = record as? CertificationRead {
+      dropCardImages(unnamedBy: certification)
+    }
   }
 
-  /// Drops a record the server no longer has, with the lists its page showed.
+  /// Drops a record the server no longer has, with the lists its page showed, and a card's
+  /// images with the card.
   func removeRecord<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) {
     remove(Self.detailPath(kind.folder, uuid))
     for list in kind.lists(uuid) { remove("pages/\(list).json") }
+    if kind.folder == KeptRecordKind<CertificationRead>.certification.folder {
+      remove(Self.cardImagesPath(uuid))
+    }
   }
 
   func touchRecord<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) {
     touch(Self.detailPath(kind.folder, uuid))
+  }
+
+  // MARK: - Card images
+
+  /// One side of a card as last fetched, while the card still names that version of it, or nil.
+  /// A version is the file's uuid and its `updated_at` (`certificationFileVersion`): a replaced
+  /// side moves its `updated_at`, one deleted and uploaded again has a new uuid.
+  public func cardImage(_ certification: UUID, _ file: CertificationFileInfo) -> Data? {
+    try? Data(
+      contentsOf: self.file("\(Self.cardImagesPath(certification))/\(Self.cardImageName(file))"))
+  }
+
+  /// Counts a card's kept sides drawn as drawn, for the bound.
+  func touchCardImages(_ certification: UUID) { touch(Self.cardImagesPath(certification)) }
+
+  /// Kept in place of any other version of that side, the sides of the most recently drawn
+  /// ``detailLimit`` cards kept.
+  func writeCardImage(_ data: Data, _ certification: UUID, _ file: CertificationFileInfo) {
+    let folder = Self.cardImagesPath(certification)
+    let name = Self.cardImageName(file)
+    let url = self.file("\(folder)/\(name)")
+    try? FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let side = Self.cardImageSide(file.side)
+    for older in keptCardImages(certification) where older.hasPrefix(side) && older != name {
+      remove("\(folder)/\(older)")
+    }
+    guard (try? data.write(to: url, options: .atomic)) != nil else { return }
+    touchCardImages(certification)
+    prune("card-images")
+  }
+
+  /// Drops the kept sides `certification` no longer names: a side removed, or replaced while
+  /// the phone was not drawing it.
+  private func dropCardImages(unnamedBy certification: CertificationRead) {
+    let named = Set(certification.files.map(Self.cardImageName))
+    let folder = Self.cardImagesPath(certification.uuid)
+    for kept in keptCardImages(certification.uuid) where !named.contains(kept) {
+      remove("\(folder)/\(kept)")
+    }
+  }
+
+  private func keptCardImages(_ certification: UUID) -> [String] {
+    let folder = root.appendingPathComponent(Self.cardImagesPath(certification), isDirectory: true)
+    return (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+  }
+
+  private static func cardImagesPath(_ certification: UUID) -> String {
+    "card-images/\(certification.uuidString.lowercased())"
+  }
+
+  private static func cardImageSide(_ side: String) -> String {
+    side == CertificationSide.back.rawValue ? "back-" : "front-"
+  }
+
+  /// `front-<file uuid>-<updated_at's letters and digits>`, so no version is ever a path.
+  private static func cardImageName(_ file: CertificationFileInfo) -> String {
+    let updated = (file.updatedAt?.wireValue ?? "").filter {
+      $0.isASCII && ($0.isLetter || $0.isNumber)
+    }
+    return cardImageSide(file.side) + file.uuid.uuidString.lowercased() + "-" + updated
   }
 
   // MARK: - Species photos

@@ -183,4 +183,31 @@ struct CertificationWritesTests {
       of: Self.certification, replaced, session: world.session)
     #expect(none == nil)
   }
+
+  @Test func aCardsImagesGoWithItAndASideItNoLongerNamesGoes() throws {
+    let world = try OutboxWorld()
+    let cache = world.cacheA
+    let certification = try KitFixture.decode(CertificationRead.self, "certification-front-only")
+    let file = try #require(certification.file(side: "front"))
+    cache.writeCardImage(Data("WEBP".utf8), certification.uuid, file)
+    #expect(cache.cardImage(certification.uuid, file) == Data("WEBP".utf8))
+
+    cache.writeRecord(certification, .certification, fetchedAt: Date())
+    #expect(cache.cardImage(certification.uuid, file) != nil)
+    cache.removeRecord(.certification, certification.uuid)
+    #expect(cache.cardImage(certification.uuid, file) == nil)
+
+    cache.writeCardImage(Data("WEBP".utf8), certification.uuid, file)
+    let json = try String(decoding: KitFixture.data("certification-front-only"), as: UTF8.self)
+    let sideRemoved = try APICoding.decoder().decode(
+      CertificationRead.self,
+      from: Data(
+        json.replacingOccurrences(
+          of: #"\[\s*\{[^\]]*\]"#, with: "[]", options: .regularExpression
+        ).utf8))
+    #expect(sideRemoved.files.isEmpty)
+    cache.writePages(
+      AccountCache.Pages(items: [sideRemoved], hasMore: false, nextPage: 2), key: "certifications")
+    #expect(cache.cardImage(certification.uuid, file) == nil)
+  }
 }
