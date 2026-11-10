@@ -162,6 +162,22 @@ public actor APIClient {
       Call(path: "user/portrait", query: [URLQueryItem(name: "v", value: version)], etag: etag))
   }
 
+  /// `GET /user/avatar?v=`, `version` being the account's `avatarSha256`. Ask only when that is
+  /// not null. Sent without an `ETag`: the version is the picture's digest, so a phone holding
+  /// it never asks.
+  public func avatar(version: String) async throws -> FetchedBytes {
+    let (data, response) = try await authorized(
+      Call(path: "user/avatar", query: [URLQueryItem(name: "v", value: version)]))
+    try check(data, response)
+    return FetchedBytes(data: data, response: response)
+  }
+
+  /// `GET /user/trip-places`: every place the account's trips went, each once, for a map to
+  /// frame.
+  public func tripPlaces() async throws -> [LocationRead] {
+    try await authorizedDecoded([LocationRead].self, Call(path: "user/trip-places"))
+  }
+
   /// `GET /people`, one page.
   public func people(page: Int, itemsPerPage: Int = listPageSize) async throws
     -> PaginatedListResponse<PersonRead>
@@ -286,7 +302,7 @@ public actor APIClient {
       path: "species/\(Self.wire(uuid))/photo", query: [URLQueryItem(name: "v", value: version)])
     let (data, response) = try await perform(call, bearer: nil)
     try check(data, response)
-    return FetchedBytes(data: data, contentType: response.value(forHTTPHeaderField: "Content-Type"))
+    return FetchedBytes(data: data, response: response)
   }
 
   // MARK: - Map tiles
@@ -487,7 +503,7 @@ public actor APIClient {
     if response.statusCode == 304 { return .notModified }
     try check(data, response)
     return .fetched(
-      FetchedBytes(data: data, contentType: response.value(forHTTPHeaderField: "Content-Type")),
+      FetchedBytes(data: data, response: response),
       etag: response.value(forHTTPHeaderField: "ETag"))
   }
 
@@ -617,5 +633,11 @@ public actor APIClient {
     accessToken = nil
     try? secrets.removeSecret(for: account)
     await onSessionEnded?()
+  }
+}
+
+extension FetchedBytes {
+  fileprivate init(data: Data, response: HTTPURLResponse) {
+    self.init(data: data, contentType: response.value(forHTTPHeaderField: "Content-Type"))
   }
 }

@@ -24,7 +24,7 @@ private struct HeroUnderTopBar: ViewModifier {
   @State private var isRefreshing = false
 
   func body(content: Content) -> some View {
-    refreshable(content)
+    softTopEdge(refreshable(content))
       .environment(\.heroTopInset, inset)
       .ignoresSafeArea(edges: .top)
       .onScrollGeometryChange(for: CGFloat.self) {
@@ -57,6 +57,17 @@ private struct HeroUnderTopBar: ViewModifier {
   /// How far into a pull the spinner has faded in, from none to whole.
   private var pulledFar: Double {
     min(max(Double(pull - 8) / 40, 0), 1)
+  }
+
+  /// Named, because a bar item drawing glass of its own, with the bar's hidden, otherwise draws
+  /// the bar's edge hard across the map.
+  @ViewBuilder
+  private func softTopEdge(_ content: some View) -> some View {
+    if #available(iOS 26, *) {
+      content.scrollEdgeEffectStyle(.soft, for: .top)
+    } else {
+      content
+    }
   }
 
   @ViewBuilder

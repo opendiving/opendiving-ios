@@ -4,7 +4,7 @@ import UIKit
 
 /// The *Dive Computers* screen: the phone's paired computers, the others found nearby, a
 /// download from the one the diver picks, and the import screen once its dives are in the inbox.
-/// Reached from the Dives tab's dive-computer button, which only the signed-in shell shows.
+/// Reached from the profile's dive-computer button.
 struct DiveComputerView: View {
   @Environment(DiveComputerDownloads.self) private var downloads
 
@@ -19,7 +19,7 @@ struct DiveComputerView: View {
   }
 }
 
-/// The screen over the shell's download model, which a preview or a test gives a fake link.
+/// The screen over the app's download model, which a preview or a test gives a fake link.
 /// Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads

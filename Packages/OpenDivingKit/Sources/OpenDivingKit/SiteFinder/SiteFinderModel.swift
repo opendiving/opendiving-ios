@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// The site finder: a map, the list of `GET /dive-sites/search` beside it, a search box, the
-/// *Your sites* filter and the camera, for the Sites tab and the dive form's site picker alike.
+/// *Your sites* filter and the camera, for the sites map and the dive form's site picker alike.
 ///
 /// **The camera is the anchor.** Every request carries the camera's centre — unless the finder
 /// rests, unmoved, on the world its opening rule ended on, which sends none and lists the diver's
@@ -24,8 +24,8 @@ import Observation
 @Observable
 public final class SiteFinderModel {
   public enum Host: Hashable, Sendable {
-    /// The Sites tab: a row opens the site's page.
-    case sitesTab
+    /// The sites map: a row opens the site's page.
+    case sitesMap
     /// The dive form's site picker: a row puts the site on the dive.
     case diveForm
   }
@@ -71,7 +71,7 @@ public final class SiteFinderModel {
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let locator: any LocationProvider
   @ObservationIgnored private let form: DiveFormModel?
-  /// The day a trip part must hold for the Sites tab to open on it.
+  /// The day a trip part must hold for the sites map to open on it.
   @ObservationIgnored private let today: CalendarDate?
   @ObservationIgnored private var opening: SiteFinderOpening?
   @ObservationIgnored private var isResolving = false
@@ -91,13 +91,13 @@ public final class SiteFinderModel {
 
   private typealias Answer = (query: DiveSiteSearchQuery, list: PagedList<DiveSiteSearchRow>)
 
-  /// The Sites tab's finder.
+  /// The sites map's finder.
   public init(session: Session, locator: any LocationProvider, today: CalendarDate) {
     self.session = session
     self.locator = locator
     self.today = today
     form = nil
-    host = .sitesTab
+    host = .sitesMap
     points = DiveSitePointsModel(session: session)
   }
 
@@ -153,7 +153,7 @@ public final class SiteFinderModel {
       opened = .point(location)
     } else if let today {
       let (trips, dives) = await tripsAndLastDive()
-      opened = .sitesTab(location: nil, trips: trips, dives: dives, today: today)
+      opened = .sitesMap(location: nil, trips: trips, dives: dives, today: today)
     } else {
       opened = .world
     }
@@ -167,7 +167,7 @@ public final class SiteFinderModel {
   }
 
   /// The trip list's first page and the newest dive, as the server answers them, else as the
-  /// Trips and Dives tabs last showed them.
+  /// profile's Trips and Dives last showed them.
   private func tripsAndLastDive() async -> ([TripRead], [DiveListItem]) {
     let cache = AccountStores.current(session)?.cache
     var trips = cache?.pages(PageCacheKey<TripRead>.trips.name, of: TripRead.self)?.value.items
@@ -182,10 +182,10 @@ public final class SiteFinderModel {
     return (trips ?? [], Array((dives ?? []).prefix(1)))
   }
 
-  /// The Sites tab's last untyped list, shown while the opening rule waits on a fix or a read,
+  /// The sites map's last untyped list, shown while the opening rule waits on a fix or a read,
   /// as every list shows its kept pages at once; the opening's own request replaces it.
   private func showKeptWhileOpening() {
-    guard host == .sitesTab else { return }
+    guard host == .sitesMap else { return }
     let kept = PagedList<DiveSiteSearchRow>(
       session: session, cache: .siteFinder(yours: false), routed: true
     ) { _, _, _ in throw APIError.noRoute }
@@ -368,11 +368,11 @@ public final class SiteFinderModel {
     size.width > 0 && size.height > 0
   }
 
-  /// The Sites tab keeps its untyped lists, so the tab shows the last one at once and offline;
+  /// The sites map keeps its untyped lists, so it shows the last one at once and offline;
   /// the dive form's picker lists the cached lookup rows offline instead, and a typed search is
   /// never kept.
   private func cacheKey(_ query: DiveSiteSearchQuery) -> PageCacheKey<DiveSiteSearchRow>? {
-    guard host == .sitesTab, query.text.trimmedOfWhitespace.isEmpty else { return nil }
+    guard host == .sitesMap, query.text.trimmedOfWhitespace.isEmpty else { return nil }
     return .siteFinder(yours: query.yours)
   }
 }

@@ -1,23 +1,16 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The Dives tab's dive-computer button, which opens the *Dive Computers* screen. Over a
+/// The profile's dive-computer button, which opens the *Dive Computers* screen. Over a
 /// download the diver left running, the icon's bars rise in a loop inside a ring of its progress.
 struct DiveComputerToolbarItem: ToolbarContent {
   let action: () -> Void
 
   var body: some ToolbarContent {
-    // The toolbar's own glass pads a custom label into a capsule; the button draws its own
-    // circle, the size of the `+` beside it.
-    if #available(iOS 26, *) {
-      ToolbarItem(placement: .topBarLeading) {
-        DiveComputerDownloadButton(action: action)
-      }
-      .sharedBackgroundVisibility(.hidden)
-    } else {
-      ToolbarItem(placement: .topBarLeading) {
-        DiveComputerDownloadButton(action: action)
-      }
+    // In the bar's own glass: a glass of its own, with the bar's hidden, is carried on iOS 26
+    // into the back button of the page it opens, as a square around its chevron.
+    ToolbarItem(placement: .topBarLeading) {
+      DiveComputerDownloadButton(action: action)
     }
   }
 }
@@ -44,16 +37,25 @@ struct DiveComputerDownloadButtonLabel: View {
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
 
+  /// The label, and the ring around it. On iOS 26 the bar's glass pads the label 10 a side across
+  /// to a circle of `size`, and cuts an item off at about 36 points square however tall its
+  /// label, so the ring sits inside the circle: measured, as the system names neither. Before,
+  /// the bar draws no glass, the label is the whole button and the ring is on its edge.
+  private static var metrics: (label: CGSize, ring: CGFloat) {
+    if #available(iOS 26, *) {
+      (CGSize(width: 24, height: 30), 34)
+    } else {
+      (CGSize(width: size, height: size), size)
+    }
+  }
+
   var body: some View {
     Button(action: action) {
       // The size of the bar's own symbols: the `+` stands as tall.
       DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
         .frame(width: 22, height: 22)
-        .frame(width: Self.size, height: Self.size)
-        .contentShape(Circle())
-        .glass()
-        // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
-        // the coral nearly to white over a bright one.
+        .foregroundStyle(Color.primary)
+        .frame(width: Self.metrics.label.width, height: Self.metrics.label.height)
         .overlay {
           if let content {
             ZStack {
@@ -61,13 +63,13 @@ struct DiveComputerDownloadButtonLabel: View {
                 .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
               ring(content)
             }
-            // On the circle's edge, its stroke inside it.
+            // Its stroke inside its side.
             .padding(Self.ringWidth / 2)
+            .frame(width: Self.metrics.ring, height: Self.metrics.ring)
           }
         }
         .animation(.easeOut(duration: 0.2), value: content == nil)
     }
-    .buttonStyle(.plain)
     .accessibilityLabel(DiveComputerText.connect)
     .accessibilityValue(content?.accessibilityValue ?? "")
   }
@@ -103,20 +105,9 @@ struct DiveComputerDownloadButtonLabel: View {
   }
 }
 
-extension View {
-  /// The toolbar's glass, as a circle, where the system draws it.
-  @ViewBuilder fileprivate func glass() -> some View {
-    if #available(iOS 26, *) {
-      glassEffect(.regular.interactive(), in: .circle)
-    } else {
-      self
-    }
-  }
-}
-
 #Preview {
   NavigationStack {
-    Text("Dives")
+    Text("Profile")
       .toolbar {
         ToolbarItemGroup(placement: .topBarLeading) {
           DiveComputerDownloadButtonLabel(content: nil) {}

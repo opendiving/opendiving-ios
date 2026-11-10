@@ -1,5 +1,5 @@
-/// The head of a dive's, a trip's or a site's page: a map of its places behind the
-/// chips, the title, the facts line and the figures.
+/// The head of a dive's, a trip's or a site's page, or of the diver's profile: a map of its
+/// places behind the chips, the title, the facts line and the figures.
 public struct HeroContent: Hashable, Sendable {
   public var title: String
   public var isCourse: Bool
@@ -11,6 +11,8 @@ public struct HeroContent: Hashable, Sendable {
   public var points: [MapPoint]
   /// Where a dive computer put the diver, drawn apart from the places.
   public var fixes: [MapPoint]
+  /// Draw the whole world where there are no places.
+  public var mapsTheWorldWhenEmpty: Bool
 
   public init(
     title: String,
@@ -20,7 +22,8 @@ public struct HeroContent: Hashable, Sendable {
     facts: [Fact] = [],
     figures: [Figure] = [],
     points: [MapPoint] = [],
-    fixes: [MapPoint] = []
+    fixes: [MapPoint] = [],
+    mapsTheWorldWhenEmpty: Bool = false
   ) {
     self.title = title
     self.isCourse = isCourse
@@ -30,5 +33,6 @@ public struct HeroContent: Hashable, Sendable {
     self.figures = figures
     self.points = points
     self.fixes = fixes
+    self.mapsTheWorldWhenEmpty = mapsTheWorldWhenEmpty
   }
 }

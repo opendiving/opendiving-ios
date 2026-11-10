@@ -27,7 +27,7 @@ public struct PageCacheKey<Item: Codable & Sendable>: Sendable {
 }
 
 extension PageCacheKey where Item == DiveListItem {
-  /// The Dives tab. Its first row is the newest-dated dive, whose number is the highest the
+  /// The profile's *Dives*. Its first row is the newest-dated dive, whose number is the highest the
   /// phone knows.
   public static var dives: Self {
     Self("dives", highestDiveNumber: { $0.first?.diveNumber }, record: \.id)
@@ -35,7 +35,7 @@ extension PageCacheKey where Item == DiveListItem {
 }
 
 extension PageCacheKey where Item == TripRead {
-  /// The Trips tab.
+  /// The profile's *Trips*.
   public static var trips: Self { Self("trips", record: \.uuid) }
 }
 
@@ -55,7 +55,7 @@ extension PageCacheKey where Item == DiveListItem {
 }
 
 extension PageCacheKey where Item == DiveSiteSearchRow {
-  /// The Sites tab's untyped list, *Your sites*' or the sites nearest the camera. A place names
+  /// The sites map's untyped list, *Your sites*' or the sites nearest the camera. A place names
   /// no record, so no delete takes it out.
   static func siteFinder(yours: Bool) -> Self {
     let noRecord = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!

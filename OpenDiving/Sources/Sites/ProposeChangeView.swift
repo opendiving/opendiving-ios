@@ -32,7 +32,6 @@ struct ProposeChangeView: View {
     .navigationTitle(Self.title)
     .navigationBarTitleDisplayMode(.inline)
     .navigationBarBackButtonHidden(model.isSending)
-    .toolbar(.hidden, for: .tabBar)
   }
 }
 

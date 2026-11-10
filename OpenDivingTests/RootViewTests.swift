@@ -14,14 +14,12 @@ struct RootViewTests {
     #expect(host.view != nil)
   }
 
-  @Test func signedInTheTabsShowUnderTheInjectedSession() throws {
+  @Test func signedInTheRootIsTheSitesMapUnderTheInjectedSession() async throws {
     let window = try Self.window(
       RootView(session: .stub(transport: StubTransport(routes: [:]))))
     defer { window.isHidden = true }
 
-    let tabBar = try #require(Self.tabBarController(in: window.rootViewController))
-    #expect(
-      tabBar.tabBar.items?.compactMap(\.title) == ["Dives", "Trips", "Sites", "Cards", "Settings"])
+    #expect(await Self.title(in: window) == "Sites")
   }
 
   @Test func withNoServerTheRootIsTheServerScreen() async throws {
@@ -29,7 +27,6 @@ struct RootViewTests {
       RootView(session: .signedOutStub(origin: nil, transport: StubTransport(routes: [:]))))
     defer { window.isHidden = true }
 
-    #expect(Self.tabBarController(in: window.rootViewController) == nil)
     #expect(await Self.title(in: window) == "Servers")
   }
 
@@ -38,7 +35,6 @@ struct RootViewTests {
       RootView(session: .signedOutStub(transport: StubTransport(routes: [:]))))
     defer { window.isHidden = true }
 
-    #expect(Self.tabBarController(in: window.rootViewController) == nil)
     #expect(await Self.title(in: window) == "Sign In")
   }
 
@@ -62,15 +58,6 @@ struct RootViewTests {
         return title
       }
       try? await Task.sleep(for: .milliseconds(20))
-    }
-    return nil
-  }
-
-  private static func tabBarController(in controller: UIViewController?) -> UITabBarController? {
-    guard let controller else { return nil }
-    if let tabs = controller as? UITabBarController { return tabs }
-    for child in controller.children {
-      if let tabs = tabBarController(in: child) { return tabs }
     }
     return nil
   }

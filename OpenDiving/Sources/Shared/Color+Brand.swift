@@ -24,4 +24,20 @@ extension Color {
 
   /// The web's `--destructive-solid`, the fill under white text in both appearances.
   static let dangerFill = Color(red: 0.752, green: 0.165, blue: 0.048)
+
+  /// A page that opens with a map head: the colour the head's map fades into, so the two meet
+  /// without a seam.
+  static let pageBackground = Color(.systemBackground)
+
+  /// A card on such a page, set off from it in both appearances.
+  static let cardFill = Color(.secondarySystemBackground)
+
+  /// The map's open water, in the colour the web names its sea: under a map, where it has no tile
+  /// to draw — past the world's edge, or before the tiles arrive — and in place of one.
+  static let mapWater = Color(
+    UIColor {
+      $0.userInterfaceStyle == .dark
+        ? UIColor(red: 68 / 255, green: 108 / 255, blue: 107 / 255, alpha: 1)
+        : UIColor(red: 163 / 255, green: 206 / 255, blue: 205 / 255, alpha: 1)
+    })
 }

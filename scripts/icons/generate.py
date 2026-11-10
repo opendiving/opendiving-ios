@@ -141,8 +141,8 @@ def main() -> None:
     CATALOG.mkdir(parents=True)
     info = {"info": {"author": "xcode", "version": 1}}
     (CATALOG / "Contents.json").write_text(json.dumps(info, indent=2) + "\n")
-    # The tab bar sets a symbol's size and weight itself, ignoring the font, so its icons are
-    # drawn again: larger, and with a heavier stroke, to stand beside SF Symbols' tab glyphs.
+    # A record's icon drawn large in a card's water is drawn again, larger in its frame and with
+    # a heavier stroke, so it holds its own at that size.
     tab = manifest["tab"]
     symbols = {name: (svg, SCALE, 2.0) for name, svg in sources.items()}
     for name in tab["icons"]:

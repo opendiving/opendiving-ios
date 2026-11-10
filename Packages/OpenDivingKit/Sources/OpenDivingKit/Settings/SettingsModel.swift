@@ -1,6 +1,6 @@
 import Observation
 
-/// The *Settings* tab: the server card with the servers screen, and the account with signing
+/// *Settings*: the server card with the servers screen, and the account with signing
 /// out.
 @MainActor
 @Observable

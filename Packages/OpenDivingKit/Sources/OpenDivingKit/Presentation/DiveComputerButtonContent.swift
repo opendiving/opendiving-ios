@@ -1,6 +1,6 @@
 import Foundation
 
-/// What the Dives tab's dive-computer button draws over a download left running: a ring of its
+/// What the profile's dive-computer button draws over a download left running: a ring of its
 /// progress around the icon, in a colour for how the download stands.
 public struct DiveComputerButtonContent: Hashable, Sendable {
   public enum Ring: Hashable, Sendable {

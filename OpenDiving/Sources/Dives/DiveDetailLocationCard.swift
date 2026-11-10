@@ -116,6 +116,6 @@ private struct LinkedBlock<Content: View>: View {
           .padding()
       }
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color.pageBackground)
   }
 }

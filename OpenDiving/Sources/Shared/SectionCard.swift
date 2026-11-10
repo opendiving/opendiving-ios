@@ -31,7 +31,7 @@ struct SectionCard<Content: View>: View {
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    .background(Color.cardFill, in: .formSection)
   }
 }
 
@@ -47,5 +47,5 @@ struct SectionCard<Content: View>: View {
     }
     .padding()
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

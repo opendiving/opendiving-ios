@@ -12,7 +12,7 @@ public struct SiteFinderPanel: Hashable, Sendable {
   /// The strip of map the panel at its tallest leaves under the top bar.
   public static let topClearance = 8.0
 
-  /// The height the panel may take: the screen's below the top bar and above the tab bar.
+  /// The height the panel may take: the screen's below the top bar and above the home indicator.
   public var available: Double
 
   public init(available: Double) {

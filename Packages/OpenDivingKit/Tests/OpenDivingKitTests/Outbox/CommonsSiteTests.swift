@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// A Commons record on the phone: saved from the Sites tab through the queue, named on a dive
+/// A Commons record on the phone: saved from the sites map through the queue, named on a dive
 /// or a draft it was never saved from, and edited in the diver's own members alone.
 @MainActor
 struct CommonsSiteTests {

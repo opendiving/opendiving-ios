@@ -102,9 +102,9 @@ the prompt; a shorter timeout, which still spins and still counts the create as 
 
 ## A record page reads nothing without a route
 
-A dive's, a site's or a trip's page, the lists on the last two and the Cards tab check the path
-before reading: with no route they show the phone's copy, or say the record shows once the server
-can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
+A dive's, a site's or a trip's page, the lists on the last two, and the profile's head and its
+*Cards* check the path before reading: with no route they show the phone's copy, or say the record
+shows once the server can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
 read too, since the page reads itself the moment it can. Rejected: letting the read wait out the
 minute, which spins over a page the phone could not have filled anyway.
 
@@ -295,7 +295,7 @@ a shared archive while a download waits.
 A SwiftUI view hosted in the test bundle exposes no accessibility tree — the labels are built
 only for an assistive client, and the in-process walk finds none. So a screen's words and rows
 come from a Kit value or a static function beside the view (`PendingSummary`,
-`PendingScreen.edit(_:)`, `DivesView.list(_:)`), the app test asserts on that over real stores,
+`PendingScreen.edit(_:)`, `ProfileDives.list(_:)`), the app test asserts on that over real stores,
 and hosting the view checks only that it draws. What UIKit itself draws is the exception — a
 text box's placeholder, the navigation title, a picker's current choice — which is how the
 record sheets' tests find the web's fields.

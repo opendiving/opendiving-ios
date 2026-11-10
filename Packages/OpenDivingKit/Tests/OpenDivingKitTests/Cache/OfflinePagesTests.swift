@@ -200,7 +200,7 @@ struct OfflinePagesTests {
     await followUntilRead(route, model.followRoute) { model.dive != nil }
   }
 
-  @Test func theCardsTabSaysItNeedsAConnectionOnlyWithNoSheetKept() async throws {
+  @Test func theCheckinSheetSaysItNeedsAConnectionOnlyWithNoSheetKept() async throws {
     let route = RouteSwitch()
     let world = try OutboxWorld(connectivity: route)
     let model = CheckinSheetModel(session: world.session)

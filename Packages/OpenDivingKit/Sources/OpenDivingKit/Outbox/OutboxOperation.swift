@@ -55,7 +55,7 @@ public enum OutboxOperation: Hashable, Sendable {
     }
   }
 
-  /// Whether landing it changes what a tab lists: the dives, the sites, the trips. A dive
+  /// Whether landing it changes what a list shows: the dives, the sites, the trips. A dive
   /// counts for all three, which order and count by their dives.
   var changesLists: Bool {
     switch self {

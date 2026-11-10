@@ -153,7 +153,7 @@ struct OutboxRouteTests {
 
   // MARK: - A 404
 
-  /// The dive opened and the Dives tab shown, so the phone holds both.
+  /// The dive opened and the profile's Dives shown, so the phone holds both.
   private func shown(_ world: OutboxWorld) async -> (DiveDetailModel, PagedList<DiveListItem>) {
     let list = PagedList<DiveListItem>(session: world.session, cache: .dives) {
       client, page, size in

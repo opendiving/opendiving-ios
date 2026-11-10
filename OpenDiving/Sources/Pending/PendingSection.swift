@@ -51,7 +51,7 @@ struct PendingSummaryCard: View {
     }
     .font(.subheadline)
     .padding(12)
-    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    .background(Color.cardFill, in: .formSection)
     .accessibilityElement(children: .combine)
     .accessibilityAddTraits(.isButton)
   }

@@ -61,5 +61,5 @@ struct DiveDetailProfileCard: View {
         .padding()
     }
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

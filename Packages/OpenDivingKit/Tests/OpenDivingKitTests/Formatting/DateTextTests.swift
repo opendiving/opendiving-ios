@@ -87,6 +87,17 @@ struct DateTextTests {
   func hoursAndMinutes(seconds: Double, expected: String) {
     #expect(DateText.hoursMinutes(seconds: seconds) == expected)
   }
+
+  /// `date-time.test.ts:445-458`, at `c8f5fd32`.
+  @Test(
+    arguments: [
+      (0, "today"), (1, "yesterday"), (3, "3 days ago"), (7, "last week"), (20, "2 weeks ago"),
+      (45, "last month"), (200, "6 months ago"), (400, "last year"), (1100, "3 years ago"),
+      (-2, "today"),
+    ])
+  func daysAgo(days: Int, expected: String) {
+    #expect(DateText.daysAgo(days) == expected)
+  }
 }
 
 /// The dive's own clock never passes through the phone's zone: the same strings under a

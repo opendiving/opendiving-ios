@@ -43,5 +43,5 @@ struct DiveDetailExposureCard: View {
         .padding()
     }
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

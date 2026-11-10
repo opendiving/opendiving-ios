@@ -66,7 +66,7 @@ struct FormWorld {
     server.override { _, _ in nil }
   }
 
-  /// The account loaded, the Dives tab's first page shown and its first dive opened, as the
+  /// The account loaded, the profile's first page of dives shown and its first dive opened, as the
   /// phone would have before a trip.
   func loaded(showingTheLog: Bool = true) async throws {
     try await session.loadAccount()

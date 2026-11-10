@@ -94,5 +94,5 @@ private struct TankView: View {
         .padding()
     }
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

@@ -90,7 +90,7 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== model)
   }
 
-  /// Leaving by another tab from a computer's page closes the model under it: *Forget* reaches
+  /// Leaving the screen from a computer's page closes the model under it: *Forget* reaches
   /// whichever model is current, and the next visit lists what is left.
   @Test func forgettingFromAPageThatCoveredTheScreenHoldsOnTheNextVisit() async throws {
     let link = FakeDiveComputerLink()

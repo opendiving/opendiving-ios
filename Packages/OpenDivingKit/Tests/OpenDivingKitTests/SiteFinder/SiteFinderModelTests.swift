@@ -96,7 +96,7 @@ struct SiteFinderModelTests {
     return (world, searches)
   }
 
-  private func tab(_ world: FormWorld, _ locator: FakeFinderLocator) -> SiteFinderModel {
+  private func sitesMap(_ world: FormWorld, _ locator: FakeFinderLocator) -> SiteFinderModel {
     let model = SiteFinderModel(session: world.session, locator: locator, today: Self.today)
     model.settleDelay = .zero
     return model
@@ -104,7 +104,7 @@ struct SiteFinderModelTests {
 
   /// A finder over a map opened on the world, its first list answered.
   private func mapped(_ world: FormWorld, _ locator: FakeFinderLocator) async -> SiteFinderModel {
-    let model = tab(world, locator)
+    let model = sitesMap(world, locator)
     model.hasMap = true
     model.viewport = Self.viewport
     await model.open()
@@ -135,7 +135,8 @@ struct SiteFinderModelTests {
 
   @Test func theFirstRequestCarriesTheCameraItOpenedOnRounded() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 12.3456, longitude: 56.789))))
+    let model = sitesMap(
+      world, FakeFinderLocator(.success(.init(latitude: 12.3456, longitude: 56.789))))
     await model.open()
     let sent = try #require(searches.queries.first)
     #expect(sent["latitude"] == "12.35")
@@ -149,7 +150,7 @@ struct SiteFinderModelTests {
 
   @Test func aFinderOpenedOnTheWorldSendsNoCameraAndNoBox() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    let model = sitesMap(world, FakeFinderLocator(.failure(.denied)))
     await model.open()
     #expect(world.server.count("GET trips") == 1)
     #expect(world.server.count("GET dives") == 1)
@@ -161,7 +162,7 @@ struct SiteFinderModelTests {
 
   @Test func withAMapTheOpeningListsTheSitesInView() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    let model = sitesMap(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
     model.hasMap = true
     model.viewport = Self.viewport
     await model.open()
@@ -171,7 +172,7 @@ struct SiteFinderModelTests {
 
   @Test func aMapMeasuredAfterTheOpeningSendsItAgainNarrowed() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    let model = sitesMap(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
     await model.open()
     #expect(searches.queries.last?["south"] == nil)
     model.hasMap = true
@@ -301,7 +302,7 @@ struct SiteFinderModelTests {
 
   @Test func aTypedSearchLooksEverywhere() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    let model = sitesMap(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
     model.hasMap = true
     model.viewport = Self.viewport
     await model.open()
@@ -318,7 +319,7 @@ struct SiteFinderModelTests {
 
   @Test func typingSendsOneRequestPerTextAndPickingAPlaceListsTheSitesNearIt() async throws {
     let (world, searches) = try await world()
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    let model = sitesMap(world, FakeFinderLocator(.failure(.denied)))
     await model.open()
     model.text = "Dahab"
     await model.typed()
@@ -372,7 +373,7 @@ struct SiteFinderModelTests {
   @Test func withNoMapUseMyLocationSearchesAtOnce() async throws {
     let (world, searches) = try await world()
     let locator = FakeFinderLocator(.failure(.denied))
-    let model = tab(world, locator)
+    let model = sitesMap(world, locator)
     await model.open()
     locator.outcome = .success(.init(latitude: -8.27, longitude: 115.6))
     await model.useMyLocation()
@@ -381,7 +382,7 @@ struct SiteFinderModelTests {
 
   @Test func aRefusedLocationSaysToAllowItInSettings() async throws {
     let (world, _) = try await world()
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    let model = sitesMap(world, FakeFinderLocator(.failure(.denied)))
     await model.open()
     await model.useMyLocation()
     let failure = try #require(model.locationFailure)
@@ -432,29 +433,29 @@ struct SiteFinderModelTests {
   @Test func withNoRouteTheSearchFailsAtOnceAndAsksForNothing() async throws {
     let (world, searches) = try await world()
     world.route.isRouteAvailable = false
-    let model = tab(world, FakeFinderLocator(.failure(.denied)))
+    let model = sitesMap(world, FakeFinderLocator(.failure(.denied)))
     await model.open()
     #expect(model.list?.phase == .failed(.noRoute))
     #expect(searches.queries.isEmpty)
     #expect(SiteFinderText.failure(.noRoute).contains("could not be reached"))
   }
 
-  @Test func theTabShowsItsLastListAtOnce() async throws {
+  @Test func theSitesMapShowsItsLastListAtOnce() async throws {
     let (world, _) = try await world()
-    await tab(world, FakeFinderLocator(.failure(.denied))).open()
+    await sitesMap(world, FakeFinderLocator(.failure(.denied))).open()
     world.route.isRouteAvailable = false
-    let again = tab(world, FakeFinderLocator(.failure(.denied)))
+    let again = sitesMap(world, FakeFinderLocator(.failure(.denied)))
     await again.open()
     #expect(again.rows.count == 3)
     #expect(again.lastUpdated != nil)
   }
 
-  @Test func theTabShowsItsLastListWhileItWaitsForAFix() async throws {
+  @Test func theSitesMapShowsItsLastListWhileItWaitsForAFix() async throws {
     let (world, searches) = try await world()
-    await tab(world, FakeFinderLocator(.failure(.denied))).open()
+    await sitesMap(world, FakeFinderLocator(.failure(.denied))).open()
     let locator = FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5)))
     locator.isHeld = true
-    let again = tab(world, locator)
+    let again = sitesMap(world, locator)
     let opening = Task { await again.open() }
     while locator.asked == 0 { await Task.yield() }
     #expect(again.isOpening)

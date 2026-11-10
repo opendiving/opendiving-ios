@@ -31,20 +31,18 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case lock
   case luggage
   case mapPin = "map-pin"
+  case menu
   case mountain
   case navigation2 = "navigation-2"
   case paperclip
   case phone
   case plus
   case search
-  case settings
   case ship
   case sun
   case tabDive = "tab-dive"
   case tabDiveSite = "tab-dive-site"
-  case tabIdCard = "tab-id-card"
   case tabLuggage = "tab-luggage"
-  case tabSettings = "tab-settings"
   case twinTank = "twin-tank"
   case upload
   case user

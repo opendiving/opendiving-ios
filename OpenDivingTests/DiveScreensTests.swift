@@ -5,8 +5,8 @@ import UIKit
 
 @testable import OpenDiving
 
-/// The dive list and the dive page, hosted under a session over a stub transport: each
-/// asks the API for what it draws.
+/// The profile and the dive page, hosted under a session over a stub transport: each asks the
+/// API for what it draws.
 @MainActor
 struct DiveScreensTests {
   private let diveID = "01a20000-0000-7000-8000-000000000001"
@@ -40,16 +40,21 @@ struct DiveScreensTests {
     return false
   }
 
-  @Test func theListAsksForTheFirstPage() async throws {
+  @Test func theProfileAsksForItsHeadAndTheFirstPageOfDives() async throws {
     let transport = StubTransport(routes: [
       "GET dives": .json(
         #"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":50}"#)
     ])
-    let window = host(DivesView(), session: Session.stub(transport: transport))
+    let session = Session.stub(transport: transport)
+    let window = host(
+      NavigationStack { ProfileView(avatar: AvatarModel(session: session)) }, session: session)
     defer { window?.isHidden = true }
     #expect(window != nil)
     #expect(await waitFor("GET dives", on: transport))
-    let query = transport.requests.first?.url?.query ?? ""
+    #expect(await waitFor("GET user/dive-stats", on: transport))
+    #expect(await waitFor("GET user/trip-places", on: transport))
+    let dives = transport.requests.first { StubTransport.routeKey($0) == "GET dives" }
+    let query = dives?.url?.query ?? ""
     #expect(query.contains("page=1"))
     #expect(query.contains("items_per_page=50"))
   }

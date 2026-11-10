@@ -1,10 +1,11 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The *Sites* tab: the site finder over the diver's sites and the Commons, full screen under a
-/// top bar with no background, each site opening its page, the weather at the map's centre, the
-/// `+` that adds one and a long press on the map that adds one where it was pressed. Under *Your
-/// sites* it is the diver's list, the most recently dived first, as cards.
+/// What the app opens on signed in: the site finder over the diver's sites and the Commons, full
+/// screen under a top bar with no background, each site opening its page, the weather at the
+/// map's centre, the diver's picture that opens their profile, and a long press on the map that
+/// adds a site where it was pressed. Under *Your sites* it is the diver's list, the most recently
+/// dived first, as cards.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -18,7 +19,7 @@ struct SitesView: View {
 }
 
 extension SitesView {
-  /// The tab's finder, which opens on the phone's location, a trip under way or the last dive.
+  /// The finder, which opens on the phone's location, a trip under way or the last dive.
   static func finder(_ session: Session) -> SiteFinderModel {
     SiteFinderModel(
       session: session, locator: CoreLocationProvider(), today: CalendarDate.today())
@@ -29,6 +30,7 @@ private struct SitesFinder: View {
   @State private var model: SiteFinderModel
   @State private var map: MapStyleModel
   @State private var weather: MapWeatherModel
+  @State private var avatar: AvatarModel
   /// The site a row or a point opened.
   @State private var opened: UUID?
   /// Where a long press asked for a new site.
@@ -39,6 +41,7 @@ private struct SitesFinder: View {
     _model = State(initialValue: SitesView.finder(session))
     _map = State(initialValue: MapStyleModel(session: session))
     _weather = State(initialValue: MapWeatherModel(session: session))
+    _avatar = State(initialValue: AvatarModel(session: session))
   }
 
   var body: some View {
@@ -51,7 +54,7 @@ private struct SitesFinder: View {
           ToolbarItem(placement: .topBarLeading) { proposalsButton }
         }
         // Always there, even empty: it stands in for the title, which names the back button on
-        // what the tab opens and is never shown over the map.
+        // what the map opens and is never shown over it.
         ToolbarItem(placement: .principal) {
           if let current = weather.current,
             let content = MapWeatherContent(current, units: session.units)
@@ -63,21 +66,16 @@ private struct SitesFinder: View {
             Color.clear.frame(width: 1, height: 1)
           }
         }
-        ToolbarItem(placement: .primaryAction) {
-          NavigationLink {
-            DiveSiteFormView(mode: .create)
-          } label: {
-            Label("Add dive site", systemImage: "plus")
-          }
-          .mapBarButton()
-        }
+        ProfileToolbarItem(avatar: avatar)
       }
     )
     .navigationDestination(item: $opened) { SiteDetailView(siteUUID: $0) }
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
     .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
     .task { await weather.followRoute() }
-    // Nothing else on this tab asks the server what it is until a card with a pin draws its map.
+    .task(id: session.user?.avatarSha256) { await avatar.load() }
+    .task { await avatar.followRoute() }
+    // Nothing else here asks the server what it is until a card with a pin draws its map.
     .task { await session.loadServerInfo() }
   }
 

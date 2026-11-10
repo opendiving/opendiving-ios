@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// What the Cards view shows: the active server's cached sheet, refreshed on every signed-in
-/// visit. Signed out it reads the cache and nothing else — it depends on the session only
-/// for which server is active and whether a refresh may run.
+/// What the check-in sheet shows: the active server's cached sheet, refreshed on every visit to
+/// the profile's *Cards*. Signed out it reads the cache and nothing else — it depends on the
+/// session only for which server is active and whether a refresh may run.
 @MainActor
 @Observable
 public final class CheckinSheetModel {

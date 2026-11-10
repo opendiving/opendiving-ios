@@ -2,8 +2,9 @@ import Foundation
 
 /// What one account's server answered and the phone has shown, kept under `Cache/` in the
 /// account's directory so it shows at once, and offline: the lists' pages, the dives, sites and
-/// trips opened, the dive drafts, the pickers' lookups and the highest dive number seen. Nothing is fetched to
-/// fill it. A file this build cannot read is dropped and fetched again.
+/// trips opened, the dive drafts, the pickers' lookups, the highest dive number seen, and the
+/// profile's figures, places and picture. Nothing is fetched to fill it. A file this build cannot
+/// read is dropped and fetched again.
 public struct AccountCache: Sendable {
   /// A cached value and when the server answered it.
   public struct Entry<Value: Codable & Sendable>: Codable, Sendable {
@@ -84,7 +85,7 @@ public struct AccountCache: Sendable {
   }
 
   /// Drops a dive the server no longer has: its detail, and its row on every kept list of
-  /// dives — the Dives tab's and each site's and trip's page.
+  /// dives — the profile's and each site's and trip's page.
   func removeDive(_ uuid: UUID) {
     remove(Self.divePath(uuid))
     let folder = root.appendingPathComponent("pages", isDirectory: true)
@@ -198,6 +199,53 @@ public struct AccountCache: Sendable {
 
   func writeDiveSitePoints(_ points: [DiveSitePoint], fetchedAt: Date = Date()) {
     write(Entry(value: points, fetchedAt: fetchedAt), "dive-site-points.json")
+  }
+
+  // MARK: - The profile
+
+  /// `GET /user/dive-stats` as last read.
+  public var diveStats: Entry<UserDiveStatsRead>? {
+    read(Entry<UserDiveStatsRead>.self, "dive-stats.json")
+  }
+
+  func writeDiveStats(_ stats: UserDiveStatsRead, fetchedAt: Date = Date()) {
+    write(Entry(value: stats, fetchedAt: fetchedAt), "dive-stats.json")
+  }
+
+  /// `GET /user/trip-places` as last read.
+  public var tripPlaces: Entry<[LocationRead]>? {
+    read(Entry<[LocationRead]>.self, "trip-places.json")
+  }
+
+  func writeTripPlaces(_ places: [LocationRead], fetchedAt: Date = Date()) {
+    write(Entry(value: places, fetchedAt: fetchedAt), "trip-places.json")
+  }
+
+  /// The account's picture as last fetched, and the `avatarSha256` it was fetched as.
+  public struct Avatar: Sendable {
+    public let version: String
+    public let data: Data
+  }
+
+  public var avatar: Avatar? {
+    guard let version = read(Entry<String>.self, "avatar.json")?.value,
+      let data = try? Data(contentsOf: file("avatar"))
+    else { return nil }
+    return Avatar(version: version, data: data)
+  }
+
+  /// The bytes first, so a version is never named over another version's picture.
+  func writeAvatar(_ avatar: Avatar) {
+    remove("avatar.json")
+    try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    guard (try? avatar.data.write(to: file("avatar"), options: .atomic)) != nil else { return }
+    write(Entry(value: avatar.version, fetchedAt: Date()), "avatar.json")
+  }
+
+  /// Drops a picture the account no longer has.
+  func removeAvatar() {
+    remove("avatar.json")
+    remove("avatar")
   }
 
   // MARK: - Lookups

@@ -4,6 +4,10 @@ import SwiftUI
 /// Labelled figures, side by side and wrapping where they do not fit.
 struct FiguresRow: View {
   let figures: [Figure]
+  /// The least each figure takes across, which sets how many stand in a row.
+  var minWidth = defaultMinWidth
+
+  static let defaultMinWidth: CGFloat = 72
 
   var body: some View {
     if !figures.isEmpty {
@@ -17,7 +21,7 @@ struct FiguresRow: View {
               .foregroundStyle(figure.value == nil ? Color.secondary : Color.primary)
               .lineLimit(1)
           }
-          .frame(minWidth: 72, alignment: .leading)
+          .frame(minWidth: minWidth, alignment: .leading)
           .accessibilityElement(children: .combine)
         }
       }

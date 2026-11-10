@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The form, ready: its sections as the account shows them, a menu that jumps between them,
 /// *Discard draft* once there is one, *Delete dive* at the end of an edit, and *Log dive* or *Save
-/// changes* fixed under it all, where the tab bar was.
+/// changes* fixed under it all.
 struct DiveFormScreen: View {
   @Bindable var model: DiveFormModel
   var onDeleted: () -> Void = {}

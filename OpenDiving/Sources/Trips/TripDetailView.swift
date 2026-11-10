@@ -58,7 +58,7 @@ private struct TripDetailContent: View {
         .heroUnderTopBar { await model.refresh() }
       }
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color.pageBackground)
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.

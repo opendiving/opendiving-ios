@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Your Proposals*, pushed from the Sites tab: what the diver has proposed for OpenDiving
+/// *Your Proposals*, pushed from the sites map: what the diver has proposed for OpenDiving
 /// Commons and what became of it, a page at a time.
 struct YourProposalsView: View {
   static let title = "Your Proposals"

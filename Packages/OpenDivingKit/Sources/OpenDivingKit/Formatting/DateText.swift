@@ -75,6 +75,24 @@ public enum DateText {
     hoursMinutes(seconds: Double(seconds))
   }
 
+  /// How long ago a day was, coarsening as it recedes: `today`, `yesterday`, `3 days ago`,
+  /// `last week`, `4 months ago`, `2 years ago`. A day ahead reads as today.
+  public static func daysAgo(_ days: Int) -> String {
+    let ago = max(0, days)
+    switch ago {
+    case 0: return "today"
+    case 1: return "yesterday"
+    case ..<7: return "\(ago) days ago"
+    case ..<30: return relative(ago / 7, "week")
+    case ..<365: return relative(ago / 30, "month")
+    default: return relative(ago / 365, "year")
+    }
+  }
+
+  private static func relative(_ count: Int, _ unit: String) -> String {
+    count == 1 ? "last " + unit : "\(count) \(unit)s ago"
+  }
+
   static let shortMonths = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ]

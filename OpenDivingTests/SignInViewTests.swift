@@ -91,7 +91,9 @@ struct SignInViewTests {
   @Test func settings() async throws {
     let session = Session.stub(transport: StubTransport(routes: [:]))
     #expect(
-      try await Self.title(of: SettingsView(), session, SignInFlow(session: session)) == "Settings")
+      try await Self.title(
+        of: NavigationStack { SettingsView() }, session, SignInFlow(session: session))
+        == "Settings")
   }
 
   /// Renders `view` in a window under `session` and `flow`, and reads the navigation title it

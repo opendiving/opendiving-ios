@@ -28,13 +28,13 @@
       "lock",
       "luggage",
       "map-pin",
+      "menu",
       "mountain",
       "navigation-2",
       "paperclip",
       "phone",
       "plus",
       "search",
-      "settings",
       "ship",
       "sun",
       "upload",
@@ -53,9 +53,7 @@
     "icons": [
       "dive",
       "dive-site",
-      "id-card",
-      "luggage",
-      "settings"
+      "luggage"
     ]
   }
 }
