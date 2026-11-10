@@ -56,22 +56,27 @@ private struct SitePanelContent: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       case .loaded(let site):
-        LazyVStack(spacing: 16) {
-          SectionTabs(selection: $section) { section in
+        // The tabs stay at the top of the panel while what they show scrolls under them.
+        LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+          Section {
             switch section {
-            case .info: section.title
-            case .marineLife: DiveSiteSummary.counted(section.title, site.speciesCount)
-            case .myDives: DiveSiteSummary.counted(section.title, site.diveCount)
+            case .info: info(site)
+            case .marineLife: SiteSpecies(model: model)
+            case .myDives:
+              SiteDives(list: model.dives, units: session.units)
+              PageEndTrigger(list: model.dives)
             }
-          }
-          // Across the panel's width, as across the profile's page.
-          .padding(.horizontal, -16)
-          switch section {
-          case .info: info(site)
-          case .marineLife: SiteSpecies(model: model)
-          case .myDives:
-            SiteDives(list: model.dives, units: session.units)
-            PageEndTrigger(list: model.dives)
+          } header: {
+            SectionTabs(selection: $section) { section in
+              switch section {
+              case .info: section.title
+              case .marineLife: DiveSiteSummary.counted(section.title, site.speciesCount)
+              case .myDives: DiveSiteSummary.counted(section.title, site.diveCount)
+              }
+            }
+            // Across the panel's width, as across the profile's page, on the panel's own fill.
+            .padding(.horizontal, -16)
+            .background(Color(.systemGroupedBackground))
           }
         }
       }
