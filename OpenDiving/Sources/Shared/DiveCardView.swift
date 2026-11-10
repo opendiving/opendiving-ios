@@ -35,11 +35,13 @@ struct DiveCardView: View {
         facts: content.facts, figures: content.figures
       )
       .frame(maxWidth: .infinity, alignment: .leading)
-      // Stood on the glass's top edge, wherever the details' height puts it.
+      // Stood on the glass's top edge, wherever the details' height puts it, and as wide as the
+      // glass rather than its text.
       .background(alignment: .top) {
         if hasOutline {
           DiveSilhouetteView(depths: content.outline)
             .frame(height: Self.silhouetteHeight)
+            .padding(.horizontal, -CardBackdropFrame.glassPadding)
             .offset(y: -Self.silhouetteHeight - Self.silhouetteGap - CardBackdropFrame.glassPadding)
         }
       }
@@ -55,9 +57,9 @@ struct DiveCardView: View {
   private var hasOutline: Bool { content.outline.count > 1 }
 
   /// A card's own, or higher where the silhouette's line comes up under the pin, the middle of
-  /// a card that spans the silhouette less the glass's inset and padding either side.
+  /// a card that spans the silhouette less the glass's inset either side.
   private func pinCentre(_ frame: CardBackdropFrame) -> CGFloat {
-    let span = frame.width - 2 * (CardBackdropFrame.glassInset + CardBackdropFrame.glassPadding)
+    let span = frame.width - 2 * CardBackdropFrame.glassInset
     guard hasOutline, span > 0 else { return CardBackdropFrame.pinCentre }
     let half = MapMarker.diameter / 2 / span
     guard let shallowest = DiveOutline.shallowest(content.outline, from: 0.5 - half, to: 0.5 + half)
