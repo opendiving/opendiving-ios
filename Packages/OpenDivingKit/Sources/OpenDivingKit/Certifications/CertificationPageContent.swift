@@ -88,6 +88,9 @@ public struct CertificationPageContent: Hashable, Sendable {
     return name
   }
 
-  /// What a failed download says (the web's toast).
-  public static let downloadFailed = "Failed to download the file. Please try again."
+  /// What a failed download says (the web's toast): the server's sentence where it gave one.
+  public static func downloadFailure(_ error: APIError) -> String {
+    if case .http(_, let message?) = error { return message }
+    return "Failed to download the file. Please try again."
+  }
 }

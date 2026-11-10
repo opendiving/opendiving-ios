@@ -10,3 +10,15 @@ extension PagedList where Item == CertificationRead {
     }
   }
 }
+
+extension PagedList where Item == CertificationRead {
+  /// Shows the list, or shows it again on a return, then reads again each time a route appears,
+  /// until the calling task is cancelled. `session` is the one the list was made with.
+  public func showFollowingRoute(_ session: Session) async {
+    let seen = session.connectivity.routeAppearances
+    await rereadIfStale()
+    // A route that appeared while the read was skipped has no moment left to wait for.
+    if session.connectivity.routeAppearances != seen { await rereadIfStale() }
+    await session.connectivity.eachRouteAppearance { await rereadIfStale() }
+  }
+}

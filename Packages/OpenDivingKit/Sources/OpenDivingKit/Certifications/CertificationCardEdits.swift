@@ -64,10 +64,15 @@ public struct CertificationCardEdits: Hashable, Sendable {
   public static func isTooLarge(_ byteCount: Int) -> Bool { byteCount > maxFileSize }
 
   /// Queues each side's change after the certification's own write, front first, so each
-  /// waits for the card it belongs to. Returns the sides the phone could not keep.
+  /// waits for the card it belongs to; a side's new image or removal replaces whatever still
+  /// waits for it, `reopened` included. A reopened image whose side the diver left untouched
+  /// is dropped. Returns the sides the phone could not keep.
   @MainActor
-  public func queue(of certification: RecordRef, outbox: OutboxModel) -> [CertificationSide] {
-    CertificationSide.allCases.filter { side in
+  public func queue(
+    of certification: RecordRef, outbox: OutboxModel, reopened: CardReopening? = nil
+  ) -> [CertificationSide] {
+    if let reopened, edits[reopened.side] == nil { outbox.discard(reopened.item) }
+    return CertificationSide.allCases.filter { side in
       do {
         switch edits[side] {
         case .none: return false
@@ -92,19 +97,31 @@ public struct CertificationCardEdits: Hashable, Sendable {
   }
 
   /// A refused card image as the form reopens it: its side holding the bytes it waits with,
-  /// to save again, change or drop. Nil for any other item, or once its bytes are gone.
+  /// to save again, change or drop, and the server's sentence about it. Nil for any other item,
+  /// or once its bytes are gone.
   @MainActor
-  public static func reopening(_ item: OutboxItem, session: Session) -> (
-    side: CertificationSide, pick: CertificationCardPick
-  )? {
+  public static func reopening(_ item: OutboxItem, session: Session) -> CardReopening? {
     guard case .putCertificationFile(_, let upload) = item.operation,
       let stores = AccountStores.current(session),
       let data = try? Data(contentsOf: stores.outbox.cardFile(for: item.id))
     else { return nil }
-    return (
-      upload.side,
-      CertificationCardPick(
-        data: data, contentType: upload.contentType, filename: upload.filename)
-    )
+    return CardReopening(
+      item: item.id, side: upload.side,
+      pick: CertificationCardPick(
+        data: data, contentType: upload.contentType, filename: upload.filename),
+      failure: item.failure?.message ?? item.lastAnswer?.sentence)
+  }
+
+  /// A refused card image the form opened over.
+  public struct CardReopening: Hashable, Sendable {
+    public let item: UUID
+    public let side: CertificationSide
+    public let pick: CertificationCardPick
+    public let failure: String?
+  }
+
+  /// The edits a form opens with: the reopened side's bytes, or nothing.
+  public init(reopening: CardReopening?) {
+    if let reopening { edits[reopening.side] = .replace(reopening.pick) }
   }
 }
