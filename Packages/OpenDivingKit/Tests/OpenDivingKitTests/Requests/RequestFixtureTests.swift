@@ -96,6 +96,12 @@ struct RequestFixtureTests {
     #expect(draft.values.diveNumber == 215)
   }
 
+  @Test func checkinDetailsUpdate() throws {
+    let update = try sendsItsFixture(CheckinDetailsUpdate.self, "request-checkin-details-update")
+    #expect(update.phone == .null)
+    #expect(update.emergencyContacts?.count == 1)
+  }
+
   @Test func importChoices() throws {
     let checkIn = try sendsItsFixture(ImportCheckInSubmission.self, "request-import-check-in")
     #expect(checkIn.phone == .null)

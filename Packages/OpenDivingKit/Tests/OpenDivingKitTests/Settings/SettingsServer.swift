@@ -6,12 +6,14 @@ import Synchronization
   import FoundationNetworking
 #endif
 
-/// A server holding one account, which `PATCH /user` changes and `GET /user` answers, and the
-/// diver's tags, which `PATCH /tag/{uuid}` renames and `DELETE /tag/{uuid}` removes. Any route
+/// A server holding one account, which `PATCH /user` changes and `GET /user` answers, its
+/// check-in details, which `PATCH /user/checkin-details` changes, and the diver's tags, which
+/// `PATCH /tag/{uuid}` renames and `DELETE /tag/{uuid}` removes. Any route
 /// can be made to answer an error instead, and one request can be held at a ``Gate``.
 final class SettingsServer: HTTPTransport {
   private struct State {
     var user: [String: Any]
+    var checkin: [String: Any]
     var tags: [[String: Any]]
     var failing: [String: StubTransport.Response] = [:]
     var holding: (route: String, gate: Gate)?
@@ -24,7 +26,10 @@ final class SettingsServer: HTTPTransport {
     let user = try JSONSerialization.jsonObject(with: KitFixture.data("user")) as! [String: Any]
     let page =
       try JSONSerialization.jsonObject(with: KitFixture.data("tags-page")) as! [String: Any]
-    state = Mutex(State(user: user, tags: page["data"] as! [[String: Any]]))
+    let checkin =
+      try JSONSerialization.jsonObject(with: KitFixture.data("checkin-details"))
+      as! [String: Any]
+    state = Mutex(State(user: user, checkin: checkin, tags: page["data"] as! [[String: Any]]))
   }
 
   /// Every request sent so far, in order.
@@ -39,6 +44,17 @@ final class SettingsServer: HTTPTransport {
   /// Changes the account behind the phone's back, as the web would.
   func set(_ key: String, _ value: some Sendable) {
     state.withLock { $0.user[key] = value }
+  }
+
+  /// The check-in details as the server holds them.
+  func checkinDetails() throws -> CheckinDetailsRead {
+    let data = try state.withLock { try JSONSerialization.data(withJSONObject: $0.checkin) }
+    return try APICoding.decoder().decode(CheckinDetailsRead.self, from: data)
+  }
+
+  /// Changes a check-in detail behind the phone's back, as the web would.
+  func setCheckin(_ key: String, _ value: some Sendable) {
+    state.withLock { $0.checkin[key] = value }
   }
 
   /// `route` answers `response` until ``succeed(_:)``.
@@ -92,6 +108,15 @@ final class SettingsServer: HTTPTransport {
       case "PATCH user":
         for (key, value) in body ?? [:] { state.user[key] = value }
         return .json(#"{"message":"User updated"}"#)
+      case "GET user/checkin-details":
+        return .json(
+          String(
+            decoding: try JSONSerialization.data(withJSONObject: state.checkin), as: UTF8.self))
+      case "PATCH user/checkin-details":
+        for (key, value) in body ?? [:] { state.checkin[key] = value }
+        return .json(
+          String(
+            decoding: try JSONSerialization.data(withJSONObject: state.checkin), as: UTF8.self))
       case "POST auth/logout":
         return .json(#"{"message":"Logged out successfully"}"#)
       case "GET people":
