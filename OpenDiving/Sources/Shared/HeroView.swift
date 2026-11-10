@@ -140,17 +140,11 @@ private struct GlassCard: View {
     .background { shadow }
   }
 
-  /// Darker in the dark appearance, where a light one would not show on the map.
-  private static let shadowColor = Color(
-    UIColor { traits in
-      UIColor(white: 0, alpha: traits.userInterfaceStyle == .dark ? 0.85 : 0.12)
-    })
-
   /// Outside the card alone: under the glass it would be blurred into it.
   private var shadow: some View {
     RoundedRectangle.formSection
       .fill(.black)
-      .shadow(color: Self.shadowColor, radius: 8, y: 3)
+      .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
       .mask {
         Rectangle()
           .padding(-48)

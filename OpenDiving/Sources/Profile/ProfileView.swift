@@ -71,6 +71,8 @@ private struct ProfileContent: View {
         ) {
           UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
             .background(Color(.tertiarySystemFill), in: Circle())
+            // In the name's colour, ringing the picture off the glass in either appearance.
+            .overlay { Circle().strokeBorder(Color.primary, lineWidth: 2) }
         }
         ProfileSectionTabs(selection: $section)
         Group {
