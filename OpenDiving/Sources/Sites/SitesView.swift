@@ -121,13 +121,13 @@ private struct SitesFinder: View {
         let content = MapWeatherContent(current, units: session.units)
       {
         MapWeatherExplainer(
-          content: content, title: model.weatherSite?.title, barFrame: weatherBarFrame,
+          content: content, title: weatherTitle, barFrame: weatherBarFrame,
           onClosed: { MapWeatherExplainer.present { isExplainingWeather = false } }
         )
         .presentationBackground(.clear)
       }
     }
-    .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
+    .task(id: weatherAsk) { [weatherShown] in await weather.show(weatherShown) }
     .task { await weather.followRoute() }
     .task(id: session.user?.avatarSha256) { if !isPushed { await avatar.load() } }
     .task { if !isPushed { await avatar.followRoute() } }
@@ -135,11 +135,23 @@ private struct SitesFinder: View {
     .task { await session.followServerInfo() }
   }
 
-  /// Where the bar's weather is for: the pin of the site the finder picks for it, and nowhere with
-  /// none or no map.
-  private var weatherCell: MapWeatherModel.Cell? {
-    guard map.hasMap, let pin = model.weatherSite?.pin else { return nil }
-    return MapWeatherModel.cell(pin)
+  /// The site the bar's weather is for: the one the finder picks, and none with no map.
+  private var weatherShown: SiteFinderModel.WeatherSite? {
+    map.hasMap ? model.weatherSite : nil
+  }
+
+  /// What a new look at the weather waits on: another site, or its pin moving to another cell. Not
+  /// its title, which an opened site's read fills while its weather is still being asked for.
+  private var weatherAsk: WeatherAsk? {
+    weatherShown.map { WeatherAsk(site: $0.uuid, cell: MapWeatherModel.cell($0.pin)) }
+  }
+
+  /// The card's title: the shown answer's site, as the finder titles it now if it is still the one
+  /// picked, which an opened site's read may since have named.
+  private var weatherTitle: String? {
+    guard let shown = weather.site else { return nil }
+    guard let picked = model.weatherSite, picked.uuid == shown.uuid else { return shown.title }
+    return picked.title ?? shown.title
   }
 
   /// Only where the instance takes proposals, whose routes answer nowhere else.
@@ -153,6 +165,11 @@ private struct SitesFinder: View {
     .accessibilityLabel(YourProposalsView.title)
     .mapBarButton()
   }
+}
+
+private struct WeatherAsk: Hashable {
+  let site: UUID
+  let cell: MapWeatherModel.Cell
 }
 
 /// A new site asked for at a point of the map, which the form opens pinned to.

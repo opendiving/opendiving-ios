@@ -57,6 +57,14 @@ struct MapWeatherTests {
     return model
   }
 
+  /// A site the finder picked, pinned at `latitude`, `longitude`.
+  private static func site(_ latitude: Double, _ longitude: Double, title: String? = nil)
+    -> SiteFinderModel.WeatherSite
+  {
+    SiteFinderModel.WeatherSite(
+      uuid: UUID(), pin: DeviceLocation(latitude: latitude, longitude: longitude), title: title)
+  }
+
   private static func read(_ weather: ConditionsWeather?) -> DiveConditionsCurrentRead {
     DiveConditionsCurrentRead(
       attribution: "[Open-Meteo](https://open-meteo.com/)", weather: weather)
@@ -307,8 +315,8 @@ struct MapWeatherTests {
     let asked = Asked()
     let world = try await world(asked, answer: .json(Self.dahab))
     let model = model(world)
-    let dahab = MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)
-    let sharm = MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3)
+    let dahab = Self.site(28.5, 34.5)
+    let sharm = Self.site(27.9, 34.3)
     await model.show(dahab)
     #expect(model.current?.weather?.weatherCode == 2)
     await model.show(sharm)
@@ -323,7 +331,7 @@ struct MapWeatherTests {
     let model = model(world)
     let clock = Mutex(Date(timeIntervalSince1970: 1_800_000_000))
     model.now = { clock.withLock { $0 } }
-    let dahab = MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)
+    let dahab = Self.site(28.5, 34.5)
     await model.show(dahab)
     clock.withLock { $0 += 14 * 60 }
     await model.show(dahab)
@@ -335,7 +343,7 @@ struct MapWeatherTests {
   @Test func withNoSiteOpenTheBarEmpties() async throws {
     let world = try await world(Asked(), answer: .json(Self.dahab))
     let model = model(world)
-    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    await model.show(Self.site(28.5, 34.5))
     await model.show(nil)
     #expect(model.current == nil)
   }
@@ -344,11 +352,11 @@ struct MapWeatherTests {
     let asked = Asked()
     let world = try await world(asked, answer: .json(Self.dahab))
     let model = patientModel(world)
-    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    await model.show(Self.site(28.5, 34.5))
     #expect(model.current != nil)
     #expect(!model.isUnreachable)
     world.route.isRouteAvailable = false
-    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3)) }
+    let asking = Task { await model.show(Self.site(27.9, 34.3)) }
     while !model.isUnreachable { await Task.yield() }
     #expect(model.current == nil)
     world.route.isRouteAvailable = true
@@ -367,7 +375,7 @@ struct MapWeatherTests {
     }
     try await world.session.loadAccount()
     let model = patientModel(world)
-    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)) }
+    let asking = Task { await model.show(Self.site(28.5, 34.5)) }
     while !model.isUnreachable { await Task.yield() }
     #expect(model.current == nil)
     // As a zoom out does: the task asking about the cell is cancelled, and the next shows none.
@@ -377,25 +385,46 @@ struct MapWeatherTests {
     #expect(!model.isUnreachable)
   }
 
-  @Test func anotherSitesWeatherNeverStandsWhileItsOwnIsAskedFor() async throws {
+  @Test func theLastSitesWeatherStandsUnderItsOwnNameUntilTheNextSitesArrives() async throws {
     let dahab = Self.dahab
+    let sharm = dahab.replacingOccurrences(of: #""weather_code":2"#, with: #""weather_code":0"#)
     let gate = Gate()
     let world = try FormWorld()
     world.server.override { request, _ in
       guard request.route == "GET dive-conditions/current" else { return nil }
-      if request.url?.query?.contains("latitude=27.9") == true { await gate.pass() }
-      return .json(dahab)
+      guard request.url?.query?.contains("latitude=27.9") == true else { return .json(dahab) }
+      await gate.pass()
+      return .json(sharm)
     }
     try await world.session.loadAccount()
     let model = model(world)
-    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
-    #expect(model.current != nil)
-    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3)) }
+    let lighthouse = Self.site(28.5, 34.5, title: "Dahab")
+    await model.show(lighthouse)
+    let asking = Task { await model.show(Self.site(27.9, 34.3, title: "Sharm")) }
     await gate.untilArrived()
-    #expect(model.current == nil)
+    // The bar keeps the last site's weather, and the card its name, rather than emptying.
+    #expect(model.current?.weather?.weatherCode == 2)
+    #expect(model.site == lighthouse)
     await gate.open()
     await asking.value
-    #expect(model.current != nil)
+    #expect(model.current?.weather?.weatherCode == 0)
+    #expect(model.site?.title == "Sharm")
+  }
+
+  @Test func aSiteWithinTwoKilometresOfAHeldAnswerAsksNothing() async throws {
+    let asked = Asked()
+    let world = try await world(asked, answer: .json(Self.dahab))
+    let model = model(world)
+    await model.show(Self.site(28.5, 34.5))
+    // About 1.5 km off: the same answer, for the new site.
+    let eelGarden = Self.site(28.51, 34.51, title: "Eel Garden")
+    await model.show(eelGarden)
+    #expect(model.current?.weather?.weatherCode == 2)
+    #expect(model.site == eelGarden)
+    #expect(asked.all.count == 1)
+    // About 11 km off: asked about.
+    await model.show(Self.site(28.6, 34.5))
+    #expect(asked.all.count == 2)
   }
 
   @Test func anAnswerForACellPannedAwayFromNeverReachesTheBar() async throws {
@@ -415,9 +444,9 @@ struct MapWeatherTests {
     let model = model(world)
     // Dahab asked about on a task left running, so only the map no longer showing Dahab keeps
     // its answer off the bar.
-    let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)) }
+    let asking = Task { await model.show(Self.site(28.5, 34.5)) }
     await gate.untilArrived()
-    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    await model.show(Self.site(27.9, 34.3))
     #expect(model.current?.weather?.weatherCode == 0)
     await gate.open()
     await asking.value
@@ -442,7 +471,7 @@ struct MapWeatherTests {
     }
     try await world.session.loadAccount()
     let model = model(world)
-    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    await model.show(Self.site(28.5, 34.5))
     #expect(model.current?.weather?.weatherCode == 2)
     #expect(asked.all == ["28.5,34.5", "28.5,34.5"])
   }
@@ -452,8 +481,8 @@ struct MapWeatherTests {
     let world = try await world(
       asked, answer: .json(#"{"detail":"Not Found"}"#, status: 404))
     let model = model(world)
-    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
-    await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
+    await model.show(Self.site(28.5, 34.5))
+    await model.show(Self.site(27.9, 34.3))
     #expect(asked.all == ["28.5,34.5"])
     #expect(model.current == nil)
   }
@@ -470,17 +499,17 @@ struct MapWeatherTests {
     }
     try await world.session.loadAccount()
     let model = patientModel(world)
-    await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5))
+    await model.show(Self.site(28.5, 34.5))
     #expect(model.current != nil)
-    let sharm = Task { await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3)) }
-    // Waits on the ask itself: the bar empties as soon as another cell is shown, before it is sent.
-    while asked.all.count < 2 { await Task.yield() }
-    #expect(model.current == nil)
+    let sharm = Task { await model.show(Self.site(27.9, 34.3)) }
+    // The bar keeps Dahab's weather until the 503 for Sharm's empties it.
+    while model.current != nil { await Task.yield() }
+    #expect(model.site == nil)
     // The server answered, so the bar says nothing of the connection.
     #expect(!model.isUnreachable)
     // A 503 says nothing about the instance: the next cell is asked about.
     sharm.cancel()
-    let next = Task { await model.show(MapWeatherModel.Cell(latitude: 27.8, longitude: 34.3)) }
+    let next = Task { await model.show(Self.site(27.8, 34.3)) }
     while asked.all.count < 3 { await Task.yield() }
     next.cancel()
     await sharm.value
