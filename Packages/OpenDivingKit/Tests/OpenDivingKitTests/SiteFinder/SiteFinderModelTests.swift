@@ -594,6 +594,23 @@ struct SiteFinderModelTests {
     #expect(model.camera == MapCamera(latitude: 3, longitude: 4, zoom: 12))
   }
 
+  /// The weather bar's pin and title, from whichever of the point, the row and the read said them.
+  @Test func anOpenedSiteHoldsItsPinAndIsTitledByItsPlaceElseItsName() async throws {
+    let (model, _) = try await withPoints()
+    model.select(Self.canyon)
+    #expect(model.opened?.pin == DeviceLocation(latitude: 28.5687, longitude: 34.5372))
+    #expect(model.opened?.weatherTitle == "Canyon")
+    model.read(try site(Self.canyon, latitude: 28.57, longitude: 34.54))
+    #expect(model.opened?.pin == DeviceLocation(latitude: 28.57, longitude: 34.54))
+    #expect(model.opened?.weatherTitle == "Dahab, Egypt")
+
+    #expect(model.choose(Self.canyonRow) == nil)
+    #expect(model.opened?.pin == DeviceLocation(latitude: 28.5687, longitude: 34.5372))
+    model.open(uuid: UUID())
+    #expect(model.opened?.pin == nil)
+    #expect(model.opened?.weatherTitle == nil)
+  }
+
   @Test func theSitesMapOpenedOnASiteCentresItsPinAndAsksNothingOfTheLocation() async throws {
     let (world, searches) = try await world(points: try KitFixture.text("dive-site-points"))
     await DiveSitePointsModel(session: world.session).load()

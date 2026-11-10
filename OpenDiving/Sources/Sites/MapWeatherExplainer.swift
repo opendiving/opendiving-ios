@@ -10,12 +10,10 @@ import SwiftUI
 /// no line is laid out at a size it is never shown at.
 struct MapWeatherExplainer: View {
   let content: MapWeatherContent
-  /// Where the weather is, nil while it is looked up.
-  let place: MapWeatherModel.Place?
+  /// The open site's place, else its name.
+  let title: String?
   /// Where the bar is drawn, in the window's space.
   let barFrame: CGRect
-  /// Looks up `place`, as the card opens.
-  let lookUpPlace: () async -> Void
   /// Ends the presentation, once the card is back in the bar.
   let onClosed: () -> Void
 
@@ -48,7 +46,6 @@ struct MapWeatherExplainer: View {
       }
     }
     .ignoresSafeArea()
-    .task { await lookUpPlace() }
     .onAppear { withAnimation(morphing) { isOpen = true } }
     .accessibilityAction(.escape, close)
   }
@@ -74,8 +71,8 @@ struct MapWeatherExplainer: View {
     // the card sits just above the screen's middle, where it reads as centred.
     let height = window.height - 2 * barFrame.minY - 40
     return ViewThatFits(in: .vertical) {
-      MapWeatherCard(content: content, place: place)
-      ScrollView { MapWeatherCard(content: content, place: place) }
+      MapWeatherCard(content: content, title: title)
+      ScrollView { MapWeatherCard(content: content, title: title) }
     }
     .frame(width: min(window.width - 32, 380))
     .frame(maxHeight: height, alignment: .top)
@@ -148,8 +145,7 @@ struct MapWeatherExplainer: View {
   .fullScreenCover(isPresented: $isExplaining) {
     MapWeatherExplainer(
       content: .sample,
-      place: MapWeatherModel.Place(title: "Dahab, South Sinai, Egypt", credit: nil),
-      barFrame: barFrame, lookUpPlace: {},
+      title: "Dahab, South Sinai, Egypt", barFrame: barFrame,
       onClosed: { MapWeatherExplainer.present { isExplaining = false } }
     )
     .presentationBackground(.clear)

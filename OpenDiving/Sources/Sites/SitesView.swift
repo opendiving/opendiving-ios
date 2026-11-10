@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// What the app opens on signed in: the site finder over the diver's sites and the Commons, full
-/// screen under a top bar with no background, each site opening in the panel, the weather at the
-/// map's centre, the diver's picture that opens their profile, and a long press on the map that
+/// screen under a top bar with no background, each site opening in the panel with the weather at
+/// its pin, the diver's picture that opens their profile, and a long press on the map that
 /// adds a site where it was pressed. Under *Your sites* it is the diver's list, the most recently
 /// dived first.
 struct SitesView: View {
@@ -121,8 +121,7 @@ private struct SitesFinder: View {
         let content = MapWeatherContent(current, units: session.units)
       {
         MapWeatherExplainer(
-          content: content, place: weather.place, barFrame: weatherBarFrame,
-          lookUpPlace: { await weather.lookUpPlace() },
+          content: content, title: model.opened?.weatherTitle, barFrame: weatherBarFrame,
           onClosed: { MapWeatherExplainer.present { isExplainingWeather = false } }
         )
         .presentationBackground(.clear)
@@ -136,9 +135,10 @@ private struct SitesFinder: View {
     .task { await session.followServerInfo() }
   }
 
-  /// Where the bar's weather is for: the map's centre, and nowhere with no map.
+  /// Where the bar's weather is for: the open site's pin, and nowhere with no site open or no map.
   private var weatherCell: MapWeatherModel.Cell? {
-    map.hasMap ? MapWeatherModel.cell(model.camera) : nil
+    guard map.hasMap, let pin = model.opened?.pin else { return nil }
+    return MapWeatherModel.cell(pin)
   }
 
   /// Only where the instance takes proposals, whose routes answer nowhere else.

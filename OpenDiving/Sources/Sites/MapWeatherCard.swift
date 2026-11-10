@@ -1,21 +1,21 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The whole reading the weather bar stands for: where it is, the reading in words with the rest of
-/// the weather under it, the sea with its waves and tide drawn below that, and whose data it is,
-/// which the providers' licences ask to be shown. Without a background: ``MapWeatherExplainer``
+/// The whole reading the weather bar stands for: the site's place, the reading in words with the
+/// rest of the weather under it, the sea with its waves and tide drawn below that, and whose data
+/// it is, which the provider's licence asks to be shown. Without a background: ``MapWeatherExplainer``
 /// gives it the one it grows from the bar with.
 struct MapWeatherCard: View {
   let content: MapWeatherContent
-  /// Where the weather is, nil while it is looked up.
-  let place: MapWeatherModel.Place?
+  /// The open site's place, else its name; nil while its panel reads it.
+  let title: String?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      // The placeholder only holds the line's height while the name is looked up.
-      Text(place?.title ?? "Place, Region, Country")
+      // The placeholder only holds the line's height while the site's panel reads it.
+      Text(title ?? "Place, Region, Country")
         .font(.subheadline.weight(.semibold))
-        .redacted(reason: place == nil ? .placeholder : [])
+        .redacted(reason: title == nil ? .placeholder : [])
       Text(content.summary)
         .font(.subheadline)
       if !content.details.isEmpty {
@@ -33,14 +33,8 @@ struct MapWeatherCard: View {
           TideCurveView(curve: tide)
         }
       }
-      // A credit a line, so neither wraps; not underlined, as the credits over a map are, since
-      // one credit is a single link and the other two with text between.
-      VStack(alignment: .leading, spacing: 2) {
-        AttributionLine(credits: [content.attribution], underline: false)
-        if let credit = place?.credit {
-          AttributionLine(credits: [credit], underline: false)
-        }
-      }
+      // Not underlined, as the credits over a map are: it is a link with text after it.
+      AttributionLine(credits: [content.attribution], underline: false)
     }
     .padding()
   }
@@ -89,13 +83,9 @@ extension MapWeatherContent {
 }
 
 #Preview {
-  MapWeatherCard(
-    content: .sample,
-    place: MapWeatherModel.Place(
-      title: "Dahab, South Sinai, Egypt", credit: "[OSM](https://osm.org)")
-  )
-  .frame(width: 340)
-  .background(.regularMaterial, in: .rect(cornerRadius: 24))
-  .padding()
-  .background(Color.teal.opacity(0.3))
+  MapWeatherCard(content: .sample, title: "Dahab, South Sinai, Egypt")
+    .frame(width: 340)
+    .background(.regularMaterial, in: .rect(cornerRadius: 24))
+    .padding()
+    .background(Color.teal.opacity(0.3))
 }

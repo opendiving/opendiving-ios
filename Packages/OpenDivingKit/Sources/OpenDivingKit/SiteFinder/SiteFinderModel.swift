@@ -346,6 +346,9 @@ public final class SiteFinderModel {
     opened.mark = site.mark
     opened.location = site.location?.name
     opened.site = site
+    if let latitude = site.latitude, let longitude = site.longitude {
+      opened.pin = DeviceLocation(latitude: latitude, longitude: longitude)
+    }
     if !opened.isPlaced, let latitude = site.latitude, let longitude = site.longitude {
       opened.isPlaced = true
       centre(latitude: latitude, longitude: longitude, zoom: siteZoom)
