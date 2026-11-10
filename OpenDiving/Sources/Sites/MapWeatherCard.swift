@@ -9,7 +9,7 @@ struct MapWeatherCard: View {
   let content: MapWeatherContent
   /// The open site's place, else its name; nil while its panel reads it.
   let title: String?
-  /// Where the bar's sky and wind land, when they fly here from the bar rather than being drawn.
+  /// Where the bar's parts land, when they fly here from the bar rather than being drawn.
   var slots: MapWeatherSlots?
   @ScaledMetric(relativeTo: .title2) private var size = MapWeatherCard.size
 
@@ -48,8 +48,8 @@ struct MapWeatherCard: View {
 }
 
 extension MapWeatherCard {
-  /// The sky, the wind and the sea's temperature, spread across the card, which VoiceOver reads as
-  /// one sentence with the wind's direction in words.
+  /// The bar's parts, large and spread across the card, which VoiceOver reads as the bar's one
+  /// sentence.
   private var top: some View {
     HStack {
       if MapWeatherSky.shows(content) {
@@ -61,31 +61,15 @@ extension MapWeatherCard {
         MapWeatherWind(content: content, size: size)
           .mapWeatherSlot(.wind, slots)
       }
-      if let sea = content.seaTemperature {
+      if MapWeatherSea.shows(content) {
         Spacer(minLength: 8)
-        HStack(spacing: size * 0.4) {
-          Image(loaded: .waves)
-            .resizable()
-            .scaledToFit()
-            .frame(width: size * 1.2, height: size * 1.2)
-          Text(sea.value)
-        }
-        .font(.system(size: size))
-        .monospacedDigit()
-        .lineLimit(1)
-        .fixedSize()
+        MapWeatherSea(content: content, size: size)
+          .mapWeatherSlot(.sea, slots)
       }
     }
     .padding(.vertical, 4)
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(spoken)
-  }
-}
-
-extension MapWeatherCard {
-  private var spoken: String {
-    guard let sea = content.seaTemperature else { return content.accessibilityLabel }
-    return content.accessibilityLabel + ", sea " + sea.spokenValue
+    .accessibilityLabel(content.accessibilityLabel)
   }
 }
 

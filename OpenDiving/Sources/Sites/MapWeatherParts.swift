@@ -62,9 +62,52 @@ struct MapWeatherWind: View {
   }
 }
 
-/// The two parts of the bar that fly to the top of its card.
+/// The sea's surface temperature beside a wave, drawn at `size` points as ``MapWeatherSky`` is.
+struct MapWeatherSea: View {
+  let content: MapWeatherContent
+  let size: CGFloat
+
+  var body: some View {
+    HStack(spacing: size * 0.4) {
+      Image(loaded: .waves)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size * 1.2, height: size * 1.2)
+      if let sea = content.seaTemperature {
+        Text(sea.value)
+      }
+    }
+    .font(.system(size: size))
+    .monospacedDigit()
+    .lineLimit(1)
+    .fixedSize()
+  }
+
+  static func shows(_ content: MapWeatherContent) -> Bool {
+    content.seaTemperature != nil
+  }
+}
+
+/// The parts of the bar, each flying to the top of its card.
 enum MapWeatherPart: String, CaseIterable {
-  case sky, wind
+  case sky, wind, sea
+
+  func shows(_ content: MapWeatherContent) -> Bool {
+    switch self {
+    case .sky: MapWeatherSky.shows(content)
+    case .wind: MapWeatherWind.shows(content)
+    case .sea: MapWeatherSea.shows(content)
+    }
+  }
+
+  /// The part drawn at `size` points.
+  @ViewBuilder func view(_ content: MapWeatherContent, size: CGFloat) -> some View {
+    switch self {
+    case .sky: MapWeatherSky(content: content, size: size)
+    case .wind: MapWeatherWind(content: content, size: size)
+    case .sea: MapWeatherSea(content: content, size: size)
+    }
+  }
 }
 
 /// Where the bar's parts sit, in the bar's copy or the card, for the parts flying between them to

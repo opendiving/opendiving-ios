@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The weather at the centre of the Sites map, in its top bar: the sky, the air temperature and
-/// the wind with an arrow along it. A tap grows it into ``MapWeatherCard``, the whole reading.
+/// The weather at a site on the Sites map, in its top bar: the sky, the air temperature, the wind
+/// with an arrow along it and the sea's temperature. A tap grows it into ``MapWeatherCard``, the whole reading.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
   let onTap: () -> Void
@@ -20,7 +20,7 @@ struct MapWeatherBar: View {
   }
 }
 
-/// The bar's sky, temperature and wind, without its capsule: drawn by the bar, and laid out by
+/// The bar's sky, temperature, wind and sea, without its capsule: drawn by the bar, and laid out by
 /// its copy in the card's presentation, where `slots` marks where its parts fly from.
 struct MapWeatherBarLabel: View {
   let content: MapWeatherContent
@@ -39,6 +39,11 @@ struct MapWeatherBarLabel: View {
       if MapWeatherWind.shows(content) {
         MapWeatherWind(content: content, size: size)
           .mapWeatherSlot(.wind, slots)
+          .padding(.leading, 4)
+      }
+      if MapWeatherSea.shows(content) {
+        MapWeatherSea(content: content, size: size)
+          .mapWeatherSlot(.sea, slots)
           .padding(.leading, 4)
       }
     }

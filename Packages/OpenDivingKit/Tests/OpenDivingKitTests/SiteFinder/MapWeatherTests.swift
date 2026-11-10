@@ -122,6 +122,10 @@ struct MapWeatherTests {
     #expect(metric.sea.isEmpty)
     #expect(metric.seaTemperature?.value == "26°C")
     #expect(metric.seaTemperature?.spokenValue == "26 degrees Celsius")
+    #expect(
+      metric.accessibilityLabel
+        == "Partly cloudy, 24 degrees Celsius, wind from the northeast, 11 knots, sea 26 degrees Celsius"
+    )
     #expect(metric.tide != nil)
     let waves = try #require(metric.waves)
     #expect(waves.strips.map(\.label) == ["Waves", "Swell"])

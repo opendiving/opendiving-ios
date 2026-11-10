@@ -19,8 +19,8 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// The bearing the wind blows toward, in degrees clockwise from north: the arrow's, which
   /// points where the wind goes as a weather map's does.
   public let windHeading: Double?
-  /// `Clear, 21 degrees Celsius, wind from the north-northwest, 7 knots`: the bar as VoiceOver says
-  /// it, the wind's direction, which the arrow draws, in words.
+  /// `Clear, 21 degrees Celsius, wind from the north-northwest, 7 knots, sea 26 degrees Celsius`:
+  /// the bar as VoiceOver says it, the wind's direction, which the arrow draws, in words.
   public let accessibilityLabel: String
   /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
   /// has it.
@@ -64,7 +64,6 @@ public struct MapWeatherContent: Hashable, Sendable {
       let from = weather.windDirection.map { "wind from the \(Self.spokenPoint($0)), " } ?? "wind "
       spoken.append(from + UnitFormat.knots(speed) + " knots")
     }
-    accessibilityLabel = Self.sentence(spoken)
     details = Self.details(weather, units: units)
     let drawnTide = read.sea.flatMap { Self.tide($0, now: read.at) }
     let drawnWaves = read.sea.flatMap { WaveProfile($0, units: units) }
@@ -76,6 +75,10 @@ public struct MapWeatherContent: Hashable, Sendable {
         spokenValue: UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
           + Measure.temperature.word(units))
     }
+    if let sea = seaTemperature {
+      spoken.append("sea " + sea.spokenValue)
+    }
+    accessibilityLabel = Self.sentence(spoken)
     sea =
       read.sea.map {
         Self.sea($0, units: units, drawsTide: drawnTide != nil)

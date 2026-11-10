@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// It opens on a copy of the bar where the bar is drawn, while the bar itself is hidden, and grows
 /// the copy's glass into the card's; closing shrinks it back before the presentation ends, so the
-/// bar is never seen to leave. The glass morphs, the bar's sky and wind fly to the top of the card
+/// bar is never seen to leave. The glass morphs, the bar's parts fly to the top of the card
 /// growing as they go, and the card's other lines fade in once there is room for them, so no line
 /// is laid out at a size it is never shown at.
 struct MapWeatherExplainer: View {
@@ -46,14 +46,11 @@ struct MapWeatherExplainer: View {
         } else {
           bar
         }
-        // The bar's sky and wind, flown between its slots in the bar and in the card and redrawn
+        // The bar's parts, flown between its slots in the bar and in the card and redrawn
         // at each size between, over both.
         ForEach(parts, id: \.self) { part in
           MapWeatherSized(size: isOpen ? cardSize : barSize) { size in
-            switch part {
-            case .sky: MapWeatherSky(content: content, size: size)
-            case .wind: MapWeatherWind(content: content, size: size)
-            }
+            part.view(content, size: size)
           }
           .matchedGeometryEffect(
             id: MapWeatherSlots.id(part, isOpen ? .card : .bar), in: morph,
@@ -113,12 +110,7 @@ struct MapWeatherExplainer: View {
   }
 
   private var parts: [MapWeatherPart] {
-    MapWeatherPart.allCases.filter { part in
-      switch part {
-      case .sky: MapWeatherSky.shows(content)
-      case .wind: MapWeatherWind.shows(content)
-      }
-    }
+    MapWeatherPart.allCases.filter { $0.shows(content) }
   }
 
   private var morphing: Animation {
