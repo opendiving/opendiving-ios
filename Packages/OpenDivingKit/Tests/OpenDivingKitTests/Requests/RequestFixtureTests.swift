@@ -61,6 +61,14 @@ struct RequestFixtureTests {
     #expect(sent == (try JSONValue.parse(Data(#"{"units":"metric"}"#.utf8))))
   }
 
+  @Test func emailChangeRequest() throws {
+    _ = try sendsItsFixture(EmailChangeRequest.self, "request-email-change")
+  }
+
+  @Test func restoreRequest() throws {
+    _ = try sendsItsFixture(RestoreRequest.self, "request-restore")
+  }
+
   @Test func tagUpdate() throws {
     _ = try sendsItsFixture(TagUpdate.self, "request-tag-update")
   }

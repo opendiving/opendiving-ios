@@ -587,14 +587,36 @@ struct SignInFlowTests {
         == "This account isn't finished yet. Sign-up is completed on the web, at this server;"
         + " then sign in here.")
     #expect(
-      SignInFlow.deletionMessage(
-        email: "sam@example.com", purgeAfter: "Nov 21, 2026", origin: origin)
-        == "The account for sam@example.com is scheduled to be deleted after Nov 21, 2026. Until"
-        + " then it can be restored on the web, at https://opendiving.app.")
+      SignInFlow.deletionMessage(email: "sam@example.com", purgeAfter: "Nov 21, 2026")
+        == "sam@example.com was deleted, and nothing has been erased yet. Your dives, dive drafts,"
+        + " dive sites, trips, courses, certifications, gear, contacts, people and tags are erased"
+        + " for good on Nov 21, 2026.")
     #expect(
-      SignInFlow.deletionMessage(email: nil, purgeAfter: nil, origin: nil)
-        == "This account is scheduled to be deleted. Until then it can be restored on the web,"
-        + " at this server.")
+      SignInFlow.deletionMessage(email: nil, purgeAfter: nil)
+        == "This account was deleted, and nothing has been erased yet. Your dives, dive drafts,"
+        + " dive sites, trips, courses, certifications, gear, contacts, people and tags are erased"
+        + " for good once this server's grace period runs out.")
+    #expect(
+      SignInFlow.restoreNote(purgeAfter: "Nov 21, 2026")
+        == "Restoring brings all of it back and signs you in. Leave it, and the date above"
+        + " decides.")
+    #expect(
+      SignInFlow.restoreNote(purgeAfter: nil)
+        == "Restoring brings all of it back and signs you in.")
+  }
+
+  @Test func theGoodbyeSaysWhatThePhoneKeepsAndWhatRemovesIt() {
+    let origin = ServerOrigin("https://dive.example.org")!
+    #expect(
+      SignInFlow.goodbyeMessage(purgeAfter: "Nov 24, 2026")
+        == "You're signed out everywhere, and nothing has been erased yet. Your dives, dive"
+        + " drafts, dive sites, trips, courses, certifications, gear, contacts, people and tags"
+        + " will be permanently erased on Nov 24, 2026.")
+    #expect(
+      SignInFlow.goodbyeKept(origin)
+        == KeptText.held(origin) + " Forget this server removes all of it.")
+    // The flagship offers no Forget.
+    #expect(SignInFlow.goodbyeKept(.flagship) == KeptText.held(.flagship))
   }
 
   @Test func resendWaitsThirtySeconds() async throws {

@@ -58,12 +58,9 @@ struct SignInView: View {
         origin: flow.origin
       ) { flow.useDifferentEmail() }
     case .deletionPending(let email, let purgeAfter):
-      OutcomeScreen(
-        title: "This account is scheduled for deletion", systemImage: "trash",
-        message: SignInFlow.deletionMessage(
-          email: email, purgeAfter: purgeAfter, origin: flow.origin),
-        origin: flow.origin
-      ) { flow.useDifferentEmail() }
+      RestoreScreen(flow: flow, email: email, purgeAfter: purgeAfter)
+    case .accountDeleted(let purgeAfter):
+      GoodbyeScreen(flow: flow, purgeAfter: purgeAfter)
     }
   }
 }

@@ -6,11 +6,12 @@ import Synchronization
   import FoundationNetworking
 #endif
 
-/// A server holding one account, which `PATCH /user` changes and `GET /user` answers, its
-/// check-in details, which `PATCH /user/checkin-details` changes, the diver's tags, which
-/// `PATCH /tag/{uuid}` renames and `DELETE /tag/{uuid}` removes, what the account stores and its
-/// four exports. Any route can be made to answer an error instead, and one request can be held
-/// at a ``Gate``.
+/// A server holding one account, which `PATCH /user` changes, `GET /user` answers and
+/// `DELETE /user` schedules for deletion, its check-in details, which
+/// `PATCH /user/checkin-details` changes, a confirmation link `POST /user/email-change/request`
+/// mails, the diver's tags, which `PATCH /tag/{uuid}` renames and `DELETE /tag/{uuid}` removes,
+/// what the account stores and its four exports. Any route can be made to answer an error
+/// instead, and one request can be held at a ``Gate``.
 final class SettingsServer: HTTPTransport {
   private struct State {
     var user: [String: Any]
@@ -130,6 +131,10 @@ final class SettingsServer: HTTPTransport {
             decoding: try JSONSerialization.data(withJSONObject: state.checkin), as: UTF8.self))
       case "POST auth/logout":
         return .json(#"{"message":"Logged out successfully"}"#)
+      case "POST user/email-change/request":
+        return .json(#"{"message":"Check your new email address to confirm the change."}"#)
+      case "DELETE user":
+        return .json(try KitFixture.text("account-deletion"))
       case "GET user/storage":
         return .json(try KitFixture.text("storage"))
       case "GET people":

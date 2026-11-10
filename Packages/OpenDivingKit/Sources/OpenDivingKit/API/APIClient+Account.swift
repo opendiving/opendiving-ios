@@ -13,6 +13,16 @@ extension APIClient {
     try await authorizedChecked(Call(method: "PATCH", path: "user", body: Self.json(update)))
   }
 
+  /// `POST /user/email-change/request`: mails a confirmation link to `newEmail`, superseding
+  /// any earlier one. The account's address changes only once the link is confirmed, on the
+  /// web's page; the answer is the same whether or not another account holds the address.
+  public func requestEmailChange(to newEmail: String) async throws {
+    try await authorizedChecked(
+      Call(
+        method: "POST", path: "user/email-change/request",
+        body: Self.json(EmailChangeRequest(newEmail: newEmail))))
+  }
+
   // MARK: - Tags
 
   /// `GET /tags`, one page, by name, each with how many dives and sites carry it.
