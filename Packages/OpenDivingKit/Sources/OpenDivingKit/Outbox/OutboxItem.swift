@@ -75,15 +75,23 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
   /// its key, so its body stays. A write moved from another account's stores has nothing to apply
   /// to here. Nothing is edited while it is being sent: the answer would overwrite the edit.
   ///
-  /// A trip's or a site's update only once it has failed: the phone keeps no copy of the record
-  /// to open it over without a read, and one still waiting is changed from the record's page.
+  /// An update of any record but a dive or a gear set only once it has failed, and a card image
+  /// likewise, which reopens its certification's form: the phone keeps no copy of the record to
+  /// open it over without a read, and one still waiting is changed from the record's page. A
+  /// delete and a card image's removal offer none.
   public var isEditable: Bool {
     if state == .inFlight || failure?.kind == .wrongAccount { return false }
     switch operation {
     case .updateDive, .updateGearSet: return failure?.status != 404
-    case .updateDiveSite, .updateTrip: return isFailed && failure?.status != 404
+    case .updateDiveSite, .updatePerson, .updateTrip, .updateCourse, .updateContact,
+      .updateGearItem, .updateServiceSchedule, .updateServiceRecord, .updateCertification,
+      .putCertificationFile:
+      return isFailed && failure?.status != 404
     case .updateDiveDraft: return true
-    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deleteTrip, .deleteDiveDraft: return false
+    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deletePerson, .deleteTrip, .deleteCourse,
+      .deleteContact, .deleteGearItem, .deleteGearSet, .deleteServiceSchedule,
+      .deleteServiceRecord, .deleteCertification, .deleteCertificationFile, .deleteDiveDraft:
+      return false
     default: return holdsNothing
     }
   }
