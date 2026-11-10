@@ -53,5 +53,5 @@ struct DiveDetailGearCard: View {
         .padding()
     }
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

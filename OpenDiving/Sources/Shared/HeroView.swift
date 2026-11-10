@@ -3,12 +3,14 @@ import SwiftUI
 
 /// The head of a dive's, a trip's or a site's page, or of the diver's profile: a map of its
 /// places, up under the top bar on a page that lets it (``SwiftUI/View/heroUnderTopBar()``) and
-/// on above the page for a pull-down to show, fading into the page, under its chips, title,
-/// facts and figures, and the map's credit after them. `leading` stands before the title and
-/// the facts — the profile's picture. A record with nowhere to put on a map, or on an instance
-/// with no map to draw, gets the band without one.
+/// on above the page for a pull-down to show, fading into the page's ``Color/pageBackground``,
+/// under its chips, title, facts and figures, and the map's credit after them — or, with
+/// `detailsOnGlass`, the credit over the map and the rest on a card of glass. `leading` stands
+/// before the title and the facts — the profile's picture. A record with nowhere to put on a
+/// map, or on an instance with no map to draw, gets the band without one.
 struct HeroView<Leading: View>: View {
   let content: HeroContent
+  var detailsOnGlass = false
   @ViewBuilder let leading: () -> Leading
 
   /// How far the band is drawn above the head, out of sight until a pull-down reveals it.
@@ -25,21 +27,14 @@ struct HeroView<Leading: View>: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      ChipsRow(chips: content.chips)
-      HStack(alignment: .top, spacing: 12) {
-        leading()
-        VStack(alignment: .leading, spacing: 6) {
-          TitleLine(
-            title: content.title, isCourse: content.isCourse, rating: content.rating,
-            font: .title2.bold())
-          FactsLine(facts: content.facts)
-        }
-      }
-      FiguresRow(figures: content.figures)
-        .padding(.top, 4)
-      if let credit {
-        AttributionLine(credits: [MapAttribution.display(credit)], underline: false)
-          .frame(maxWidth: .infinity, alignment: .trailing)
+      if detailsOnGlass {
+        creditLine
+        details
+          .padding(12)
+          .pickerCard()
+      } else {
+        details
+        creditLine
       }
     }
     .padding()
@@ -54,11 +49,10 @@ struct HeroView<Leading: View>: View {
     } action: {
       height = $0
     }
+    // Over the band with no map too, which would otherwise end in a seam against the page.
     .background {
-      if hasMap {
-        LinearGradient(
-          colors: [.clear, Color(.systemBackground)], startPoint: .center, endPoint: .bottom)
-      }
+      LinearGradient(
+        colors: [.clear, Color.pageBackground], startPoint: .center, endPoint: .bottom)
     }
     .background(alignment: .bottom) {
       ZStack {
@@ -74,6 +68,31 @@ struct HeroView<Leading: View>: View {
         }
       }
       .frame(height: height + Self.pullReach)
+    }
+  }
+
+  private var details: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      ChipsRow(chips: content.chips)
+      HStack(alignment: .top, spacing: 12) {
+        leading()
+        VStack(alignment: .leading, spacing: 6) {
+          TitleLine(
+            title: content.title, isCourse: content.isCourse, rating: content.rating,
+            font: .title2.bold())
+          FactsLine(facts: content.facts)
+        }
+      }
+      FiguresRow(figures: content.figures)
+        .padding(.top, 4)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  @ViewBuilder private var creditLine: some View {
+    if let credit {
+      AttributionLine(credits: [MapAttribution.display(credit)], underline: false)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
   }
 }

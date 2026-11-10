@@ -42,5 +42,5 @@ private struct SightingView: View {
     DiveDetailSpeciesCard(sightings: DivePreviewData.content.sightings) { _, _ in nil }
       .padding()
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

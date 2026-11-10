@@ -85,7 +85,7 @@ private struct SiteDetailContent: View {
         .heroUnderTopBar { await model.refresh() }
       }
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color.pageBackground)
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.
@@ -149,7 +149,7 @@ private struct ProposalNotice: View {
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    .background(Color.cardFill, in: RoundedRectangle(cornerRadius: 12))
   }
 }
 
@@ -174,7 +174,7 @@ private struct CommonsMatchNotice: View {
     }
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    .background(Color.cardFill, in: RoundedRectangle(cornerRadius: 12))
   }
 }
 

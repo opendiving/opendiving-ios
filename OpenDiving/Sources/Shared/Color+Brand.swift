@@ -24,4 +24,11 @@ extension Color {
 
   /// The web's `--destructive-solid`, the fill under white text in both appearances.
   static let dangerFill = Color(red: 0.752, green: 0.165, blue: 0.048)
+
+  /// A page that opens with a map head: the colour the head's map fades into, so the two meet
+  /// without a seam.
+  static let pageBackground = Color(.systemBackground)
+
+  /// A card on such a page, set off from it in both appearances.
+  static let cardFill = Color(.secondarySystemBackground)
 }

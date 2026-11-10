@@ -139,7 +139,7 @@ private struct DiveDetailPage: View {
       }
     }
     .heroUnderTopBar()
-    .background(Color(.systemGroupedBackground))
+    .background(Color.pageBackground)
   }
 
   @ViewBuilder private var mainColumn: some View {

@@ -61,7 +61,7 @@ private struct ProfileContent: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 16) {
-        HeroView(content: model.hero(today: .today())) {
+        HeroView(content: model.hero(today: .today()), detailsOnGlass: true) {
           UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
             .background(Color(.tertiarySystemFill), in: Circle())
         }
@@ -77,7 +77,7 @@ private struct ProfileContent: View {
       }
       .padding(.bottom)
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color.pageBackground)
     .heroUnderTopBar { [model, dives, trips, checkin, section] in
       async let head: Void = model.refresh()
       switch section {

@@ -34,7 +34,7 @@ private struct CardsScreen: View {
         CheckinSheetView(model: model)
       }
     }
-    .background(Color(.systemGroupedBackground))
+    .background(Color.pageBackground)
     .navigationTitle("Cards")
     .toolbar {
       ToolbarItem(placement: .confirmationAction) {

@@ -66,5 +66,5 @@ private struct RecordingView: View {
     DiveDetailRecordingsCard(recordings: DivePreviewData.content.recordings)
       .padding()
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }

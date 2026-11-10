@@ -95,5 +95,5 @@ private struct GasRowView: View {
     }
     .padding()
   }
-  .background(Color(.systemGroupedBackground))
+  .background(Color.pageBackground)
 }
