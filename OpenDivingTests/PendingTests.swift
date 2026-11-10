@@ -178,6 +178,10 @@ struct PendingTests {
     let outbox = OutboxModel(session: session)
     let gear = RecordRef.server(UUID())
     let day = CalendarDate(year: 2026, month: 10, day: 2)!
+    var rename = GearItemUpdate()
+    rename.name = "Twin set"
+    var moved = GearServiceScheduleUpdate()
+    moved.startsOn = day
     typealias Write = (
       operation: (RecordRef) -> OutboxOperation, edit: (_ item: UUID, _ record: UUID) -> PendingEdit
     )
@@ -191,7 +195,7 @@ struct PendingTests {
         { .updateContact($0, ContactUpdate()) }, { .route(.contact(.failed(item: $0, record: $1))) }
       ),
       (
-        { .updateGearItem($0, GearItemUpdate(archived: true)) },
+        { .updateGearItem($0, rename) },
         { .route(.gearItem(.failed(item: $0, record: $1))) }
       ),
       (
@@ -199,7 +203,7 @@ struct PendingTests {
         { .route(.certification(.failed(item: $0, record: $1), failedItem: nil)) }
       ),
       (
-        { .updateServiceSchedule($0, gearItem: gear, GearServiceScheduleUpdate(active: false)) },
+        { .updateServiceSchedule($0, gearItem: gear, moved) },
         { .route(.serviceSchedule(gearItem: gear, .failed(item: $0, record: $1), failedItem: nil)) }
       ),
       (

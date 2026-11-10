@@ -150,11 +150,32 @@ struct MoreWritesQueueTests {
       request.route.hasPrefix("PATCH ") ? .status(422, "Name taken") : nil
     }
     let outbox = world.outbox()
-    let edit = try outbox.queue(.updateGearItem(Self.item, GearItemUpdate(archived: true)))
+    var rename = GearItemUpdate()
+    rename.name = "Taken"
+    let edit = try outbox.queue(.updateGearItem(Self.item, rename))
     await outbox.settled()
     let failed = try #require(outbox.item(edit.id))
     #expect(failed.failure?.message == "Name taken")
     #expect(failed.isEditable)
+  }
+
+  @Test func aRefusedArchiveOrPauseOffersDiscardAlone() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.server.override { request, _ in
+      request.route.hasPrefix("PATCH ") ? .status(422, "No.") : nil
+    }
+    let outbox = world.outbox()
+    let archive = try outbox.queue(.updateGearItem(Self.item, GearItemUpdate(archived: true)))
+    let pause = try outbox.queue(
+      .updateServiceSchedule(
+        .server(UUID()), gearItem: Self.item, GearServiceScheduleUpdate(active: false)))
+    await outbox.settled()
+    for id in [archive.id, pause.id] {
+      let failed = try #require(outbox.item(id))
+      #expect(failed.isFailed)
+      #expect(!failed.isEditable)
+    }
   }
 
   @Test func aDeleteOffersNoEdit() async throws {

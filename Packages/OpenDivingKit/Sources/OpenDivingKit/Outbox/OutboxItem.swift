@@ -78,10 +78,16 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
   /// An update of any record but a dive or a gear set only once it has failed, and a card image
   /// likewise, which reopens its certification's form: the phone keeps no copy of the record to
   /// open it over without a read, and one still waiting is changed from the record's page. A
-  /// delete and a card image's removal offer none.
+  /// delete, a card image's removal, an archive and a pause offer none: no form shows the switch,
+  /// so one saved over it would drop it.
   public var isEditable: Bool {
     if state == .inFlight || failure?.kind == .wrongAccount { return false }
     switch operation {
+    case .updateGearItem(_, let body) where body.isArchived != nil: return false
+    case .updateServiceSchedule(_, _, let body)
+    where body == GearServiceScheduleUpdate(active: true)
+      || body == GearServiceScheduleUpdate(active: false):
+      return false
     case .updateDive, .updateGearSet: return failure?.status != 404
     case .updateDiveSite, .updatePerson, .updateTrip, .updateCourse, .updateContact,
       .updateGearItem, .updateServiceSchedule, .updateServiceRecord, .updateCertification,
