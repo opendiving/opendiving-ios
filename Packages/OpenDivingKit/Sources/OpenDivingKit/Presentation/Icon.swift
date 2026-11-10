@@ -38,6 +38,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case luggage
   case mail
   case mapPin = "map-pin"
+  case mountain
   case navigation2 = "navigation-2"
   case paperclip
   case phone

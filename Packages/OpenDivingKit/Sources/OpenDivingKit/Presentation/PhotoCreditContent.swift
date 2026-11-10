@@ -1,7 +1,8 @@
 import Foundation
 
-/// A species photo's credit line — *Photo by Raimond Spekking · CC BY-SA 4.0 · Wikimedia
-/// Commons* — as runs of text, the licence and the source each a link where it has one.
+/// A credit line as runs of text, the licence and the source each a link where it has one: a
+/// species photo's — *Photo by Raimond Spekking · CC BY-SA 4.0 · Wikimedia Commons* — or the
+/// taxonomy's.
 public struct PhotoCreditContent: Hashable, Sendable {
   public struct Run: Hashable, Sendable {
     public var text: String
