@@ -181,12 +181,12 @@ struct MapWeatherSized<Part: View>: View, Animatable {
 #Preview {
   VStack(alignment: .leading, spacing: 16) {
     HStack {
-      MapWeatherSky(content: .sample, size: 15)
-      MapWeatherWind(content: .sample, size: 15)
+      MapWeatherSky(content: .sample, size: MapWeatherBarLabel.size)
+      MapWeatherWind(content: .sample, size: MapWeatherBarLabel.size)
     }
     HStack {
-      MapWeatherSky(content: .sample, size: 26)
-      MapWeatherWind(content: .sample, size: 26)
+      MapWeatherSky(content: .sample, size: MapWeatherCard.size)
+      MapWeatherWind(content: .sample, size: MapWeatherCard.size)
     }
   }
   .padding()

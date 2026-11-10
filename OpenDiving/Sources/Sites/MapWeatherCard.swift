@@ -14,7 +14,7 @@ struct MapWeatherCard: View {
   @ScaledMetric(relativeTo: .title2) private var size = MapWeatherCard.size
 
   /// The top row's text size, before Dynamic Type scales it.
-  static let size: CGFloat = 24
+  static let size: CGFloat = 20
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -44,7 +44,7 @@ struct MapWeatherCard: View {
       AttributionLine(credits: [content.attribution], underline: false)
     }
     // Wider than the system's 16: the glass's corners are rounder than a form section's.
-    .padding(20)
+    .padding(24)
   }
 }
 
