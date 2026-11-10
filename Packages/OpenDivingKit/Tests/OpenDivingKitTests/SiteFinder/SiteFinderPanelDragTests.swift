@@ -23,6 +23,7 @@ struct SiteFinderPanelDragTests {
     let move = drag.begin()
     drag.head(to: .full)
     #expect(drag.detent == .half)
+    #expect(drag.target == .full)
     #expect(drag.dragged == 0)
     #expect(drag.height(in: panel) == panel.height(.full))
     #expect(drag.isMoving)

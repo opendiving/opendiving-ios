@@ -58,6 +58,9 @@ public final class SiteFinderPanelDrag {
     if isMoving { isMoving = false }
   }
 
+  /// Where the panel is heading, or rests: what a step from the handle steps from.
+  public var target: SiteFinderPanel.Detent { heading ?? detent }
+
   /// How tall the panel stands in `panel`, where it is on its way.
   public func height(in panel: SiteFinderPanel) -> Double {
     if let heading { return panel.height(heading) }

@@ -241,28 +241,20 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .frame(maxWidth: .infinity)
       .contentShape(Rectangle())
       .onTapGesture {
-        move(to: drag.detent == .half ? .full : .half)
+        move(to: drag.target == .half ? .full : .half)
       }
       .accessibilityElement()
       .accessibilityLabel("List of dive sites")
-      .accessibilityValue(Self.spoken(drag.detent))
+      .modifier(HandleValue(drag: drag))
       .accessibilityAdjustableAction { direction in
         let all = SiteFinderPanel.Detent.allCases
-        guard let at = all.firstIndex(of: drag.detent) else { return }
+        guard let at = all.firstIndex(of: drag.target) else { return }
         switch direction {
         case .increment where at + 1 < all.count: move(to: all[at + 1])
         case .decrement where at > 0: move(to: all[at - 1])
         default: break
         }
       }
-  }
-
-  private static func spoken(_ detent: SiteFinderPanel.Detent) -> String {
-    switch detent {
-    case .collapsed: "Collapsed"
-    case .half: "Half screen"
-    case .full: "Full screen"
-    }
   }
 
   /// Settles the panel at the detent the drag was heading for, the spring starting at the
@@ -459,6 +451,22 @@ private struct PanelFrame: ViewModifier {
     content.frame(
       height: hasMap && !drag.isMoving ? panel.height(drag.detent) : panel.height(.full),
       alignment: .top)
+  }
+}
+
+/// What VoiceOver says the handle is at: where the panel is heading, so a step reads back at
+/// once. Read here rather than in the finder, which a move starting would draw again.
+private struct HandleValue: ViewModifier {
+  let drag: SiteFinderPanelDrag
+
+  func body(content: Content) -> some View {
+    let spoken =
+      switch drag.target {
+      case .collapsed: "Collapsed"
+      case .half: "Half screen"
+      case .full: "Full screen"
+      }
+    content.accessibilityValue(spoken)
   }
 }
 
