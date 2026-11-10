@@ -57,6 +57,8 @@ private struct SitesFinder: View {
             let content = MapWeatherContent(current, units: session.units)
           {
             MapWeatherBar(content: content, place: weather.place) { await weather.lookUpPlace() }
+          } else if weather.isUnreachable {
+            MapWeatherOfflineBar()
           } else {
             Color.clear.frame(width: 1, height: 1)
           }

@@ -34,14 +34,7 @@ struct MapWeatherBar: View {
         .padding(.leading, 4)
       }
     }
-    .font(.subheadline)
-    .monospacedDigit()
-    .lineLimit(1)
-    .fixedSize()
-    .padding(.horizontal, 14)
-    .frame(height: MapRoundButtonStyle.side)
-    .contentShape(Capsule())
-    .pickerControl(in: Capsule())
+    .mapWeatherBarChrome()
     .onTapGesture { isExplained = true }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(content.accessibilityLabel)
@@ -71,6 +64,20 @@ struct MapWeatherBar: View {
       .frame(idealWidth: 320)
       .presentationCompactAdaptation(.popover)
     }
+  }
+}
+
+extension View {
+  /// The weather bar's capsule, as tall as the map's round buttons beside it.
+  func mapWeatherBarChrome() -> some View {
+    font(.subheadline)
+      .monospacedDigit()
+      .lineLimit(1)
+      .fixedSize()
+      .padding(.horizontal, 14)
+      .frame(height: MapRoundButtonStyle.side)
+      .contentShape(Capsule())
+      .pickerControl(in: Capsule())
   }
 }
 
