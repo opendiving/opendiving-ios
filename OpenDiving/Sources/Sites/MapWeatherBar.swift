@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The weather at the centre of the Sites map, in its top bar: the sky, the air temperature and
-/// the wind with an arrow along it. A tap shows where it is, the reading in words and whose data
-/// it is, which the providers' licences ask to be shown.
+/// the wind with an arrow along it. A tap shows where it is, the reading in words with the rest of
+/// it under, and whose data it is, which the providers' licences ask to be shown.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
   /// Where the weather is, nil while it is looked up.
@@ -49,6 +49,23 @@ struct MapWeatherBar: View {
           .redacted(reason: place == nil ? .placeholder : [])
         Text(content.summary)
           .font(.subheadline)
+        if !content.details.isEmpty {
+          VStack(spacing: 2) {
+            ForEach(content.details, id: \.label) { detail in
+              HStack {
+                Text(detail.label)
+                  .foregroundStyle(.secondary)
+                Spacer()
+                Text(detail.value)
+                  .monospacedDigit()
+              }
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(detail.label)
+              .accessibilityValue(detail.spokenValue)
+            }
+          }
+          .font(.subheadline)
+        }
         // A credit a line, so neither wraps; not underlined, as the credits over a map are, since
         // one credit is a single link and the other two with text between.
         VStack(alignment: .leading, spacing: 2) {
@@ -91,7 +108,9 @@ extension View {
             DiveConditionsCurrentRead(
               attribution: "[Weather data by Open-Meteo.com](https://open-meteo.com/)",
               weather: ConditionsWeather(
-                airTemperature: 24.4, windSpeed: 5.9, windDirection: 45, weatherCode: 2)),
+                airTemperature: 24.4, relativeHumidity: 61.6, windSpeed: 5.9, windDirection: 45,
+                windGusts: 8.3, cloudCover: 40, precipitation: 0.4, pressure: 1012.3,
+                weatherCode: 2)),
             units: .metric)
           {
             MapWeatherBar(

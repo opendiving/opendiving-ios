@@ -16,19 +16,36 @@ public struct DiveConditionsCurrentRead: Decodable, Hashable, Sendable {
 public struct ConditionsWeather: Decodable, Hashable, Sendable {
   /// Degrees Celsius, 2 m above ground.
   public let airTemperature: Double?
+  /// Percent.
+  public let relativeHumidity: Double?
   /// Metres per second, 10 m above ground.
   public let windSpeed: Double?
   /// Where the wind blows from, in degrees.
   public let windDirection: Double?
+  /// Metres per second.
+  public let windGusts: Double?
+  /// Percent.
+  public let cloudCover: Double?
+  /// Millimetres over the preceding hour.
+  public let precipitation: Double?
+  /// Reduced to mean sea level, in hectopascals.
+  public let pressure: Double?
   /// The WMO 4677 code.
   public let weatherCode: Int?
 
   public init(
-    airTemperature: Double?, windSpeed: Double?, windDirection: Double?, weatherCode: Int?
+    airTemperature: Double?, relativeHumidity: Double? = nil, windSpeed: Double?,
+    windDirection: Double?, windGusts: Double? = nil, cloudCover: Double? = nil,
+    precipitation: Double? = nil, pressure: Double? = nil, weatherCode: Int?
   ) {
     self.airTemperature = airTemperature
+    self.relativeHumidity = relativeHumidity
     self.windSpeed = windSpeed
     self.windDirection = windDirection
+    self.windGusts = windGusts
+    self.cloudCover = cloudCover
+    self.precipitation = precipitation
+    self.pressure = pressure
     self.weatherCode = weatherCode
   }
 

@@ -15,8 +15,9 @@ struct MapWeatherTests {
   private static let dahab =
     #"{"provider":"open-meteo","attribution":"[Open-Meteo](https://open-meteo.com/)","#
     + #""at":"2026-11-09T14:00:00+02:00","position":{"latitude":28.5,"longitude":34.5},"#
-    + #""weather":{"model":"best_match","air_temperature":24.4,"wind_speed":5.9,"#
-    + #""wind_direction":45,"weather_code":2}}"#
+    + #""weather":{"model":"best_match","air_temperature":24.4,"relative_humidity":61.6,"#
+    + #""wind_speed":5.9,"wind_direction":45,"wind_gusts":8.3,"cloud_cover":40,"#
+    + #""precipitation":0.4,"pressure":1012.3,"weather_code":2}}"#
 
   /// The positions the server was asked about, as `latitude,longitude`.
   final class Asked: Sendable {
@@ -80,6 +81,40 @@ struct MapWeatherTests {
     let imperial = try #require(MapWeatherContent(read, units: .imperial))
     #expect(imperial.temperature == "76°F")
     #expect(imperial.windSpeed == "11 kn")
+  }
+
+  @Test func theTapListsTheRestOfTheReadingInTheDiversUnits() throws {
+    let read = try APICoding.decoder().decode(
+      DiveConditionsCurrentRead.self, from: Data(Self.dahab.utf8))
+    let metric = try #require(MapWeatherContent(read, units: .metric))
+    #expect(
+      metric.details.map(\.label) == [
+        "Gusts", "Cloud cover", "Rain, last hour", "Humidity", "Pressure",
+      ])
+    #expect(metric.details.map(\.value) == ["16 kn", "40%", "0.4 mm", "62%", "1012 hPa"])
+    #expect(
+      metric.details.map(\.spokenValue) == [
+        "16 knots", "40 percent", "0.4 millimeters", "62 percent", "1012 hectopascals",
+      ])
+
+    let imperial = try #require(MapWeatherContent(read, units: .imperial))
+    #expect(imperial.details.map(\.value) == ["16 kn", "40%", "0.02 in", "62%", "1012 hPa"])
+    #expect(imperial.details[2].spokenValue == "0.02 inches")
+  }
+
+  @Test func aFigureTheProviderLacksIsLeftOutAndNoRainIsStillSaid() throws {
+    let content = try #require(
+      MapWeatherContent(
+        Self.read(
+          ConditionsWeather(
+            airTemperature: 21, windSpeed: nil, windDirection: nil, precipitation: 0,
+            weatherCode: 0)),
+        units: .metric))
+    #expect(
+      content.details == [
+        MapWeatherContent.Detail(
+          label: "Rain, last hour", value: "0 mm", spokenValue: "0 millimeters")
+      ])
   }
 
   @Test func aNortherlyBlowsSouthAndACodeTheTableLacksDrawsNoIcon() throws {

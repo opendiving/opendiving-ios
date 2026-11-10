@@ -1,6 +1,16 @@
 /// What the Sites map's weather bar draws for the weather at the map's centre: the sky's icon,
-/// the air temperature, and the wind's speed with an arrow along it.
+/// the air temperature, and the wind's speed with an arrow along it; and, under its tap, the rest
+/// of the provider's reading.
 public struct MapWeatherContent: Hashable, Sendable {
+  /// A line of the reading the bar has no room for.
+  public struct Detail: Hashable, Sendable {
+    public let label: String
+    /// `16 kn`, `62%`.
+    public let value: String
+    /// The value as VoiceOver says it, its unit in words.
+    public let spokenValue: String
+  }
+
   public let icon: Icon?
   /// `24°C`, whole.
   public let temperature: String?
@@ -13,6 +23,9 @@ public struct MapWeatherContent: Hashable, Sendable {
   public let summary: String
   /// The summary as VoiceOver says it, its units in words.
   public let accessibilityLabel: String
+  /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
+  /// has it.
+  public let details: [Detail]
   /// The provider's source line, as markdown links.
   public let attribution: String
 
@@ -49,7 +62,43 @@ public struct MapWeatherContent: Hashable, Sendable {
     }
     summary = Self.sentence(written)
     accessibilityLabel = Self.sentence(spoken)
+    details = Self.details(weather, units: units)
     attribution = read.attribution
+  }
+
+  private static func details(_ weather: ConditionsWeather, units: UnitSystem) -> [Detail] {
+    var details: [Detail] = []
+    if let gusts = weather.windGusts {
+      details.append(
+        Detail(
+          label: "Gusts", value: UnitFormat.windSpeed(gusts),
+          spokenValue: UnitFormat.knots(gusts) + " knots"))
+    }
+    if let cover = weather.cloudCover {
+      details.append(percent("Cloud cover", cover))
+    }
+    if let rain = weather.precipitation {
+      details.append(
+        Detail(
+          label: "Rain, last hour", value: UnitFormat.format(rain, .precipitation, units),
+          spokenValue: UnitFormat.number(rain, .precipitation, units) + " "
+            + Measure.precipitation.word(units)))
+    }
+    if let humidity = weather.relativeHumidity {
+      details.append(percent("Humidity", humidity))
+    }
+    if let pressure = weather.pressure {
+      let whole = NumberText.fixed(NumberText.round(pressure), decimals: 0)
+      details.append(
+        Detail(
+          label: "Pressure", value: whole + " hPa", spokenValue: whole + " hectopascals"))
+    }
+    return details
+  }
+
+  private static func percent(_ label: String, _ value: Double) -> Detail {
+    let whole = NumberText.fixed(NumberText.round(value), decimals: 0)
+    return Detail(label: label, value: whole + "%", spokenValue: whole + " percent")
   }
 
   private static func sentence(_ parts: [String]) -> String {
