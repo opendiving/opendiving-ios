@@ -2,15 +2,35 @@ import OpenDivingKit
 import SwiftUI
 
 /// The person form as a screen of its own: a new person, a person's page's edit, or a queued edit
-/// the server refused.
-/// A placeholder for now, which says the record is managed on the web.
+/// the server refused. As the web's dialog, it carries no delete: the page's menu does.
 struct PersonFormView: View {
   let mode: RecordFormMode<PersonRead>
-  /// The person was deleted from the form, which leaves their page nothing to show.
-  var onDeleted: () -> Void = {}
+
+  @Environment(Session.self) private var session
 
   var body: some View {
-    ManagedOnTheWebView(title: "Person", icon: .user, message: "People are managed on the web.")
+    switch mode {
+    case .create:
+      form(RecordSheetModel(outbox: OutboxModel(session: session), values: PersonFormValues()))
+    case .edit(let person):
+      form(edit(person, failedItem: nil))
+    case .failed(let item, let uuid):
+      RecordFormLoader {
+        try await session.requireClient().person(uuid)
+      } content: { person in
+        form(edit(person, failedItem: item))
+      }
+    }
+  }
+
+  private func edit(_ person: PersonRead, failedItem: UUID?) -> RecordSheetModel<PersonFormValues> {
+    RecordSheetModel(
+      outbox: OutboxModel(session: session), editing: .server(person.uuid),
+      read: PersonFormValues(editing: person), failedItem: failedItem)
+  }
+
+  private func form(_ model: RecordSheetModel<PersonFormValues>) -> some View {
+    PersonSheetForm(model: model, isPushed: true, onCreated: { _ in })
   }
 }
 
@@ -18,4 +38,5 @@ struct PersonFormView: View {
   NavigationStack {
     PersonFormView(mode: .create)
   }
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
 }
