@@ -1,5 +1,4 @@
 import OpenDivingKit
-import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -13,7 +12,6 @@ struct PictureFieldView: View {
 
   @State private var takingPhoto = false
   @State private var choosingPhoto = false
-  @State private var photo: PhotosPickerItem?
   @State private var preparing = false
   @State private var cropping: PictureCropping?
   @State private var refusal: PictureRefusal?
@@ -59,11 +57,12 @@ struct PictureFieldView: View {
       }
       .ignoresSafeArea()
     }
-    .photosPicker(isPresented: $choosingPhoto, selection: $photo, matching: .images)
-    .onChange(of: photo) { _, item in
-      guard let item else { return }
-      photo = nil
-      Task { await load(item) }
+    .photoLibraryPick(isPresented: $choosingPhoto) { data in
+      guard let data else {
+        refusal = .unreadable
+        return
+      }
+      Task { await prepare { PicturePreparer.prepare(data, kind: $0) } }
     }
     .sheet(item: $cropping) { cropping in
       PictureCropSheet(kind: kind, cropping: cropping) { area in
@@ -154,14 +153,6 @@ struct PictureFieldView: View {
       }
       .accessibilityLabel(bin.label(kind))
     }
-  }
-
-  private func load(_ item: PhotosPickerItem) async {
-    guard let data = try? await item.loadTransferable(type: Data.self) else {
-      refusal = .unreadable
-      return
-    }
-    await prepare { PicturePreparer.prepare(data, kind: $0) }
   }
 
   /// Runs `preparation` off the main actor and opens the crop on what it made.
