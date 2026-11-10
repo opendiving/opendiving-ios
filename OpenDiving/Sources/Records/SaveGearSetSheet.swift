@@ -40,7 +40,6 @@ private struct GearSetSheetForm: View {
   let onSaved: (RecordRef) -> Void
 
   @State private var invalid: Set<String> = []
-  @State private var picking = false
 
   var body: some View {
     RecordSheetForm(
@@ -71,27 +70,7 @@ private struct GearSetSheetForm: View {
           label: "Set name *", placeholder: "e.g. Sidemount, Warm water rec",
           text: $model.values.form.name, message: model.message("name"))
       }
-      Section("Gear") {
-        SortableRows(
-          items: $model.values.form.items, identity: { $0 }, title: { row($0).title },
-          row: { _, ref in
-            HStack {
-              PickerRowLabel(row: row(ref))
-              if model.values.form.items.count > 1 { DragHandle() }
-            }
-          })
-        Button(model.values.form.items.isEmpty ? "Select gear..." : "Add more gear...") {
-          picking = true
-        }
-        .accentRow()
-        .sheet(isPresented: $picking) {
-          PickerSheet(
-            title: "Select gear...", searchPrompt: FormPicker.gear.searchPrompt,
-            rows: { LookupsModel.matching(offered, $0).map(FormPickerRow.init) },
-            addLabel: "Add gear...", addSheet: { NewGearItemSheet(onCreated: $0) },
-            onPick: { ref in ref.map(add) })
-        }
-      }
+      GearSetItemsSection(items: $model.values.form.items, lookups: lookups)
       Section {
         RecordMeasuredField(
           label: "Weight", key: "weight", measure: .weight, units: units.units(.weight),
@@ -108,19 +87,6 @@ private struct GearSetSheetForm: View {
     Binding(
       get: { model.values.target },
       set: { model.values.pickTarget($0, among: lookups.gearSets) })
-  }
-
-  private var offered: [GearItemLookupItem] {
-    lookups.gearItems.filter { !model.values.form.items.contains($0.ref) }
-  }
-
-  private func add(_ ref: RecordRef) {
-    if !model.values.form.items.contains(ref) { model.values.form.items.append(ref) }
-  }
-
-  private func row(_ ref: RecordRef) -> FormPickerRow {
-    lookups.gearItems.first { $0.ref == ref }.map(FormPickerRow.init)
-      ?? FormPickerRow(ref: ref, title: "New gear")
   }
 
   private func save() -> Bool {

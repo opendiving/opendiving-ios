@@ -33,18 +33,21 @@ struct NewGearItemSheet: View {
   }
 }
 
-private struct GearItemSheetForm: View {
+/// The gear item form, in a sheet or pushed as a screen of its own.
+struct GearItemSheetForm: View {
   @State var model: RecordSheetModel<GearItemFormValues>
   @State var lookups: LookupsModel
   @State var units: RecordEntryUnits
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
 
   @State private var invalid: Set<String> = []
 
   var body: some View {
     RecordSheetForm(
-      title: "New Gear", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
+      title: model.isEditing ? "Edit Gear" : "New Gear", isReopened: model.isReopened,
+      createLabel: "Create gear", isPushed: isPushed, failure: model.failure,
+      saveError: model.saveError, save: save
     ) {
       Section {
         TextBox(

@@ -18,6 +18,11 @@ struct PlainCardView: View {
           }
         }
         FactsLine(facts: content.facts, color: .primary)
+        if content.facts.isEmpty, let emptyLine = content.emptyLine {
+          Text(emptyLine)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
       FiguresRow(figures: content.figures)
     }
