@@ -211,7 +211,8 @@ struct MapWeatherTests {
     }
     try await world.session.loadAccount()
     let model = model(world)
-    // Dahab asked about as a route appearing asks, on a task no pan cancels.
+    // Dahab asked about on a task left running, so only the map no longer showing Dahab keeps
+    // its answer off the bar.
     let asking = Task { await model.show(MapWeatherModel.Cell(latitude: 28.5, longitude: 34.5)) }
     await gate.untilArrived()
     await model.show(MapWeatherModel.Cell(latitude: 27.9, longitude: 34.3))
