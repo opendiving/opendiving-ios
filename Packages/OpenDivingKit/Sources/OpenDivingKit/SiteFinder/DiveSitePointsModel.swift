@@ -36,14 +36,15 @@ public final class DiveSitePointsModel {
       let credit = mine.isCommons ? commonsCredit(uuid) : nil
       return SiteFinderPoint(
         uuid: mine.uuid, name: mine.name, latitude: mine.latitude, longitude: mine.longitude,
-        isCommons: mine.isCommons, saved: true, credit: credit)
+        isCommons: mine.isCommons, saved: true, mark: mine.mark, credit: credit)
     }
     guard let commons, let record = commons.points.first(where: { $0.uuid == uuid }) else {
       return nil
     }
     return SiteFinderPoint(
       uuid: record.uuid, name: record.name, latitude: record.latitude,
-      longitude: record.longitude, isCommons: true, saved: false, credit: commons.credit(record))
+      longitude: record.longitude, isCommons: true, saved: false, mark: .commons,
+      credit: commons.credit(record))
   }
 
   private func commonsCredit(_ uuid: UUID) -> String? {

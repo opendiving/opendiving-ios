@@ -217,7 +217,7 @@ public final class SiteFinderModel {
     points.showHeld()
     let point = points.point(uuid)
     opened = OpenedSite(
-      uuid: uuid, name: point?.name, isCommons: point?.isCommons ?? false, isPlaced: point != nil)
+      uuid: uuid, name: point?.name, mark: point?.mark, isPlaced: point != nil)
     guard let point else { return .world }
     return SiteFinderOpening(points: [
       MapPoint(name: point.name, latitude: point.latitude, longitude: point.longitude)
@@ -307,19 +307,19 @@ public final class SiteFinderModel {
       selected = point
     case .sitesMap:
       opened = OpenedSite(
-        uuid: uuid, name: point.name, isCommons: point.isCommons, isPlaced: true)
+        uuid: uuid, name: point.name, mark: point.mark, isPlaced: true)
       centre(latitude: point.latitude, longitude: point.longitude, zoom: camera.zoom)
     }
   }
 
   /// A row of the sites map's list, opened in the panel, its pin glided to the middle of what
   /// shows at a town's worth of map at least.
-  public func open(_ site: DiveSiteLookupItem) {
+  public func open(_ item: DiveSiteSearchItem) {
+    let site = item.site
     guard let uuid = site.ref.serverUUID else { return }
     let placed = site.latitude != nil && site.longitude != nil
     opened = OpenedSite(
-      uuid: uuid, name: site.name, isCommons: site.owner == DiveSiteOwner.commons,
-      isPlaced: placed)
+      uuid: uuid, name: site.name, mark: item.mark, isPlaced: placed)
     if let latitude = site.latitude, let longitude = site.longitude {
       centre(latitude: latitude, longitude: longitude, zoom: pointZoom)
     }
@@ -330,16 +330,16 @@ public final class SiteFinderModel {
   public func open(uuid: UUID) {
     let point = points.point(uuid)
     opened = OpenedSite(
-      uuid: uuid, name: point?.name, isCommons: point?.isCommons ?? false, isPlaced: false)
+      uuid: uuid, name: point?.name, mark: point?.mark, isPlaced: false)
   }
 
-  /// The open site as its page read it: its name and whether it is a Commons record now, and its
+  /// The open site as its page read it: its name and its mark now, and its
   /// pin glided to the middle where
   /// the finder had nowhere to put it when it opened.
   public func read(_ site: DiveSiteRead) {
     guard var opened, opened.uuid == site.uuid else { return }
     opened.name = site.name
-    opened.isCommons = site.isCommons
+    opened.mark = site.mark
     if !opened.isPlaced, let latitude = site.latitude, let longitude = site.longitude {
       opened.isPlaced = true
       centre(latitude: latitude, longitude: longitude, zoom: pointZoom)

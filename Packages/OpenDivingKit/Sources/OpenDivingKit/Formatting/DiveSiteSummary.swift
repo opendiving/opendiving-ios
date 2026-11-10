@@ -1,5 +1,4 @@
-/// What a dive site's card, its panel's head and its information card print, from the site
-/// as the API reads it.
+/// What a dive site's panel and its information card print, from the site as the API reads it.
 public enum DiveSiteSummary {
   /// The site's *Dive Site Information* card, every field the site records but its name and its
   /// notes, in the site form's order: each member only where the site records it.
@@ -46,35 +45,11 @@ public enum DiveSiteSummary {
   /// The mark on a Commons site, wherever one is listed or shown.
   public static let commonsLabel = "Commons"
 
-  /// What the head of a Commons site's panel carries.
-  public static func chips(_ site: some DiveSiteCardSource) -> [Chip] {
-    site.isCommons ? [DiveSiteMark.commons.chip] : []
-  }
-
-  /// The site's card on the sites list: its name under its mark, its facts, and its dives, its
-  /// deepest —
-  /// a dash where it has none — and its species once there are some, over a map of its pin.
-  public static func card(_ site: some DiveSiteCardSource, units: UnitSystem)
-    -> RecordCardContent
-  {
-    var figures = [
-      Figure(label: "Dives", value: String(site.diveCount)),
-      Figure(label: "Deepest", value: deepest(site, units: units)),
-    ]
-    if site.speciesCount > 0 {
-      figures.append(Figure(label: "Species seen", value: String(site.speciesCount)))
-    }
-    return RecordCardContent(
-      title: site.name, chips: [site.mark.chip], facts: facts(site, units: units),
-      figures: figures, points: points(site))
-  }
-
-  /// The head of the site's panel, whose name and mark stand over it, whose pin is the map's and
-  /// whose facts are its information card's: its figures. Only the figures the site has are shown, and its last dive last,
-  /// as the one figure wider than the rest.
-  public static func hero(_ site: DiveSiteRead, units: UnitSystem) -> HeroContent {
+  /// The figures under the site's name on its panel: only those the site has, and its last dive
+  /// last, as the one figure wider than the rest.
+  public static func figures(_ site: DiveSiteRead, units: UnitSystem) -> [Figure] {
     var figures = [Figure(label: "Dives", value: String(site.diveCount))]
-    if let deepest = deepest(site, units: units) {
+    if let deepest = site.maxDiveDepth.map({ UnitFormat.depth($0, units, decimals: 0) }) {
       figures.append(Figure(label: "Deepest", value: deepest))
     }
     if site.speciesCount > 0 {
@@ -83,53 +58,10 @@ public enum DiveSiteSummary {
     if let lastDivedOn = site.lastDivedOn {
       figures.append(Figure(label: "Last dive", value: DateText.date(lastDivedOn)))
     }
-    return HeroContent(
-      title: site.name, chips: chips(site), facts: facts(site, units: units), figures: figures,
-      points: points(site))
+    return figures
   }
 
-  /// The site's pin alone, where it has one: its locality's centre is the town a geocoder
-  /// resolved, not the site.
-  public static func points(_ site: some DiveSiteCardSource) -> [MapPoint] {
-    guard let latitude = site.latitude, let longitude = site.longitude else { return [] }
-    return [MapPoint(name: site.name, latitude: latitude, longitude: longitude)]
-  }
-
-  /// Where the site is, in what water, how deep, how high and how divers get in — each only
-  /// where the site records it, the water only where it is not the sea's and the altitude
-  /// only where it is not sea level, both of which go without saying.
-  public static func facts(_ site: some DiveSiteCardSource, units: UnitSystem) -> [Fact] {
-    var facts: [Fact] = []
-    if let place = site.location?.name, !place.isEmpty {
-      facts.append(Fact(text: place))
-    }
-    if let waterType = site.waterType, !waterType.isEmpty, waterType != "salt" {
-      facts.append(
-        Fact(
-          text: VocabularyLabels.waterType(waterType), icon: .waves,
-          accessibilityLabel: "Water type"))
-    }
-    if let depths = depthRange(site, units: units) {
-      facts.append(
-        Fact(text: depths, icon: .arrowDownToLine, accessibilityLabel: "Depth"))
-    }
-    if let altitude = site.altitude, altitude != 0 {
-      facts.append(
-        Fact(
-          text: UnitFormat.altitude(Double(altitude), units), icon: .mountain,
-          accessibilityLabel: "Altitude"))
-    }
-    if !site.entryTypes.isEmpty {
-      facts.append(
-        Fact(
-          text: site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", "),
-          icon: .wavesArrowDown,
-          accessibilityLabel: site.entryTypes.count > 1 ? "Entry types" : "Entry type"))
-    }
-    return facts
-  }
-
-  /// Unlike the facts line, the sea's water and sea level are shown where the site records them.
+  /// The sea's water and sea level too, where the site records them.
   public static func info(_ site: DiveSiteRead, units: UnitSystem) -> Info {
     let text = { (value: String?) in value.flatMap { $0.isEmpty ? nil : $0 } }
     return Info(
@@ -183,14 +115,10 @@ public enum DiveSiteSummary {
     case (nil, nil): nil
     }
   }
-
-  /// The deepest dive there, in whole units as a dive card rounds its depths.
-  private static func deepest(_ site: some DiveSiteCardSource, units: UnitSystem) -> String? {
-    site.maxDiveDepth.map { UnitFormat.depth($0, units, decimals: 0) }
-  }
 }
 
-/// What a site's card reads: a site as the API reads it, or a row of the site finder's list.
+/// A site as the API reads it, or a row of the site finder's list: what the panel's and the
+/// rows' summaries read alike.
 public protocol DiveSiteCardSource {
   var name: String { get }
   var location: LocationRead? { get }

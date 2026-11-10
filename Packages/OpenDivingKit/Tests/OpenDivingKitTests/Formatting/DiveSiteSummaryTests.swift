@@ -2,8 +2,7 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// The site's card, panel head and information card over the `dive-site` fixture, as the web's
-/// `diveSiteFacts`, `DiveSiteCard`, `DiveSiteHero` and `DiveSiteInfoCard` print them.
+/// The site panel's figures and information card over the `dive-site` fixture.
 struct DiveSiteSummaryTests {
   static func site(_ changes: [String: Any] = [:]) throws -> DiveSiteRead {
     var object = try #require(
@@ -13,58 +12,22 @@ struct DiveSiteSummaryTests {
       DiveSiteRead.self, from: JSONSerialization.data(withJSONObject: object))
   }
 
-  @Test func factsAreEachOnlyWhereTheSiteRecordsIt() throws {
-    let site = try Self.site([
-      "water_type": "fresh", "depth_from": 5, "depth_to": 30.5, "altitude": 420,
-      "entry_types": ["shore", "boat"],
-    ])
-    #expect(
-      DiveSiteSummary.facts(site, units: .metric) == [
-        Fact(text: "Dahab, Egypt"),
-        Fact(text: "Fresh water", icon: .waves, accessibilityLabel: "Water type"),
-        Fact(text: "5 m – 30.5 m", icon: .arrowDownToLine, accessibilityLabel: "Depth"),
-        Fact(text: "420 m", icon: .mountain, accessibilityLabel: "Altitude"),
-        Fact(
-          text: "Shore, Boat", icon: .wavesArrowDown,
-          accessibilityLabel: "Entry types"),
-      ])
-    let sea = try Self.site([
-      "water_type": "salt", "depth_to": 30, "altitude": 0, "location": NSNull(),
-    ])
-    #expect(
-      DiveSiteSummary.facts(sea, units: .metric) == [
-        Fact(text: "To 30 m", icon: .arrowDownToLine, accessibilityLabel: "Depth")
-      ])
-    let shallow = try Self.site(["depth_from": 5, "location": NSNull()])
-    #expect(DiveSiteSummary.facts(shallow, units: .metric).map(\.text) == ["From 5 m"])
-  }
-
-  @Test func theCardShowsADashForNoDeepestAndTheHeroLeavesItOut() throws {
+  @Test func theFiguresLeaveOutTheDeepestOfASiteWithNoDives() throws {
     let site = try Self.site(["max_dive_depth": NSNull(), "dive_count": 0])
     #expect(
-      DiveSiteSummary.card(site, units: .metric).figures == [
-        Figure(label: "Dives", value: "0"), Figure(label: "Deepest", value: nil),
-      ])
-    #expect(
-      DiveSiteSummary.hero(site, units: .metric).figures == [
+      DiveSiteSummary.figures(site, units: .metric) == [
         Figure(label: "Dives", value: "0"), Figure(label: "Last dive", value: "Apr 17, 2026"),
       ])
   }
 
-  @Test func theHeroCountsSpeciesAndMapsThePinAlone() throws {
-    let site = try Self.site(["species_count": 4, "latitude": 28.57, "longitude": 34.53])
-    let hero = DiveSiteSummary.hero(site, units: .metric)
+  @Test func theFiguresCountSpecies() throws {
+    let site = try Self.site(["species_count": 4])
     #expect(
-      hero.figures == [
+      DiveSiteSummary.figures(site, units: .metric) == [
         Figure(label: "Dives", value: "2"), Figure(label: "Deepest", value: "46 m"),
         Figure(label: "Species seen", value: "4"),
         Figure(label: "Last dive", value: "Apr 17, 2026"),
       ])
-    #expect(hero.points == [MapPoint(name: "Tiger Reef", latitude: 28.57, longitude: 34.53)])
-    #expect(DiveSiteSummary.card(site, units: .metric).figures.count == 3)
-    #expect(DiveSiteSummary.card(site, units: .metric).points == hero.points)
-    #expect(!DiveSiteSummary.card(site, units: .metric).mapsTheWorldWhenEmpty)
-    #expect(DiveSiteSummary.hero(try Self.site(["latitude": 28.57]), units: .metric).points == [])
   }
 
   @Test func theInformationCardHoldsEveryFieldTheSiteRecords() throws {

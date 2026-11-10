@@ -132,7 +132,7 @@ private struct SiteHead: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      FiguresRow(figures: DiveSiteSummary.hero(site, units: units).figures)
+      FiguresRow(figures: DiveSiteSummary.figures(site, units: units))
       if !site.isUnsavedCommons {
         NavigationLink {
           DiveSiteFormView(mode: .edit(site), onDeleted: onDeleted, onReplaced: onReplaced)

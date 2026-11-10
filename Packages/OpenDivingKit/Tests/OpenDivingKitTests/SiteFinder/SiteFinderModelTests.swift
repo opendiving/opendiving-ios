@@ -502,6 +502,7 @@ struct SiteFinderModelTests {
     model.select(Self.canyon)
     #expect(model.opened?.uuid == Self.canyon)
     #expect(model.opened?.name == "Canyon")
+    #expect(model.opened?.mark == .proposed)
     #expect(model.selected == nil)
     #expect(model.camera == MapCamera(latitude: 28.5687, longitude: 34.5372, zoom: 14))
     #expect(model.glides)
@@ -516,8 +517,9 @@ struct SiteFinderModelTests {
   @Test func aRowOpensInThePanelAtATownsWorthOfMapAtLeast() async throws {
     let (model, _) = try await withPoints()
     model.open(
-      DiveSiteLookupItem(
-        ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372))
+      DiveSiteSearchItem(
+        site: DiveSiteLookupItem(
+          ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372)))
     #expect(model.opened?.uuid == Self.canyon)
     #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
     #expect(model.camera.latitude == 28.5687)
@@ -525,8 +527,9 @@ struct SiteFinderModelTests {
     await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 15))
     #expect(!model.glides)
     model.open(
-      DiveSiteLookupItem(
-        ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372))
+      DiveSiteSearchItem(
+        site: DiveSiteLookupItem(
+          ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372)))
     #expect(model.camera.zoom == 15)
   }
 
@@ -536,12 +539,14 @@ struct SiteFinderModelTests {
     let before = model.camera
     model.open(uuid: other)
     #expect(model.opened?.name == nil)
+    #expect(model.opened?.mark == nil)
     #expect(model.camera == before)
     // Another site's read says nothing about this one.
     model.read(try site(Self.canyon, latitude: 1, longitude: 2))
     #expect(model.opened?.name == nil)
     model.read(try site(other, latitude: 12.5, longitude: 45.25))
     #expect(model.opened?.name == "Renamed")
+    #expect(model.opened?.mark == .private)
     #expect(model.camera.latitude == 12.5)
     #expect(model.glides)
     // Placed once: a later read renames it and leaves the camera where the diver took it.

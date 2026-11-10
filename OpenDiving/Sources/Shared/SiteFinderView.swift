@@ -14,10 +14,9 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
   let units: UnitSystem
-  /// Under *Your sites*, the sites map's cards with their figures rather than plain rows.
-  var showsCards = false
-  /// A site chosen from the list or the map.
-  let onSite: (DiveSiteLookupItem) -> Void
+  /// What choosing a row or a touched point's sheet does on the dive form; on the sites map either
+  /// opens the site in the panel.
+  var onSite: (DiveSiteLookupItem) -> Void = { _ in }
   /// A long press on the map, where a site is added.
   var onLongPress: ((DeviceLocation) -> Void)?
   /// What the dive form lists while the search cannot reach the server: the phone's lookup rows.
@@ -345,8 +344,8 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
     HStack(alignment: .top, spacing: 8) {
       VStack(alignment: .leading, spacing: 4) {
-        if opened.isCommons {
-          ChipsRow(chips: [DiveSiteMark.commons.chip])
+        if let mark = opened.mark {
+          DiveSiteMarkBadge(mark: mark)
         }
         Text(opened.name ?? "")
           .font(.title2.bold())
@@ -444,18 +443,12 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
     switch row {
     case .site(let item):
       Button {
-        onSite(item.site)
-      } label: {
-        if showsCards && model.yours {
-          VStack(alignment: .leading, spacing: 4) {
-            RecordCardView(content: DiveSiteSummary.card(item, units: units), icon: .tabDiveSite)
-            if let attribution = item.attribution {
-              AttributionLine(credits: [attribution])
-            }
-          }
-        } else {
-          SiteFinderRow(content: SiteFinderRowContent(row, units: units))
+        switch model.host {
+        case .sitesMap: model.open(item)
+        case .diveForm: onSite(item.site)
         }
+      } label: {
+        SiteFinderRow(content: SiteFinderRowContent(row, units: units))
       }
       .buttonStyle(.plain)
     case .place(let item):
@@ -554,8 +547,9 @@ private struct SiteFinderRow: View {
   let content: SiteFinderRowContent
 
   var body: some View {
-    HStack(alignment: .top, spacing: 12) {
+    HStack(alignment: .nameCentre, spacing: 12) {
       Image(content.isPlace ? Icon.mapPin : Icon.diveSite)
+        .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
         .foregroundStyle(.secondary)
         .accessibilityHidden(true)
       // The credit sits outside the distance's row, so it runs on under the distance rather
@@ -565,10 +559,9 @@ private struct SiteFinderRow: View {
           VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
               Text(content.title).foregroundStyle(Color.primary)
+                .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
               if let mark = content.mark {
-                BadgeView(mark.label, style: .outline) { DiveSiteMarkIcon(mark: mark) }
-                  .accessibilityElement(children: .ignore)
-                  .accessibilityLabel(mark.accessibilityLabel)
+                DiveSiteMarkBadge(mark: mark)
               }
             }
             if let subtitle = content.subtitle {
@@ -593,6 +586,17 @@ private struct SiteFinderRow: View {
     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     .contentShape(Rectangle())
   }
+}
+
+extension VerticalAlignment {
+  /// The middle of a row's name, which its icon is centred on however many lines follow.
+  private enum NameCentre: AlignmentID {
+    static func defaultValue(in context: ViewDimensions) -> CGFloat {
+      context[VerticalAlignment.top]
+    }
+  }
+
+  fileprivate static let nameCentre = VerticalAlignment(NameCentre.self)
 }
 
 /// The dive form's touched point: the site, its mark and credit, and the way to put it on the dive.
@@ -620,7 +624,6 @@ private struct SiteFinderPointSheet: View {
         session: session, locator: CoreLocationProvider(),
         today: CalendarDate(year: 2026, month: 11, day: 8)!),
       map: MapStyleModel(session: session), units: .metric,
-      onSite: { _ in },
       site: { _ in EmptyView() },
       bar: { ToolbarItem(placement: .topBarTrailing) { Button("Add", systemImage: "plus") {} } })
   }

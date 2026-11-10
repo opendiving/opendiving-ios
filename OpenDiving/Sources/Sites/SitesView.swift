@@ -5,7 +5,7 @@ import SwiftUI
 /// screen under a top bar with no background, each site opening in the panel, the weather at the
 /// map's centre, the diver's picture that opens their profile, and a long press on the map that
 /// adds a site where it was pressed. Under *Your sites* it is the diver's list, the most recently
-/// dived first, as cards.
+/// dived first.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -58,8 +58,7 @@ private struct SitesFinder: View {
 
   var body: some View {
     SiteFinderView(
-      model: model, map: map, units: session.units, showsCards: true,
-      onSite: { model.open($0) },
+      model: model, map: map, units: session.units,
       onLongPress: { adding = PinnedNewSite(pin: $0) },
       site: { site in
         SitePanelView(
