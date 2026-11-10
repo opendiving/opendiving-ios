@@ -249,19 +249,13 @@ struct CommonsSiteTests {
       "entry_types": ["shore"], "other_names": ["Old Quarry"],
       "external_ids": [["registry": "openstreetmap", "identifier": "node/1"]],
     ])
-    #expect(DiveSiteSummary.card(site, units: .metric).chips.map(\.text) == ["Commons"])
-    #expect(DiveSiteSummary.hero(site, units: .metric).chips.map(\.text) == ["Commons"])
-    #expect(
-      DiveSiteSummary.chips(site) == [
-        Chip(text: "Commons", accessibilityLabel: "OpenDiving Commons site", kind: .site(.commons))
-      ])
+    #expect(site.mark == .commons)
     #expect(
       DiveSiteSummary.sharedMembers(site, units: .metric).map(\.label) == [
         "Name", "Also known as", "Location", "Depth", "Water type", "Altitude", "Entry types",
         "OpenStreetMap",
       ])
     let own = try read(["owner": DiveSiteOwner.account])
-    #expect(DiveSiteSummary.card(own, units: .metric).chips.map(\.text) == ["Private"])
-    #expect(DiveSiteSummary.hero(own, units: .metric).chips.isEmpty)
+    #expect(own.mark == .private)
   }
 }

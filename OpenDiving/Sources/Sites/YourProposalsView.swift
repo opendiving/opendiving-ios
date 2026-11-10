@@ -57,7 +57,7 @@ private struct ProposalList: View {
   }
 }
 
-/// The site, opening its page, then the kind and the date, the outcome with any reason, and
+/// The site, opening it on the map, then the kind and the date, the outcome with any reason, and
 /// *Withdraw* on one that waits.
 private struct ProposalCard: View {
   let row: DiveSiteProposalSummary.Row
@@ -66,7 +66,7 @@ private struct ProposalCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       NavigationLink {
-        SiteDetailView(siteUUID: row.siteUUID)
+        SiteMapView(siteUUID: row.siteUUID)
       } label: {
         Text(row.siteName)
           .font(.headline)

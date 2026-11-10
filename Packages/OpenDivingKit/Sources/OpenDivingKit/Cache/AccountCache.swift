@@ -121,7 +121,7 @@ public struct AccountCache: Sendable {
     prune("sites") { PageCacheKey<DiveListItem>.siteDives($0).name }
   }
 
-  /// Drops a site the server no longer has, with the dives its page listed.
+  /// Drops a site the server no longer has, with the dives its panel listed.
   func removeSite(_ uuid: UUID) {
     remove(Self.detailPath("sites", uuid))
     remove("pages/\(PageCacheKey<DiveListItem>.siteDives(uuid).name).json")

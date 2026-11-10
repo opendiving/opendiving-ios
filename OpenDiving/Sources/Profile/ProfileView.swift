@@ -52,7 +52,7 @@ private struct ProfileContent: View {
             // In the name's colour, ringing the picture off the glass in either appearance.
             .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
         }
-        ProfileSectionTabs(selection: $section)
+        SectionTabs(selection: $section)
         Group {
           switch section {
           case .dives: ProfileDives(list: dives, units: session.units)

@@ -8,16 +8,17 @@ public struct SiteFinderPoint: Hashable, Sendable, Identifiable {
   public let name: String
   public let latitude: Double
   public let longitude: Double
-  public let isCommons: Bool
   /// On the diver's list.
   public let saved: Bool
+  /// The mark its pin takes.
+  public let mark: DiveSiteMark
   public let credit: String?
 
   /// The point as a picker's row, which a dive form keeps to name it.
   public var lookupItem: DiveSiteLookupItem {
     DiveSiteLookupItem(
       ref: .server(uuid), name: name, latitude: latitude, longitude: longitude,
-      owner: isCommons ? DiveSiteOwner.commons : DiveSiteOwner.account, saved: saved,
+      owner: mark == .commons ? DiveSiteOwner.commons : DiveSiteOwner.account, saved: saved,
       attribution: credit)
   }
 }

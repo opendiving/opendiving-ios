@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// One dive site's page: the site, every dive there a page at a time, and the species seen
-/// on them with their photos.
+/// One dive site as the sites map's panel shows it: the site, every dive there a page at a time,
+/// and the species seen on them with their photos.
 ///
 /// A site the phone has opened before shows at once from the account's cache, its dives and
 /// species with it, under ``lastUpdated``, while it is fetched behind; a fetch that fails leaves
@@ -11,9 +11,9 @@ import Observation
 @MainActor
 @Observable
 public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObserver {
-  /// The *Species Seen Here* card's state.
+  /// The *Marine life* tab's state.
   public enum Species: Hashable, Sendable {
-    /// The site counts no species, so nothing is asked for and no card is drawn.
+    /// The site counts no species, so nothing is asked for and the tab says none were seen.
     case none
     case loading
     case loaded([SpeciesLifeListEntry])
@@ -22,18 +22,24 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
 
   public let siteUUID: UUID
   public private(set) var phase: DetailPhase<DiveSiteRead> = .loading
-  /// When the site shown was fetched, while it is the cache's rather than this visit's.
-  public private(set) var lastUpdated: Date?
+  /// When the site shown was fetched, once it is the cache's and no read of this visit's is on
+  /// its way: a read that lands replaces it with nothing to say, so the line saying how old it is
+  /// would show only to go again.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
+  private var fetchedAt: Date?
+  /// A read of the site is on its way.
+  private var isReading = false
   public let dives: PagedList<DiveListItem>
   public private(set) var species: Species = .none
   /// Photo bytes by species uuid, as each card asks for its own.
   public private(set) var photos: [UUID: Data] = [:]
 
-  /// The queue holds an edit of this site, which the page shows once it lands.
+  /// The queue holds an edit of this site, which the panel shows once it lands.
   public private(set) var hasPendingEdit = false
-  /// The *Withdraw* on the page's proposal notice.
+  /// The *Withdraw* on the panel's proposal notice.
   public let withdrawal: ProposalWithdrawal
-  /// The *Replace with Commons site* on the page's match notice.
+  /// The *Replace with Commons site* on the panel's match notice.
   public let replacement: CommonsSiteReplacement
 
   @ObservationIgnored private let session: Session
@@ -68,16 +74,6 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     _ = await (list, seen)
   }
 
-  /// Pull-to-refresh: the site, its dives from the first page, and its species again. A
-  /// site already on screen stays there when the refresh fails.
-  public func refresh() async {
-    await readSite()
-    guard case .loaded(let site) = phase else { return }
-    async let list: Void = dives.refresh()
-    async let seen: Void = readSpecies(site)
-    _ = await (list, seen)
-  }
-
   /// The species' photo, once per version, when it has one. A photo that fails to arrive
   /// leaves the card's no-photo backdrop.
   public func loadPhoto(_ entry: SpeciesLifeListEntry) async {
@@ -95,7 +91,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     await withdrawal.withdraw(proposal) { await reloadWithEveryList(on: session) }
   }
 
-  /// Replaces the site with the Commons record, answering the record the page gives way to; nil
+  /// Replaces the site with the Commons record, answering the record the panel gives way to; nil
   /// with the reason on ``replacement``.
   public func replace(with record: UUID) async -> DiveSiteRead? {
     await replacement.replace(siteUUID, with: record) { await reloadWithEveryList(on: session) }
@@ -111,7 +107,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   func reread() async {
     let stale =
       switch phase {
-      case .loaded: lastUpdated != nil
+      case .loaded: fetchedAt != nil
       case .failed: true
       case .loading, .notFound: false
       }
@@ -127,7 +123,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     guard let stores = AccountStores.current(session), let entry = stores.cache.site(siteUUID)
     else { return }
     if stores.loaded { stores.cache.touchSite(siteUUID) }
-    lastUpdated = entry.fetchedAt
+    fetchedAt = entry.fetchedAt
     phase = .loaded(entry.value.site)
     if entry.value.site.speciesCount > 0, let entries = entry.value.species {
       species = .loaded(entries)
@@ -139,10 +135,12 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
+    isReading = true
+    defer { isReading = false }
     do {
       let site = try await session.routedClient().diveSite(siteUUID)
       skippedForRoute = false
-      lastUpdated = nil
+      fetchedAt = nil
       phase = .loaded(site)
       keep(site, fetchedUnder: stores)
       watchStores()
@@ -151,7 +149,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
       let next = DetailPhase<DiveSiteRead>.failure(error)
       if next == .notFound {
         cacheForAnswer(fetchedUnder: stores, session: session)?.removeSite(siteUUID)
-        lastUpdated = nil
+        fetchedAt = nil
       }
       if !wasLoaded || next == .notFound { phase = next }
     }
@@ -183,7 +181,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
       } ?? false
   }
 
-  /// A write landed, perhaps this site's edit: the page reads the site again. Its dives are a
+  /// A write landed, perhaps this site's edit: the panel reads the site again. Its dives are a
   /// list, which reads itself.
   func accountListsChanged() {
     guard phase.isLoaded else { return }
@@ -206,7 +204,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
           diveSiteUUID: siteUUID, page: page, itemsPerPage: itemsPerPage)
       }
       species = .loaded(entries)
-      if case .loaded(let shown) = phase, lastUpdated == nil {
+      if case .loaded(let shown) = phase, fetchedAt == nil {
         keep(shown, fetchedUnder: stores)
       }
     } catch {

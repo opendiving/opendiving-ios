@@ -2,8 +2,7 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// The site's card, hero and information card over the `dive-site` fixture, as the web's
-/// `diveSiteFacts`, `DiveSiteCard`, `DiveSiteHero` and `DiveSiteInfoCard` print them.
+/// The site panel's tab names and information card over the `dive-site` fixture.
 struct DiveSiteSummaryTests {
   static func site(_ changes: [String: Any] = [:]) throws -> DiveSiteRead {
     var object = try #require(
@@ -13,79 +12,50 @@ struct DiveSiteSummaryTests {
       DiveSiteRead.self, from: JSONSerialization.data(withJSONObject: object))
   }
 
-  @Test func factsAreEachOnlyWhereTheSiteRecordsIt() throws {
-    let site = try Self.site([
-      "water_type": "fresh", "depth_from": 5, "depth_to": 30.5, "altitude": 420,
-      "entry_types": ["shore", "boat"],
-    ])
-    #expect(
-      DiveSiteSummary.facts(site, units: .metric) == [
-        Fact(text: "Dahab, Egypt"),
-        Fact(text: "Fresh water", icon: .waves, accessibilityLabel: "Water type"),
-        Fact(text: "5 m – 30.5 m", icon: .arrowDownToLine, accessibilityLabel: "Depth"),
-        Fact(text: "420 m", icon: .mountain, accessibilityLabel: "Altitude"),
-        Fact(
-          text: "Shore, Boat", icon: .wavesArrowDown,
-          accessibilityLabel: "Entry types"),
-      ])
-    let sea = try Self.site([
-      "water_type": "salt", "depth_to": 30, "altitude": 0, "location": NSNull(),
-    ])
-    #expect(
-      DiveSiteSummary.facts(sea, units: .metric) == [
-        Fact(text: "To 30 m", icon: .arrowDownToLine, accessibilityLabel: "Depth")
-      ])
-    let shallow = try Self.site(["depth_from": 5, "location": NSNull()])
-    #expect(DiveSiteSummary.facts(shallow, units: .metric).map(\.text) == ["From 5 m"])
+  @Test func aTabCountsWhatItHoldsAndSaysNothingOfNone() {
+    #expect(DiveSiteSummary.counted("My dives", 3) == "My dives (3)")
+    #expect(DiveSiteSummary.counted("Marine life", 0) == "Marine life")
   }
 
-  @Test func theCardShowsADashForNoDeepestAndTheHeroLeavesItOut() throws {
-    let site = try Self.site(["max_dive_depth": NSNull(), "dive_count": 0])
-    #expect(
-      DiveSiteSummary.card(site, units: .metric).figures == [
-        Figure(label: "Dives", value: "0"), Figure(label: "Deepest", value: nil),
-      ])
-    #expect(
-      DiveSiteSummary.hero(site, units: .metric).figures == [
-        Figure(label: "Dives", value: "0"), Figure(label: "Last dive", value: "Apr 17, 2026"),
-      ])
-  }
-
-  @Test func theHeroCountsSpeciesAndMapsThePinAlone() throws {
-    let site = try Self.site(["species_count": 4, "latitude": 28.57, "longitude": 34.53])
-    let hero = DiveSiteSummary.hero(site, units: .metric)
-    #expect(
-      hero.figures == [
-        Figure(label: "Dives", value: "2"), Figure(label: "Deepest", value: "46 m"),
-        Figure(label: "Species seen", value: "4"),
-        Figure(label: "Last dive", value: "Apr 17, 2026"),
-      ])
-    #expect(hero.points == [MapPoint(name: "Tiger Reef", latitude: 28.57, longitude: 34.53)])
-    #expect(DiveSiteSummary.card(site, units: .metric).figures.count == 3)
-    #expect(DiveSiteSummary.card(site, units: .metric).points == hero.points)
-    #expect(!DiveSiteSummary.card(site, units: .metric).mapsTheWorldWhenEmpty)
-    #expect(DiveSiteSummary.hero(try Self.site(["latitude": 28.57]), units: .metric).points == [])
-  }
-
-  @Test func theInformationCard() throws {
-    #expect(DiveSiteSummary.info(try Self.site()).isEmpty)
+  @Test func theInformationCardHoldsEveryFieldTheSiteRecords() throws {
+    // The fixture's location, and a site's tags, are the panel's head's, not the card's.
+    #expect(DiveSiteSummary.info(try Self.site(), units: .metric).isEmpty)
+    #expect(DiveSiteSummary.info(try Self.site(["tags": ["wall"]]), units: .metric).isEmpty)
     let info = DiveSiteSummary.info(
       try Self.site([
         "other_names": ["Bells", "The Bells"], "latitude": 28.57, "longitude": 34.53,
-        "tags": ["wall"],
+        "depth_from": 5, "depth_to": 30.5, "water_type": "fresh", "altitude": 420,
+        "entry_types": ["shore", "boat"], "tags": ["wall"],
         "external_ids": [
           ["registry": "wikidata", "identifier": "Q123"],
           ["registry": "divesitedb", "identifier": "77"],
         ],
-      ]))
+      ]), units: .metric)
     #expect(info.alsoKnownAs == "Bells, The Bells")
     #expect(info.coordinates == "28.57, 34.53")
-    #expect(info.tags == ["wall"])
+    #expect(info.depth == "5 m – 30.5 m")
+    #expect(info.waterType == "Fresh water")
+    #expect(info.altitude == "420 m")
+    #expect(info.entryTypes == "Shore, Boat")
+    #expect(
+      info.rows.map(\.label) == [
+        "Also known as", "Coordinates", "Depth", "Water type", "Altitude", "Entry types",
+      ])
+    #expect(info.rows.filter(\.copiesOnTap).map(\.value) == ["28.57, 34.53"])
     #expect(
       info.registries == [
         .init(label: "Wikidata", identifier: "Q123", link: "https://www.wikidata.org/wiki/Q123"),
         .init(label: "divesitedb", identifier: "77", link: nil),
       ])
+  }
+
+  /// What the facts line leaves to go without saying, the card says where the site records it.
+  @Test func theInformationCardShowsTheSeaAndSeaLevel() throws {
+    let info = DiveSiteSummary.info(
+      try Self.site(["water_type": "salt", "altitude": 0, "location": NSNull()]), units: .metric)
+    #expect(info.waterType == VocabularyLabels.waterType("salt"))
+    #expect(info.altitude == "0 m")
+    #expect(!info.isEmpty)
   }
 
   @Test func aLifeListRowAsASpeciesCard() throws {
@@ -102,34 +72,5 @@ struct DiveSiteSummaryTests {
     #expect(family.commonName == "Muraenidae")
     #expect(family.scientificName == "Muraenidae (Family)")
     #expect(family.figures.last == Figure(label: "Last seen", value: "Jun 18, 2002"))
-  }
-
-  // MARK: - Info
-
-  @Test func recordInfoListsEveryFieldInTheFormsOrder() throws {
-    let site = try Self.site([
-      "other_names": ["Bells", "The Bells"], "latitude": 28.5722, "longitude": 34.5372,
-      "external_ids": [["registry": "wikidata", "identifier": "Q123"]], "depth_from": 5,
-      "depth_to": 30.5, "water_type": "fresh", "altitude": 420, "entry_types": ["shore", "boat"],
-      "tags": ["wall", "deep"], "notes": "Mind the current.",
-    ])
-    let info = DiveSiteSummary.recordInfo(site, units: .metric)
-    #expect(info.count == 1)
-    #expect(info[0].heading == nil)
-    #expect(
-      info[0].facts.map { [$0.label, $0.value] } == [
-        ["Name", "Tiger Reef"], ["Other names", "Bells, The Bells"], ["Location", "Dahab, Egypt"],
-        ["Latitude", "28.5722"], ["Longitude", "34.5372"],
-        ["In other registries", "Wikidata Q123"], ["Depth from", "5 m"], ["Depth to", "30.5 m"],
-        ["Water type", "Fresh water"], ["Altitude", "420 m"], ["Entry types", "Shore, Boat"],
-        ["Tags", "wall, deep"], ["Notes", "Mind the current."],
-      ])
-    #expect(info[0].facts.filter(\.isWide).map(\.label) == ["In other registries", "Notes"])
-  }
-
-  @Test func recordInfoLeavesWhatTheSiteDoesNotRecordWithoutAValue() throws {
-    let facts = DiveSiteSummary.recordInfo(try Self.site(), units: .metric)[0].facts
-    #expect(facts.count == 13)
-    #expect(facts.filter { $0.value != nil }.map(\.label) == ["Name", "Location"])
   }
 }

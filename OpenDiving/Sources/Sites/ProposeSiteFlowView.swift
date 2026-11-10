@@ -134,7 +134,7 @@ private struct MatchesStep: View {
   }
 }
 
-/// A record the site may be, opening its page, with why and its credit.
+/// A record the site may be, opening it on the map, with why and its credit.
 private struct MatchCard: View {
   let row: DiveSiteCommonsMatchSummary.Row
   let replacement: CommonsSiteReplacement
@@ -143,7 +143,7 @@ private struct MatchCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       NavigationLink {
-        SiteDetailView(siteUUID: row.target.uuid)
+        SiteMapView(siteUUID: row.target.uuid)
       } label: {
         Text(row.target.name)
           .font(.headline)

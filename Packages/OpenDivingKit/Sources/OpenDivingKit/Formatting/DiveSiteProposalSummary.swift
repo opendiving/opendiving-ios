@@ -2,7 +2,7 @@ import Foundation
 
 /// What a site's proposal notice and a row of *Your Proposals* print.
 public enum DiveSiteProposalSummary {
-  /// The notice on the site's page.
+  /// The notice on the site's panel.
   public struct Notice: Hashable, Sendable {
     public var title: String
     public var message: String?
@@ -49,7 +49,7 @@ public enum DiveSiteProposalSummary {
     "Public proposes this site to OpenDiving Commons: saving shows you what would be published, "
     + "and a reviewer decides."
   public static let lockedExplained =
-    "This site is waiting for review. Withdraw on the site's page is the way back to private."
+    "This site is waiting for review. Withdraw, where the site opens on the map, is the way back to private."
   public static let keptTitle = "Not Proposed Yet"
   public static let keptOnThePhone =
     "This site was kept on this phone and stays private. To propose it, choose Public again once "
@@ -70,7 +70,7 @@ public enum DiveSiteProposalSummary {
     return site?.isWaitingForReview == true ? .locked : .open
   }
 
-  /// What the diver's own site being in the Commons says on its page.
+  /// What the diver's own site being in the Commons says on its panel.
   public static func commonsMatch(_ match: DiveSiteCommonsMatch) -> String {
     "This site is in OpenDiving Commons as \(match.name)."
   }

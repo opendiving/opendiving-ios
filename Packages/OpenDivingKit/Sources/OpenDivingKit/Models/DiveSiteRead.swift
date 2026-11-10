@@ -47,7 +47,7 @@ public struct DiveSiteRead: Codable, Hashable, Sendable, Identifiable {
 
   public var isCommons: Bool { owner == DiveSiteOwner.commons }
 
-  /// A Commons record off the diver's list: its page shows it, and nothing of it can be edited.
+  /// A Commons record off the diver's list: its panel shows it, and nothing of it can be edited.
   public var isUnsavedCommons: Bool { isCommons && !saved }
 
   /// The reader's proposal of this site of theirs waits for a reviewer.

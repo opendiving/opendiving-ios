@@ -1,4 +1,4 @@
-/// The head of a dive's, a trip's or a site's page, or of the diver's profile: a map of its
+/// The head of a dive's or a trip's page, or of the diver's profile: a map of its
 /// places behind the chips, the title, the facts line and the figures.
 public struct HeroContent: Hashable, Sendable {
   public var title: String

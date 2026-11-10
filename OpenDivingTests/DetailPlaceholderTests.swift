@@ -5,8 +5,8 @@ import UIKit
 
 @testable import OpenDiving
 
-/// The trip and site pages other screens push by these initializers, under the session the
-/// root injects.
+/// The trip page and the map opened on a site, which other screens push by these initializers,
+/// under the session the root injects.
 @MainActor
 struct DetailPlaceholderTests {
   private func host(_ view: some View) -> UIView? {
@@ -21,7 +21,7 @@ struct DetailPlaceholderTests {
     #expect(host(TripDetailView(tripUUID: UUID())) != nil)
   }
 
-  @Test func siteDetailHostsWithAUUID() {
-    #expect(host(SiteDetailView(siteUUID: UUID())) != nil)
+  @Test func siteMapHostsWithAUUID() {
+    #expect(host(SiteMapView(siteUUID: UUID())) != nil)
   }
 }

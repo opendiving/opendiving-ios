@@ -7,7 +7,7 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// The trip's and the site's pages read their record, then its dives and what its cards
+/// The trip's page and the site's panel read their record, then its dives and what its cards
 /// name.
 @MainActor
 struct DetailModelTests {
