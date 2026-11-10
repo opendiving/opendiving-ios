@@ -25,8 +25,8 @@ private struct AccountList: View {
   var body: some View {
     List {
       if form.isLoaded {
-        ProfileSection(model: form)
-        EmailSection(model: email)
+        AccountProfileSection(model: form)
+        AccountEmailSection(model: email)
         Section {
           NavigationLink {
             DeleteAccountScreen()
@@ -51,7 +51,7 @@ private struct AccountList: View {
 }
 
 /// The name and username, and the one *Save* that sends whichever changed.
-private struct ProfileSection: View {
+private struct AccountProfileSection: View {
   let model: AccountFormModel
 
   var body: some View {
@@ -105,7 +105,7 @@ private struct ProfileSection: View {
 }
 
 /// The current address, and a new one sent a confirmation link.
-private struct EmailSection: View {
+private struct AccountEmailSection: View {
   let model: EmailChangeModel
 
   var body: some View {

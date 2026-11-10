@@ -82,7 +82,8 @@ struct SignInViewTests {
     let session = Session.stub(
       origin: Self.origin,
       transport: StubTransport(routes: [
-        "DELETE user": json(#"{"message":"User deleted","purge_after":"2026-11-24T10:00:00Z"}"#)
+        "DELETE user": Self.json(
+          #"{"message":"User deleted","purge_after":"2026-11-24T10:00:00Z"}"#)
       ]))
     let flow = SignInFlow(session: session)
     try await flow.deleteAccount()
