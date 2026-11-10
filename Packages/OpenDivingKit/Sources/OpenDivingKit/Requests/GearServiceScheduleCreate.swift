@@ -3,7 +3,7 @@
 public struct GearServiceScheduleCreate: Codable, Hashable, Sendable {
   /// The item the rule is for. A rule cannot go on without it.
   public var gearItem: RecordRef
-  /// A service-kind key, `service` or `inspection`.
+  /// A service-kind key (``GearServiceKinds/all``).
   public var kind: String
   /// The day the first due date is measured from.
   public var startsOn: CalendarDate
