@@ -31,10 +31,9 @@ struct HeroView<Leading: View>: View {
     VStack(alignment: .leading, spacing: 6) {
       if detailsOnGlass {
         creditLine
-        // Thinner than a picker's card, so more of the map shows through.
         details
           .padding(12)
-          .background(.ultraThinMaterial, in: .formSection)
+          .background { GlassCard() }
       } else {
         details
         creditLine
@@ -104,6 +103,29 @@ struct HeroView<Leading: View>: View {
 extension HeroView where Leading == EmptyView {
   init(content: HeroContent) {
     self.init(content: content) { EmptyView() }
+  }
+}
+
+/// Glass as a folder on the home screen has it: what lies behind blurred through, a light rim
+/// catching its edge, and a soft shadow lifting it off the map. Drawn from a material, which blurs
+/// on every version, rather than the system's glass effect, which iOS 26 draws close to opaque
+/// over dark tiles.
+private struct GlassCard: View {
+  private static let rim = LinearGradient(
+    stops: [
+      .init(color: .white.opacity(0.5), location: 0),
+      .init(color: .white.opacity(0.1), location: 0.35),
+      .init(color: .white.opacity(0.05), location: 0.65),
+      .init(color: .white.opacity(0.3), location: 1),
+    ],
+    startPoint: .topLeading, endPoint: .bottomTrailing)
+
+  var body: some View {
+    RoundedRectangle.formSection
+      .fill(.ultraThinMaterial)
+      .overlay { RoundedRectangle.formSection.fill(Color.white.opacity(0.06)) }
+      .overlay { RoundedRectangle.formSection.strokeBorder(Self.rim, lineWidth: 1) }
+      .shadow(color: .black.opacity(0.2), radius: 16, y: 6)
   }
 }
 
