@@ -3,8 +3,9 @@ import Observation
 
 /// The profile's head: the logbook's totals and the places the diver's trips went, from the
 /// phone's copy at once and then the server. A read that fails leaves the copy standing, and
-/// places that cannot be read are none, so the head draws the world. With no route nothing is
-/// asked for, and ``followRoute()`` reads again once one appears.
+/// places that cannot be read are none, so the head draws the world — but not places whose read
+/// was cut short, which the next refresh asks for again before the map draws anything. With no
+/// route nothing is asked for, and ``followRoute()`` reads again once one appears.
 @MainActor
 @Observable
 public final class ProfileModel {
@@ -40,7 +41,7 @@ public final class ProfileModel {
     if let places {
       self.places = places
       cache?.writeTripPlaces(places)
-    } else if self.places == nil {
+    } else if self.places == nil, !Task.isCancelled {
       self.places = []
     }
   }

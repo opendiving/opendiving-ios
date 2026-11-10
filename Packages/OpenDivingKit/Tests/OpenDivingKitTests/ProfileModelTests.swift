@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 
 @testable import OpenDivingKit
@@ -50,6 +51,25 @@ struct ProfileModelTests {
     await model.refresh()
     #expect(model.places == [])
     #expect(model.hero(today: .today()).mapsTheWorldWhenEmpty)
+  }
+
+  @Test func placesWhoseReadIsCutShortStayUnknown() async throws {
+    let world = try OutboxWorld()
+    let asked = Mutex(false)
+    world.server.override { request, _ in
+      guard request.route == "GET user/trip-places" else { return nil }
+      asked.withLock { $0 = true }
+      while !Task.isCancelled { await Task.yield() }
+      throw URLError(.cancelled)
+    }
+    try await world.load()
+    let model = ProfileModel(session: world.session)
+    let shown = Task { await model.refresh() }
+    while !asked.withLock({ $0 }) { await Task.yield() }
+    shown.cancel()
+    await shown.value
+    #expect(model.places == nil)
+    #expect(!model.hero(today: .today()).mapsTheWorldWhenEmpty)
   }
 
   @Test func thePictureIsFetchedOnceAndKept() async throws {
