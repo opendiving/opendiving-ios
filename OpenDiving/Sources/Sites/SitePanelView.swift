@@ -2,8 +2,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// Everything about one dive site, as the sites map's panel shows it under the site's mark, name
-/// and location, in three tabs — *Info*, with what stands on it (a proposal, a Commons match, an edit waiting to land), every field it records and its
-/// notes; *Marine life*, the species seen on its dives; and *My dives*, every dive there.
+/// and location, in three tabs across the panel's width: *Info*, with what stands on it (a
+/// proposal, a Commons match, an edit waiting to land), every field it records and its notes;
+/// *Marine life*, the species seen on its dives; and *My dives*, every dive there.
 struct SitePanelView: View {
   let siteUUID: UUID
   /// The site, each time it is read.
@@ -45,29 +46,29 @@ private struct SitePanelContent: View {
     Group {
       switch model.phase {
       case .loading:
-        BubbleSpinner()
-          .frame(maxWidth: .infinity)
-          .padding(.top, 24)
+        PanelSpinner()
       case .notFound:
-        message("Dive site not found.")
+        PanelMessage("Dive site not found.")
+          .padding(.horizontal, PanelMetrics.gap)
       case .failed(let error):
-        VStack(alignment: .leading, spacing: 8) {
-          message(error.isUnreachable ? OfflineText.siteNotShown : error.message)
-          Button("Try again") { Task { await model.load() } }
-            .buttonStyle(.bordered)
+        PanelMessage(error.isUnreachable ? OfflineText.siteNotShown : error.message) {
+          Task { await model.load() }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, PanelMetrics.gap)
       case .loaded(let site):
         // The tabs stay at the top of the panel while what they show scrolls under them.
-        LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+        LazyVStack(spacing: PanelMetrics.gap, pinnedViews: [.sectionHeaders]) {
           Section {
-            switch section {
-            case .info: info(site)
-            case .marineLife: SiteSpecies(model: model, below: tabsHeight)
-            case .myDives:
-              SiteDives(list: model.dives, units: session.units, below: tabsHeight)
-              PageEndTrigger(list: model.dives)
+            Group {
+              switch section {
+              case .info: info(site)
+              case .marineLife: SiteSpecies(model: model, below: tabsHeight)
+              case .myDives:
+                SiteDives(list: model.dives, units: session.units, below: tabsHeight)
+                PageEndTrigger(list: model.dives)
+              }
             }
+            .padding(.horizontal, PanelMetrics.gap)
           } header: {
             SectionTabs(selection: $section) { section in
               switch section {
@@ -76,9 +77,8 @@ private struct SitePanelContent: View {
               case .myDives: DiveSiteSummary.counted(section.title, site.diveCount)
               }
             }
-            // Across the panel's width, as across the profile's page, on the panel's own fill.
-            .padding(.horizontal, -16)
-            .background(Color(.systemGroupedBackground))
+            // On the panel's own fill, which what scrolls passes under.
+            .background(Color.panelFill)
             .onGeometryChange(for: CGFloat.self) {
               $0.size.height
             } action: {
@@ -86,6 +86,7 @@ private struct SitePanelContent: View {
             }
           }
         }
+        .padding(.bottom, PanelMetrics.gap)
       }
     }
     .onChange(of: loaded, initial: true) { _, site in
@@ -149,12 +150,44 @@ private struct SitePanelContent: View {
   private var loaded: DiveSiteRead? {
     if case .loaded(let site) = model.phase { site } else { nil }
   }
+}
 
-  private func message(_ text: String) -> some View {
-    Text(text)
-      .font(.subheadline)
-      .foregroundStyle(.secondary)
-      .frame(maxWidth: .infinity, alignment: .leading)
+/// The panel's spacing: between what it stacks, at its sides and at its foot.
+private enum PanelMetrics {
+  static let gap: CGFloat = 16
+}
+
+/// A part of the panel on its way.
+private struct PanelSpinner: View {
+  var body: some View {
+    BubbleSpinner()
+      .frame(maxWidth: .infinity)
+      .padding(.top, 24)
+  }
+}
+
+/// What a part of the panel says in its place: why it is missing, with *Try again* where `retry`
+/// can mend it.
+private struct PanelMessage: View {
+  let text: String
+  var retry: (() -> Void)?
+
+  init(_ text: String, retry: (() -> Void)? = nil) {
+    self.text = text
+    self.retry = retry
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text(text)
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+      if let retry {
+        Button("Try again", action: retry)
+          .buttonStyle(.bordered)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
@@ -220,21 +253,13 @@ private struct SiteDives: View {
   var body: some View {
     switch list.phase {
     case .idle, .loading:
-      BubbleSpinner()
-        .frame(maxWidth: .infinity)
-        .padding(.top, 24)
+      PanelSpinner()
     case .failed(let error):
-      VStack(alignment: .leading, spacing: 8) {
-        Text(
-          error.isUnreachable
-            ? OfflineText.divesNotShown : "This site's dives could not be loaded."
-        )
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        Button("Try again") { Task { await list.load() } }
-          .buttonStyle(.bordered)
+      PanelMessage(
+        error.isUnreachable ? OfflineText.divesNotShown : "This site's dives could not be loaded."
+      ) {
+        Task { await list.load() }
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
     case .loaded where list.items.isEmpty:
       EmptyOrErrorView(
         status: .empty(icon: .dive, title: "No dives logged at this site yet", message: nil)
@@ -271,23 +296,12 @@ private struct SiteInformationCard: View {
   }
 
   @ViewBuilder private var rows: some View {
-    if let alsoKnownAs = info.alsoKnownAs {
-      InfoLine(label: "Also known as") { Text(alsoKnownAs) }
-    }
-    if let coordinates = info.coordinates {
-      CoordinatesLine(coordinates: coordinates)
-    }
-    if let depth = info.depth {
-      InfoLine(label: "Depth") { Text(depth) }
-    }
-    if let waterType = info.waterType {
-      InfoLine(label: "Water type") { Text(waterType) }
-    }
-    if let altitude = info.altitude {
-      InfoLine(label: "Altitude") { Text(altitude) }
-    }
-    if let entryTypes = info.entryTypes {
-      InfoLine(label: "Entry types") { Text(entryTypes) }
+    ForEach(info.rows, id: \.label) { row in
+      if row.copiesOnTap {
+        CopyingLine(row: row)
+      } else {
+        InfoLine(label: row.label) { Text(row.value) }
+      }
     }
     if !info.registries.isEmpty {
       InfoLine(label: "In other registries", isWide: true) {
@@ -301,28 +315,28 @@ private struct SiteInformationCard: View {
   }
 }
 
-/// The coordinates' row, which copies them on a tap and says so for a moment in their place.
-private struct CoordinatesLine: View {
-  let coordinates: String
+/// A row whose value a tap copies, saying so for a moment in its place: the coordinates'.
+private struct CopyingLine: View {
+  let row: DiveSiteSummary.Info.Row
   @State private var copied = false
   /// Counts taps, so a second one keeps *Copied* up for its own while.
   @State private var copies = 0
 
   var body: some View {
     Button {
-      UIPasteboard.general.string = coordinates
+      UIPasteboard.general.string = row.value
       withAnimation(.easeOut(duration: 0.15)) { copied = true }
       copies += 1
     } label: {
-      InfoLine(label: "Coordinates") {
-        Text(copied ? "Copied" : coordinates)
+      InfoLine(label: row.label) {
+        Text(copied ? "Copied" : row.value)
           .monospacedDigit()
           .contentTransition(.opacity)
       }
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .accessibilityHint("Copies the coordinates")
+    .accessibilityHint("Copies the value")
     .sensoryFeedback(.success, trigger: copies)
     .task(id: copies) {
       guard copies > 0 else { return }
@@ -409,14 +423,9 @@ private struct SiteSpecies: View {
       )
       .centredInPanel(below: below)
     case .loading:
-      BubbleSpinner()
-        .frame(maxWidth: .infinity)
-        .padding(.top, 24)
+      PanelSpinner()
     case .failed:
-      Text("The species could not be loaded.")
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
+      PanelMessage("The species could not be loaded.")
     case .loaded(let entries):
       // In the panel's lazy stack, so each card asks for its photo as it scrolls into reach
       // rather than every one of the site's species at once.
@@ -435,7 +444,9 @@ extension View {
   /// Fills what the panel shows under its tabs, `below` points tall, less the stack's gap under
   /// them and the panel's foot, so a message stands in the middle of what is left.
   fileprivate func centredInPanel(below: CGFloat) -> some View {
-    containerRelativeFrame(.vertical) { length, _ in max(0, length - below - 32) }
+    containerRelativeFrame(.vertical) { length, _ in
+      max(0, length - below - 2 * PanelMetrics.gap)
+    }
   }
 }
 
@@ -443,7 +454,6 @@ extension View {
   NavigationStack {
     ScrollView {
       SitePanelView(siteUUID: UUID(), onRead: { _ in }, onOpen: { _ in })
-        .padding()
     }
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))

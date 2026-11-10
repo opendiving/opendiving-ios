@@ -38,6 +38,11 @@ struct DiveSiteSummaryTests {
     #expect(info.altitude == "420 m")
     #expect(info.entryTypes == "Shore, Boat")
     #expect(
+      info.rows.map(\.label) == [
+        "Also known as", "Coordinates", "Depth", "Water type", "Altitude", "Entry types",
+      ])
+    #expect(info.rows.filter(\.copiesOnTap).map(\.value) == ["28.57, 34.53"])
+    #expect(
       info.registries == [
         .init(label: "Wikidata", identifier: "Q123", link: "https://www.wikidata.org/wiki/Q123"),
         .init(label: "divesitedb", identifier: "77", link: nil),

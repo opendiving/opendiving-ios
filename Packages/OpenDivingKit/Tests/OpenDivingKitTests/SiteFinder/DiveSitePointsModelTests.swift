@@ -77,7 +77,7 @@ struct DiveSitePointsModelTests {
     let saved = try #require(
       model.point(UUID(uuidString: "01a14b2e-0c3d-7a10-9f00-4b2b3c4d5e6f")!))
     #expect(saved.saved)
-    #expect(saved.isCommons)
+    #expect(saved.mark == .commons)
     #expect(saved.credit?.contains("OpenStreetMap") == true)
     let unsaved = try #require(
       model.point(UUID(uuidString: "01a14b2e-0c3d-7a10-9f00-4c2b3c4d5e6f")!))

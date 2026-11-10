@@ -29,6 +29,9 @@ extension Color {
   /// without a seam.
   static let pageBackground = Color(.systemBackground)
 
+  /// The site finder's panel, and what stands pinned in it over what scrolls.
+  static let panelFill = Color(.systemGroupedBackground)
+
   /// A card on such a page, set off from it in both appearances.
   static let cardFill = Color(.secondarySystemBackground)
 

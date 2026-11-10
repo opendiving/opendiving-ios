@@ -14,15 +14,16 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
   let units: UnitSystem
-  /// What choosing a row or a touched point's sheet does on the dive form; on the sites map either
-  /// opens the site in the panel.
+  /// What choosing a row or a touched point's sheet does on the dive form; the sites map opens
+  /// either in the panel.
   var onSite: (DiveSiteLookupItem) -> Void = { _ in }
   /// A long press on the map, where a site is added.
   var onLongPress: ((DeviceLocation) -> Void)?
   /// What the dive form lists while the search cannot reach the server: the phone's lookup rows.
   var offlineRows: ((String) -> [FormPickerRow])?
   var onOfflineRow: (FormPickerRow) -> Void = { _ in }
-  /// What the panel shows of the site the sites map opened.
+  /// What the panel shows of the site the sites map opened, padded as it needs: the panel's width
+  /// is its to fill.
   @ViewBuilder let site: (SiteFinderModel.OpenedSite) -> Site
   /// What stands under the opened site's close button: the way to edit it.
   @ViewBuilder let siteAction: (SiteFinderModel.OpenedSite) -> SiteAction
@@ -41,7 +42,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         if let style = map.shown {
           mapArea(style, geometry: geometry, panel: panel)
         } else {
-          Color(.systemGroupedBackground).ignoresSafeArea()
+          Color.panelFill.ignoresSafeArea()
         }
         // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
         panelView(panel, below: geometry.safeAreaInsets.bottom)
@@ -68,11 +69,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: model.opened?.uuid) { old, new in
-      guard map.hasMap else { return }
-      // A site opens up from where the list left it, or down off the top where a match was
-      // opened from; closed, by its button, the map or *Use my location*, the list comes back
-      // where the panel opens, as the search's close leaves it.
-      if new == nil || old == nil || drag.target == .collapsed { move(to: .half) }
+      guard map.hasMap, let detent = drag.detent(openingSite: new, after: old) else { return }
+      move(to: detent)
     }
     .onChange(of: typing) { _, typing in
       if typing { move(to: .full) }
@@ -117,7 +115,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       SiteFinderMap(
         styleJSON: style.styleJSON, camera: model.camera, glides: model.glides, covered: covered,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
-        selected: model.opened?.uuid ?? model.selected?.uuid,
+        selected: model.highlighted,
         onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
         onPoint: { model.select($0) },
         onMapTap: { model.closeSite() },
@@ -237,7 +235,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     .clipShape(shape)
     .background {
       shape
-        .fill(Color(.systemGroupedBackground))
+        .fill(Color.panelFill)
         .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
         // Runs on under a panel that lands a little short of its height, or a spring that
         // carries its foot above the screen's.
@@ -373,12 +371,12 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       VStack(spacing: 8) {
+        // Its middle on the head's first line, so the badges stand as far below the handle as
+        // its ×.
         closeButton("Close dive site") { model.closeSite() }
+          .alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
         siteAction(opened)
       }
-      // The close button's middle, half its 44 points down, on the head's first line, so the
-      // badges stand as far below the handle as its ×.
-      .alignmentGuide(.headFirstLine) { _ in 22 }
     }
   }
 
@@ -387,8 +385,6 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   {
     ScrollView {
       site(opened)
-        .padding(.horizontal)
-        .padding(.bottom)
         .background {
           if map.hasMap {
             PanelDragFromScrollTop(
@@ -468,10 +464,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     switch row {
     case .site(let item):
       Button {
-        switch model.host {
-        case .sitesMap: model.open(item)
-        case .diveForm: onSite(item.site)
-        }
+        if let site = model.choose(item) { onSite(site) }
       } label: {
         SiteFinderRow(content: SiteFinderRowContent(row, units: units))
       }
@@ -509,6 +502,23 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       .font(.footnote)
       .foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+extension SiteFinderView where Site == EmptyView, SiteAction == EmptyView {
+  /// The dive form's finder, which opens no site in its panel.
+  init(
+    model: SiteFinderModel, map: MapStyleModel, units: UnitSystem,
+    onSite: @escaping (DiveSiteLookupItem) -> Void = { _ in },
+    onLongPress: ((DeviceLocation) -> Void)? = nil,
+    offlineRows: ((String) -> [FormPickerRow])? = nil,
+    onOfflineRow: @escaping (FormPickerRow) -> Void = { _ in },
+    @ToolbarContentBuilder bar: @escaping () -> Bar
+  ) {
+    self.init(
+      model: model, map: map, units: units, onSite: onSite, onLongPress: onLongPress,
+      offlineRows: offlineRows, onOfflineRow: onOfflineRow, site: { _ in EmptyView() },
+      siteAction: { _ in EmptyView() }, bar: bar)
   }
 }
 
@@ -662,8 +672,6 @@ private struct SiteFinderPointSheet: View {
         session: session, locator: CoreLocationProvider(),
         today: CalendarDate(year: 2026, month: 11, day: 8)!),
       map: MapStyleModel(session: session), units: .metric,
-      site: { _ in EmptyView() },
-      siteAction: { _ in EmptyView() },
       bar: { ToolbarItem(placement: .topBarTrailing) { Button("Add", systemImage: "plus") {} } })
   }
   .environment(session)

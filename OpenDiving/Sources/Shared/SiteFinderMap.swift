@@ -129,64 +129,71 @@ struct SiteFinderMap: UIViewRepresentable {
         layers.commons?.version != drawn.commons?.version
         || (layers.commons == nil) != (drawn.commons == nil) || layers.yours != drawn.yours
       if sitesChanged {
+        marks = SiteFinderMapMark.marks(commons: layers.commons, yours: layers.yours)
         set(
           Source.sites,
-          SiteFinderMapMark.marks(commons: layers.commons, yours: layers.yours).map {
-            Self.feature($0.uuid, $0.latitude, $0.longitude, mark: $0.mark)
-          }, style)
+          marks.map { Self.feature($0.uuid, $0.latitude, $0.longitude, mark: $0.mark) },
+          style)
       }
       if sitesChanged || layers.selected != drawn.selected {
-        select(
-          layers.selected.flatMap {
-            SiteFinderMapMark.mark(of: $0, commons: layers.commons, yours: layers.yours)
-          }, in: style)
+        let mark = layers.selected.flatMap { uuid in marks.first { $0.uuid == uuid } }
+        if mark?.uuid != selectedMark?.uuid {
+          select(mark, in: style)
+        } else if let mark, mark != selectedMark {
+          // The same site moved or marked anew under a fresh document: drawn again, not grown.
+          selectedMark = mark
+          set(Source.selected, [Self.feature(mark)], style)
+        }
       }
       drawn = layers
     }
 
     /// The selected site's pin on a layer of its own, growing to its size over the others, its
-    /// copy among them left out and the rest fading back; let go, it shrinks back before its copy
-    /// returns. Nothing fades for a site the map has no point for.
+    /// copy among them hidden and the rest fading back; let go, it shrinks back as its copy
+    /// returns. Nothing fades for a site the map has no point for. The copy is hidden by its
+    /// opacity, a paint change, where a filter would lay every tile's pins out again.
     private func select(_ mark: SiteFinderMapMark?, in style: MLNStyle) {
       pinStep?.invalidate()
       pinStep = nil
-      let opacity = NSExpression(forConstantValue: mark == nil ? 0.9 : Self.fadedOpacity)
-      (style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer)?.iconOpacity = opacity
-      (style.layer(withIdentifier: Layer.clusters) as? MLNSymbolStyleLayer)?.iconOpacity = opacity
-      (style.layer(withIdentifier: Layer.counts) as? MLNSymbolStyleLayer)?.textOpacity = opacity
+      selectedMark = mark
+      let others = NSExpression(
+        forConstantValue: mark == nil ? Self.shownOpacity : Self.fadedOpacity)
+      (style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer)?.iconOpacity =
+        mark.map {
+          NSExpression(
+            format: "TERNARY(%K == %@, 0, %@)", Self.uuidKey, $0.uuid.uuidString,
+            NSNumber(value: Self.fadedOpacity))
+        } ?? others
+      (style.layer(withIdentifier: Layer.clusters) as? MLNSymbolStyleLayer)?.iconOpacity = others
+      (style.layer(withIdentifier: Layer.counts) as? MLNSymbolStyleLayer)?.textOpacity = others
       guard let mark else {
         let letGo = { [weak self, weak style] in
           guard let self, let style else { return }
           set(Source.selected, [], style)
-          points(in: style, leavingOut: nil)
         }
         if pinScale == 1 { letGo() } else { scalePin(to: 1, in: style, then: letGo) }
         return
       }
-      set(
-        Source.selected, [Self.feature(mark.uuid, mark.latitude, mark.longitude, mark: mark.mark)],
-        style)
-      points(in: style, leavingOut: mark.uuid)
+      set(Source.selected, [Self.feature(mark)], style)
       pinScale = 1
       scalePin(to: Self.selectedScale, in: style) {}
-    }
-
-    private func points(in style: MLNStyle, leavingOut uuid: UUID?) {
-      (style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer)?.predicate =
-        uuid.map {
-          NSPredicate(format: "cluster != YES AND %K != %@", Self.uuidKey, $0.uuidString)
-        } ?? NSPredicate(format: "cluster != YES")
     }
 
     /// The other sites fading back and in as one is selected and let go, with its pin's growth.
     private static let fade = MLNTransition(duration: pinDuration, delay: 0)
 
+    /// The sites at rest, a touch short of opaque.
+    private static let shownOpacity = 0.9
     /// How far the other sites fade back while one is selected.
     private static let fadedOpacity = 0.35
     /// The selected pin's size against the others'.
     private static let selectedScale = 1.35
     private static let pinDuration = 0.2
 
+    /// Every site the sites source holds, which the selected one is found among.
+    private var marks: [SiteFinderMapMark] = []
+    /// The site the selected layer draws.
+    private var selectedMark: SiteFinderMapMark?
     /// The selected pin's size now, which a step of its animation moves on from.
     private var pinScale = 1.0
     private var pinStep: PinStep?
@@ -291,6 +298,7 @@ struct SiteFinderMap: UIViewRepresentable {
 
     func mapView(_ map: MLNMapView, didFinishLoading style: MLNStyle) {
       drawn = .empty
+      selectedMark = nil
       // A change of appearance loads the other style, so the marks are drawn again for it.
       install(on: style, dark: isDark)
       show(wanted, on: map)
@@ -342,7 +350,7 @@ struct SiteFinderMap: UIViewRepresentable {
           format: "mgl_step:from:stops:(point_count, %@, %@)", Self.groupName(mark, size: 0),
           stops)
       }
-      cluster.iconOpacity = NSExpression(forConstantValue: 0.9)
+      cluster.iconOpacity = NSExpression(forConstantValue: Self.shownOpacity)
       cluster.iconOpacityTransition = Self.fade
       cluster.iconAllowsOverlap = NSExpression(forConstantValue: true)
       cluster.iconIgnoresPlacement = NSExpression(forConstantValue: true)
@@ -360,17 +368,24 @@ struct SiteFinderMap: UIViewRepresentable {
         count.textIgnoresPlacement = NSExpression(forConstantValue: true)
         style.addLayer(count)
       }
-      let point = MLNSymbolStyleLayer(identifier: Layer.points, source: source)
+      let point = Self.pinLayer(Layer.points, source: source)
       point.predicate = NSPredicate(format: "cluster != YES")
-      point.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
-      point.iconOpacity = NSExpression(forConstantValue: 0.9)
+      point.iconOpacity = NSExpression(forConstantValue: Self.shownOpacity)
       point.iconOpacityTransition = Self.fade
-      point.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
-      point.iconOffset = NSExpression(
-        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: SiteMapPin.tipOffset)))
-      point.iconAllowsOverlap = NSExpression(forConstantValue: true)
-      point.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(point)
+    }
+
+    /// A layer of pins in their marks' colours, each tip on its point at any size: the offset is
+    /// scaled with the icon.
+    private static func pinLayer(_ id: String, source: MLNSource) -> MLNSymbolStyleLayer {
+      let pin = MLNSymbolStyleLayer(identifier: id, source: source)
+      pin.iconImageName = byMark { NSExpression(forConstantValue: pinName($0)) }
+      pin.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
+      pin.iconOffset = NSExpression(
+        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: SiteMapPin.tipOffset)))
+      pin.iconAllowsOverlap = NSExpression(forConstantValue: true)
+      pin.iconIgnoresPlacement = NSExpression(forConstantValue: true)
+      return pin
     }
 
     /// `value` for the mark a point carries, or the highest a cluster gathers.
@@ -396,24 +411,21 @@ struct SiteFinderMap: UIViewRepresentable {
       "finder-group-\(mark.rawValue)-\(size)"
     }
 
-    /// The selected site's pin, a size up from the others, its tip still on its point.
+    /// The selected site's pin, a size up from the others.
     private func addSelected(to style: MLNStyle) {
       guard let source = style.source(withIdentifier: Source.selected) else { return }
-      let pin = MLNSymbolStyleLayer(identifier: Layer.selected, source: source)
-      pin.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
+      let pin = Self.pinLayer(Layer.selected, source: source)
       pin.iconScale = NSExpression(forConstantValue: pinScale)
-      pin.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
-      // Scaled with the icon, so the tip stays on the point at any size.
-      pin.iconOffset = NSExpression(
-        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: SiteMapPin.tipOffset)))
-      pin.iconAllowsOverlap = NSExpression(forConstantValue: true)
-      pin.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(pin)
     }
 
     private func set(_ id: String, _ features: [MLNPointFeature], _ style: MLNStyle) {
       (style.source(withIdentifier: id) as? MLNShapeSource)?.shape =
         MLNShapeCollectionFeature(shapes: features)
+    }
+
+    private static func feature(_ mark: SiteFinderMapMark) -> MLNPointFeature {
+      feature(mark.uuid, mark.latitude, mark.longitude, mark: mark.mark)
     }
 
     private static func feature(

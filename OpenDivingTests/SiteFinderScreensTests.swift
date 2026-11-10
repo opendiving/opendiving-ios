@@ -101,7 +101,7 @@ struct SiteFinderScreensTests {
     }
   }
 
-  /// The selected site stands on its own layer, left out of the others, which fade back until it
+  /// The selected site stands on its own layer, hidden among the others, which fade back until it
   /// is let go and has shrunk back among them.
   @Test func aSelectedSiteIsDrawnOnItsOwnLayerOverTheFadedRest() async throws {
     let styleJSON = MapStyleModel.Shown.preview.styleJSON
@@ -127,8 +127,11 @@ struct SiteFinderScreensTests {
     coordinator.show(.init(commons: nil, yours: yours, selected: uuid), on: map)
     #expect(style.layer(withIdentifier: "finder-selected") is MLNSymbolStyleLayer)
     #expect((selected.shape as? MLNShapeCollectionFeature)?.shapes.count == 1)
-    #expect(points.predicate?.predicateFormat.contains(uuid.uuidString) == true)
-    #expect(points.iconOpacity.constantValue as? Float == 0.35)
+    // Its copy among the others is hidden by its opacity, and the rest fade.
+    #expect(points.iconOpacity.description.contains(uuid.uuidString))
+    #expect(
+      (style.layer(withIdentifier: "finder-clusters") as? MLNSymbolStyleLayer)?.iconOpacity
+        .constantValue as? Float == 0.35)
 
     coordinator.show(.init(commons: nil, yours: yours, selected: nil), on: map)
     #expect(points.iconOpacity.constantValue as? Float == 0.9)
@@ -137,6 +140,5 @@ struct SiteFinderScreensTests {
       try await Task.sleep(for: .milliseconds(25))
     }
     #expect((selected.shape as? MLNShapeCollectionFeature)?.shapes.isEmpty == true)
-    #expect(points.predicate?.predicateFormat.contains(uuid.uuidString) == false)
   }
 }

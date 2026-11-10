@@ -535,30 +535,42 @@ struct SiteFinderModelTests {
     model.mapMoved(to: model.camera, byGesture: false)
     #expect(model.settling == nil)
     #expect(searches.queries.count == sent)
+    #expect(model.highlighted == Self.canyon)
     model.closeSite()
     #expect(model.opened == nil)
+    #expect(model.highlighted == nil)
   }
+
+  /// The open site's own pin brings it back to the middle and keeps what its panel has read.
+  @Test func theOpenSitesPinKeepsItsRead() async throws {
+    let (model, _) = try await withPoints()
+    model.select(Self.canyon)
+    let read = try site(Self.canyon, latitude: 28.5687, longitude: 34.5372)
+    model.read(read)
+    await pan(model, to: MapCamera(latitude: 1, longitude: 2, zoom: 15))
+    model.select(Self.canyon)
+    #expect(model.opened?.site == read)
+    #expect(model.camera.latitude == 28.5687)
+  }
+
+  private static let canyonRow = DiveSiteSearchItem(
+    site: DiveSiteLookupItem(
+      ref: .server(canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372))
 
   @Test func aRowOpensInThePanelZoomedInToTheSiteAndNoFurtherOut() async throws {
     let (model, _) = try await withPoints()
-    model.open(
-      DiveSiteSearchItem(
-        site: DiveSiteLookupItem(
-          ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372)))
+    #expect(model.choose(Self.canyonRow) == nil)
     #expect(model.opened?.uuid == Self.canyon)
     #expect(model.camera.zoom == SiteFinderOpening.siteZoom)
     #expect(model.camera.latitude == 28.5687)
     #expect(model.glides)
     await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 15))
     #expect(!model.glides)
-    model.open(
-      DiveSiteSearchItem(
-        site: DiveSiteLookupItem(
-          ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372)))
+    #expect(model.choose(Self.canyonRow) == nil)
     #expect(model.camera.zoom == 15)
   }
 
-  @Test func aSiteOpenedByItsUuidIsCentredOnceItsPageReadsWhereItIs() async throws {
+  @Test func aSiteOpenedByItsUuidIsCentredOnceItsPanelReadsWhereItIs() async throws {
     let (model, _) = try await withPoints()
     let other = UUID()
     let before = model.camera
@@ -621,7 +633,11 @@ struct SiteFinderModelTests {
     let before = model.camera
     model.select(Self.canyon)
     #expect(model.selected?.uuid == Self.canyon)
+    #expect(model.highlighted == Self.canyon)
     #expect(model.opened == nil)
     #expect(model.camera == before)
+    // A row is the form's to put on the dive.
+    #expect(model.choose(Self.canyonRow) == Self.canyonRow.site)
+    #expect(model.opened == nil)
   }
 }

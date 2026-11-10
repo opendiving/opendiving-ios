@@ -17,6 +17,9 @@ public final class DiveSitePointsModel {
   @ObservationIgnored private let session: Session
   /// The servers whose Commons document this launch has asked for.
   private static var askedCommons: Set<ServerOrigin> = []
+  /// Each kept Commons document as this launch last decoded it, by the file it was kept in, so a
+  /// second map — one opened on a site — draws it without decoding thousands of records again.
+  private static var decodedCommons: [URL: CommonsDiveSitePoints] = [:]
 
   public init(session: Session) {
     self.session = session
@@ -36,15 +39,14 @@ public final class DiveSitePointsModel {
       let credit = mine.isCommons ? commonsCredit(uuid) : nil
       return SiteFinderPoint(
         uuid: mine.uuid, name: mine.name, latitude: mine.latitude, longitude: mine.longitude,
-        isCommons: mine.isCommons, saved: true, mark: mine.mark, credit: credit)
+        saved: true, mark: mine.mark, credit: credit)
     }
     guard let commons, let record = commons.points.first(where: { $0.uuid == uuid }) else {
       return nil
     }
     return SiteFinderPoint(
       uuid: record.uuid, name: record.name, latitude: record.latitude,
-      longitude: record.longitude, isCommons: true, saved: false, mark: .commons,
-      credit: commons.credit(record))
+      longitude: record.longitude, saved: false, mark: .commons, credit: commons.credit(record))
   }
 
   private func commonsCredit(_ uuid: UUID) -> String? {
@@ -55,8 +57,16 @@ public final class DiveSitePointsModel {
   }
 
   func showHeld() {
-    if commons == nil, let file = commonsFile, let data = try? Data(contentsOf: file.body) {
-      commons = try? CommonsDiveSitePoints.decode(data)
+    if commons == nil, let file = commonsFile {
+      // Only while the file is still kept: forgetting the server removes it.
+      if let decoded = Self.decodedCommons[file.body],
+        FileManager.default.fileExists(atPath: file.body.path)
+      {
+        commons = decoded
+      } else if let data = try? Data(contentsOf: file.body) {
+        commons = try? CommonsDiveSitePoints.decode(data)
+        Self.decodedCommons[file.body] = commons
+      }
     }
     if yours.isEmpty, let held = AccountStores.current(session)?.cache.diveSitePoints {
       yours = held.value
@@ -75,6 +85,7 @@ public final class DiveSitePointsModel {
       let document = try? CommonsDiveSitePoints.decode(data)
     else { return }
     commons = document
+    Self.decodedCommons[file.body] = document
     try? FileManager.default.createDirectory(
       at: file.body.deletingLastPathComponent(), withIntermediateDirectories: true)
     try? data.write(to: file.body, options: .atomic)
@@ -108,5 +119,6 @@ public final class DiveSitePointsModel {
   /// Forgets which servers were asked, for a test standing for a new launch.
   static func forgetAsked() {
     askedCommons = []
+    decodedCommons = [:]
   }
 }

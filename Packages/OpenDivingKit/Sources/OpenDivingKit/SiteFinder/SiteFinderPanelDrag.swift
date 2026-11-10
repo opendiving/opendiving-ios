@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Where the site finder's panel is and how it is moving. The detent it rests at, which the finder
@@ -65,6 +66,14 @@ public final class SiteFinderPanelDrag {
   public func height(in panel: SiteFinderPanel) -> Double {
     if let heading { return panel.height(heading) }
     return panel.height(detent, dragged: dragged)
+  }
+
+  /// Where the panel goes as the opened site changes from `old` to `new`, nil for where it is: a
+  /// site opens up from where the list left it, or down off the top where a match was opened
+  /// from, and closed, the list comes back where the panel opens. A site opened in place of
+  /// another leaves the panel be.
+  public func detent(openingSite new: UUID?, after old: UUID?) -> SiteFinderPanel.Detent? {
+    new == nil || old == nil || target == .collapsed ? .half : nil
   }
 
   /// How far the panel can still grow before it stands at its tallest: what a swipe up on its

@@ -9,5 +9,4 @@ nonisolated enum SiteSection: TabSection {
     case .myDives: "My dives"
     }
   }
-
 }

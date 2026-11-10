@@ -14,6 +14,27 @@ public enum DiveSiteSummary {
     public var entryTypes: String?
     public var registries: [Registry]
 
+    /// One of the card's rows: its label and the value across from it.
+    public struct Row: Hashable, Sendable {
+      public var label: String
+      public var value: String
+      /// The value is one to paste elsewhere, as coordinates are, and a tap copies it.
+      public var copiesOnTap = false
+    }
+
+    /// Each member the site records as a row, in the card's order; its registries, which link
+    /// out, follow them.
+    public var rows: [Row] {
+      let members: [(String, String?, Bool)] = [
+        ("Also known as", alsoKnownAs, false), ("Coordinates", coordinates, true),
+        ("Depth", depth, false), ("Water type", waterType, false), ("Altitude", altitude, false),
+        ("Entry types", entryTypes, false),
+      ]
+      return members.compactMap { label, value, copies in
+        value.map { Row(label: label, value: $0, copiesOnTap: copies) }
+      }
+    }
+
     /// A site recording none of them draws no card.
     public var isEmpty: Bool {
       [alsoKnownAs, coordinates, depth, waterType, altitude, entryTypes]
@@ -92,7 +113,7 @@ public enum DiveSiteSummary {
   }
 
   /// `5 m – 30 m`, or the one end the site records.
-  static func depthRange(_ site: some DiveSiteCardSource, units: UnitSystem) -> String? {
+  static func depthRange(_ site: DiveSiteRead, units: UnitSystem) -> String? {
     switch (site.depthFrom, site.depthTo) {
     case (let from?, let to?):
       UnitFormat.depth(from, units) + " – " + UnitFormat.depth(to, units)
@@ -103,42 +124,14 @@ public enum DiveSiteSummary {
   }
 }
 
-/// A site as the API reads it, or a row of the site finder's list: what the panel's and the
-/// rows' summaries read alike.
-public protocol DiveSiteCardSource {
-  var name: String { get }
-  var location: LocationRead? { get }
-  var latitude: Double? { get }
-  var longitude: Double? { get }
-  var waterType: String? { get }
-  var depthFrom: Double? { get }
-  var depthTo: Double? { get }
-  var altitude: Int? { get }
-  var entryTypes: [String] { get }
-  var isCommons: Bool { get }
-  var mark: DiveSiteMark { get }
-  var diveCount: Int { get }
-  var maxDiveDepth: Double? { get }
-  var speciesCount: Int { get }
-}
-
-extension DiveSiteRead: DiveSiteCardSource {
+extension DiveSiteRead {
   public var mark: DiveSiteMark { DiveSiteMark(owner: owner, proposalStatus: proposal?.status) }
 }
 
-extension DiveSiteSearchItem: DiveSiteCardSource {
+extension DiveSiteSearchItem {
   public var name: String { site.name }
   public var location: LocationRead? { site.location }
-  public var latitude: Double? { site.latitude }
-  public var longitude: Double? { site.longitude }
-  public var waterType: String? { site.waterType }
-  public var altitude: Int? { site.altitude }
-  public var entryTypes: [String] { site.entryTypes }
-  public var isCommons: Bool { site.isCommons }
   public var mark: DiveSiteMark {
     DiveSiteMark(owner: site.owner, proposalStatus: proposal?.status)
   }
-  public var diveCount: Int { dives?.diveCount ?? 0 }
-  public var maxDiveDepth: Double? { dives?.maxDiveDepth }
-  public var speciesCount: Int { dives?.speciesCount ?? 0 }
 }

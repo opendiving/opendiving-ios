@@ -10,5 +10,4 @@ nonisolated enum ProfileSection: TabSection {
     case .more: "More"
     }
   }
-
 }
