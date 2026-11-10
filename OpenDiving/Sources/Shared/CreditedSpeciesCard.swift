@@ -1,10 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A species card that, where it carries a photo, opens the photo's credit on a tap. The
-/// photos are Commons files under Creative Commons licences, and the card has no room for the
-/// line, so the card links to a sheet that shows it, as the web's cards link to the species'
-/// page.
+/// A species card that opens the species' page, as the web's cards do. Where it carries a photo
+/// its corner opens the photo's credit too: the photos are Commons files under Creative Commons
+/// licences, and the card has no room for the line.
 struct CreditedSpeciesCard: View {
   let speciesUUID: UUID
   /// The `?v=` of the species' photo; nil means no photo, so nothing to credit.
@@ -13,47 +12,53 @@ struct CreditedSpeciesCard: View {
   @State private var showsCredit = false
 
   var body: some View {
-    if let photoVersion {
-      Button {
-        showsCredit = true
-      } label: {
-        SpeciesCardView(content: content)
-          .overlay(alignment: .topTrailing) {
-            Image(systemName: "info.circle")
-              .font(.subheadline)
-              .padding(4)
-              .background(.ultraThinMaterial, in: Circle())
-              .padding(8)
-              .accessibilityHidden(true)
-          }
-      }
-      .buttonStyle(.plain)
-      .accessibilityHint("Shows the photo's credit")
-      .sheet(isPresented: $showsCredit) {
-        SpeciesPhotoCreditSheet(
-          speciesUUID: speciesUUID, photoVersion: photoVersion, content: content)
-      }
-    } else {
+    NavigationLink {
+      SpeciesDetailView(speciesUUID: speciesUUID)
+    } label: {
       SpeciesCardView(content: content)
+    }
+    .buttonStyle(.plain)
+    .overlay(alignment: .topTrailing) {
+      if let photoVersion {
+        Button {
+          showsCredit = true
+        } label: {
+          Image(systemName: "info.circle")
+            .font(.subheadline)
+            .padding(4)
+            .background(.ultraThinMaterial, in: Circle())
+            .padding(8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Photo credit")
+        .sheet(isPresented: $showsCredit) {
+          SpeciesPhotoCreditSheet(
+            speciesUUID: speciesUUID, photoVersion: photoVersion, content: content)
+        }
+      }
     }
   }
 }
 
 #Preview {
-  ScrollView {
-    VStack(spacing: 12) {
-      CreditedSpeciesCard(
-        speciesUUID: SpeciesPhotoCreditSheet.previewUUID, photoVersion: "ab12",
-        content: SpeciesCardContent(
-          commonName: "Twoband anemonefish", scientificName: "Amphiprion bicinctus",
-          figures: [Figure(label: "Count", value: "2")]))
-      CreditedSpeciesCard(
-        speciesUUID: UUID(), photoVersion: nil,
-        content: SpeciesCardContent(commonName: "Muraenidae", scientificName: "Muraenidae (family)")
-      )
+  NavigationStack {
+    ScrollView {
+      VStack(spacing: 12) {
+        CreditedSpeciesCard(
+          speciesUUID: SpeciesPhotoCreditSheet.previewUUID, photoVersion: "ab12",
+          content: SpeciesCardContent(
+            commonName: "Twoband anemonefish", scientificName: "Amphiprion bicinctus",
+            figures: [Figure(label: "Count", value: "2")]))
+        CreditedSpeciesCard(
+          speciesUUID: UUID(), photoVersion: nil,
+          content: SpeciesCardContent(
+            commonName: "Muraenidae", scientificName: "Muraenidae (family)")
+        )
+      }
+      .padding()
     }
-    .padding()
+    .background(Color(.systemGroupedBackground))
   }
-  .background(Color(.systemGroupedBackground))
   .environment(SpeciesPhotoCreditSheet.previewSession)
 }
