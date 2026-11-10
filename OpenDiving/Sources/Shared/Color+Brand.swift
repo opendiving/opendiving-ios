@@ -9,6 +9,15 @@ extension Color {
   /// The web's `--coral`, the CSS named colour #FF7F50, the same in light and dark.
   static let brandCoral = Color(red: 1, green: 127 / 255, blue: 80 / 255)
 
+  /// The sun's yellow, a warm amber that sits between the coral and the teal: deeper in the light,
+  /// where a lighter one is lost on pale glass.
+  static let sun = Color(
+    UIColor {
+      $0.userInterfaceStyle == .dark
+        ? UIColor(red: 1, green: 194 / 255, blue: 51 / 255, alpha: 1)
+        : UIColor(red: 229 / 255, green: 158 / 255, blue: 0, alpha: 1)
+    })
+
   /// The asset catalog's `AccentColor` as a colour: #008080 in the light and a lighter teal in the
   /// dark, where #008080 is too dim to read.
   static let accentText = Color("AccentColor")

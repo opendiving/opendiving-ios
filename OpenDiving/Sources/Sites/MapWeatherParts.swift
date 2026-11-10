@@ -16,6 +16,7 @@ struct MapWeatherSky: View {
           .resizable()
           .scaledToFit()
           .frame(width: size * 1.2, height: size * 1.2)
+          .foregroundStyle(content.iconTone.map(Color.weather) ?? .primary)
       }
       if let temperature = content.temperature {
         Text(temperature)
@@ -46,6 +47,7 @@ struct MapWeatherWind: View {
           .scaledToFit()
           .frame(width: size * 0.85, height: size * 0.85)
           .rotationEffect(.degrees(heading))
+          .foregroundStyle(Color.brandCoral)
       }
       if let windSpeed = content.windSpeed {
         Text(windSpeed)
@@ -73,6 +75,7 @@ struct MapWeatherSea: View {
         .resizable()
         .scaledToFit()
         .frame(width: size * 1.2, height: size * 1.2)
+        .foregroundStyle(Color.weather(.water))
       if let sea = content.seaTemperature {
         Text(sea.value)
       }
@@ -85,6 +88,17 @@ struct MapWeatherSea: View {
 
   static func shows(_ content: MapWeatherContent) -> Bool {
     content.seaTemperature != nil
+  }
+}
+
+extension Color {
+  /// The colour a weather icon's tone is drawn in: the sun's yellow, or the teal of water, lighter
+  /// in the dark, where #008080 is too dim on dark glass.
+  static func weather(_ tone: MapWeatherContent.Tone) -> Color {
+    switch tone {
+    case .sun: .sun
+    case .water: .accentText
+    }
   }
 }
 

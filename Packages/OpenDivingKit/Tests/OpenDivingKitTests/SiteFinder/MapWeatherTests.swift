@@ -294,6 +294,22 @@ struct MapWeatherTests {
     #expect(MapWeatherContent(Self.read(empty), units: .metric) == nil)
   }
 
+  @Test func aClearSkyIsSunnyAndRainIsWaterAndTheRestTakeTheTextsColour() throws {
+    func tone(_ code: Int) throws -> MapWeatherContent.Tone? {
+      try #require(
+        MapWeatherContent(
+          Self.read(
+            ConditionsWeather(
+              airTemperature: 20, windSpeed: nil, windDirection: nil, weatherCode: code)),
+          units: .metric)
+      ).iconTone
+    }
+    #expect(try tone(0) == .sun)
+    #expect(try tone(61) == .water)
+    #expect(try tone(2) == nil)
+    #expect(try tone(95) == nil)
+  }
+
   @Test func everyCodeTheInstanceFillsHasAnIcon() {
     for vocabulary in Set(ConditionsWeather.vocabularyByCode.values) {
       #expect(MapWeatherContent.icons[vocabulary] != nil, "\(vocabulary)")

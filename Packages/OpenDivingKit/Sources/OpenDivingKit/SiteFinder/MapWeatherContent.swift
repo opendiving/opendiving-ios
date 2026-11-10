@@ -12,6 +12,9 @@ public struct MapWeatherContent: Hashable, Sendable {
   }
 
   public let icon: Icon?
+  /// What the sky's icon is coloured as: the sun's yellow for a clear sky, the sea's teal for rain;
+  /// nil for the rest, drawn in the text's colour.
+  public let iconTone: Tone?
   /// `24°C`, whole.
   public let temperature: String?
   /// `11 kn`, whole.
@@ -42,6 +45,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     guard let weather = read.weather else { return nil }
     let vocabulary = weather.vocabulary
     icon = vocabulary.flatMap { Self.icons[$0] }
+    iconTone = vocabulary.flatMap { Self.tones[$0] }
     temperature = weather.airTemperature.map {
       UnitFormat.temperature($0, units, decimals: 0)
     }
@@ -154,6 +158,13 @@ public struct MapWeatherContent: Hashable, Sendable {
     let joined = parts.joined(separator: ", ")
     return joined.prefix(1).uppercased() + joined.dropFirst()
   }
+
+  /// A colour the bar's icons are drawn in, which the app names.
+  public enum Tone: Hashable, Sendable {
+    case sun, water
+  }
+
+  static let tones: [String: Tone] = ["clear": .sun, "rain": .water]
 
   static let icons: [String: Icon] = [
     "clear": .sun, "partly_cloudy": .cloudSun, "overcast": .cloud, "rain": .cloudRain,
