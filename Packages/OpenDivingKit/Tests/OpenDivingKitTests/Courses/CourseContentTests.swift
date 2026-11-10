@@ -65,9 +65,9 @@ struct CourseContentTests {
   @Test func aCourseWithNoAgencyShowsCertificationsOnlyOnceItHasOne() throws {
     let card = try certification()
     #expect(CoursePageContent.showsCertifications(try course(), certifications: []))
-    let private_ = try course(["agency": NSNull()])
-    #expect(!CoursePageContent.showsCertifications(private_, certifications: []))
-    #expect(CoursePageContent.showsCertifications(private_, certifications: [card]))
+    let instructorsOwn = try course(["agency": NSNull()])
+    #expect(!CoursePageContent.showsCertifications(instructorsOwn, certifications: []))
+    #expect(CoursePageContent.showsCertifications(instructorsOwn, certifications: [card]))
   }
 
   @Test func aCertificationsRowSaysItsAgencyAndDay() throws {
