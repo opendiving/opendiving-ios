@@ -160,3 +160,11 @@ private struct NewSecretRow: View {
     .buttonStyle(.borderless)
   }
 }
+
+#Preview {
+  @Previewable @State var model = APIKeysModel(session: AuthenticationPreviewData.session)
+  List {
+    APIKeysSection(model: model)
+  }
+  .task { await model.list.load() }
+}

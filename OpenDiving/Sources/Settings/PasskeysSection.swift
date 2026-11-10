@@ -88,3 +88,11 @@ struct PasskeysSection: View {
     .disabled(model.isBusy || model.rename.editing != nil)
   }
 }
+
+#Preview {
+  @Previewable @State var model = PasskeysModel(session: AuthenticationPreviewData.session)
+  List {
+    PasskeysSection(model: model)
+  }
+  .task { await model.list.load() }
+}

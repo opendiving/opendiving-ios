@@ -109,3 +109,11 @@ struct SignedInDevicesSection: View {
     }
   }
 }
+
+#Preview {
+  @Previewable @State var model = SignedInDevicesModel(session: AuthenticationPreviewData.session)
+  List {
+    SignedInDevicesSection(model: model)
+  }
+  .task { await model.list.load() }
+}

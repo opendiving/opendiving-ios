@@ -76,5 +76,5 @@ struct OptionalListStatus<Value: Sendable>: View {
   NavigationStack {
     AuthenticationScreen()
   }
-  .environment(Session.stub(transport: StubTransport(routes: [:])))
+  .environment(AuthenticationPreviewData.session)
 }
