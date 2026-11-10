@@ -29,7 +29,8 @@ struct CertificationFormView: View {
       RecordFormLoader {
         try await session.requireClient().certification(uuid)
       } content: { certification in
-        // A refused card image reopens on the card, its side holding the bytes it waited with.
+        // A refused card image reopens on the card, its side holding the bytes it waited with;
+        // only a refused edit of the card itself is the form's own write to reopen.
         if let outboxItem = OutboxModel(session: session).item(item),
           let reopened = CertificationCardEdits.reopening(outboxItem, session: session)
         {

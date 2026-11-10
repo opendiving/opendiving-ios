@@ -97,18 +97,19 @@ public struct CertificationCardEdits: Hashable, Sendable {
   }
 
   /// A refused card image as the form reopens it: its side holding the bytes it waits with,
-  /// to save again, change or drop, and the server's sentence about it. Nil for any other item,
-  /// or once its bytes are gone.
+  /// to save again, change or drop, and the server's sentence about it — or, its bytes gone,
+  /// the side as stored, the refused image going with the save. Nil for any other item.
   @MainActor
   public static func reopening(_ item: OutboxItem, session: Session) -> CardReopening? {
-    guard case .putCertificationFile(_, let upload) = item.operation,
-      let stores = AccountStores.current(session),
-      let data = try? Data(contentsOf: stores.outbox.cardFile(for: item.id))
-    else { return nil }
+    guard case .putCertificationFile(_, let upload) = item.operation else { return nil }
+    let data = AccountStores.current(session).flatMap {
+      try? Data(contentsOf: $0.outbox.cardFile(for: item.id))
+    }
     return CardReopening(
       item: item.id, side: upload.side,
-      pick: CertificationCardPick(
-        data: data, contentType: upload.contentType, filename: upload.filename),
+      pick: data.map {
+        CertificationCardPick(data: $0, contentType: upload.contentType, filename: upload.filename)
+      },
       failure: item.failure?.message ?? item.lastAnswer?.sentence)
   }
 
@@ -116,12 +117,13 @@ public struct CertificationCardEdits: Hashable, Sendable {
   public struct CardReopening: Hashable, Sendable {
     public let item: UUID
     public let side: CertificationSide
-    public let pick: CertificationCardPick
+    /// Nil once the bytes it waited with are gone.
+    public let pick: CertificationCardPick?
     public let failure: String?
   }
 
   /// The edits a form opens with: the reopened side's bytes, or nothing.
   public init(reopening: CardReopening?) {
-    if let reopening { edits[reopening.side] = .replace(reopening.pick) }
+    if let reopening, let pick = reopening.pick { edits[reopening.side] = .replace(pick) }
   }
 }

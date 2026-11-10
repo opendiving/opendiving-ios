@@ -69,16 +69,17 @@ struct CertificationWritesTests {
     let item = try #require(outbox.item(refused.id))
     let reopened = try #require(CertificationCardEdits.reopening(item, session: world.session))
     #expect(reopened.side == .back && reopened.failure == "Not an image.")
-    #expect(reopened.pick.data == Data("JPG".utf8) && reopened.pick.filename == "b.jpg")
+    #expect(reopened.pick?.data == Data("JPG".utf8) && reopened.pick?.filename == "b.jpg")
     var edits = CertificationCardEdits(reopening: reopened)
-    #expect(edits[.back] == .replace(reopened.pick))
+    #expect(edits[.back] == reopened.pick.map(CertificationCardEdit.replace))
 
     edits[.back] = nil
     world.offline()
     #expect(
       edits.queue(of: .server(Self.certification), outbox: outbox, reopened: reopened).isEmpty)
     #expect(outbox.item(refused.id) == nil)
-    #expect(CertificationCardEdits.reopening(item, session: world.session) == nil)
+    #expect(CertificationCardEdits.reopening(item, session: world.session)?.pick == nil)
+    #expect(CertificationCardEdits(reopening: reopened.withoutBytes).isEmpty)
   }
 
   @Test func aRefusedImageSavedAgainReplacesItself() async throws {
@@ -209,5 +210,35 @@ struct CertificationWritesTests {
     cache.writePages(
       AccountCache.Pages(items: [sideRemoved], hasMore: false, nextPage: 2), key: "certifications")
     #expect(cache.cardImage(certification.uuid, file) == nil)
+  }
+
+  @Test func aRefusedImageWhoseBytesAreGoneReopensOnTheStoredSideAndGoesWithTheSave() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.offline()
+    let outbox = world.outbox()
+    let image = try outbox.queueCardImage(
+      Data("JPG".utf8),
+      as: CertificationCardUpload(side: .front, filename: "f.jpg", contentType: "image/jpeg"),
+      of: .server(Self.certification))
+    try FileManager.default.removeItem(at: world.storesA.cardFile(for: image.id))
+    world.online()
+    outbox.syncNow()
+    await outbox.settled()
+
+    let failed = try #require(outbox.item(image.id))
+    let reopened = try #require(CertificationCardEdits.reopening(failed, session: world.session))
+    #expect(reopened.pick == nil && reopened.failure == OutboxText.cardImageMissing)
+    let edits = CertificationCardEdits(reopening: reopened)
+    #expect(edits.isEmpty)
+    #expect(
+      edits.queue(of: .server(Self.certification), outbox: outbox, reopened: reopened).isEmpty)
+    #expect(outbox.item(image.id) == nil)
+  }
+}
+
+extension CertificationCardEdits.CardReopening {
+  fileprivate var withoutBytes: Self {
+    Self(item: item, side: side, pick: nil, failure: failure)
   }
 }
