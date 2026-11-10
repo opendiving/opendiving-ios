@@ -75,6 +75,9 @@ targets:
         # #FF7F50's P3 components, written as sRGB, and serves nothing else.
         UILaunchScreen:
           UIColorName: LaunchCoral
+        # Without it an iPhone with a 120 Hz screen caps the app's own display links and Core
+        # Animation at 60 Hz.
+        CADisableMinimumFrameDurationOnPhone: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
