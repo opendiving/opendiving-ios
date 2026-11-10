@@ -10,4 +10,12 @@ extension Shape where Self == RoundedRectangle {
       RoundedRectangle(cornerRadius: 10)
     }
   }
+
+  /// A form section's corners for a shape `inset` points inside one, concentric with it, so the
+  /// gap between them is as wide round the corner as along the sides.
+  static func formSection(inset: CGFloat) -> RoundedRectangle {
+    let outer = formSection
+    return RoundedRectangle(
+      cornerRadius: max(0, outer.cornerSize.width - inset), style: outer.style)
+  }
 }

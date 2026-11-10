@@ -1,12 +1,12 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One record as a card, as the web's lists draw them: a band of backdrop — a map, or the
-/// water standing in for one — above the details, which sit over its foot on a blur.
-/// However tall the details grow, the band shows as much of itself. The backdrop is handed the
-/// card's width and how many points of its foot the details cover. A map's credit sits in the
-/// card's top corner on glass of its own, out of the details, so a list's cards are one height
-/// whichever of them has a map.
+/// One record as a card: a band of backdrop — a map, or the water standing in for one — above
+/// the details, which sit on a card of glass of their own inset in its foot, as the profile's head
+/// has them. However tall the details grow, the band shows as much of itself. The backdrop is
+/// handed the card's width and how many points of its foot the details cover. A map's credit sits
+/// in the card's top corner on glass of its own, out of the details, so a list's cards are one
+/// height whichever of them has a map.
 struct BackdropCardView<Backdrop: View, Details: View>: View {
   @ViewBuilder let backdrop: (CardBackdropFrame) -> Backdrop
   @ViewBuilder let details: () -> Details
@@ -18,7 +18,9 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
   var body: some View {
     details()
       .frame(maxWidth: .infinity, alignment: .leading)
-      .padding([.horizontal, .bottom], 12)
+      .padding(CardBackdropFrame.glassPadding)
+      .background { GlassCard(shape: .formSection(inset: CardBackdropFrame.glassInset)) }
+      .padding([.horizontal, .bottom], CardBackdropFrame.glassInset)
       .onGeometryChange(for: CGSize.self) {
         $0.size
       } action: {
@@ -26,11 +28,9 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
       }
       .padding(.top, CardBackdropFrame.band)
       .background {
-        ZStack {
-          backdrop(
-            CardBackdropFrame(width: detailsSize.width, coveredBottom: detailsSize.height))
-          glass
-        }
+        backdrop(
+          CardBackdropFrame(width: detailsSize.width, coveredBottom: detailsSize.height)
+        )
         .allowsHitTesting(false)
       }
       .background(Color(.systemBackground))
@@ -60,16 +60,6 @@ struct BackdropCardView<Backdrop: View, Details: View>: View {
     .frame(maxWidth: .infinity, alignment: .trailing)
     .animation(.easeOut(duration: 0.3), value: credit)
     .allowsHitTesting(false)
-  }
-
-  /// A blur rather than `glassEffect`, which is iOS 26's and for controls over the content rather
-  /// than the content. It starts a third of the way down the card.
-  private var glass: some View {
-    GeometryReader { proxy in
-      ProgressiveBlur(edge: .bottom, radius: 2)
-        .frame(height: proxy.size.height * 0.65)
-        .frame(maxHeight: .infinity, alignment: .bottom)
-    }
   }
 }
 
