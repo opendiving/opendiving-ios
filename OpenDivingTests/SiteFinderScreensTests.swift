@@ -102,7 +102,7 @@ struct SiteFinderScreensTests {
   }
 
   /// The selected site stands on its own layer, left out of the others, which fade back until it
-  /// is let go.
+  /// is let go and has shrunk back among them.
   @Test func aSelectedSiteIsDrawnOnItsOwnLayerOverTheFadedRest() async throws {
     let styleJSON = MapStyleModel.Shown.preview.styleJSON
     let map = MLNMapView(frame: CGRect(x: 0, y: 0, width: 320, height: 320), styleJSON: styleJSON)
@@ -131,8 +131,12 @@ struct SiteFinderScreensTests {
     #expect(points.iconOpacity.constantValue as? Float == 0.35)
 
     coordinator.show(.init(commons: nil, yours: yours, selected: nil), on: map)
+    #expect(points.iconOpacity.constantValue as? Float == 0.9)
+    // The pin shrinks back before its copy among the others returns.
+    for _ in 0..<40 where (selected.shape as? MLNShapeCollectionFeature)?.shapes.isEmpty != true {
+      try await Task.sleep(for: .milliseconds(25))
+    }
     #expect((selected.shape as? MLNShapeCollectionFeature)?.shapes.isEmpty == true)
     #expect(points.predicate?.predicateFormat.contains(uuid.uuidString) == false)
-    #expect(points.iconOpacity.constantValue as? Float == 0.9)
   }
 }

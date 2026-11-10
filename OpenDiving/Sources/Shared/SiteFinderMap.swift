@@ -140,27 +140,68 @@ struct SiteFinderMap: UIViewRepresentable {
       drawn = layers
     }
 
-    /// The selected site's pin on a layer of its own, larger and over the others, its copy among
-    /// them left out and the rest faded back; nothing fades for a site the map has no point for.
+    /// The selected site's pin on a layer of its own, growing to its size over the others, its
+    /// copy among them left out and the rest fading back; let go, it shrinks back before its copy
+    /// returns. Nothing fades for a site the map has no point for.
     private func select(_ mark: SiteFinderMapMark?, in style: MLNStyle) {
-      set(
-        Source.selected,
-        mark.map { [Self.feature($0.uuid, $0.latitude, $0.longitude, mark: $0.mark)] } ?? [],
-        style)
+      pinStep?.invalidate()
+      pinStep = nil
       let opacity = NSExpression(forConstantValue: mark == nil ? 0.9 : Self.fadedOpacity)
-      if let points = style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer {
-        points.predicate =
-          mark.map {
-            NSPredicate(format: "cluster != YES AND %K != %@", Self.uuidKey, $0.uuid.uuidString)
-          } ?? NSPredicate(format: "cluster != YES")
-        points.iconOpacity = opacity
-      }
+      (style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer)?.iconOpacity = opacity
       (style.layer(withIdentifier: Layer.clusters) as? MLNSymbolStyleLayer)?.iconOpacity = opacity
       (style.layer(withIdentifier: Layer.counts) as? MLNSymbolStyleLayer)?.textOpacity = opacity
+      guard let mark else {
+        let letGo = { [weak self, weak style] in
+          guard let self, let style else { return }
+          set(Source.selected, [], style)
+          points(in: style, leavingOut: nil)
+        }
+        if pinScale == 1 { letGo() } else { scalePin(to: 1, in: style, then: letGo) }
+        return
+      }
+      set(
+        Source.selected, [Self.feature(mark.uuid, mark.latitude, mark.longitude, mark: mark.mark)],
+        style)
+      points(in: style, leavingOut: mark.uuid)
+      pinScale = 1
+      scalePin(to: Self.selectedScale, in: style) {}
     }
+
+    private func points(in style: MLNStyle, leavingOut uuid: UUID?) {
+      (style.layer(withIdentifier: Layer.points) as? MLNSymbolStyleLayer)?.predicate =
+        uuid.map {
+          NSPredicate(format: "cluster != YES AND %K != %@", Self.uuidKey, $0.uuidString)
+        } ?? NSPredicate(format: "cluster != YES")
+    }
+
+    /// The other sites fading back and in as one is selected and let go, with its pin's growth.
+    private static let fade = MLNTransition(duration: pinDuration, delay: 0)
 
     /// How far the other sites fade back while one is selected.
     private static let fadedOpacity = 0.35
+    /// The selected pin's size against the others'.
+    private static let selectedScale = 1.35
+    private static let pinDuration = 0.2
+
+    /// The selected pin's size now, which a step of its animation moves on from.
+    private var pinScale = 1.0
+    private var pinStep: PinStep?
+
+    /// Takes the selected pin to `scale` over ``pinDuration``, a frame at a time: its size is a
+    /// layout property, which the style does not animate as it does the fade.
+    private func scalePin(to scale: Double, in style: MLNStyle, then done: @escaping () -> Void) {
+      let from = pinScale
+      pinStep = PinStep(duration: Self.pinDuration) { [weak self, weak style] progress in
+        guard let self, let style else { return }
+        pinScale = from + (scale - from) * progress
+        (style.layer(withIdentifier: Layer.selected) as? MLNSymbolStyleLayer)?.iconScale =
+          NSExpression(forConstantValue: pinScale)
+        if progress >= 1 {
+          pinStep = nil
+          done()
+        }
+      }
+    }
 
     /// The content inset is what puts the camera in the middle of what shows; changed, the map
     /// would keep its centre at the new middle, so it is handed the point already there instead.
@@ -298,6 +339,7 @@ struct SiteFinderMap: UIViewRepresentable {
           stops)
       }
       cluster.iconOpacity = NSExpression(forConstantValue: 0.9)
+      cluster.iconOpacityTransition = Self.fade
       cluster.iconAllowsOverlap = NSExpression(forConstantValue: true)
       cluster.iconIgnoresPlacement = NSExpression(forConstantValue: true)
       style.addLayer(cluster)
@@ -309,6 +351,7 @@ struct SiteFinderMap: UIViewRepresentable {
         count.textFontNames = NSExpression(forConstantValue: fonts)
         count.textFontSize = NSExpression(forConstantValue: 12)
         count.textColor = NSExpression(forConstantValue: UIColor.white)
+        count.textOpacityTransition = Self.fade
         count.textAllowsOverlap = NSExpression(forConstantValue: true)
         count.textIgnoresPlacement = NSExpression(forConstantValue: true)
         style.addLayer(count)
@@ -317,6 +360,7 @@ struct SiteFinderMap: UIViewRepresentable {
       point.predicate = NSPredicate(format: "cluster != YES")
       point.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
       point.iconOpacity = NSExpression(forConstantValue: 0.9)
+      point.iconOpacityTransition = Self.fade
       point.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
       point.iconOffset = NSExpression(
         forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: SiteMapPin.tipOffset)))
@@ -353,7 +397,7 @@ struct SiteFinderMap: UIViewRepresentable {
       guard let source = style.source(withIdentifier: Source.selected) else { return }
       let pin = MLNSymbolStyleLayer(identifier: Layer.selected, source: source)
       pin.iconImageName = Self.byMark { NSExpression(forConstantValue: Self.pinName($0)) }
-      pin.iconScale = NSExpression(forConstantValue: 1.35)
+      pin.iconScale = NSExpression(forConstantValue: pinScale)
       pin.iconAnchor = NSExpression(forConstantValue: NSValue(mlnIconAnchor: .bottom))
       // Scaled with the icon, so the tip stays on the point at any size.
       pin.iconOffset = NSExpression(
@@ -449,6 +493,37 @@ struct SiteFinderMap: UIViewRepresentable {
         zoom: map.zoomLevel)
       camera = reported
       onCameraChange?(reported, byGesture)
+    }
+  }
+
+  /// One animation a frame at a time, its progress eased out from 0 to 1, until it ends or is
+  /// invalidated.
+  final class PinStep: NSObject {
+    private let duration: CFTimeInterval
+    private let step: (Double) -> Void
+    private var link: CADisplayLink?
+    private var start: CFTimeInterval?
+
+    init(duration: CFTimeInterval, step: @escaping (Double) -> Void) {
+      self.duration = duration
+      self.step = step
+      super.init()
+      let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
+      link.add(to: .main, forMode: .common)
+      self.link = link
+    }
+
+    func invalidate() {
+      link?.invalidate()
+      link = nil
+    }
+
+    @objc private func tick(_ link: CADisplayLink) {
+      let start = start ?? link.timestamp
+      self.start = start
+      let elapsed = min(1, (link.timestamp - start) / duration)
+      if elapsed >= 1 { invalidate() }
+      step(1 - pow(1 - elapsed, 3))
     }
   }
 
