@@ -27,19 +27,18 @@ public final class SpeciesDetailModel {
     }
   }
 
-  /// The species, then its dives; on a return, whatever shows only the phone's copy, again.
+  /// The species, then its dives and its photo; on a return, whatever shows only the phone's
+  /// copy, again.
   public func load() async {
     appearancesAtLoad = session.connectivity.routeAppearances
     await page.load()
-    guard page.phase.isLoaded else { return }
-    await dives.rereadIfStale()
+    await readBeside { await dives.rereadIfStale() }
   }
 
   /// Pull-to-refresh. A species already on screen stays there when the refresh fails.
   public func refresh() async {
     await page.refresh()
-    guard page.phase.isLoaded else { return }
-    await dives.refresh()
+    await readBeside { await dives.refresh() }
   }
 
   /// Reads again what a route can mend, each time one appears, until the calling task is
@@ -51,8 +50,15 @@ public final class SpeciesDetailModel {
 
   private func reread() async {
     await page.reread()
+    await readBeside { await dives.rereadIfStale() }
+  }
+
+  /// The dives, by `list`, and the photo, which a read that could not have it is the only
+  /// chance to ask for again: its version has not changed.
+  private func readBeside(_ list: () async -> Void) async {
     guard page.phase.isLoaded else { return }
-    await dives.rereadIfStale()
+    await list()
+    await loadPhoto()
   }
 
   /// The photo of the species shown, kept bytes first; nothing when it is already drawn.

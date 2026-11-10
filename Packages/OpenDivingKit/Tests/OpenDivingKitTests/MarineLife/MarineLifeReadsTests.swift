@@ -123,6 +123,38 @@ struct MarineLifeReadsTests {
     #expect(model.page.phase.isLoaded)
     #expect(world.server.count("GET species/\(wire)", since: mark) == 1)
   }
+
+  @Test func aPhotoThePageCouldNotHaveIsAskedForWhenARouteAppears() async throws {
+    let (first, _) = try world()
+    try await first.load()
+    await SpeciesDetailModel(session: first.session, speciesUUID: uuid).page.load()
+
+    let route = RouteSwitch()
+    let world = try first.relaunched(connectivity: route)
+    try await world.session.loadAccount()
+    let bytes = Data([0x52, 0x49, 0x46, 0x46])
+    let wire = wire
+    let species = try KitFixture.text("species")
+    world.server.override { request, _ in
+      switch request.route {
+      case "GET species/\(wire)": .json(species)
+      case "GET species/\(wire)/photo":
+        StubTransport.Response(status: 200, headers: ["Content-Type": "image/webp"], body: bytes)
+      default: nil
+      }
+    }
+    let model = SpeciesDetailModel(session: world.session, speciesUUID: uuid)
+    await model.load()
+    #expect(model.page.phase.isLoaded)
+    #expect(model.photo == nil)
+
+    let following = Task { await model.followRoute() }
+    while !route.isFollowed { await Task.yield() }
+    route.appear()
+    while model.photo == nil { await Task.yield() }
+    following.cancel()
+    #expect(model.photo == bytes)
+  }
 }
 
 /// The query each route was last sent.
