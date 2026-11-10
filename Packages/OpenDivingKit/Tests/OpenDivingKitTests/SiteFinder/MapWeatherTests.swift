@@ -69,17 +69,17 @@ struct MapWeatherTests {
     let metric = try #require(MapWeatherContent(read, units: .metric))
     #expect(metric.icon == .cloudSun)
     #expect(metric.temperature == "24°C")
-    #expect(metric.windSpeed == "21 km/h")
+    #expect(metric.windSpeed == "11 kn")
     #expect(metric.windHeading == 225)
-    #expect(metric.summary == "Partly cloudy, 24°C, wind from the northeast, 21 km/h")
+    #expect(metric.summary == "Partly cloudy, 24°C, wind from the northeast, 11 kn")
     #expect(
       metric.accessibilityLabel
-        == "Partly cloudy, 24 degrees Celsius, wind from the northeast, 21 kilometers per hour")
+        == "Partly cloudy, 24 degrees Celsius, wind from the northeast, 11 knots")
     #expect(metric.attribution == "[Open-Meteo](https://open-meteo.com/)")
 
     let imperial = try #require(MapWeatherContent(read, units: .imperial))
     #expect(imperial.temperature == "76°F")
-    #expect(imperial.windSpeed == "13 mph")
+    #expect(imperial.windSpeed == "11 kn")
   }
 
   @Test func aNortherlyBlowsSouthAndACodeTheTableLacksDrawsNoIcon() throws {
@@ -91,10 +91,10 @@ struct MapWeatherTests {
         units: .metric))
     #expect(content.icon == nil)
     #expect(content.temperature == nil)
-    #expect(content.windSpeed == "0 km/h")
+    #expect(content.windSpeed == "0 kn")
     #expect(content.windHeading == 170)
-    #expect(content.summary == "Wind from the north, 0 km/h")
-    #expect(content.accessibilityLabel == "Wind from the north, 0 kilometers per hour")
+    #expect(content.summary == "Wind from the north, 0 kn")
+    #expect(content.accessibilityLabel == "Wind from the north, 0 knots")
   }
 
   @Test func nothingToShowIsNoBar() {

@@ -4,12 +4,12 @@ public struct MapWeatherContent: Hashable, Sendable {
   public let icon: Icon?
   /// `24°C`, whole.
   public let temperature: String?
-  /// `21 km/h`, whole.
+  /// `11 kn`, whole.
   public let windSpeed: String?
   /// The bearing the wind blows toward, in degrees clockwise from north: the arrow's, which
   /// points where the wind goes as a weather map's does.
   public let windHeading: Double?
-  /// `Clear, 21°C, wind from the north-northwest, 13 km/h`: the bar in words, as the tap shows it.
+  /// `Clear, 21°C, wind from the north-northwest, 7 kn`: the bar in words, as the tap shows it.
   public let summary: String
   /// The summary as VoiceOver says it, its units in words.
   public let accessibilityLabel: String
@@ -24,7 +24,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     temperature = weather.airTemperature.map {
       UnitFormat.temperature($0, units, decimals: 0)
     }
-    windSpeed = weather.windSpeed.map { UnitFormat.windSpeed($0, units) }
+    windSpeed = weather.windSpeed.map { UnitFormat.windSpeed($0) }
     windHeading = weather.windDirection.map {
       (($0 + 180).truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
     }
@@ -45,8 +45,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     if let speed = weather.windSpeed, let windSpeed {
       let from = weather.windDirection.map { "wind from the \(Self.spokenPoint($0)), " } ?? "wind "
       written.append(from + windSpeed)
-      spoken.append(
-        from + UnitFormat.number(speed * 3.6, .speed, units) + " " + Measure.speed.word(units))
+      spoken.append(from + UnitFormat.knots(speed) + " knots")
     }
     summary = Self.sentence(written)
     accessibilityLabel = Self.sentence(spoken)
