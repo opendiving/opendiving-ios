@@ -517,16 +517,18 @@ struct SiteFinderModelTests {
       DiveSiteRead.self, from: JSONSerialization.data(withJSONObject: object))
   }
 
-  @Test func aTouchedPointOpensInThePanelAndGlidesToTheMiddleAtTheZoomItIsAt() async throws {
+  @Test func aTouchedPointOpensInThePanelAndGlidesToTheMiddleZoomedInToTheSite() async throws {
     let (model, searches) = try await withPoints()
-    await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 14))
+    await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 8))
     let sent = searches.queries.count
     model.select(Self.canyon)
     #expect(model.opened?.uuid == Self.canyon)
     #expect(model.opened?.name == "Canyon")
     #expect(model.opened?.mark == .proposed)
     #expect(model.selected == nil)
-    #expect(model.camera == MapCamera(latitude: 28.5687, longitude: 34.5372, zoom: 14))
+    #expect(
+      model.camera
+        == MapCamera(latitude: 28.5687, longitude: 34.5372, zoom: SiteFinderOpening.siteZoom))
     #expect(model.glides)
     // The glide's landing is the map's own move, which the list does not follow.
     model.mapMoved(to: model.camera, byGesture: false)
@@ -536,14 +538,14 @@ struct SiteFinderModelTests {
     #expect(model.opened == nil)
   }
 
-  @Test func aRowOpensInThePanelAtATownsWorthOfMapAtLeast() async throws {
+  @Test func aRowOpensInThePanelZoomedInToTheSiteAndNoFurtherOut() async throws {
     let (model, _) = try await withPoints()
     model.open(
       DiveSiteSearchItem(
         site: DiveSiteLookupItem(
           ref: .server(Self.canyon), name: "Canyon", latitude: 28.5687, longitude: 34.5372)))
     #expect(model.opened?.uuid == Self.canyon)
-    #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
+    #expect(model.camera.zoom == SiteFinderOpening.siteZoom)
     #expect(model.camera.latitude == 28.5687)
     #expect(model.glides)
     await pan(model, to: MapCamera(latitude: 28, longitude: 34, zoom: 15))
@@ -590,7 +592,7 @@ struct SiteFinderModelTests {
     #expect(model.opened?.uuid == Self.canyon)
     #expect(model.opened?.name == "Canyon")
     #expect(model.camera.latitude == 28.5687)
-    #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
+    #expect(model.camera.zoom == SiteFinderOpening.siteZoom)
     #expect(searches.queries.last?["latitude"] == "28.57")
   }
 

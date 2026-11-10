@@ -225,9 +225,10 @@ public final class SiteFinderModel {
       uuid: uuid, name: point?.name, mark: point?.mark, location: nil, site: nil,
       isPlaced: point != nil)
     guard let point else { return .world }
-    return SiteFinderOpening(points: [
-      MapPoint(name: point.name, latitude: point.latitude, longitude: point.longitude)
-    ])
+    return SiteFinderOpening(
+      points: [
+        MapPoint(name: point.name, latitude: point.latitude, longitude: point.longitude)
+      ], zoom: SiteFinderOpening.siteZoom)
   }
 
   /// The opening's list again, narrowed to the view, where it was sent before a map was drawn and
@@ -305,7 +306,7 @@ public final class SiteFinderModel {
 
   /// The point the diver touched, or nothing where the map has no such site: the dive form's
   /// sheet names it, and the sites map opens it in the panel, its pin glided to the middle of
-  /// what shows at the zoom the map is at.
+  /// what shows, zoomed in to the site.
   public func select(_ uuid: UUID) {
     guard let point = points.point(uuid) else { return }
     switch host {
@@ -314,12 +315,12 @@ public final class SiteFinderModel {
     case .sitesMap:
       opened = OpenedSite(
         uuid: uuid, name: point.name, mark: point.mark, location: nil, site: nil, isPlaced: true)
-      centre(latitude: point.latitude, longitude: point.longitude, zoom: camera.zoom)
+      centre(latitude: point.latitude, longitude: point.longitude, zoom: siteZoom)
     }
   }
 
   /// A row of the sites map's list, opened in the panel, its pin glided to the middle of what
-  /// shows at a town's worth of map at least.
+  /// shows, zoomed in to the site.
   public func open(_ item: DiveSiteSearchItem) {
     let site = item.site
     guard let uuid = site.ref.serverUUID else { return }
@@ -328,7 +329,7 @@ public final class SiteFinderModel {
       uuid: uuid, name: site.name, mark: item.mark, location: site.location?.name,
       site: nil, isPlaced: placed)
     if let latitude = site.latitude, let longitude = site.longitude {
-      centre(latitude: latitude, longitude: longitude, zoom: pointZoom)
+      centre(latitude: latitude, longitude: longitude, zoom: siteZoom)
     }
   }
 
@@ -340,9 +341,8 @@ public final class SiteFinderModel {
       uuid: uuid, name: point?.name, mark: point?.mark, location: nil, site: nil, isPlaced: false)
   }
 
-  /// The open site as its panel read it, and its name, mark and location now, and its
-  /// pin glided to the middle where
-  /// the finder had nowhere to put it when it opened.
+  /// The open site as its panel read it: its name, mark and location now, and its pin glided to
+  /// the middle, zoomed in, where the finder had nowhere to put it when it opened.
   public func read(_ site: DiveSiteRead) {
     guard var opened, opened.uuid == site.uuid else { return }
     opened.name = site.name
@@ -351,7 +351,7 @@ public final class SiteFinderModel {
     opened.site = site
     if !opened.isPlaced, let latitude = site.latitude, let longitude = site.longitude {
       opened.isPlaced = true
-      centre(latitude: latitude, longitude: longitude, zoom: pointZoom)
+      centre(latitude: latitude, longitude: longitude, zoom: siteZoom)
     }
     self.opened = opened
   }
@@ -361,8 +361,9 @@ public final class SiteFinderModel {
     opened = nil
   }
 
-  private var pointZoom: Double {
-    max(camera.zoom, SiteFinderOpening.pointZoom)
+  /// In to the site, and no further out from a map zoomed in closer.
+  private var siteZoom: Double {
+    max(camera.zoom, SiteFinderOpening.siteZoom)
   }
 
   private func centre(latitude: Double, longitude: Double, zoom: Double) {
