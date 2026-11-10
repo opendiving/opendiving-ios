@@ -107,6 +107,7 @@ struct UnitFormatTests {
     #expect(UnitFormat.kgPerPound == 0.45359237)
     #expect(abs(UnitFormat.litersPerCubicFoot - 0.3048 * 0.3048 * 0.3048 * 1000) < 1e-9)
     #expect(UnitFormat.feetPerMile == 5280)
+    #expect(UnitFormat.metersPerNauticalMile == 1852)
     #expect(abs(UnitFormat.psiPerBar - 14.503773773020923) < 1e-12)
   }
 
@@ -118,12 +119,12 @@ struct UnitFormatTests {
     #expect(NumberText.round(28.000000000000004, decimals: 2) == 28)
   }
 
-  /// `units.test.ts:418-425`: the API sends metres per second, which nobody reads a wind in.
-  @Test func windSpeedsAreWholeKilometresOrMilesPerHour() {
-    #expect(UnitFormat.windSpeed(5.9, .metric) == "21 km/h")
-    #expect(UnitFormat.windSpeed(5.9, .imperial) == "13 mph")
-    #expect(UnitFormat.windSpeed(0, .metric) == "0 km/h")
-    #expect(Measure.speed.word(.imperial) == "miles per hour")
+  /// The API sends metres per second, which nobody reads a wind in; knots in either system.
+  @Test func windSpeedsAreWholeKnots() {
+    #expect(UnitFormat.windSpeed(5.9) == "11 kn")
+    #expect(UnitFormat.windSpeed(6) == "12 kn")
+    #expect(UnitFormat.windSpeed(0) == "0 kn")
+    #expect(UnitFormat.knots(1852.0 / 3600) == "1")
   }
 
   /// `units.test.ts:196-213`.
