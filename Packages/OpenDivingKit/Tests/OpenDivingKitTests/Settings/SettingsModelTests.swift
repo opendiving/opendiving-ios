@@ -50,18 +50,40 @@ struct SettingsModelTests {
     #expect(session.state == .signedIn(origin))
   }
 
-  @Test func unitsReadAsTheAccountHasThem() async throws {
-    let user = try KitFixture.text("user")
-    let imperial = user.replacingOccurrences(
-      of: #""units": "metric""#, with: #""units": "imperial""#)
-    #expect(imperial != user)
-    let (model, _, session, _) = try signedIn([
-      "GET user": .json(imperial),
-      "GET people": .json(try KitFixture.text("people-page")),
+  @Test func theSectionsAreTheWebsInItsOrderAndInvitationsGoOnAnOpenInstance() async throws {
+    let open = try KitFixture.text("config").replacingOccurrences(
+      of: #""registration_mode": "invite""#, with: #""registration_mode": "open""#)
+    #expect(open.contains(#""registration_mode": "open""#))
+    let (model, _, _, _) = try signedIn([
+      "GET config": .json(open),
+      "GET health": .json(try KitFixture.text("health")),
     ])
-    #expect(model.unitsLabel == "Metric")
-    try await session.loadAccount()
-    #expect(model.unitsLabel == "Imperial")
+    #expect(model.sections == SettingsSection.allCases)
+    #expect(
+      model.sections.map(\.title) == [
+        "Account", "Check-in", "Authentication", "Data", "Notifications", "Preferences",
+        "Invitations",
+      ])
+    await model.load()
+    #expect(!model.sections.contains(.invitations))
+    #expect(model.sections.count == SettingsSection.allCases.count - 1)
+  }
+
+  @Test func anInviteOnlyInstanceListsInvitations() async throws {
+    let invite = try KitFixture.text("config")
+    #expect(invite.contains(#""registration_mode": "invite""#))
+    let (model, _, _, _) = try signedIn([
+      "GET config": .json(invite),
+      "GET health": .json(try KitFixture.text("health")),
+    ])
+    await model.load()
+    #expect(model.sections == SettingsSection.allCases)
+  }
+
+  @Test func aSectionsWebPageIsOnTheServersOrigin() {
+    #expect(
+      SettingsSection.checkin.webURL(on: origin).absoluteString
+        == origin.description + "/settings/checkin")
   }
 
   @Test func aFailedSignOutKeepsTheSessionAndSaysWhy() async throws {

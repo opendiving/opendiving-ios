@@ -348,12 +348,21 @@ public final class Session {
     let people = try await APIClient.allPages { page, perPage in
       try await client.people(page: page, itemsPerPage: perPage)
     }
-    guard generation == stateGeneration, state == .signedIn(client.origin) else { return }
-    self.user = user
+    guard take(user, readBy: client, at: generation) else { return }
     self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
-    try? store.remember(user, for: client.origin)
-    try? store.rememberLastAccount(user, for: client.origin)
     accountLoaded = true
+  }
+
+  /// `GET /user` alone, after a settings write or while a settings screen shows: the account
+  /// is stored as ``loadAccount()`` stores it, and nothing when the session changed while it
+  /// ran. Before the account has loaded in this session it is ``loadAccount()`` itself, which
+  /// is what makes the account known. Fails at once with ``APIError/noRoute`` without a route.
+  public func reloadAccount() async throws {
+    let client = try routedClient()
+    guard accountLoaded else { return try await loadAccount() }
+    let generation = stateGeneration
+    let user = try await client.currentUser()
+    _ = take(user, readBy: client, at: generation)
   }
 
   /// Revokes the session on the server, then forgets the token and the account here. An
@@ -390,6 +399,8 @@ public final class Session {
   /// ``requireClient()`` for a read a screen starts on its own, which fails at once with
   /// ``APIError/noRoute`` while the phone believes it has no route rather than waiting a
   /// minute for one; the screen reads again when ``Connectivity/moments()`` says one appeared.
+  /// Every settings call goes through it too, the writes the diver asks for included: a
+  /// settings control says at once that there is no connection, and saves nothing.
   public func routedClient() throws -> APIClient {
     let client = try requireClient()
     guard connectivity.isRouteAvailable else { throw APIError.noRoute }
@@ -433,6 +444,17 @@ public final class Session {
   }
 
   // MARK: - Internals
+
+  /// The one place the session takes the account a server answered, and keeps it as a
+  /// relaunch and the signed-out dive form read it. False, storing nothing, when the session
+  /// changed after `generation` was read.
+  private func take(_ user: UserRead, readBy client: APIClient, at generation: Int) -> Bool {
+    guard generation == stateGeneration, state == .signedIn(client.origin) else { return false }
+    self.user = user
+    try? store.remember(user, for: client.origin)
+    try? store.rememberLastAccount(user, for: client.origin)
+    return true
+  }
 
   private func enter(_ origin: ServerOrigin) {
     if store.hasRefreshToken(origin) {
