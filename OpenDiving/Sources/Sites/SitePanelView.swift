@@ -1,10 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Everything about one dive site, as the sites map's panel shows it under the site's name: its
-/// chips, facts and figures with the ways to edit it and read its fields, what stands on it — a
-/// proposal, a Commons match, an edit waiting to land — what it records about itself, its notes,
-/// the species seen on its dives, and every dive there last.
+/// Everything about one dive site, as the sites map's panel shows it under the site's mark and
+/// name: its figures and the way to edit it, what stands on it — a proposal, a Commons match, an
+/// edit waiting to land — every field it records, its notes, the species seen on its dives, and
+/// every dive there last.
 struct SitePanelView: View {
   let siteUUID: UUID
   /// The site, each time it is read.
@@ -81,7 +81,7 @@ private struct SitePanelContent: View {
               replacing = match
             }
           }
-          SiteInformationCard(info: DiveSiteSummary.info(site))
+          SiteInformationCard(info: DiveSiteSummary.info(site, units: session.units))
           if !site.notes.isEmpty {
             SectionCard(title: "Notes", icon: .fileText) {
               Text(site.notes)
@@ -123,8 +123,7 @@ private struct SitePanelContent: View {
   }
 }
 
-/// What the page's head said under the name, which the panel shows over it: the site's chips,
-/// facts and figures, then the ways to edit it and to read its own fields.
+/// The site's figures, and the way to edit it.
 private struct SiteHead: View {
   let site: DiveSiteRead
   let units: UnitSystem
@@ -132,27 +131,17 @@ private struct SiteHead: View {
   let onReplaced: (UUID) -> Void
 
   var body: some View {
-    let content = DiveSiteSummary.hero(site, units: units)
     VStack(alignment: .leading, spacing: 12) {
-      ChipsRow(chips: content.chips)
-      FactsLine(facts: content.facts)
-      FiguresRow(figures: content.figures)
-      HStack(spacing: 8) {
-        if !site.isUnsavedCommons {
-          NavigationLink {
-            DiveSiteFormView(mode: .edit(site), onDeleted: onDeleted, onReplaced: onReplaced)
-          } label: {
-            Label("Edit", systemImage: "pencil")
-          }
-          .buttonStyle(.bordered)
+      FiguresRow(figures: DiveSiteSummary.hero(site, units: units).figures)
+      if !site.isUnsavedCommons {
+        NavigationLink {
+          DiveSiteFormView(mode: .edit(site), onDeleted: onDeleted, onReplaced: onReplaced)
+        } label: {
+          Label("Edit", systemImage: "pencil")
         }
-        RecordInfoButton(
-          title: "Dive Site Information",
-          sections: DiveSiteSummary.recordInfo(site, units: units)
-        )
         .buttonStyle(.bordered)
+        .tint(Color.brandTeal)
       }
-      .tint(Color.brandTeal)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
@@ -252,8 +241,7 @@ private struct SiteDives: View {
   }
 }
 
-/// What else the site is called, where exactly it is, the diver's tags and its entries in
-/// other registries; no card for a site recording none of them.
+/// Every field the site records but its name and its notes; no card for a site recording none.
 private struct SiteInformationCard: View {
   let info: DiveSiteSummary.Info
 
@@ -266,12 +254,27 @@ private struct SiteInformationCard: View {
               Text(alsoKnownAs)
             }
           }
+          if let location = info.location {
+            InfoRow(label: "Location") { Text(location) }
+          }
           if let coordinates = info.coordinates {
             InfoRow(label: "Coordinates") {
               Text(coordinates)
                 .monospacedDigit()
                 .textSelection(.enabled)
             }
+          }
+          if let depth = info.depth {
+            InfoRow(label: "Depth") { Text(depth) }
+          }
+          if let waterType = info.waterType {
+            InfoRow(label: "Water type") { Text(waterType) }
+          }
+          if let altitude = info.altitude {
+            InfoRow(label: "Altitude") { Text(altitude) }
+          }
+          if let entryTypes = info.entryTypes {
+            InfoRow(label: "Entry types") { Text(entryTypes) }
           }
           if !info.tags.isEmpty {
             InfoRow(label: "Tags") {

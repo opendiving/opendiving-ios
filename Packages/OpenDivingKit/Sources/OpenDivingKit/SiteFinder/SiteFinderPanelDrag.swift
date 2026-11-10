@@ -66,4 +66,10 @@ public final class SiteFinderPanelDrag {
     if let heading { return panel.height(heading) }
     return panel.height(detent, dragged: dragged)
   }
+
+  /// How far the panel can still grow before it stands at its tallest: what a swipe up on its
+  /// content moves the panel by before the content scrolls.
+  public func roomAbove(in panel: SiteFinderPanel) -> Double {
+    max(0, panel.height(.full) - height(in: panel))
+  }
 }

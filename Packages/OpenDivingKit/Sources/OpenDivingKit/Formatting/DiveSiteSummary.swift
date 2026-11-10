@@ -1,17 +1,25 @@
 /// What a dive site's card, its panel's head and its information card print, from the site
 /// as the API reads it.
 public enum DiveSiteSummary {
-  /// The site's *Dive Site Information* card: each member only where the site records it.
+  /// The site's *Dive Site Information* card, every field the site records but its name and its
+  /// notes, in the site form's order: each member only where the site records it.
   public struct Info: Hashable, Sendable {
     /// The other names, `Bells, The Bells`.
     public var alsoKnownAs: String?
+    public var location: String?
     public var coordinates: String?
+    /// `5 m – 30 m`, or the one end the site records.
+    public var depth: String?
+    public var waterType: String?
+    public var altitude: String?
+    public var entryTypes: String?
     public var tags: [String]
     public var registries: [Registry]
 
     /// A site recording none of them draws no card.
     public var isEmpty: Bool {
-      alsoKnownAs == nil && coordinates == nil && tags.isEmpty && registries.isEmpty
+      [alsoKnownAs, location, coordinates, depth, waterType, altitude, entryTypes]
+        .allSatisfy { $0 == nil } && tags.isEmpty && registries.isEmpty
     }
   }
 
@@ -61,8 +69,8 @@ public enum DiveSiteSummary {
       figures: figures, points: points(site))
   }
 
-  /// The head of the site's panel, whose name stands over it and whose pin is the map's: its
-  /// chips, facts and figures. Only the figures the site has are shown, and its last dive last,
+  /// The head of the site's panel, whose name and mark stand over it, whose pin is the map's and
+  /// whose facts are its information card's: its figures. Only the figures the site has are shown, and its last dive last,
   /// as the one figure wider than the rest.
   public static func hero(_ site: DiveSiteRead, units: UnitSystem) -> HeroContent {
     var figures = [Figure(label: "Dives", value: String(site.diveCount))]
@@ -121,60 +129,46 @@ public enum DiveSiteSummary {
     return facts
   }
 
-  public static func info(_ site: DiveSiteRead) -> Info {
-    Info(
+  /// Unlike the facts line, the sea's water and sea level are shown where the site records them.
+  public static func info(_ site: DiveSiteRead, units: UnitSystem) -> Info {
+    let text = { (value: String?) in value.flatMap { $0.isEmpty ? nil : $0 } }
+    return Info(
       alsoKnownAs: site.otherNames.isEmpty ? nil : site.otherNames.joined(separator: ", "),
+      location: text(site.location?.name),
       coordinates: CoordinateFormat.format(latitude: site.latitude, longitude: site.longitude),
+      depth: depthRange(site, units: units),
+      waterType: text(site.waterType).map(VocabularyLabels.waterType),
+      altitude: site.altitude.map { UnitFormat.altitude(Double($0), units) },
+      entryTypes: site.entryTypes.isEmpty
+        ? nil : site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", "),
       tags: site.tags,
-      registries: site.externalIds.map { entry in
-        Registry(
-          label: ExternalIdRegistry.label(entry.registry), identifier: entry.identifier,
-          link: ExternalIdRegistry.link(registry: entry.registry, identifier: entry.identifier))
-      })
+      registries: registries(site))
   }
 
-  /// The site's own fields in the site form's order. A registry entry reads as plain text here;
-  /// the panel's information card holds its link.
-  public static func recordInfo(_ site: DiveSiteRead, units: UnitSystem) -> [RecordInfoSection] {
-    let depth = { (meters: Double?) in meters.map { UnitFormat.depth($0, units) } }
-    let registries = info(site).registries.map { $0.label + " " + $0.identifier }
-    return [
-      RecordInfoSection(facts: [
-        RecordInfoFact(label: "Name", value: site.name),
-        RecordInfoFact(label: "Other names", value: site.otherNames.joined(separator: ", ")),
-        RecordInfoFact(label: "Location", value: site.location?.name),
-        RecordInfoFact(label: "Latitude", value: CoordinateEntry.text(site.latitude)),
-        RecordInfoFact(label: "Longitude", value: CoordinateEntry.text(site.longitude)),
-        RecordInfoFact(
-          label: "In other registries", value: registries.joined(separator: "\n"), isWide: true),
-        RecordInfoFact(label: "Depth from", value: depth(site.depthFrom)),
-        RecordInfoFact(label: "Depth to", value: depth(site.depthTo)),
-        RecordInfoFact(label: "Water type", value: site.waterType.map(VocabularyLabels.waterType)),
-        RecordInfoFact(
-          label: "Altitude", value: site.altitude.map { UnitFormat.altitude(Double($0), units) }),
-        RecordInfoFact(
-          label: "Entry types",
-          value: site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", ")),
-        RecordInfoFact(label: "Tags", value: site.tags.joined(separator: ", ")),
-        RecordInfoFact(label: "Notes", value: site.notes, isWide: true),
-      ])
-    ]
+  /// The site's entries in other registries, each opening the registry's page where the format
+  /// names the registry.
+  public static func registries(_ site: DiveSiteRead) -> [Registry] {
+    site.externalIds.map { entry in
+      Registry(
+        label: ExternalIdRegistry.label(entry.registry), identifier: entry.identifier,
+        link: ExternalIdRegistry.link(registry: entry.registry, identifier: entry.identifier))
+    }
   }
 
   /// A Commons record's facts, each only where it records it.
   public static func sharedMembers(_ site: DiveSiteRead, units: UnitSystem) -> [SharedMember] {
-    let info = info(site)
+    let info = info(site, units: units)
     var members = [SharedMember(label: "Name", value: site.name)]
     func add(_ label: String, _ value: String?) {
       if let value, !value.isEmpty { members.append(SharedMember(label: label, value: value)) }
     }
     add("Also known as", info.alsoKnownAs)
-    add("Location", site.location?.name)
+    add("Location", info.location)
     add("Coordinates", info.coordinates)
-    add("Depth", depthRange(site, units: units))
-    add("Water type", site.waterType.map(VocabularyLabels.waterType))
-    add("Altitude", site.altitude.map { UnitFormat.altitude(Double($0), units) })
-    add("Entry types", site.entryTypes.map(VocabularyLabels.entryType).joined(separator: ", "))
+    add("Depth", info.depth)
+    add("Water type", info.waterType)
+    add("Altitude", info.altitude)
+    add("Entry types", info.entryTypes)
     for registry in info.registries { add(registry.label, registry.identifier) }
     return members
   }

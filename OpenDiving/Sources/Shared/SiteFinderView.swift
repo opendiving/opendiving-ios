@@ -341,14 +341,19 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
 
   // MARK: - An opened site
 
-  /// The site's name where the search stood, and the way back to the list.
+  /// The site's mark and name where the search stood, and the way back to the list.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
     HStack(alignment: .top, spacing: 8) {
-      Text(opened.name ?? "")
-        .font(.title2.bold())
-        .lineLimit(2)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .accessibilityAddTraits(.isHeader)
+      VStack(alignment: .leading, spacing: 4) {
+        if opened.isCommons {
+          ChipsRow(chips: [DiveSiteMark.commons.chip])
+        }
+        Text(opened.name ?? "")
+          .font(.title2.bold())
+          .lineLimit(2)
+          .accessibilityAddTraits(.isHeader)
+      }
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
       closeButton("Close dive site") { model.closeSite() }
     }
   }
@@ -363,7 +368,8 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
         .background {
           if map.hasMap {
             PanelDragFromScrollTop(
-              onChanged: { drag.follow(-$0) }, onEnded: { letGo(panel, velocity: -$0) })
+              roomAbove: { drag.roomAbove(in: panel) }, onChanged: { drag.follow(-$0) },
+              onEnded: { letGo(panel, velocity: -$0) })
           }
         }
     }
@@ -393,7 +399,8 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
       .background {
         if map.hasMap {
           PanelDragFromScrollTop(
-            onChanged: { drag.follow(-$0) }, onEnded: { letGo(panel, velocity: -$0) })
+            roomAbove: { drag.roomAbove(in: panel) }, onChanged: { drag.follow(-$0) },
+            onEnded: { letGo(panel, velocity: -$0) })
         }
       }
     }

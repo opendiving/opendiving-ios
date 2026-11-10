@@ -50,7 +50,7 @@ public struct DiveSiteProposalReview: Hashable, Sendable {
       Row(
         label: "Registries",
         value: text(
-          DiveSiteSummary.info(site).registries.map { $0.label + " " + $0.identifier }
+          DiveSiteSummary.registries(site).map { $0.label + " " + $0.identifier }
             .joined(separator: "\n"))),
     ]
     pin = latitude.flatMap { latitude in

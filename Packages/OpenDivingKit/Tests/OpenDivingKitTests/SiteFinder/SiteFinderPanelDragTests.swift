@@ -17,6 +17,20 @@ struct SiteFinderPanelDragTests {
     #expect(drag.height(in: panel) == panel.height(.half) + 30)
   }
 
+  @Test func theRoomAboveIsWhatIsLeftBelowTheTallest() {
+    let drag = SiteFinderPanelDrag()
+    #expect(drag.roomAbove(in: panel) == panel.height(.full) - panel.height(.half))
+    drag.follow(30)
+    #expect(drag.roomAbove(in: panel) == panel.height(.full) - panel.height(.half) - 30)
+    let move = drag.begin()
+    drag.head(to: .full)
+    drag.end(move)
+    #expect(drag.roomAbove(in: panel) == 0)
+    // Pulled on above its tallest it has no room, rather than less than none.
+    drag.follow(40)
+    #expect(drag.roomAbove(in: panel) == 0)
+  }
+
   @Test func itTakesTheDetentOnlyOnceTheMoveLands() {
     let drag = SiteFinderPanelDrag()
     drag.follow(30)
