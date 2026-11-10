@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The weather bar grown into ``MapWeatherCard`` over the dimmed map, presented over everything,
-/// the top bar's other buttons included.
+/// The weather bar grown into ``MapWeatherCard`` over the dimmed, softened map, presented over
+/// everything, the top bar's other buttons included.
 ///
 /// It opens on a copy of the bar where the bar is drawn, while the bar itself is hidden, and grows
 /// the copy's glass into the card's; closing shrinks it back before the presentation ends, so the
@@ -27,7 +27,9 @@ struct MapWeatherExplainer: View {
   var body: some View {
     GeometryReader { window in
       ZStack(alignment: .topLeading) {
-        Color.black.opacity(isOpen ? dimming : 0)
+        BackdropBlur(amount: 0.3)
+          .opacity(isOpen ? 1 : 0)
+          .overlay(Color.black.opacity(isOpen ? dimming : 0))
           .contentShape(.rect)
           .onTapGesture(perform: close)
           .accessibilityLabel("Close")
