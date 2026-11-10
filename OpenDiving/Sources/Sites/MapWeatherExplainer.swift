@@ -22,11 +22,12 @@ struct MapWeatherExplainer: View {
   @State private var isOpen = false
   @Namespace private var morph
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.colorScheme) private var colorScheme
 
   var body: some View {
     GeometryReader { window in
       ZStack(alignment: .topLeading) {
-        Color.black.opacity(isOpen ? 0.35 : 0)
+        Color.black.opacity(isOpen ? dimming : 0)
           .contentShape(.rect)
           .onTapGesture(perform: close)
           .accessibilityLabel("Close")
@@ -80,6 +81,11 @@ struct MapWeatherExplainer: View {
         removal: .opacity.animation(.easeIn(duration: 0.1)))
     )
     .accessibilityAddTraits(.isModal)
+  }
+
+  /// Darker in dark mode, where a light dim over dark tiles and a black panel barely shows.
+  private var dimming: Double {
+    colorScheme == .dark ? 0.6 : 0.35
   }
 
   private var morphing: Animation {
