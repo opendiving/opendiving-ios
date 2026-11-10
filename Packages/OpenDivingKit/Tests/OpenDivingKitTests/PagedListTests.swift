@@ -156,6 +156,38 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1"])
   }
 
+  @Test func aLoadCancelledBehindKeptPagesIsReadAgainWhenTheListIsShownAgain() async throws {
+    let first = try OutboxWorld()
+    try await first.load()
+    await PagedList<DiveListItem>(session: first.session, cache: .dives) { client, page, perPage in
+      try await client.dives(page: page, itemsPerPage: perPage)
+    }.load()
+    let world = try first.relaunched()
+    let calls = Mutex(0)
+    let list = PagedList<DiveListItem>(session: world.session, cache: .dives) {
+      client, page, perPage in
+      let call = calls.withLock {
+        $0 += 1
+        return $0
+      }
+      if call == 1 {
+        while !Task.isCancelled { await Task.yield() }
+        throw URLError(.cancelled)
+      }
+      return try await client.dives(page: page, itemsPerPage: perPage)
+    }
+    let shown = Task { await list.load() }
+    while calls.withLock({ $0 }) < 1 { await Task.yield() }
+    shown.cancel()
+    await shown.value
+    #expect(list.phase == .loaded)
+    #expect(list.lastUpdated != nil)
+
+    await list.rereadIfStale()
+    #expect(calls.withLock { $0 } == 2)
+    #expect(list.lastUpdated == nil)
+  }
+
   @Test func aFailedFirstPageIsTheError() async throws {
     let list = trips(Session.stub(transport: try transport(failPage: 1)))
     await list.load()

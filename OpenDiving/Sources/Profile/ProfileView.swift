@@ -130,11 +130,12 @@ private struct ProfileContent: View {
       await model.followRoute()
     }
     .task(id: session.user?.avatarSha256) { await avatar.load() }
-    // Each section reads when it is shown; the check-in sheet refreshes on every visit.
+    // Each section reads when it is shown, and again on return while it shows only the phone's
+    // copy: a switch or a push cancels the read. The check-in sheet refreshes on every visit.
     .task(id: section) {
       switch section {
-      case .dives: await dives.load()
-      case .trips: await trips.load()
+      case .dives: await dives.rereadIfStale()
+      case .trips: await trips.rereadIfStale()
       case .cards:
         checkin.load()
         await checkin.refresh()
