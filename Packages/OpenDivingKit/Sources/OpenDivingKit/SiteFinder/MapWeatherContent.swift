@@ -1,6 +1,6 @@
-/// What the Sites map's weather bar draws for the weather at the map's centre: the sky's icon,
-/// the air temperature, and the wind's speed with an arrow along it; and, under its tap, the rest
-/// of the provider's weather and the sea.
+/// What the Sites map's weather bar draws for the weather at a site: the sky's icon, the air
+/// temperature, and the wind's speed with an arrow along it; and, under its tap, the rest of the
+/// provider's weather and the sea.
 public struct MapWeatherContent: Hashable, Sendable {
   /// A line of the reading the bar has no room for.
   public struct Detail: Hashable, Sendable {
@@ -19,9 +19,8 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// The bearing the wind blows toward, in degrees clockwise from north: the arrow's, which
   /// points where the wind goes as a weather map's does.
   public let windHeading: Double?
-  /// `Clear, 21°C, wind from the north-northwest, 7 kn`: the bar in words, as the tap shows it.
-  public let summary: String
-  /// The summary as VoiceOver says it, its units in words.
+  /// `Clear, 21 degrees Celsius, wind from the north-northwest, 7 knots`: the bar as VoiceOver says
+  /// it, the wind's direction, which the arrow draws, in words.
   public let accessibilityLabel: String
   /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
   /// has it.
@@ -52,24 +51,19 @@ public struct MapWeatherContent: Hashable, Sendable {
     }
     guard icon != nil || temperature != nil || windSpeed != nil else { return nil }
 
-    var written: [String] = []
     var spoken: [String] = []
     if let vocabulary {
-      written.append(VocabularyLabels.weather(vocabulary))
       spoken.append(VocabularyLabels.weather(vocabulary))
     }
-    if let celsius = weather.airTemperature, let temperature {
-      written.append(temperature)
+    if let celsius = weather.airTemperature {
       spoken.append(
         UnitFormat.number(celsius, .temperature, units, decimals: 0) + " "
           + Measure.temperature.word(units))
     }
-    if let speed = weather.windSpeed, let windSpeed {
+    if let speed = weather.windSpeed {
       let from = weather.windDirection.map { "wind from the \(Self.spokenPoint($0)), " } ?? "wind "
-      written.append(from + windSpeed)
       spoken.append(from + UnitFormat.knots(speed) + " knots")
     }
-    summary = Self.sentence(written)
     accessibilityLabel = Self.sentence(spoken)
     details = Self.details(weather, units: units)
     let drawnTide = read.sea.flatMap { Self.tide($0, now: read.at) }

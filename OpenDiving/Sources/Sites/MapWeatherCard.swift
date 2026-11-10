@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The whole reading the weather bar stands for: the site's place, the sky, the wind and the sea's
-/// temperature large across the top, the reading in words with the rest of the weather under it, the sea with its waves and tide drawn below that, and whose data
+/// The whole reading the weather bar stands for: the site's place over the sky, the wind and the
+/// sea's temperature large across the top, the rest of the weather under them, the sea with its waves and tide drawn below that, and whose data
 /// it is, which the provider's licence asks to be shown. Without a background: ``MapWeatherExplainer``
 /// gives it the one it grows from the bar with.
 struct MapWeatherCard: View {
@@ -22,9 +22,9 @@ struct MapWeatherCard: View {
       Text(title ?? "Place, Region, Country")
         .font(.subheadline.weight(.semibold))
         .redacted(reason: title == nil ? .placeholder : [])
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
       top
-      Text(content.summary)
-        .font(.subheadline)
       if !content.details.isEmpty {
         DetailRows(details: content.details)
       }
@@ -48,20 +48,18 @@ struct MapWeatherCard: View {
 }
 
 extension MapWeatherCard {
-  /// The sky, the wind and the sea's temperature, spread across the card. The summary under them
-  /// says the first two in words, so VoiceOver reads only the sea.
+  /// The sky, the wind and the sea's temperature, spread across the card, which VoiceOver reads as
+  /// one sentence with the wind's direction in words.
   private var top: some View {
     HStack {
       if MapWeatherSky.shows(content) {
         MapWeatherSky(content: content, size: size)
           .mapWeatherSlot(.sky, slots)
-          .accessibilityHidden(true)
       }
       Spacer(minLength: 8)
       if MapWeatherWind.shows(content) {
         MapWeatherWind(content: content, size: size)
           .mapWeatherSlot(.wind, slots)
-          .accessibilityHidden(true)
       }
       if let sea = content.seaTemperature {
         Spacer(minLength: 8)
@@ -76,12 +74,18 @@ extension MapWeatherCard {
         .monospacedDigit()
         .lineLimit(1)
         .fixedSize()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(sea.label)
-        .accessibilityValue(sea.spokenValue)
       }
     }
     .padding(.vertical, 4)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(spoken)
+  }
+}
+
+extension MapWeatherCard {
+  private var spoken: String {
+    guard let sea = content.seaTemperature else { return content.accessibilityLabel }
+    return content.accessibilityLabel + ", sea " + sea.spokenValue
   }
 }
 
