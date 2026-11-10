@@ -8,12 +8,14 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case backpack
   case badgeCheck = "badge-check"
   case bedDouble = "bed-double"
+  case bell
   case bookUser = "book-user"
   case bookmark
   case building2 = "building-2"
   case calendar
   case chartLine = "chart-line"
   case clipboardCheck = "clipboard-check"
+  case clipboardList = "clipboard-list"
   case cloud
   case cloudFog = "cloud-fog"
   case cloudLightning = "cloud-lightning"
@@ -28,8 +30,10 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case gauge
   case globe
   case graduationCap = "graduation-cap"
+  case hardDrive = "hard-drive"
   case idCard = "id-card"
   case imageOff = "image-off"
+  case keyRound = "key-round"
   case landmark
   case layers
   case listTree = "list-tree"
@@ -37,13 +41,17 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case lock
   case luggage
   case mail
+  case mailPlus = "mail-plus"
   case mapPin = "map-pin"
+  case monitor
+  case moon
   case navigation2 = "navigation-2"
   case paperclip
   case phone
   case plus
   case search
   case ship
+  case slidersHorizontal = "sliders-horizontal"
   case sun
   case tabBadgeCheck = "tab-badge-check"
   case tabDive = "tab-dive"

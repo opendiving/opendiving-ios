@@ -71,6 +71,13 @@ struct WriteModelFixtureTests {
     #expect(places.first?.attribution.contains("OpenStreetMap") == true)
   }
 
+  @Test func aPageOfTags() throws {
+    let page = try KitFixture.roundTrip(PaginatedListResponse<TagRead>.self, "tags-page")
+    #expect(page.data.map(\.name) == ["night", "wall"])
+    #expect(page.data.last?.siteCount == 2)
+    #expect(page.data.map(TagsModel.usage) == ["12 dives", "1 dive, 2 sites"])
+  }
+
   @Test func storage() throws {
     let storage = try KitFixture.roundTrip(StorageUsageRead.self, "storage")
     #expect(storage.usedBytes == 137_512_960)
