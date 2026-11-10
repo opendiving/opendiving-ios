@@ -282,9 +282,9 @@ public final class SiteFinderModel {
     await search()
   }
 
-  /// Moves the camera to the phone's position, where the list follows it as it follows a pan;
-  /// with no map, which has no view to follow, the list is the sites around it at once. A map
-  /// zoomed in deeper than a lone point opens stays at its zoom.
+  /// Glides the camera to the phone's position, closing an opened site, and the list follows it as
+  /// it follows a pan; with no map, which has no view to follow, the list is the sites around it
+  /// at once. A map zoomed in deeper than a lone point opens stays at its zoom.
   public func useMyLocation() async {
     isLocating = true
     locationFailure = nil
@@ -297,10 +297,10 @@ public final class SiteFinderModel {
       return
     }
     isLocating = false
-    move(
-      to: MapCamera(
-        latitude: here.latitude, longitude: here.longitude,
-        zoom: max(camera.zoom, SiteFinderOpening.pointZoom)))
+    opened = nil
+    centre(
+      latitude: here.latitude, longitude: here.longitude,
+      zoom: max(camera.zoom, SiteFinderOpening.pointZoom))
     if hasMap { settle() } else { await search() }
   }
 
@@ -356,7 +356,8 @@ public final class SiteFinderModel {
     self.opened = opened
   }
 
-  /// The panel goes back to the search and the list, the map staying where the site put it.
+  /// The panel goes back to the search and the list, the map staying where the site put it: its
+  /// close button, and a tap on the map off every site.
   public func closeSite() {
     opened = nil
   }

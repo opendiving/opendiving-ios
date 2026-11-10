@@ -389,6 +389,7 @@ struct SiteFinderModelTests {
     let model = await mapped(world, locator)
     await model.useMyLocation()
     #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
+    #expect(model.glides)
     model.mapMoved(to: MapCamera(latitude: 0, longitude: 0, zoom: 14), byGesture: true)
     await model.useMyLocation()
     #expect(model.camera == MapCamera(latitude: -8.27, longitude: 115.6, zoom: 14))
@@ -594,6 +595,22 @@ struct SiteFinderModelTests {
     #expect(model.camera.latitude == 28.5687)
     #expect(model.camera.zoom == SiteFinderOpening.siteZoom)
     #expect(searches.queries.last?["latitude"] == "28.57")
+  }
+
+  @Test func useMyLocationClosesTheOpenedSite() async throws {
+    let (model, _) = try await withPoints()
+    model.select(Self.canyon)
+    #expect(model.opened != nil)
+    await model.useMyLocation()
+    #expect(model.opened != nil)
+    let located = FakeFinderLocator(.success(.init(latitude: -8.27, longitude: 115.6)))
+    let (world, _) = try await world(points: try KitFixture.text("dive-site-points"))
+    let again = await mapped(world, located)
+    await again.points.load()
+    again.select(Self.canyon)
+    await again.useMyLocation()
+    #expect(again.opened == nil)
+    #expect(again.camera.latitude == -8.27)
   }
 
   @Test func theDiveFormsTouchedPointIsNamedUnderItsSheetAndOpensNothing() async throws {

@@ -23,6 +23,8 @@ struct SiteFinderMap: UIViewRepresentable {
   let selected: UUID?
   let onCameraChange: (MapCamera, Bool) -> Void
   let onPoint: (UUID) -> Void
+  /// A tap on the map that touched neither a site nor a group.
+  var onMapTap: () -> Void = {}
   var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
   func makeUIView(context: Context) -> MLNMapView {
@@ -53,6 +55,7 @@ struct SiteFinderMap: UIViewRepresentable {
     let coordinator = context.coordinator
     coordinator.onCameraChange = onCameraChange
     coordinator.onPoint = onPoint
+    coordinator.onMapTap = onMapTap
     coordinator.onLongPress = onLongPress
     if styleJSON != coordinator.styleJSON {
       coordinator.styleJSON = styleJSON
@@ -81,6 +84,7 @@ struct SiteFinderMap: UIViewRepresentable {
   final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
     var onCameraChange: ((MapCamera, Bool) -> Void)?
     var onPoint: ((UUID) -> Void)?
+    var onMapTap: (() -> Void)?
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
     var styleJSON = ""
     var fonts: [String]?
@@ -463,6 +467,8 @@ struct SiteFinderMap: UIViewRepresentable {
         let uuid = UUID(uuidString: id)
       {
         onPoint?(uuid)
+      } else {
+        onMapTap?()
       }
     }
 

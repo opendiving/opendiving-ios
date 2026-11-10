@@ -68,9 +68,11 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     .showsMapStyle(map)
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: model.opened?.uuid) { old, new in
-      // Up from where the list left it, or down off the top where a match was opened from.
-      guard new != nil, map.hasMap, old == nil || drag.target == .collapsed else { return }
-      move(to: .half)
+      guard map.hasMap else { return }
+      // A site opens up from where the list left it, or down off the top where a match was
+      // opened from; closed, by its button, the map or *Use my location*, the list comes back
+      // where the panel opens, as the search's close leaves it.
+      if new == nil || old == nil || drag.target == .collapsed { move(to: .half) }
     }
     .onChange(of: typing) { _, typing in
       if typing { move(to: .full) }
@@ -118,6 +120,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         selected: model.opened?.uuid ?? model.selected?.uuid,
         onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
         onPoint: { model.select($0) },
+        onMapTap: { model.closeSite() },
         onLongPress: onLongPress.map { add in
           { add(DeviceLocation(latitude: $0.latitude, longitude: $0.longitude)) }
         }
@@ -370,11 +373,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       VStack(spacing: 8) {
-        closeButton("Close dive site") {
-          model.closeSite()
-          // The list comes back where the panel opens, as the search's close leaves it.
-          if map.hasMap { move(to: .half) }
-        }
+        closeButton("Close dive site") { model.closeSite() }
         siteAction(opened)
       }
       // The close button's middle, half its 44 points down, on the head's first line, so the
