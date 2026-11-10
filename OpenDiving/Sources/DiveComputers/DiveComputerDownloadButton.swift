@@ -38,15 +38,20 @@ struct DiveComputerDownloadButtonLabel: View {
   private static let size: CGFloat = 44
 
   /// What the bar's glass pads out to a circle of `size`, by 10 a side across: measured, as the
-  /// system names neither. As tall as the circle, as the bar cuts an item off a few points past
-  /// its label's height, and the ring is on the circle's edge. Before iOS 26 the bar draws no
-  /// glass, and the label is the whole button.
+  /// system names neither. Before iOS 26 the bar draws none, and the label is the whole button.
   private static var labelSize: CGSize {
     if #available(iOS 26, *) {
-      CGSize(width: 24, height: size)
+      CGSize(width: 24, height: 30)
     } else {
       CGSize(width: size, height: size)
     }
+  }
+
+  /// Within the bar's glass, which on iOS 26 cuts an item off at about 36 points square however
+  /// tall its label, so a ring on the circle's edge loses its sides; before iOS 26, on the
+  /// button's edge.
+  private static var ringSide: CGFloat {
+    if #available(iOS 26, *) { 34 } else { size }
   }
 
   var body: some View {
@@ -56,6 +61,8 @@ struct DiveComputerDownloadButtonLabel: View {
         .frame(width: 22, height: 22)
         .foregroundStyle(Color.primary)
         .frame(width: Self.labelSize.width, height: Self.labelSize.height)
+        // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
+        // the coral nearly to white over a bright one.
         .overlay {
           if let content {
             ZStack {
@@ -63,9 +70,9 @@ struct DiveComputerDownloadButtonLabel: View {
                 .stroke(ringColor(content).opacity(0.2), lineWidth: Self.ringWidth)
               ring(content)
             }
-            // On the button's edge, its stroke inside it.
+            // Its stroke inside its side.
             .padding(Self.ringWidth / 2)
-            .frame(width: Self.size, height: Self.size)
+            .frame(width: Self.ringSide, height: Self.ringSide)
           }
         }
         .animation(.easeOut(duration: 0.2), value: content == nil)
