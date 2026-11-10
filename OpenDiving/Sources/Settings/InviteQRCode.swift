@@ -31,7 +31,7 @@ struct InviteQRCode: View {
   }
 
   /// One pixel per module, dark on white, with the symbol's own quiet zone.
-  static func image(_ text: String) -> CGImage? {
+  nonisolated static func image(_ text: String) -> CGImage? {
     let filter = CIFilter.qrCodeGenerator()
     filter.message = Data(text.utf8)
     filter.correctionLevel = "M"
