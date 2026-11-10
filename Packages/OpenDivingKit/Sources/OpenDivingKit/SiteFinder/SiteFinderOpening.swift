@@ -6,24 +6,30 @@ import Foundation
 public struct SiteFinderOpening: Hashable, Sendable {
   /// A town's worth of map around a lone point.
   public static let pointZoom = 10.0
+  /// A dive site's worth of map around an opened site, in past where the sites gather into
+  /// groups.
+  public static let siteZoom = 14.0
   public static let world = SiteFinderOpening(points: [])
 
   /// Empty for the world.
   public let points: [MapPoint]
+  /// What a lone point opens at.
+  public let zoom: Double
 
-  public init(points: [MapPoint]) {
+  public init(points: [MapPoint], zoom: Double = pointZoom) {
     self.points = points
+    self.zoom = zoom
   }
 
   public var isWorld: Bool { points.isEmpty }
 
-  /// The camera for a map `width` by `height` points: a lone point at ``pointZoom``, anything
+  /// The camera for a map `width` by `height` points: a lone point at its ``zoom``, anything
   /// else fitted; the middle of what it fits, with no frame to fit it in yet.
   public func camera(width: Double, height: Double) -> MapCamera {
     guard let box = WebMercator.union(points.map(\.extent)) else { return .world }
     if points.count == 1, points[0].bounds == nil {
       return MapCamera(
-        latitude: points[0].latitude, longitude: points[0].longitude, zoom: Self.pointZoom)
+        latitude: points[0].latitude, longitude: points[0].longitude, zoom: zoom)
     }
     if width > 0, height > 0 { return MapCamera.fit(points, width: width, height: height) }
     return MapCamera(

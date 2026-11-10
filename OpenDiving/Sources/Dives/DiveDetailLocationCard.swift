@@ -44,7 +44,7 @@ struct DiveDetailLocationCard: View {
           LinkedBlock(label: location.sitesLabel) {
             ForEach(location.sites) { site in
               NavigationLink {
-                SiteDetailView(siteUUID: site.id)
+                SiteMapView(siteUUID: site.id)
               } label: {
                 placeLabel(site.name, detail: site.location, icon: .diveSite)
               }

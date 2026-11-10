@@ -32,18 +32,6 @@ struct SiteFinderRowContentTests {
     #expect(SiteFinderRowContent.placeCredits(rows + [rows[2]]).count == 1)
   }
 
-  @Test func aYourSitesCardShowsTheRowsFigures() throws {
-    let rows = try KitFixture.decode(DiveSiteSearchPage.self, "dive-site-search").rows
-    guard case .site(let item) = rows[0] else {
-      Issue.record("not a site")
-      return
-    }
-    let card = DiveSiteSummary.card(item, units: .metric)
-    #expect(card.figures.map(\.value) == ["3", "31 m", "7"])
-    #expect(card.points.count == 1)
-    #expect(card.chips.map(\.text) == ["Proposed"])
-  }
-
   @Test func clusterCountsUseTheStylesOwnFont() {
     let style = """
       {"version":8,"layers":[

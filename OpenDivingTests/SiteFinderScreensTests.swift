@@ -23,7 +23,7 @@ struct SiteFinderScreensTests {
     map.automaticallyAdjustsContentInset = false
     let coordinator = SiteFinderMap.Coordinator()
     coordinator.cover(map, with: UIEdgeInsets(top: 50, left: 0, bottom: 300, right: 0))
-    coordinator.move(map, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10))
+    coordinator.move(map, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), glides: false)
     #expect(map.contentInset == .zero)
     map.frame = CGRect(x: 0, y: 0, width: 320, height: 640)
     coordinator.laidOut(map)
@@ -101,4 +101,44 @@ struct SiteFinderScreensTests {
     }
   }
 
+  /// The selected site stands on its own layer, hidden among the others, which fade back until it
+  /// is let go and has shrunk back among them.
+  @Test func aSelectedSiteIsDrawnOnItsOwnLayerOverTheFadedRest() async throws {
+    let styleJSON = MapStyleModel.Shown.preview.styleJSON
+    let map = MLNMapView(frame: CGRect(x: 0, y: 0, width: 320, height: 320), styleJSON: styleJSON)
+    let coordinator = SiteFinderMap.Coordinator()
+    map.delegate = coordinator
+    coordinator.adopt(map)
+    let window = UIWindow(frame: map.frame)
+    window.addSubview(map)
+    window.makeKeyAndVisible()
+    for _ in 0..<200 where map.style?.layer(withIdentifier: "finder-points") == nil {
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let style = try #require(map.style)
+    let uuid = UUID()
+    let yours = [
+      DiveSitePoint(
+        longitude: 34.5, latitude: 28.5, uuid: uuid, name: "Canyon", owner: DiveSiteOwner.account)
+    ]
+    let points = try #require(style.layer(withIdentifier: "finder-points") as? MLNSymbolStyleLayer)
+    let selected = try #require(style.source(withIdentifier: "finder-selected") as? MLNShapeSource)
+
+    coordinator.show(.init(commons: nil, yours: yours, selected: uuid), on: map)
+    #expect(style.layer(withIdentifier: "finder-selected") is MLNSymbolStyleLayer)
+    #expect((selected.shape as? MLNShapeCollectionFeature)?.shapes.count == 1)
+    // Its copy among the others is hidden by its opacity, and the rest fade.
+    #expect(points.iconOpacity.description.contains(uuid.uuidString))
+    #expect(
+      (style.layer(withIdentifier: "finder-clusters") as? MLNSymbolStyleLayer)?.iconOpacity
+        .constantValue as? Float == 0.35)
+
+    coordinator.show(.init(commons: nil, yours: yours, selected: nil), on: map)
+    #expect(points.iconOpacity.constantValue as? Float == 0.9)
+    // The pin shrinks back before its copy among the others returns.
+    for _ in 0..<40 where (selected.shape as? MLNShapeCollectionFeature)?.shapes.isEmpty != true {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    #expect((selected.shape as? MLNShapeCollectionFeature)?.shapes.isEmpty == true)
+  }
 }

@@ -50,15 +50,15 @@ struct SiteProposalHandBack {
 }
 
 /// The dive site form as a screen of its own: the profile's new site or one pinned on the sites
-/// map, a site's page's edit, a queued edit the server refused, or the propose flow's *Edit*. A Commons record opens its own
+/// map, a site's edit from its panel, a queued edit the server refused, or the propose flow's *Edit*. A Commons record opens its own
 /// form, and one off the diver's list none.
 struct DiveSiteFormView: View {
   let mode: RecordFormMode<DiveSiteRead>
   /// A new site's pin, where the site finder was pressed.
   var pin: DeviceLocation?
-  /// The site was deleted from the form, which leaves the page it was opened from nothing to show.
+  /// The site was deleted from the form, which leaves the panel it was opened from nothing to show.
   var onDeleted: () -> Void = {}
-  /// The site became a Commons record in the propose flow, and its page gives way to the record's.
+  /// The site became a Commons record in the propose flow, and its panel gives way to the record's.
   var onReplaced: (UUID) -> Void = { _ in }
   /// Opened from the propose flow: no choice and no delete, and a save goes back to the flow once
   /// it has landed, or has not.

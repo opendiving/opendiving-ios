@@ -40,7 +40,7 @@ extension PageCacheKey where Item == TripRead {
 }
 
 extension PageCacheKey where Item == DiveListItem {
-  /// The dives on one site's page, kept and dropped with the site's own copy.
+  /// The dives on one site's panel, kept and dropped with the site's own copy.
   static func siteDives(_ site: UUID) -> Self {
     Self(siteDivesPrefix + site.uuidString.lowercased(), record: \.id)
   }

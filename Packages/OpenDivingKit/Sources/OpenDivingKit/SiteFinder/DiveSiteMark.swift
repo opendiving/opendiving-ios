@@ -39,9 +39,4 @@ public enum DiveSiteMark: Int, Comparable, Hashable, Sendable, CaseIterable {
     case .private: "Private site"
     }
   }
-
-  /// The mark as a chip over a card's title.
-  public var chip: Chip {
-    Chip(text: label, accessibilityLabel: accessibilityLabel, kind: .site(self))
-  }
 }

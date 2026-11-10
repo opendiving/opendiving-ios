@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import OpenDivingKit
@@ -15,6 +16,30 @@ struct SiteFinderPanelDragTests {
     #expect(drag.dragged == 30)
     #expect(drag.isMoving)
     #expect(drag.height(in: panel) == panel.height(.half) + 30)
+  }
+
+  @Test func theRoomAboveIsWhatIsLeftBelowTheTallest() {
+    let drag = SiteFinderPanelDrag()
+    #expect(drag.roomAbove(in: panel) == panel.height(.full) - panel.height(.half))
+    drag.follow(30)
+    #expect(drag.roomAbove(in: panel) == panel.height(.full) - panel.height(.half) - 30)
+    let move = drag.begin()
+    drag.head(to: .full)
+    drag.end(move)
+    #expect(drag.roomAbove(in: panel) == 0)
+    // Pulled on above its tallest it has no room, rather than less than none.
+    drag.follow(40)
+    #expect(drag.roomAbove(in: panel) == 0)
+  }
+
+  @Test func aSiteOpenedOrClosedSendsThePanelToHalfAndOneOpenedInPlaceOfAnotherLeavesIt() {
+    let drag = SiteFinderPanelDrag(detent: .full)
+    let (first, second) = (UUID(), UUID())
+    #expect(drag.detent(openingSite: first, after: nil) == .half)
+    #expect(drag.detent(openingSite: nil, after: first) == .half)
+    #expect(drag.detent(openingSite: second, after: first) == nil)
+    #expect(
+      SiteFinderPanelDrag(detent: .collapsed).detent(openingSite: second, after: first) == .half)
   }
 
   @Test func itTakesTheDetentOnlyOnceTheMoveLands() {

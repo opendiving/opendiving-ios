@@ -22,7 +22,7 @@ struct SiteFinderSheet: View {
   var body: some View {
     NavigationStack {
       SiteFinderView(
-        model: model, map: map, units: session.units, pointAction: "Add to dive",
+        model: model, map: map, units: session.units,
         onSite: { site in
           form.addFound(site)
           dismiss()

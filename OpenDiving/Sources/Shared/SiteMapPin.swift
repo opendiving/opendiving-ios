@@ -15,9 +15,6 @@ enum SiteMapPin {
   /// Room around the pin for its shadow, in points.
   private static let margin: CGFloat = 3.5
 
-  /// How far above the point the middle of the pin's round head stands.
-  static let headHeight = (frame.maxY - 10) * scale
-  static let headRadius = (8 + stroke / 2) * scale
   /// How far the image is moved down so that its tip, not the shadow under it, is on the point.
   static let tipOffset = margin
 

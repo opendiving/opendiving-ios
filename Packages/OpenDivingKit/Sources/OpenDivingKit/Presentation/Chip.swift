@@ -4,8 +4,6 @@ public struct Chip: Hashable, Sendable {
     /// A bordered abbreviation from one of the API's vocabularies (`FW`, `CCR`), whose
     /// accessibility label is the term in full.
     case vocabulary
-    /// Bordered as a vocabulary chip, behind the mark of a Commons, proposed or private site.
-    case site(DiveSiteMark)
     /// One of the diver's own tags, filled, its words its own.
     case tag
     /// An import's new dive, filled.

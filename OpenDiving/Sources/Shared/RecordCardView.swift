@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A trip or a dive site as a card on its list: a map of its places, then its name, the
-/// facts line under it and what the diver's dives there add up to, as the web's cards.
+/// A trip as a card on its list: a map of its places, then its name, the facts line under it
+/// and what the diver's dives on it add up to, as the web's cards.
 struct RecordCardView: View {
   let content: RecordCardContent
   /// What the water shows where there is no map: the record's own icon.
@@ -21,34 +21,21 @@ struct RecordCardView: View {
         }
       }
     } details: {
-      VStack(alignment: .leading, spacing: 6) {
-        ChipsRow(chips: content.chips)
-        CardDetailLines(title: content.title, facts: content.facts, figures: content.figures)
-      }
+      CardDetailLines(title: content.title, facts: content.facts, figures: content.figures)
     }
   }
 }
 
 #Preview {
-  VStack(spacing: 12) {
-    RecordCardView(
-      content: RecordCardContent(
-        title: "Dahab 2026 (September)",
-        facts: [Fact(text: "Sep 6 - Sep 20, 2026"), Fact(text: "Dahab, Egypt +1")],
-        figures: [
-          Figure(label: "Dives", value: "26"), Figure(label: "Dive sites", value: "9"),
-          Figure(label: "Species seen", value: "41"),
-        ], mapsTheWorldWhenEmpty: true), icon: .tabLuggage)
-    RecordCardView(
-      content: RecordCardContent(
-        title: "Tiger Reef",
-        facts: [
-          Fact(text: "Dahab, Egypt"),
-          Fact(text: "To 30 m", icon: .arrowDownToLine, accessibilityLabel: "Depth"),
-        ],
-        figures: [Figure(label: "Dives", value: "2"), Figure(label: "Deepest", value: nil)]),
-      icon: .tabDiveSite)
-  }
+  RecordCardView(
+    content: RecordCardContent(
+      title: "Dahab 2026 (September)",
+      facts: [Fact(text: "Sep 6 - Sep 20, 2026"), Fact(text: "Dahab, Egypt +1")],
+      figures: [
+        Figure(label: "Dives", value: "26"), Figure(label: "Dive sites", value: "9"),
+        Figure(label: "Species seen", value: "41"),
+      ], mapsTheWorldWhenEmpty: true), icon: .tabLuggage
+  )
   .padding()
   .background(Color(.systemGroupedBackground))
   .environment(Session.stub(transport: StubTransport(routes: [:])))
