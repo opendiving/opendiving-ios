@@ -431,7 +431,7 @@ private struct SiteSpecies: View {
       // rather than every one of the site's species at once.
       ForEach(entries) { entry in
         CreditedSpeciesCard(
-          speciesUUID: entry.uuid, photoVersion: entry.photoSha256,
+          speciesUUID: entry.uuid,
           content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
         )
         .onAppear { Task { await model.loadPhoto(entry) } }

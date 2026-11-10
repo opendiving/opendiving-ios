@@ -7,9 +7,11 @@ import SwiftUI
 /// under its chips, title, facts and figures, and the map's credit after them — or, with
 /// `detailsOnGlass`, the credit over the map and the rest on a card of glass. `leading` stands
 /// before the title and the facts — the profile's picture. A record with nowhere to put on a
-/// map, or on an instance with no map to draw, gets the band without one.
+/// map, or on an instance with no map to draw, gets the band without one; a species gets its
+/// photo in place of a map.
 struct HeroView<Leading: View>: View {
   let content: HeroContent
+  var backdrop = HeroBackdrop.map
   var detailsOnGlass = false
   /// The least each figure takes across: wider sets fewer in a row.
   var figureMinWidth = FiguresRow.defaultMinWidth
@@ -24,7 +26,8 @@ struct HeroView<Leading: View>: View {
   @State private var credit: String?
 
   private var hasMap: Bool {
-    !content.points.isEmpty || !content.fixes.isEmpty || content.mapsTheWorldWhenEmpty
+    backdrop == .map
+      && (!content.points.isEmpty || !content.fixes.isEmpty || content.mapsTheWorldWhenEmpty)
   }
 
   var body: some View {
@@ -57,9 +60,16 @@ struct HeroView<Leading: View>: View {
         colors: [.clear, Color.pageBackground], startPoint: .center, endPoint: .bottom)
     }
     .background(alignment: .bottom) {
-      ZStack {
+      ZStack(alignment: .bottom) {
         // Water past the world's edge too, which a pull-down on a map of the world reaches.
         Color.mapWater
+        if case .photo(let data, let placeholder) = backdrop {
+          photo(data, placeholder: placeholder)
+            .frame(height: height)
+            .clipped()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
         if hasMap {
           MapBackdropView(
             points: content.points, fixes: content.fixes,
@@ -71,6 +81,17 @@ struct HeroView<Leading: View>: View {
         }
       }
       .frame(height: height + Self.pullReach)
+    }
+  }
+
+  /// Decorative: the title over it says what it is.
+  @ViewBuilder private func photo(_ data: Data?, placeholder: OpenDivingKit.Icon) -> some View {
+    if let data, let image = UIImage(data: data) {
+      Image(uiImage: image)
+        .resizable()
+        .scaledToFill()
+    } else {
+      UnplacedBackdropView(icon: placeholder, coveredTop: topInset, coveredBottom: detailsHeight)
     }
   }
 
@@ -102,8 +123,8 @@ struct HeroView<Leading: View>: View {
 }
 
 extension HeroView where Leading == EmptyView {
-  init(content: HeroContent) {
-    self.init(content: content) { EmptyView() }
+  init(content: HeroContent, backdrop: HeroBackdrop = .map) {
+    self.init(content: content, backdrop: backdrop) { EmptyView() }
   }
 }
 

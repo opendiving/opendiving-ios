@@ -114,7 +114,11 @@ public enum DiveSiteSummary {
 
   /// `5 m – 30 m`, or the one end the site records.
   static func depthRange(_ site: DiveSiteRead, units: UnitSystem) -> String? {
-    switch (site.depthFrom, site.depthTo) {
+    depthRange(from: site.depthFrom, to: site.depthTo, units: units)
+  }
+
+  static func depthRange(from: Double?, to: Double?, units: UnitSystem) -> String? {
+    switch (from, to) {
     case (let from?, let to?):
       UnitFormat.depth(from, units) + " – " + UnitFormat.depth(to, units)
     case (let from?, nil): "From " + UnitFormat.depth(from, units)
