@@ -82,6 +82,7 @@ struct WriteModelFixtureTests {
     let storage = try KitFixture.roundTrip(StorageUsageRead.self, "storage")
     #expect(storage.usedBytes == 137_512_960)
     #expect(storage.limitBytes == 1_073_741_824)
+    #expect(storage.certificationsWithFilesCount == 2)
   }
 
   @Test func aDraftAndAPageOfThem() throws {

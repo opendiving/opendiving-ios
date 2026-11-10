@@ -91,6 +91,55 @@ struct RequestFixtureTests {
     _ = try sendsItsFixture(ContactCreate.self, "request-contact-create")
   }
 
+  @Test func recordUpdates() throws {
+    let person = try sendsItsFixture(PersonUpdate.self, "request-person-update")
+    #expect(person.email == .null)
+    let course = try sendsItsFixture(CourseUpdate.self, "request-course-update")
+    #expect(course.contact == .null)
+    #expect(course.people?.first?.role == "instructor")
+    let contact = try sendsItsFixture(ContactUpdate.self, "request-contact-update")
+    #expect(contact.latitude == .null)
+    let gear = try sendsItsFixture(GearItemUpdate.self, "request-gear-item-update")
+    #expect(gear.isArchived == true)
+    #expect(gear.brand == .null)
+  }
+
+  @Test func serviceSchedulesAndRecords() throws {
+    let schedule = try sendsItsFixture(
+      GearServiceScheduleCreate.self, "request-gear-service-schedule-create")
+    #expect(!schedule.gearItem.isLocal)
+    let scheduleUpdate = try sendsItsFixture(
+      GearServiceScheduleUpdate.self, "request-gear-service-schedule-update")
+    #expect(scheduleUpdate.intervalMonths == .null)
+    #expect(scheduleUpdate.isActive == false)
+    let record = try sendsItsFixture(
+      GearServiceRecordCreate.self, "request-gear-service-record-create")
+    #expect(record.schedule?.isLocal == false)
+    let recordUpdate = try sendsItsFixture(
+      GearServiceRecordUpdate.self, "request-gear-service-record-update")
+    #expect(recordUpdate.contact == .null)
+  }
+
+  @Test func certifications() throws {
+    let create = try sendsItsFixture(CertificationCreate.self, "request-certification-create")
+    #expect(create.instructor?.isLocal == false)
+    let update = try sendsItsFixture(CertificationUpdate.self, "request-certification-update")
+    #expect(update.course == .null)
+    #expect(update.contact != .absent)
+  }
+
+  @Test func aPauseAndAnArchiveSendOneMember() throws {
+    func sent(_ body: some Encodable) throws -> JSONValue {
+      try JSONValue.parse(APICoding.requestEncoder().encode(body))
+    }
+    #expect(
+      try sent(GearServiceScheduleUpdate(active: false))
+        == (try JSONValue.parse(Data(#"{"is_active":false}"#.utf8))))
+    #expect(
+      try sent(GearItemUpdate(archived: true))
+        == (try JSONValue.parse(Data(#"{"is_archived":true}"#.utf8))))
+  }
+
   @Test func diveDraftWrite() throws {
     let draft = try sendsItsFixture(DiveDraftWrite.self, "request-dive-draft-write")
     #expect(draft.values.diveNumber == 215)

@@ -41,6 +41,9 @@ public struct GearSetUpdate: Codable, Hashable, Sendable {
     self.weight = weight
     self.gearItems = gearItems
   }
+
+  /// Whether sending it would change nothing.
+  public var isEmpty: Bool { self == GearSetUpdate() }
 }
 
 extension GearSetUpdate: RewritesLocalRefs {

@@ -7,14 +7,16 @@ import Foundation
 extension APIClient {
   /// Sends a queued write with the bytes the outbox holds for it and hands back the answer
   /// unread, whatever its status, so the outbox sorts it itself. A keyed create's bytes are
-  /// the ones its first try sent, which the key's hold digests.
-  func sendQueued(method: String, path: String, body: Data?, idempotencyKey: UUID?) async throws
-    -> (Data, HTTPURLResponse)
-  {
+  /// the ones its first try sent, which the key's hold digests. `parts` is a multipart body in
+  /// place of `body`.
+  func sendQueued(
+    method: String, path: String, body: Data?, parts: [MultipartPart] = [],
+    idempotencyKey: UUID?
+  ) async throws -> (Data, HTTPURLResponse) {
     var headers: [String: String] = [:]
     if let idempotencyKey { headers["Idempotency-Key"] = Self.wire(idempotencyKey) }
     return try await authorized(
-      Call(method: method, path: path, body: body, headers: headers))
+      Call(method: method, path: path, body: body, parts: parts, headers: headers))
   }
 
   /// The detail sentence of an error answer, as ``APIError/http(status:message:)`` carries it.

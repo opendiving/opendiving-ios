@@ -31,6 +31,8 @@ public final class OutboxModel: AccountStoresObserver {
     case notEditable
     /// A draft's writes go through the draft methods, which coalesce them.
     case draftOperation
+    /// A card image goes through ``queueCardImage(_:as:of:)``, which keeps its bytes.
+    case cardImageOperation
   }
 
   /// The readable items, in queue order.
@@ -126,25 +128,62 @@ public final class OutboxModel: AccountStoresObserver {
     switch operation {
     case .createDiveDraft, .updateDiveDraft, .deleteDiveDraft, .logDive:
       throw OutboxError.draftOperation
-    case .deleteDive(let ref), .deleteDiveSite(let ref), .deleteTrip(let ref):
-      withdrawWrites(to: ref)
+    case .putCertificationFile:
+      throw OutboxError.cardImageOperation
+    case .deleteCertificationFile(let ref, let side):
+      withdrawCardWrites(of: ref, side: side)
       return try append(operation, flush: true)
     default:
+      if let deleted = operation.deletedRecordRef { withdrawWrites(to: deleted) }
       return try append(operation, flush: true)
+    }
+  }
+
+  /// Queues `data` as one side's image of `certification`, the bytes on disk before this
+  /// returns, in place of any image or removal of that side still waiting. It is sent once the
+  /// certification's own writes are, and its bytes go when it lands or is discarded.
+  @discardableResult
+  public func queueCardImage(
+    _ data: Data, as upload: CertificationCardUpload, of certification: RecordRef
+  ) throws -> OutboxItem {
+    withdrawCardWrites(of: certification, side: upload.side)
+    return try append(.putCertificationFile(certification, upload), flush: true) { item, outbox in
+      try outbox.writeCardFile(data, for: item.id)
     }
   }
 
   /// A record being deleted needs no write still waiting for it, least of all a refused one the
-  /// delete would wait behind. The one being sent stays, and the delete follows it.
+  /// delete would wait behind, nor any that cannot go on without it. The one being sent stays,
+  /// and the delete follows it.
   private func withdrawWrites(to ref: RecordRef) {
     guard let stores = AccountStores.current(session) else { return }
     let sending = OutboxHub.hub(for: stores.directory).sending
-    for item in stores.outbox.items() where item.operation.target == ref && item.id != sending {
+    for item in Self.withdrawn(by: ref, among: stores.outbox.items()) where item.id != sending {
       stores.outbox.remove(item.id)
     }
   }
 
-  func append(_ operation: OutboxOperation, flush: Bool) throws -> OutboxItem {
+  /// The latest write to a side wins: an image or a removal of it still waiting is replaced.
+  private func withdrawCardWrites(of certification: RecordRef, side: CertificationSide) {
+    guard let stores = AccountStores.current(session) else { return }
+    let ref = stores.outbox.resolved(certification)
+    let sending = OutboxHub.hub(for: stores.directory).sending
+    for item in stores.outbox.items() where item.id != sending {
+      let replaced =
+        switch item.operation {
+        case .putCertificationFile(ref, let upload): upload.side == side
+        case .deleteCertificationFile(ref, side): true
+        default: false
+        }
+      if replaced { stores.outbox.remove(item.id) }
+    }
+  }
+
+  /// `beforeSaving` writes what the item needs on disk before the item itself is.
+  func append(
+    _ operation: OutboxOperation, flush: Bool,
+    beforeSaving: (OutboxItem, OutboxStore) throws -> Void = { _, _ in }
+  ) throws -> OutboxItem {
     guard let stores = AccountStores.current(session) else { throw OutboxError.noAccount }
     var operation = operation
     let resolutions = stores.outbox.resolutions()
@@ -156,7 +195,13 @@ public final class OutboxModel: AccountStoresObserver {
     }
     let item = OutboxItem(
       operation: operation, sequence: stores.outbox.nextSequence(), marked: stores.marked)
-    try stores.outbox.save(item)
+    do {
+      try beforeSaving(item, stores.outbox)
+      try stores.outbox.save(item)
+    } catch {
+      stores.outbox.remove(item.id)
+      throw error
+    }
     changed(stores)
     if flush { requestFlush(retryAll: false) }
     return item
@@ -187,21 +232,24 @@ public final class OutboxModel: AccountStoresObserver {
     requestFlush(retryAll: false)
   }
 
-  /// What discarding `id` changes: the items that name the record it creates and go on
-  /// without it, and those that write to it and go with it — a log of a discarded draft
-  /// becoming a plain dive.
+  /// What discarding `id` changes: the items that name a record it would have created and go
+  /// on without it, and those that cannot go on without one and go with it — a log of a
+  /// discarded draft becoming a plain dive.
   public func discardEffects(_ id: UUID) -> (released: [OutboxItem], withdrawn: [OutboxItem]) {
     guard let ref = item(id)?.creates else { return ([], []) }
     let others = items.filter { $0.id != id }
-    let withdrawn = others.filter { $0.operation.target == ref }
-    let released = others.filter {
-      $0.operation.target != ref && $0.operation.references.contains(ref)
+    let withdrawn = Self.withdrawn(by: ref, among: others)
+    let gone = Self.records(withdrawnWith: ref, withdrawn)
+    let released = others.filter { other in
+      !withdrawn.contains { $0.id == other.id }
+        && other.operation.references.contains(where: gone.contains)
     }
     return (released, withdrawn)
   }
 
-  /// The diver's *Discard*. What named the record it would have created drops the reference
-  /// and goes on, and what wrote to that record goes with it. The item being sent stays.
+  /// The diver's *Discard*. What cannot go on without the record it would have created goes
+  /// with it, and so on down what cannot go on without those; what only named one of them drops
+  /// the reference and goes on. The item being sent stays.
   public func discard(_ id: UUID) {
     guard let stores = AccountStores.current(session),
       OutboxHub.hub(for: stores.directory).sending != id,
@@ -214,11 +262,16 @@ public final class OutboxModel: AccountStoresObserver {
     changed(stores)
   }
 
-  /// Every remaining item stops naming `ref`; a write to it goes, except a log of the draft,
-  /// which carries the whole dive and becomes a plain create of it.
+  /// Every write that cannot go on without `ref` goes, with what cannot go on without the
+  /// records those would have created, except a log of the draft, which carries the whole dive
+  /// and becomes a plain create of it. Every remaining item stops naming any of them.
   func release(_ ref: RecordRef, in outbox: OutboxStore) {
-    for var other in outbox.items() {
-      if other.operation.target == ref {
+    let queued = outbox.items()
+    let withdrawn = Self.withdrawn(by: ref, among: queued)
+    let gone = Self.records(withdrawnWith: ref, withdrawn)
+    let withdrawnIDs = Set(withdrawn.map(\.id))
+    for var other in queued {
+      if withdrawnIDs.contains(other.id) {
         if case .logDive(_, let dive) = other.operation {
           other.operation = .createDive(dive)
           try? outbox.save(other)
@@ -228,9 +281,37 @@ public final class OutboxModel: AccountStoresObserver {
         continue
       }
       let before = other.operation
-      other.operation.rewriteRefs { $0 == ref ? nil : $0 }
+      other.operation.rewriteRefs { gone.contains($0) ? nil : $0 }
       if other.operation != before { try? outbox.save(other) }
     }
+  }
+
+  /// The items that cannot go on once `ref` will never exist: each whose required records
+  /// include it, and in turn each that requires a record one of those would have created. A
+  /// log of a draft is among them but creates nothing that goes, since its dive is kept.
+  static func withdrawn(by ref: RecordRef, among items: [OutboxItem]) -> [OutboxItem] {
+    var gone: Set<RecordRef> = [ref]
+    var withdrawn: [OutboxItem] = []
+    var remaining = items
+    while let index = remaining.firstIndex(where: {
+      $0.operation.requiredRecords.contains(where: gone.contains)
+    }) {
+      let item = remaining.remove(at: index)
+      withdrawn.append(item)
+      if case .logDive = item.operation { continue }
+      if let created = item.creates { gone.insert(created) }
+    }
+    return withdrawn
+  }
+
+  /// `ref` and every record the withdrawn items would have created, a log's dive aside.
+  static func records(withdrawnWith ref: RecordRef, _ withdrawn: [OutboxItem]) -> Set<RecordRef> {
+    var gone: Set<RecordRef> = [ref]
+    for item in withdrawn {
+      if case .logDive = item.operation { continue }
+      if let created = item.creates { gone.insert(created) }
+    }
+    return gone
   }
 
   /// *Discard* on an item this build cannot read.
@@ -421,6 +502,17 @@ public final class OutboxModel: AccountStoresObserver {
     case (.updateDiveSite(let x, _), .updateDiveSite(let y, _)): return x == y
     case (.updateTrip(let x, _), .updateTrip(let y, _)): return x == y
     case (.updateGearSet(let x, _), .updateGearSet(let y, _)): return x == y
+    case (.createServiceSchedule, .createServiceSchedule),
+      (.createServiceRecord, .createServiceRecord), (.createCertification, .createCertification):
+      return true
+    case (.updatePerson(let x, _), .updatePerson(let y, _)),
+      (.updateCourse(let x, _), .updateCourse(let y, _)),
+      (.updateContact(let x, _), .updateContact(let y, _)),
+      (.updateGearItem(let x, _), .updateGearItem(let y, _)),
+      (.updateServiceSchedule(let x, _, _), .updateServiceSchedule(let y, _, _)),
+      (.updateServiceRecord(let x, _, _), .updateServiceRecord(let y, _, _)),
+      (.updateCertification(let x, _), .updateCertification(let y, _)):
+      return x == y
     case (.updateDiveDraft(let x, _), .updateDiveDraft(let y, _)): return x == y
     default: return false
     }

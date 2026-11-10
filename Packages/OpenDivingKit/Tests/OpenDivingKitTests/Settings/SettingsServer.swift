@@ -7,9 +7,10 @@ import Synchronization
 #endif
 
 /// A server holding one account, which `PATCH /user` changes and `GET /user` answers, its
-/// check-in details, which `PATCH /user/checkin-details` changes, and the diver's tags, which
-/// `PATCH /tag/{uuid}` renames and `DELETE /tag/{uuid}` removes. Any route
-/// can be made to answer an error instead, and one request can be held at a ``Gate``.
+/// check-in details, which `PATCH /user/checkin-details` changes, the diver's tags, which
+/// `PATCH /tag/{uuid}` renames and `DELETE /tag/{uuid}` removes, what the account stores and its
+/// four exports. Any route can be made to answer an error instead, and one request can be held
+/// at a ``Gate``.
 final class SettingsServer: HTTPTransport {
   private struct State {
     var user: [String: Any]
@@ -71,6 +72,16 @@ final class SettingsServer: HTTPTransport {
     state.withLock { $0.holding = (route, gate) }
   }
 
+  /// What `GET /export/{format}` names its file.
+  static func exportName(_ format: String) -> String {
+    "opendiving-diver-20261110.\(format == "archive" ? "zip" : format)"
+  }
+
+  /// What `GET /export/{format}` answers.
+  static func exportBody(_ format: String) -> String {
+    "the \(format) export"
+  }
+
   func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
     sent.withLock { $0.append(request) }
     let route = request.route
@@ -119,6 +130,8 @@ final class SettingsServer: HTTPTransport {
             decoding: try JSONSerialization.data(withJSONObject: state.checkin), as: UTF8.self))
       case "POST auth/logout":
         return .json(#"{"message":"Logged out successfully"}"#)
+      case "GET user/storage":
+        return .json(try KitFixture.text("storage"))
       case "GET people":
         return .json(try KitFixture.text("people-page"))
       case "GET tags":
@@ -130,6 +143,15 @@ final class SettingsServer: HTTPTransport {
           String(decoding: try JSONSerialization.data(withJSONObject: page), as: UTF8.self))
       default:
         break
+      }
+      if route.hasPrefix("GET export/") {
+        let format = String(route.dropFirst("GET export/".count))
+        return StubTransport.Response(
+          headers: [
+            "Content-Type": "application/octet-stream",
+            "Content-Disposition": #"attachment; filename="\#(Self.exportName(format))""#,
+          ],
+          body: Data(Self.exportBody(format).utf8))
       }
       if route.hasPrefix("PATCH tag/") || route.hasPrefix("DELETE tag/") {
         let uuid = String(route.split(separator: "/").last ?? "")

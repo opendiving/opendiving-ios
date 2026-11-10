@@ -353,6 +353,20 @@ public final class Session {
     accountLoaded = true
   }
 
+  /// Every page of `GET /people` again, after a write to a person landed. A failure leaves the
+  /// table as it was; a session that changed while it ran stores nothing.
+  public func refreshPeople() async {
+    guard let client = try? requireClient() else { return }
+    let generation = stateGeneration
+    guard
+      let people = try? await APIClient.allPages({ page, perPage in
+        try await client.people(page: page, itemsPerPage: perPage)
+      }),
+      generation == stateGeneration, state == .signedIn(client.origin)
+    else { return }
+    self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
+  }
+
   /// `GET /user` alone, after a settings write or while a settings screen shows: the account
   /// is stored as ``loadAccount()`` stores it, and nothing when the session changed while it
   /// ran. Before the account has loaded in this session it is ``loadAccount()`` itself, which

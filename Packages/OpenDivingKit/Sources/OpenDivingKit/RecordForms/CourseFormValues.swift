@@ -69,6 +69,10 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
   /// people (`joinCourseInstructor`), a blank box left out.
   public func toCreate() throws(FormInvalid) -> CourseCreate {
     if !issues.isEmpty { throw FormInvalid(issues: issues) }
+    return written
+  }
+
+  private var written: CourseCreate {
     let others = people.filter { $0.person != instructor }
     let joined = instructor.map { [PersonReference(person: $0, role: "instructor")] } ?? []
     return CourseCreate(
@@ -77,6 +81,63 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
       startDate: startDate, endDate: endDate,
       instructorNumber: instructorNumber.isEmpty ? nil : instructorNumber, notes: notes,
       contact: contact, people: joined + others)
+  }
+}
+
+extension CourseFormValues {
+  /// The form an edit opens on, the instructor taken out of the people into their own field
+  /// (`splitCourseInstructor`).
+  public init(editing course: CourseRead) {
+    var people = course.people
+    let index = people.firstIndex { $0.role == "instructor" }
+    let instructor = index.map { people.remove(at: $0).person }
+    self.init(
+      name: course.name, agency: course.agency, agencyOther: course.agencyOther ?? "",
+      status: course.status, startDate: course.startDate, endDate: course.endDate,
+      instructor: instructor, instructorNumber: course.instructorNumber ?? "",
+      contact: course.contactUuid.map(RecordRef.server), people: people, notes: course.notes)
+  }
+
+  /// `PATCH /course/{uuid}`'s body: what differs from the values the form opened on. The
+  /// people go whole, the instructor first, when any of them changed.
+  public func diff(from baseline: CourseFormValues) throws(FormInvalid) -> CourseUpdate {
+    let now = try toCreate()
+    let before = baseline.written
+    var update = CourseUpdate()
+    if now.name != before.name { update.name = now.name }
+    if now.status != before.status { update.status = now.status }
+    if now.notes != before.notes { update.notes = now.notes }
+    if now.people != before.people { update.people = now.people }
+    update.agency = .change(from: before.agency, to: now.agency)
+    update.agencyOther = .change(from: before.agencyOther, to: now.agencyOther)
+    update.startDate = .change(from: before.startDate, to: now.startDate)
+    update.endDate = .change(from: before.endDate, to: now.endDate)
+    update.instructorNumber = .change(from: before.instructorNumber, to: now.instructorNumber)
+    update.contact = .change(from: before.contact, to: now.contact)
+    return update
+  }
+
+  /// These values with a queued update laid over.
+  public func applying(_ update: CourseUpdate) -> CourseFormValues {
+    var next = self
+    if let name = update.name { next.name = name }
+    if let status = update.status { next.status = status }
+    if let notes = update.notes { next.notes = notes }
+    if var people = update.people {
+      next.instructor = nil
+      if let first = people.first, first.role == "instructor" {
+        next.instructor = first.person
+        people.removeFirst()
+      }
+      next.people = people
+    }
+    next.agency = update.agency.applied(to: agency)
+    next.agencyOther = update.agencyOther.applied(to: agencyOther) ?? ""
+    next.startDate = update.startDate.applied(to: startDate)
+    next.endDate = update.endDate.applied(to: endDate)
+    next.instructorNumber = update.instructorNumber.applied(to: instructorNumber) ?? ""
+    next.contact = update.contact.applied(to: contact)
+    return next
   }
 }
 

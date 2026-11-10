@@ -101,16 +101,47 @@ public enum PendingText {
     case .deleteDiveSite: return "A deleted dive site"
     case .saveDiveSite(let site): return named("Save to your sites", site.name)
     case .createPerson(let body): return named("Buddy", body.name)
+    case .updatePerson(_, let body):
+      return body.name.map { named("Changes to buddy", $0) } ?? "Changes to a buddy"
+    case .deletePerson: return "A deleted buddy"
     case .createTrip(let body): return named("Trip", body.name)
     case .updateTrip(_, let body):
       return body.name.map { named("Changes to trip", $0) } ?? "Changes to a trip"
     case .deleteTrip: return "A deleted trip"
     case .createCourse(let body): return named("Course", body.name)
+    case .updateCourse(_, let body):
+      return body.name.map { named("Changes to course", $0) } ?? "Changes to a course"
+    case .deleteCourse: return "A deleted course"
     case .createContact(let body): return named("Contact", body.name)
+    case .updateContact(_, let body):
+      return body.name.map { named("Changes to contact", $0) } ?? "Changes to a contact"
+    case .deleteContact: return "A deleted contact"
     case .createGearItem(let body): return named("Gear", body.name)
+    case .updateGearItem(_, let body):
+      if body == GearItemUpdate(archived: true) { return "Archived gear" }
+      if body == GearItemUpdate(archived: false) { return "Unarchived gear" }
+      return body.name.map { named("Changes to gear", $0) } ?? "Changes to gear"
+    case .deleteGearItem: return "Deleted gear"
     case .createGearSet(let body): return named("Gear set", body.name)
     case .updateGearSet(_, let body):
       return body.name.map { named("Changes to gear set", $0) } ?? "Changes to a gear set"
+    case .deleteGearSet: return "A deleted gear set"
+    case .createServiceSchedule(let body): return named("Service schedule", body.label ?? "")
+    case .updateServiceSchedule(_, _, let body):
+      if body == GearServiceScheduleUpdate(active: false) { return "A paused service schedule" }
+      if body == GearServiceScheduleUpdate(active: true) { return "A resumed service schedule" }
+      return "Changes to a service schedule"
+    case .deleteServiceSchedule: return "A deleted service schedule"
+    case .createServiceRecord(let body): return named("Service record", body.label ?? "")
+    case .updateServiceRecord: return "Changes to a service record"
+    case .deleteServiceRecord: return "A deleted service record"
+    case .createCertification(let body): return named("Certification", body.name)
+    case .updateCertification(_, let body):
+      return body.name.map { named("Changes to certification", $0) }
+        ?? "Changes to a certification"
+    case .deleteCertification: return "A deleted certification"
+    case .putCertificationFile(_, let upload): return "Card image, \(upload.side.rawValue)"
+    case .deleteCertificationFile(_, let side): return "A removed card image, \(side.rawValue)"
     case .createDiveDraft(let write), .updateDiveDraft(_, let write):
       return "Draft: " + draftTitle(write)
     case .deleteDiveDraft:
@@ -174,13 +205,16 @@ public enum PendingText {
 
   /// What a queued write is about, in the pending section's words, in the order it lists them.
   private enum Noun: Int, Comparable {
-    case dive, site, buddy, trip, course, contact, gear, gearSet, discardedDraft, deletion
+    case dive, site, buddy, trip, course, contact, gear, gearSet, serviceSchedule, serviceRecord,
+      certification, cardImage, discardedDraft, deletion
 
     init?(_ operation: OutboxOperation) {
       switch operation {
       case .createDiveDraft, .updateDiveDraft: return nil
       case .deleteDiveDraft: self = .discardedDraft
-      case .deleteDive, .deleteDiveSite, .deleteTrip: self = .deletion
+      case .deleteCertificationFile: self = .deletion
+      case .putCertificationFile: self = .cardImage
+      case _ where operation.deletedRecordRef != nil: self = .deletion
       default:
         switch operation.kind {
         case .dive: self = .dive
@@ -191,6 +225,9 @@ public enum PendingText {
         case .contact: self = .contact
         case .gearItem: self = .gear
         case .gearSet: self = .gearSet
+        case .serviceSchedule: self = .serviceSchedule
+        case .serviceRecord: self = .serviceRecord
+        case .certification: self = .certification
         case .diveDraft: self = .discardedDraft
         }
       }
@@ -206,6 +243,10 @@ public enum PendingText {
       case .contact: "contact"
       case .gear: "piece of gear"
       case .gearSet: "gear set"
+      case .serviceSchedule: "service schedule"
+      case .serviceRecord: "service record"
+      case .certification: "certification"
+      case .cardImage: "card image"
       case .discardedDraft: "discarded draft"
       case .deletion: "deletion"
       }
@@ -231,6 +272,9 @@ public enum PendingText {
       case .contact: "contact"
       case .gearItem: "gear"
       case .gearSet: "gear set"
+      case .serviceSchedule: "service schedule"
+      case .serviceRecord: "service record"
+      case .certification: "certification"
       case .diveDraft: "draft"
       }
     }

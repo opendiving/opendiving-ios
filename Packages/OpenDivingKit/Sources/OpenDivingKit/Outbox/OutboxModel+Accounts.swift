@@ -27,7 +27,8 @@ extension OutboxModel {
 
   /// A moved write keeps only the records written beside it, which move too: everything else
   /// it names is the other account's, and is left out. One about a record of the other
-  /// account's has nothing here to change and fails, except a log, which carries the dive.
+  /// account's, or that cannot go on without one, has nothing here to change and fails, except
+  /// a log, which carries the dive. A card image's bytes move with it.
   private func move(from other: OutboxStore, to mine: OutboxStore) {
     let marked = other.items().filter(\.writtenBeforeAccountKnown)
     guard !marked.isEmpty else { return }
@@ -48,7 +49,7 @@ extension OutboxModel {
         return nil
       }
       moved.dropped = dropped
-      if let target = item.operation.target, !moving.contains(target) {
+      if item.operation.requiredRecords.contains(where: { !moving.contains($0) }) {
         if case .logDive(_, let dive) = moved.operation {
           moved.operation = .createDive(dive)
         } else {
@@ -56,6 +57,9 @@ extension OutboxModel {
             OutboxFailure(
               kind: .wrongAccount, message: OutboxText.writtenForAnotherAccount(label)))
         }
+      }
+      if case .putCertificationFile = item.operation {
+        guard (try? mine.copyCardFile(for: item.id, from: other)) != nil else { continue }
       }
       guard (try? mine.save(moved)) != nil else { continue }
       other.remove(item.id)

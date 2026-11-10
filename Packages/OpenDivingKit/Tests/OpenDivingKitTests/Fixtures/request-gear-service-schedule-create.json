@@ -1,0 +1,9 @@
+{
+  "gear_item_uuid": "01a14b2e-0c3d-7a10-9f00-5a2b3c4d5e6f",
+  "kind": "other",
+  "starts_on": "2026-03-01",
+  "label": "O-rings",
+  "interval_months": 12,
+  "interval_dives": 100,
+  "interval_hours": 80
+}
