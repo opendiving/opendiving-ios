@@ -63,6 +63,7 @@ extension DiveFormMode {
   var form: DiveFormModel.Mode {
     switch self {
     case .create: .create
+    case .course(let uuid): .course(uuid)
     case .draft(let ref): .draft(ref)
     case .edit(let uuid): .edit(uuid)
     case .failed(let id): .failed(id)
