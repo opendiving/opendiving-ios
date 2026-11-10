@@ -25,6 +25,14 @@ enum ProfileSection: Hashable, CaseIterable {
     case .cards: "Cards"
     }
   }
+
+  var icon: Icon {
+    switch self {
+    case .dives: .dive
+    case .trips: .luggage
+    case .cards: .idCard
+    }
+  }
 }
 
 /// Where the top bar's buttons lead.
@@ -57,13 +65,8 @@ private struct ProfileContent: View {
           UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
             .background(Color(.tertiarySystemFill), in: Circle())
         }
+        ProfileSectionTabs(selection: $section)
         Group {
-          Picker("Show", selection: $section) {
-            ForEach(ProfileSection.allCases, id: \.self) { section in
-              Text(section.title).tag(section)
-            }
-          }
-          .pickerStyle(.segmented)
           switch section {
           case .dives: ProfileDives(list: dives, units: session.units)
           case .trips: ProfileTrips(list: trips, units: session.units)
