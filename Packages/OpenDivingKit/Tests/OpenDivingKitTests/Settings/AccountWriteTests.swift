@@ -124,6 +124,30 @@ struct AccountWriteTests {
     #expect(model.write.shown == nil)
   }
 
+  @Test func aSecondSwitchDoesNotHideAFirstTheServerTookButThePhoneCouldNotReadBack()
+    async throws
+  {
+    let server = try SettingsServer()
+    let connectivity = SettingsConnectivity()
+    let session = session(server, connectivity: connectivity)
+    try await session.loadAccount()
+    server.fail("GET user", with: .json(#"{"detail":"Busy"}"#, status: 503))
+    let model = NotificationsModel(session: session)
+
+    await model.set(.gearService, false)
+    await model.set(.yearInReview, false)
+    #expect(!model.isOn(.gearService))
+    #expect(!model.isOn(.yearInReview))
+
+    connectivity.isRouteAvailable = false
+    await model.set(.renewalReminder, false)
+    #expect(model.write.failure == APIError.noRoute.message)
+    #expect(model.isOn(.renewalReminder))
+    #expect(!model.isOn(.gearService))
+    #expect(!model.isOn(.yearInReview))
+    #expect(session.user?.gearServiceEmails == true)
+  }
+
   @Test func whileOneSwitchSavesTheOthersWait() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
