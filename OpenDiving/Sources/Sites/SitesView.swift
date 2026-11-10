@@ -46,6 +46,10 @@ private struct SitesFinder: View {
   private let isPushed: Bool
   /// Where a long press asked for a new site.
   @State private var adding: PinnedNewSite?
+  /// Whether the weather bar is grown into its card.
+  @State private var isExplainingWeather = false
+  /// Where the weather bar is drawn, for its card to grow from.
+  @State private var weatherBarFrame = CGRect.zero
   @Environment(Session.self) private var session
 
   init(session: Session, site: UUID?) {
@@ -88,7 +92,16 @@ private struct SitesFinder: View {
           if let current = weather.current,
             let content = MapWeatherContent(current, units: session.units)
           {
-            MapWeatherBar(content: content, place: weather.place) { await weather.lookUpPlace() }
+            MapWeatherBar(content: content) {
+              MapWeatherExplainer.present { isExplainingWeather = true }
+            }
+            .onGeometryChange(for: CGRect.self) {
+              $0.frame(in: .global)
+            } action: {
+              weatherBarFrame = $0
+            }
+            // The card's copy of it stands in its place while the card is open.
+            .opacity(isExplainingWeather ? 0 : 1)
           } else if weather.isUnreachable {
             MapWeatherOfflineBar()
           } else {
@@ -103,6 +116,18 @@ private struct SitesFinder: View {
     // Never shown: it is what a page pushed from the map offers to go back to.
     .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
+    .fullScreenCover(isPresented: $isExplainingWeather) {
+      if let current = weather.current,
+        let content = MapWeatherContent(current, units: session.units)
+      {
+        MapWeatherExplainer(
+          content: content, place: weather.place, barFrame: weatherBarFrame,
+          lookUpPlace: { await weather.lookUpPlace() },
+          onClosed: { MapWeatherExplainer.present { isExplainingWeather = false } }
+        )
+        .presentationBackground(.clear)
+      }
+    }
     .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
     .task { await weather.followRoute() }
     .task(id: session.user?.avatarSha256) { if !isPushed { await avatar.load() } }
