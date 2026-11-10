@@ -12,7 +12,7 @@ struct HeroView<Leading: View>: View {
   let content: HeroContent
   var detailsOnGlass = false
   /// The least each figure takes across: wider sets fewer in a row.
-  var figureMinWidth: CGFloat = 72
+  var figureMinWidth = FiguresRow.defaultMinWidth
   @ViewBuilder let leading: () -> Leading
 
   /// How far the band is drawn above the head, out of sight until a pull-down reveals it.

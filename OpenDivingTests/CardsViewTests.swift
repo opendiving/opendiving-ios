@@ -54,7 +54,9 @@ struct CardsViewTests {
 
   @Test func hostsSignedIn() {
     let session = Session.stub(origin: Self.origin, transport: StubTransport(routes: Self.routes))
-    let sheet = ScrollView { CheckinSheetView(model: CheckinSheetModel(session: session)) }
+    let sheet = ScrollView {
+      CheckinSheetView(model: CheckinSheetModel(session: session), pictures: PictureCache())
+    }
     #expect(host(sheet, session) != nil)
   }
 

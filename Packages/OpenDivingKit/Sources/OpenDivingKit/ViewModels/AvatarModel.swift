@@ -12,10 +12,15 @@ public final class AvatarModel {
   public private(set) var data: Data?
 
   @ObservationIgnored private let session: Session
+  /// The version ``data`` holds, so a load that finds it shown reads nothing.
+  @ObservationIgnored private var shownVersion: String?
 
   public init(session: Session) {
     self.session = session
-    data = session.user?.avatarSha256 == nil ? nil : Self.kept(session)?.data
+    if session.user?.avatarSha256 != nil, let kept = AccountStores.current(session)?.cache.avatar {
+      data = kept.data
+      shownVersion = kept.version
+    }
   }
 
   public var initials: String? {
@@ -29,15 +34,17 @@ public final class AvatarModel {
     let stores = AccountStores.current(session)
     guard let version = user.avatarSha256 else {
       data = nil
+      shownVersion = nil
       stores?.writableCache?.removeAvatar()
       return
     }
-    if let kept = Self.kept(session), kept.version == version {
-      data = kept.data
+    if version == shownVersion { return }
+    if let kept = stores?.cache.avatar, kept.version == version {
+      show(kept.data, version: version)
       return
     }
     guard let bytes = try? await session.routedClient().avatar(version: version) else { return }
-    data = bytes.data
+    show(bytes.data, version: version)
     cacheForAnswer(fetchedUnder: stores, session: session)?.writeAvatar(
       AccountCache.Avatar(version: version, data: bytes.data))
   }
@@ -47,7 +54,8 @@ public final class AvatarModel {
     await session.connectivity.eachRouteAppearance { await load() }
   }
 
-  private static func kept(_ session: Session) -> AccountCache.Avatar? {
-    AccountStores.current(session)?.cache.avatar
+  private func show(_ data: Data, version: String) {
+    self.data = data
+    shownVersion = version
   }
 }

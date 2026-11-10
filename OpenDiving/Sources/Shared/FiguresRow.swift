@@ -5,7 +5,9 @@ import SwiftUI
 struct FiguresRow: View {
   let figures: [Figure]
   /// The least each figure takes across, which sets how many stand in a row.
-  var minWidth: CGFloat = 72
+  var minWidth = defaultMinWidth
+
+  static let defaultMinWidth: CGFloat = 72
 
   var body: some View {
     if !figures.isEmpty {

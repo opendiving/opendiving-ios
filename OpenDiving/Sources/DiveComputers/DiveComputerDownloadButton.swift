@@ -37,21 +37,16 @@ struct DiveComputerDownloadButtonLabel: View {
   /// The toolbar's circular buttons, the `+` among them.
   private static let size: CGFloat = 44
 
-  /// What the bar's glass pads out to a circle of `size`, by 10 a side across: measured, as the
-  /// system names neither. Before iOS 26 the bar draws none, and the label is the whole button.
-  private static var labelSize: CGSize {
+  /// The label, and the ring around it. On iOS 26 the bar's glass pads the label 10 a side across
+  /// to a circle of `size`, and cuts an item off at about 36 points square however tall its
+  /// label, so the ring sits inside the circle: measured, as the system names neither. Before,
+  /// the bar draws no glass, the label is the whole button and the ring is on its edge.
+  private static var metrics: (label: CGSize, ring: CGFloat) {
     if #available(iOS 26, *) {
-      CGSize(width: 24, height: 30)
+      (CGSize(width: 24, height: 30), 34)
     } else {
-      CGSize(width: size, height: size)
+      (CGSize(width: size, height: size), size)
     }
-  }
-
-  /// Within the bar's glass, which on iOS 26 cuts an item off at about 36 points square however
-  /// tall its label, so a ring on the circle's edge loses its sides; before iOS 26, on the
-  /// button's edge.
-  private static var ringSide: CGFloat {
-    if #available(iOS 26, *) { 34 } else { size }
   }
 
   var body: some View {
@@ -60,7 +55,7 @@ struct DiveComputerDownloadButtonLabel: View {
       DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
         .frame(width: 22, height: 22)
         .foregroundStyle(Color.primary)
-        .frame(width: Self.labelSize.width, height: Self.labelSize.height)
+        .frame(width: Self.metrics.label.width, height: Self.metrics.label.height)
         // Over the glass rather than in it, which mixes its backdrop into what it holds and takes
         // the coral nearly to white over a bright one.
         .overlay {
@@ -72,7 +67,7 @@ struct DiveComputerDownloadButtonLabel: View {
             }
             // Its stroke inside its side.
             .padding(Self.ringWidth / 2)
-            .frame(width: Self.ringSide, height: Self.ringSide)
+            .frame(width: Self.metrics.ring, height: Self.metrics.ring)
           }
         }
         .animation(.easeOut(duration: 0.2), value: content == nil)
@@ -114,7 +109,7 @@ struct DiveComputerDownloadButtonLabel: View {
 
 #Preview {
   NavigationStack {
-    Text("Dives")
+    Text("Profile")
       .toolbar {
         ToolbarItemGroup(placement: .topBarLeading) {
           DiveComputerDownloadButtonLabel(content: nil) {}

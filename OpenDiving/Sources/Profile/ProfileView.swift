@@ -15,29 +15,6 @@ struct ProfileView: View {
   }
 }
 
-/// What the profile shows under its head.
-enum ProfileSection: Hashable, CaseIterable {
-  case dives, trips, cards, more
-
-  var title: String {
-    switch self {
-    case .dives: "Dives"
-    case .trips: "Trips"
-    case .cards: "Cards"
-    case .more: "More"
-    }
-  }
-
-  var icon: Icon {
-    switch self {
-    case .dives: .dive
-    case .trips: .luggage
-    case .cards: .idCard
-    case .more: .menu
-    }
-  }
-}
-
 /// Where the top bar's buttons lead.
 private enum ProfileRoute: Hashable {
   case logDive, importFiles, addTrip, addSite, diveComputer, settings
@@ -51,6 +28,7 @@ private struct ProfileContent: View {
   @State private var dives: PagedList<DiveListItem>
   @State private var trips: PagedList<TripRead>
   @State private var checkin: CheckinSheetModel
+  @State private var pictures = PictureCache()
   @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
 
@@ -79,7 +57,7 @@ private struct ProfileContent: View {
           switch section {
           case .dives: ProfileDives(list: dives, units: session.units)
           case .trips: ProfileTrips(list: trips, units: session.units)
-          case .cards: CheckinSheetView(model: checkin)
+          case .cards: CheckinSheetView(model: checkin, pictures: pictures)
           case .more: EmptyView()
           }
         }
