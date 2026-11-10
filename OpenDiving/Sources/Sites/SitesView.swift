@@ -34,6 +34,8 @@ private struct SitesFinder: View {
   /// Where a long press asked for a new site.
   @State private var adding: PinnedNewSite?
   @Environment(Session.self) private var session
+  /// The Commons mark's side in the top bar, which the spinner standing in for it matches.
+  @ScaledMetric(relativeTo: .body) private var commonsSide = 22.0
 
   init(session: Session) {
     _model = State(initialValue: SitesView.finder(session))
@@ -91,7 +93,12 @@ private struct SitesFinder: View {
     NavigationLink {
       YourProposalsView()
     } label: {
-      CommonsMark(side: 22, relativeTo: .body)
+      // The mark's bubbles cross as the spinner's do while the map's sites are looked up.
+      if model.isSearching {
+        BubbleSpinner(side: commonsSide, style: .foreground)
+      } else {
+        CommonsMark(side: 22, relativeTo: .body, color: .foreground)
+      }
     }
     .accessibilityLabel(YourProposalsView.title)
     .mapBarButton()
