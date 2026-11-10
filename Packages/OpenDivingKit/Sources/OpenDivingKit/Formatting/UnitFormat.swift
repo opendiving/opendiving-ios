@@ -19,6 +19,8 @@ public enum UnitFormat {
   public static let psiPerBar = 100_000 / pascalsPerPsi
   /// Feet in one international mile.
   public static let feetPerMile = 5280.0
+  /// Metres in one international nautical mile, exactly: a knot is one an hour.
+  public static let metersPerNauticalMile = 1852.0
 
   /// The bare number `metric` shows as in `units`, with no unit after it.
   public static func number(
@@ -77,9 +79,15 @@ public enum UnitFormat {
     format(barPerMinute, .sac, units, decimals: decimals)
   }
 
-  /// A wind speed in metres per second, whole in both systems: `"21 km/h"` or `"13 mph"`.
-  public static func windSpeed(_ metersPerSecond: Double, _ units: UnitSystem) -> String {
-    format(metersPerSecond * 3.6, .speed, units)
+  /// A wind speed in metres per second as whole knots in both systems, `"11 kn"`: the unit
+  /// boats and marine forecasts give the wind in.
+  public static func windSpeed(_ metersPerSecond: Double) -> String {
+    knots(metersPerSecond) + " kn"
+  }
+
+  /// The bare whole number of knots in a speed of `metersPerSecond`.
+  public static func knots(_ metersPerSecond: Double) -> String {
+    NumberText.fixed(NumberText.round(metersPerSecond * 3600 / metersPerNauticalMile), decimals: 0)
   }
 
   /// A respiratory minute volume in L/min, as `"18.24 L/min"` or `"0.64 cuft/min"`.
