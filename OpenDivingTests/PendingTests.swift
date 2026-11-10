@@ -173,6 +173,68 @@ struct PendingTests {
     }
   }
 
+  @Test func editReopensEachRefusedWriteOfMoresRecordsInItsForm() async throws {
+    let session = try await loaded(F.directory(), online: Flag(true))
+    let outbox = OutboxModel(session: session)
+    let gear = RecordRef.server(UUID())
+    let day = CalendarDate(year: 2026, month: 10, day: 2)!
+    typealias Write = (
+      operation: (RecordRef) -> OutboxOperation, edit: (_ item: UUID, _ record: UUID) -> PendingEdit
+    )
+    let writes: [Write] = [
+      (
+        { .updatePerson($0, PersonUpdate(name: "Sam")) },
+        { .route(.person(.failed(item: $0, record: $1))) }
+      ),
+      ({ .updateCourse($0, CourseUpdate()) }, { .route(.course(.failed(item: $0, record: $1))) }),
+      (
+        { .updateContact($0, ContactUpdate()) }, { .route(.contact(.failed(item: $0, record: $1))) }
+      ),
+      (
+        { .updateGearItem($0, GearItemUpdate(archived: true)) },
+        { .route(.gearItem(.failed(item: $0, record: $1))) }
+      ),
+      (
+        { .updateCertification($0, CertificationUpdate()) },
+        { .route(.certification(.failed(item: $0, record: $1), failedItem: nil)) }
+      ),
+      (
+        { .updateServiceSchedule($0, gearItem: gear, GearServiceScheduleUpdate(active: false)) },
+        { .route(.serviceSchedule(gearItem: gear, .failed(item: $0, record: $1), failedItem: nil)) }
+      ),
+      (
+        { .updateServiceRecord($0, gearItem: gear, GearServiceRecordUpdate()) },
+        { .route(.serviceRecord(gearItem: gear, .failed(item: $0, record: $1), failedItem: nil)) }
+      ),
+      (
+        { _ in .createCertification(CertificationCreate(agency: "padi", name: "Rescue")) },
+        { item, _ in .route(.certification(.create, failedItem: item)) }
+      ),
+      (
+        { _ in
+          .createServiceSchedule(
+            GearServiceScheduleCreate(gearItem: gear, kind: "service", startsOn: day))
+        },
+        { item, _ in .route(.serviceSchedule(gearItem: gear, .create, failedItem: item)) }
+      ),
+      (
+        { _ in
+          .createServiceRecord(
+            GearServiceRecordCreate(gearItem: gear, kind: "service", servicedOn: day))
+        },
+        { item, _ in .route(.serviceRecord(gearItem: gear, .create, failedItem: item)) }
+      ),
+    ]
+    for write in writes {
+      let uuid = UUID()
+      let queued = try outbox.queue(write.operation(.server(uuid)))
+      await outbox.settled()
+      let item = try #require(outbox.item(queued.id))
+      #expect(item.isFailed)
+      #expect(PendingScreen.edit(item) == write.edit(item.id, uuid))
+    }
+  }
+
   @Test func signedOutTheEmailScreenOffersTheLastAccountsPendingScreen() async throws {
     let directory = F.directory()
     let signedIn = try await loaded(directory, online: Flag(false))
