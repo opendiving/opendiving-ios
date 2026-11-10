@@ -22,8 +22,9 @@ public final class AccountFormModel {
   /// What the diver typed, until it is saved; nil shows the account's own.
   private var nameEdit: String?
   private var usernameEdit: String?
-  /// Whether the last save landed, until the next edit.
-  public private(set) var saved = false
+  /// Whether the last save landed, until the next edit: a picture chosen since is one.
+  public var saved: Bool { lastSaveLanded && picture.edit == nil }
+  private var lastSaveLanded = false
   /// Why the picture did not save when the rest of the form did, or when it was all there was,
   /// until the next save.
   public private(set) var pictureFailure: String?
@@ -42,12 +43,12 @@ public final class AccountFormModel {
 
   public func setName(_ text: String) {
     nameEdit = text
-    saved = false
+    lastSaveLanded = false
   }
 
   public func setUsername(_ text: String) {
     usernameEdit = text
-    saved = false
+    lastSaveLanded = false
   }
 
   /// Why the name, as it would be sent, would be refused; nil when it would not.
@@ -90,7 +91,7 @@ public final class AccountFormModel {
   /// refusal of the picture is ``pictureFailure``, and the picture stays picked.
   public func save() async {
     guard canSave else { return }
-    saved = false
+    lastSaveLanded = false
     pictureFailure = nil
     var fieldsSaved = false
     if let update = fieldsUpdate {
@@ -103,7 +104,7 @@ public final class AccountFormModel {
       pictureFailure = picture.kind.notSaved(failure, afterFields: fieldsSaved)
       return
     }
-    saved = true
+    lastSaveLanded = true
   }
 
   private var storedName: String { write.shown?.name ?? session.user?.name ?? "" }

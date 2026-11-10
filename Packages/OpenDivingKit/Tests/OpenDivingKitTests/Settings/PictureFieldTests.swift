@@ -89,6 +89,19 @@ struct PictureFieldTests {
     #expect(model.saved)
   }
 
+  @Test func aPictureChosenAfterASaveIsNotShownAsSaved() async throws {
+    let server = try SettingsServer()
+    let model = AccountFormModel(session: try await loaded(server))
+    model.setName("Sam Diver")
+    await model.save()
+    #expect(model.saved)
+
+    model.picture.set(replace(square))
+    #expect(!model.saved)
+    model.picture.pressBin()
+    #expect(model.saved)
+  }
+
   @Test func aRefusedPictureLeavesTheFieldsSavedAndSaysExactlyThat() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
