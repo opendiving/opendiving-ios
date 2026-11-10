@@ -481,6 +481,33 @@ public actor APIClient {
     return second
   }
 
+  /// ``authorized(_:)`` for an answer written to a file as it arrives, which is the caller's to
+  /// move or remove.
+  func authorizedDownload(_ call: Call) async throws -> (URL, HTTPURLResponse) {
+    let token = try await currentAccessToken()
+    let first = try await download(call, bearer: token)
+    guard first.1.statusCode == 401 else { return first }
+    try? FileManager.default.removeItem(at: first.0)
+    let renewed = try await renewedAccessToken(replacing: token)
+    let second = try await download(call, bearer: renewed)
+    if second.1.statusCode == 401 {
+      try? FileManager.default.removeItem(at: second.0)
+      await endSession()
+      throw APIError.signedOut
+    }
+    return second
+  }
+
+  private func download(_ call: Call, bearer: String?) async throws -> (URL, HTTPURLResponse) {
+    let (request, _) = try request(call, bearer: bearer)
+    do {
+      return try await inFlight.run { [transport] in try await transport.download(request) }
+    } catch let error as URLError {
+      throw APIError.unreachable(
+        TransportFailure(code: error.code.rawValue, message: error.localizedDescription))
+    }
+  }
+
   private func decoded<T: Decodable>(_ type: T.Type, _ call: Call) async throws -> T {
     let (data, response) = try await perform(call, bearer: nil)
     return try decode(type, data, response)

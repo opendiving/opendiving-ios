@@ -24,4 +24,8 @@ struct CountingTransport: HTTPTransport {
   func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
     try await base.upload(request, fromFile: file)
   }
+
+  func download(_ request: URLRequest) async throws -> (URL, HTTPURLResponse) {
+    try await base.download(request)
+  }
 }
