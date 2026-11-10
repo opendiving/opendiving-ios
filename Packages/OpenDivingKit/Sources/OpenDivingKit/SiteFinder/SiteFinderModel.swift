@@ -57,8 +57,9 @@ public final class SiteFinderModel {
   public var hasMap = false {
     didSet { narrowOpening() }
   }
-  /// The part of the map the diver sees, in points: what the opening fits its places to and the
-  /// box an untyped list is narrowed to.
+  /// The part of the map the diver sees, in points: what the opening fits its places to once, the
+  /// first time it is measured, and the box an untyped list is narrowed to. The panel moving
+  /// changes it and moves no camera.
   @ObservationIgnored public var viewport = (width: 0.0, height: 0.0) {
     didSet {
       refit()
@@ -85,6 +86,8 @@ public final class SiteFinderModel {
   @ObservationIgnored private var restsOnWorld = false
   /// The camera sits, unmoved, where the opening put it, so a map measured late is fitted again.
   @ObservationIgnored private var restsOnOpening = false
+  /// The opening has been fitted to a measured map, which it is never fitted to again.
+  @ObservationIgnored private var isFitted = false
   /// How long the camera rests before the list follows it.
   @ObservationIgnored var settleDelay = Duration.milliseconds(300)
   /// The wait for the camera to rest.
@@ -173,6 +176,7 @@ public final class SiteFinderModel {
     restsOnWorld = opened.isWorld
     restsOnOpening = true
     camera = opened.camera(width: viewport.width, height: viewport.height)
+    isFitted = Self.isMeasured(viewport)
     glides = false
     isOpening = false
     isResolving = false
@@ -207,7 +211,8 @@ public final class SiteFinderModel {
   }
 
   private func refit() {
-    guard restsOnOpening, let opening else { return }
+    guard restsOnOpening, !isFitted, Self.isMeasured(viewport), let opening else { return }
+    isFitted = true
     camera = opening.camera(width: viewport.width, height: viewport.height)
     glides = false
   }

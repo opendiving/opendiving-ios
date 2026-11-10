@@ -8,9 +8,9 @@ struct BadgeView<Icon: View>: View {
   enum Style {
     /// Muted fill, as Rented and a gas name.
     case secondary
-    /// Bordered, no fill, as Archived, a site's tags and an agency.
+    /// Bordered, no fill, as Archived, a site's mark and an agency.
     case outline
-    /// The brand's teal, as a gas role.
+    /// The brand's teal, as a gas role and a site's tags.
     case teal
     /// The brand's coral, as a card nearing expiry.
     case coral

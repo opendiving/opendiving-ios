@@ -186,6 +186,28 @@ struct SiteFinderModelTests {
     #expect(searches.queries.count == 2)
   }
 
+  /// The opening fits its places to the map once it is measured, and the panel moving after
+  /// that leaves the camera where it is.
+  @Test func theOpeningIsFittedOnceAndThePanelMovingMovesNoCamera() async throws {
+    let (world, _) = try await world()
+    let form = await world.form(.create)
+    form.addFound(
+      DiveSiteLookupItem(ref: .server(UUID()), name: "Canyon", latitude: 28.5, longitude: 34.5))
+    form.addFound(
+      DiveSiteLookupItem(ref: .server(UUID()), name: "Bells", latitude: 28.6, longitude: 34.6))
+    let model = SiteFinderModel(form: form, locator: FakeFinderLocator(.failure(.denied)))
+    model.hasMap = true
+    await model.open()
+    let unmeasured = model.camera
+    model.viewport = Self.viewport
+    let fitted = model.camera
+    #expect(fitted != unmeasured)
+    model.viewport = (width: 390, height: 600)
+    #expect(model.camera == fitted)
+    model.viewport = (width: 390, height: 150)
+    #expect(model.camera == fitted)
+  }
+
   @Test func aPanListsTheViewOnceTheCameraRests() async throws {
     let (world, searches) = try await world()
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))

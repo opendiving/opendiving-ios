@@ -347,7 +347,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
               DiveSiteMarkBadge(mark: mark)
             }
             ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
-              BadgeView(tag, style: .outline)
+              BadgeView(tag, style: .teal)
             }
           }
           .alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
