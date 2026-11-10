@@ -11,6 +11,8 @@ nonisolated protocol TabSection: Hashable, CaseIterable where AllCases: RandomAc
 /// contrast over a coral underline, on a hairline that runs the page's width.
 struct SectionTabs<Section: TabSection>: View {
   @Binding var selection: Section
+  /// What a tab is called, where a count goes with its name.
+  var title: (Section) -> String = { $0.title }
 
   @Namespace private var underline
 
@@ -36,7 +38,7 @@ struct SectionTabs<Section: TabSection>: View {
         Image(section.icon)
           .font(.title2)
           .frame(height: 28)
-        Text(section.title)
+        Text(title(section))
           .font(.subheadline.weight(.semibold))
       }
       .foregroundStyle(isSelected ? Color.primary : Color.secondary)

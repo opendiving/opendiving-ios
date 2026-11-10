@@ -10,7 +10,7 @@ import SwiftUI
 /// the middle of the map and the others faded; on the dive form a touched point is named under a
 /// sheet. What a row does when chosen, what an opened site shows, and the top bar's buttons, are
 /// the host's; the bar draws no background over the map.
-struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
+struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
   let units: UnitSystem
@@ -24,6 +24,8 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
   var onOfflineRow: (FormPickerRow) -> Void = { _ in }
   /// What the panel shows of the site the sites map opened.
   @ViewBuilder let site: (SiteFinderModel.OpenedSite) -> Site
+  /// What stands in the opened site's top corner across from its close button: the way to edit it.
+  @ViewBuilder let siteAction: (SiteFinderModel.OpenedSite) -> SiteAction
   @ToolbarContentBuilder let bar: () -> Bar
 
   /// Where the panel rests, and how a drag on the handle, the search or the list from its top or
@@ -340,9 +342,15 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
 
   // MARK: - An opened site
 
-  /// The site's mark, name and location where the search stood, and the way back to the list.
+  /// Where the search stood: the host's action and the way back to the list in the top corners,
+  /// over the site's mark, name and location.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
-    HStack(alignment: .top, spacing: 8) {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        siteAction(opened)
+        Spacer(minLength: 0)
+        closeButton("Close dive site") { model.closeSite() }
+      }
       VStack(alignment: .leading, spacing: 4) {
         if let mark = opened.mark {
           DiveSiteMarkBadge(mark: mark)
@@ -358,8 +366,7 @@ struct SiteFinderView<Site: View, Bar: ToolbarContent>: View {
             .lineLimit(1)
         }
       }
-      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-      closeButton("Close dive site") { model.closeSite() }
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 
@@ -631,6 +638,7 @@ private struct SiteFinderPointSheet: View {
         today: CalendarDate(year: 2026, month: 11, day: 8)!),
       map: MapStyleModel(session: session), units: .metric,
       site: { _ in EmptyView() },
+      siteAction: { _ in EmptyView() },
       bar: { ToolbarItem(placement: .topBarTrailing) { Button("Add", systemImage: "plus") {} } })
   }
   .environment(session)

@@ -2,8 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// Everything about one dive site, as the sites map's panel shows it under the site's mark, name
-/// and location: its figures and the way to edit it over three tabs — *Info*, with what stands on
-/// it (a proposal, a Commons match, an edit waiting to land), every field it records and its
+/// and location, in three tabs — *Info*, with what stands on it (a proposal, a Commons match, an edit waiting to land), every field it records and its
 /// notes; *Marine life*, the species seen on its dives; and *My dives*, every dive there.
 struct SitePanelView: View {
   let siteUUID: UUID
@@ -12,13 +11,12 @@ struct SitePanelView: View {
   /// Another site for the panel: the Commons record this one matches, or the one it was replaced
   /// with.
   let onOpen: (UUID) -> Void
-  let onDeleted: () -> Void
   @Environment(Session.self) private var session
 
   var body: some View {
     SitePanelContent(
       model: DiveSiteDetailModel(session: session, siteUUID: siteUUID), onRead: onRead,
-      onOpen: onOpen, onDeleted: onDeleted
+      onOpen: onOpen
     )
     .id(siteUUID)
   }
@@ -31,16 +29,14 @@ private struct SitePanelContent: View {
   @State private var section = SiteSection.info
   let onRead: (DiveSiteRead) -> Void
   let onOpen: (UUID) -> Void
-  let onDeleted: () -> Void
 
   init(
     model: DiveSiteDetailModel, onRead: @escaping (DiveSiteRead) -> Void,
-    onOpen: @escaping (UUID) -> Void, onDeleted: @escaping () -> Void
+    onOpen: @escaping (UUID) -> Void
   ) {
     _model = State(initialValue: model)
     self.onRead = onRead
     self.onOpen = onOpen
-    self.onDeleted = onDeleted
   }
 
   var body: some View {
@@ -61,10 +57,15 @@ private struct SitePanelContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
       case .loaded(let site):
         LazyVStack(spacing: 16) {
-          SiteHead(site: site, units: session.units, onDeleted: onDeleted, onReplaced: onOpen)
-          SectionTabs(selection: $section)
-            // Across the panel's width, as across the profile's page.
-            .padding(.horizontal, -16)
+          SectionTabs(selection: $section) { section in
+            switch section {
+            case .info: section.title
+            case .marineLife: DiveSiteSummary.counted(section.title, site.speciesCount)
+            case .myDives: DiveSiteSummary.counted(section.title, site.diveCount)
+            }
+          }
+          // Across the panel's width, as across the profile's page.
+          .padding(.horizontal, -16)
           switch section {
           case .info: info(site)
           case .marineLife: SiteSpecies(model: model)
@@ -130,30 +131,6 @@ private struct SitePanelContent: View {
       .font(.subheadline)
       .foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
-  }
-}
-
-/// The site's figures, and the way to edit it.
-private struct SiteHead: View {
-  let site: DiveSiteRead
-  let units: UnitSystem
-  let onDeleted: () -> Void
-  let onReplaced: (UUID) -> Void
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      FiguresRow(figures: DiveSiteSummary.figures(site, units: units))
-      if !site.isUnsavedCommons {
-        NavigationLink {
-          DiveSiteFormView(mode: .edit(site), onDeleted: onDeleted, onReplaced: onReplaced)
-        } label: {
-          Label("Edit", systemImage: "pencil")
-        }
-        .buttonStyle(.bordered)
-        .tint(Color.brandTeal)
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
@@ -365,7 +342,7 @@ private struct SiteSpecies: View {
 #Preview {
   NavigationStack {
     ScrollView {
-      SitePanelView(siteUUID: UUID(), onRead: { _ in }, onOpen: { _ in }, onDeleted: {})
+      SitePanelView(siteUUID: UUID(), onRead: { _ in }, onOpen: { _ in })
         .padding()
     }
   }

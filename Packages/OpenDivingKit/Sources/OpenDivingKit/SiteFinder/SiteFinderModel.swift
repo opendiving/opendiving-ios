@@ -217,7 +217,8 @@ public final class SiteFinderModel {
     points.showHeld()
     let point = points.point(uuid)
     opened = OpenedSite(
-      uuid: uuid, name: point?.name, mark: point?.mark, location: nil, isPlaced: point != nil)
+      uuid: uuid, name: point?.name, mark: point?.mark, location: nil, site: nil,
+      isPlaced: point != nil)
     guard let point else { return .world }
     return SiteFinderOpening(points: [
       MapPoint(name: point.name, latitude: point.latitude, longitude: point.longitude)
@@ -307,7 +308,7 @@ public final class SiteFinderModel {
       selected = point
     case .sitesMap:
       opened = OpenedSite(
-        uuid: uuid, name: point.name, mark: point.mark, location: nil, isPlaced: true)
+        uuid: uuid, name: point.name, mark: point.mark, location: nil, site: nil, isPlaced: true)
       centre(latitude: point.latitude, longitude: point.longitude, zoom: camera.zoom)
     }
   }
@@ -320,7 +321,7 @@ public final class SiteFinderModel {
     let placed = site.latitude != nil && site.longitude != nil
     opened = OpenedSite(
       uuid: uuid, name: site.name, mark: item.mark, location: site.location?.name,
-      isPlaced: placed)
+      site: nil, isPlaced: placed)
     if let latitude = site.latitude, let longitude = site.longitude {
       centre(latitude: latitude, longitude: longitude, zoom: pointZoom)
     }
@@ -331,10 +332,10 @@ public final class SiteFinderModel {
   public func open(uuid: UUID) {
     let point = points.point(uuid)
     opened = OpenedSite(
-      uuid: uuid, name: point?.name, mark: point?.mark, location: nil, isPlaced: false)
+      uuid: uuid, name: point?.name, mark: point?.mark, location: nil, site: nil, isPlaced: false)
   }
 
-  /// The open site as its page read it: its name, mark and location now, and its
+  /// The open site as its panel read it, and its name, mark and location now, and its
   /// pin glided to the middle where
   /// the finder had nowhere to put it when it opened.
   public func read(_ site: DiveSiteRead) {
@@ -342,6 +343,7 @@ public final class SiteFinderModel {
     opened.name = site.name
     opened.mark = site.mark
     opened.location = site.location?.name
+    opened.site = site
     if !opened.isPlaced, let latitude = site.latitude, let longitude = site.longitude {
       opened.isPlaced = true
       centre(latitude: latitude, longitude: longitude, zoom: pointZoom)

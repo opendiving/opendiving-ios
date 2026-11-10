@@ -45,20 +45,9 @@ public enum DiveSiteSummary {
   /// The mark on a Commons site, wherever one is listed or shown.
   public static let commonsLabel = "Commons"
 
-  /// The figures under the site's name on its panel: only those the site has, and its last dive
-  /// last, as the one figure wider than the rest.
-  public static func figures(_ site: DiveSiteRead, units: UnitSystem) -> [Figure] {
-    var figures = [Figure(label: "Dives", value: String(site.diveCount))]
-    if let deepest = site.maxDiveDepth.map({ UnitFormat.depth($0, units, decimals: 0) }) {
-      figures.append(Figure(label: "Deepest", value: deepest))
-    }
-    if site.speciesCount > 0 {
-      figures.append(Figure(label: "Species seen", value: String(site.speciesCount)))
-    }
-    if let lastDivedOn = site.lastDivedOn {
-      figures.append(Figure(label: "Last dive", value: DateText.date(lastDivedOn)))
-    }
-    return figures
+  /// A tab's name with how many it holds, `My dives (3)`; the name alone for none.
+  public static func counted(_ title: String, _ count: Int) -> String {
+    count > 0 ? "\(title) (\(count))" : title
   }
 
   /// The sea's water and sea level too, where the site records them.

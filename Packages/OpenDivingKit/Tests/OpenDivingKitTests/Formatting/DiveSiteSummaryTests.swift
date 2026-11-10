@@ -2,7 +2,7 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// The site panel's figures and information card over the `dive-site` fixture.
+/// The site panel's tab names and information card over the `dive-site` fixture.
 struct DiveSiteSummaryTests {
   static func site(_ changes: [String: Any] = [:]) throws -> DiveSiteRead {
     var object = try #require(
@@ -12,22 +12,9 @@ struct DiveSiteSummaryTests {
       DiveSiteRead.self, from: JSONSerialization.data(withJSONObject: object))
   }
 
-  @Test func theFiguresLeaveOutTheDeepestOfASiteWithNoDives() throws {
-    let site = try Self.site(["max_dive_depth": NSNull(), "dive_count": 0])
-    #expect(
-      DiveSiteSummary.figures(site, units: .metric) == [
-        Figure(label: "Dives", value: "0"), Figure(label: "Last dive", value: "Apr 17, 2026"),
-      ])
-  }
-
-  @Test func theFiguresCountSpecies() throws {
-    let site = try Self.site(["species_count": 4])
-    #expect(
-      DiveSiteSummary.figures(site, units: .metric) == [
-        Figure(label: "Dives", value: "2"), Figure(label: "Deepest", value: "46 m"),
-        Figure(label: "Species seen", value: "4"),
-        Figure(label: "Last dive", value: "Apr 17, 2026"),
-      ])
+  @Test func aTabCountsWhatItHoldsAndSaysNothingOfNone() {
+    #expect(DiveSiteSummary.counted("My dives", 3) == "My dives (3)")
+    #expect(DiveSiteSummary.counted("Marine life", 0) == "Marine life")
   }
 
   @Test func theInformationCardHoldsEveryFieldTheSiteRecords() throws {

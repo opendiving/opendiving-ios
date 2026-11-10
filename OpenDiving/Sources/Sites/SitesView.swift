@@ -62,8 +62,24 @@ private struct SitesFinder: View {
       onLongPress: { adding = PinnedNewSite(pin: $0) },
       site: { site in
         SitePanelView(
-          siteUUID: site.uuid, onRead: { model.read($0) }, onOpen: { model.open(uuid: $0) },
-          onDeleted: { model.closeSite() })
+          siteUUID: site.uuid, onRead: { model.read($0) }, onOpen: { model.open(uuid: $0) })
+      },
+      siteAction: { opened in
+        if let site = opened.site, !site.isUnsavedCommons {
+          NavigationLink {
+            DiveSiteFormView(
+              mode: .edit(site), onDeleted: { model.closeSite() },
+              onReplaced: { model.open(uuid: $0) })
+          } label: {
+            Text("Edit")
+              .foregroundStyle(Color.primary)
+              .padding(.horizontal, 16)
+              .frame(height: 44)
+              .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+              .contentShape(Capsule())
+          }
+          .buttonStyle(.plain)
+        }
       },
       bar: {
         if session.isCommonsPrimary && !isPushed {
