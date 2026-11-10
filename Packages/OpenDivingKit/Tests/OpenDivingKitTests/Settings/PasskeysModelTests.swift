@@ -31,7 +31,10 @@ struct PasskeysModelTests {
     model.rename.draft = "  Work phone "
     await model.saveRename()
 
-    #expect(harness.server.credentialRoutes == ["GET user/passkeys", "PATCH user/passkey/\(iPhone.uuidString.lowercased())"])
+    #expect(
+      harness.server.credentialRoutes == [
+        "GET user/passkeys", "PATCH user/passkey/\(iPhone.uuidString.lowercased())",
+      ])
     let sent = harness.server.requests.first { $0.route.hasPrefix("PATCH user/passkey/") }
     #expect(sent?.json == (try JSONValue.parse(Data(#"{"name":"Work phone"}"#.utf8))))
     #expect(model.list.value?.first?.name == "Work phone")
@@ -77,7 +80,10 @@ struct PasskeysModelTests {
     model.confirmingRemove = passkey
     #expect(PasskeysModel.removeMessage(passkey).hasPrefix("\u{201C}iPhone\u{201D} will stop"))
     await model.confirmRemove()
-    #expect(harness.server.credentialRoutes.suffix(2) == ["DELETE user/passkey/\(iPhone.uuidString.lowercased())", "GET user/passkeys"])
+    #expect(
+      harness.server.credentialRoutes.suffix(2) == [
+        "DELETE user/passkey/\(iPhone.uuidString.lowercased())", "GET user/passkeys",
+      ])
     #expect(model.list.value?.map(\.name) == ["YubiKey"])
     #expect(model.confirmingRemove == nil)
   }

@@ -40,7 +40,9 @@ final class CredentialsServer: HTTPTransport {
 
   /// What was sent that is not the session's own refresh or the account's read.
   var credentialRoutes: [String] {
-    requests.map(\.route).filter { $0.contains("passkey") || $0.contains("session") || $0.contains("api-key") }
+    requests.map(\.route).filter {
+      $0.contains("passkey") || $0.contains("session") || $0.contains("api-key")
+    }
   }
 
   var keyCount: Int { state.withLock { $0.keys.count } }

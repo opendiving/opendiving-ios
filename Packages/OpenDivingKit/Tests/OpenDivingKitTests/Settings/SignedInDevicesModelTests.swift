@@ -15,7 +15,8 @@ struct SignedInDevicesModelTests {
     await model.list.load()
     #expect(model.rows.count == 3)
     #expect(model.rows.first?.uuid == phone)
-    #expect(model.rows.map(SignedInDevicesModel.label) == ["iPhone", "Chrome on macOS", "Unknown device"])
+    #expect(
+      model.rows.map(SignedInDevicesModel.label) == ["iPhone", "Chrome on macOS", "Unknown device"])
     #expect(model.rows.first?.idleTimeout == .extended)
     #expect(model.hasOthers)
   }
@@ -40,7 +41,10 @@ struct SignedInDevicesModelTests {
         + " immediately, on its very next request.")
     model.confirmingSignOut = device
     await model.confirmSignOut()
-    #expect(harness.server.credentialRoutes.suffix(2) == ["DELETE user/session/\(mac.uuidString.lowercased())", "GET user/sessions"])
+    #expect(
+      harness.server.credentialRoutes.suffix(2) == [
+        "DELETE user/session/\(mac.uuidString.lowercased())", "GET user/sessions",
+      ])
     #expect(model.rows.count == 2)
     #expect(model.failure == nil)
   }
@@ -51,7 +55,8 @@ struct SignedInDevicesModelTests {
     await model.list.load()
     model.confirmingSignOutOthers = true
     await model.confirmSignOutOthers()
-    #expect(harness.server.credentialRoutes.suffix(2) == ["DELETE user/sessions", "GET user/sessions"])
+    #expect(
+      harness.server.credentialRoutes.suffix(2) == ["DELETE user/sessions", "GET user/sessions"])
     #expect(model.outcome == "2 other devices were signed out.")
     #expect(model.rows.map(\.uuid) == [phone])
     #expect(!model.hasOthers)

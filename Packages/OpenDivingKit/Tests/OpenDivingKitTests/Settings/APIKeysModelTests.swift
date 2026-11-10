@@ -51,7 +51,8 @@ struct APIKeysModelTests {
     let sent = harness.server.requests.first { $0.route == "POST user/api-keys" }
     #expect(
       sent?.json
-        == (try JSONValue.parse(Data(#"{"name":"tide sync","scope":"read","lifetime":"30d"}"#.utf8))))
+        == (try JSONValue.parse(Data(#"{"name":"tide sync","scope":"read","lifetime":"30d"}"#.utf8)))
+    )
     #expect(!model.isCreating)
     #expect(model.name.isEmpty && model.lifetime == .oneYear)
     #expect(model.list.value?.map(\.name) == ["laptop", "backup script", "tide sync"])
@@ -77,7 +78,8 @@ struct APIKeysModelTests {
     try await harness.session.loadAccount()
 
     let secret = Data(CredentialsServer.secret.utf8)
-    let files = FileManager.default.enumerator(at: harness.directory, includingPropertiesForKeys: nil)
+    let files = FileManager.default.enumerator(
+      at: harness.directory, includingPropertiesForKeys: nil)
     var read = 0
     while let file = files?.nextObject() as? URL {
       guard let contents = try? Data(contentsOf: file) else { continue }
@@ -129,7 +131,10 @@ struct APIKeysModelTests {
     let row = try #require(model.list.value?.last)
     model.confirmingRevoke = row
     await model.confirmRevoke()
-    #expect(harness.server.credentialRoutes.suffix(2) == ["DELETE user/api-key/\(made.uuidString.lowercased())", "GET user/api-keys"])
+    #expect(
+      harness.server.credentialRoutes.suffix(2) == [
+        "DELETE user/api-key/\(made.uuidString.lowercased())", "GET user/api-keys",
+      ])
     #expect(model.created == nil)
     #expect(model.list.value?.map(\.uuid).contains(made) == false)
 

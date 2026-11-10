@@ -21,7 +21,8 @@ struct CredentialFixtureTests {
     let sessions = try KitFixture.roundTrip([UserSessionRead].self, "user-sessions")
     #expect(sessions.map(\.current) == [false, true, false])
     #expect(sessions.map(\.idleTimeout) == [.standard, .extended, .standard])
-    #expect(sessions.map(SignedInDevicesModel.label) == ["Chrome on macOS", "iPhone", "Unknown device"])
+    #expect(
+      sessions.map(SignedInDevicesModel.label) == ["Chrome on macOS", "iPhone", "Unknown device"])
     #expect(
       SignedInDevicesModel.details(sessions[0], in: utc)
         == "203.0.113.7 · Last used Nov 9, 2026, 22:14")
