@@ -21,6 +21,8 @@ import Observation
 public final class DiveFormModel: AccountStoresObserver {
   public enum Mode: Hashable, Sendable {
     case create
+    /// A new dive logged for a course, which the form opens on chosen and shown.
+    case course(UUID)
     /// A dive draft, the server's or the phone's own.
     case draft(RecordRef)
     /// A dive the account has.
@@ -246,13 +248,14 @@ public final class DiveFormModel: AccountStoresObserver {
     if isOnline { track(Task { await lookups.refresh() }) }
     switch mode {
     case .create: startCreate()
+    case .course(let uuid): startCreate(course: .server(uuid))
     case .draft(let ref): startDraft(ref)
     case .edit(let uuid): startEdit(uuid)
     case .failed(let id): startFailed(id)
     }
   }
 
-  private func startCreate() {
+  private func startCreate(course: RecordRef? = nil) {
     let number = offlineNumber
     if let last = cachedLastDive() {
       values = .carried(
@@ -260,6 +263,12 @@ public final class DiveFormModel: AccountStoresObserver {
       remember(last)
     } else {
       values = visibility.applied(to: .newDive(number: number, now: now, timeZone: timeZone))
+    }
+    if let course {
+      // Asked for from the course's page: shown even where the diver hides the field, and over
+      // the course the last dive carried.
+      visibility.reveal([.course])
+      values.course = course
     }
     attachVessels()
     phase = .ready
@@ -413,7 +422,7 @@ public final class DiveFormModel: AccountStoresObserver {
     guard dirty, !isDone else { return }
     dirty = false
     switch mode {
-    case .create, .draft:
+    case .create, .course, .draft:
       let write = values.draft(gearSet: gearSet)
       do {
         if let draft {
@@ -459,7 +468,7 @@ public final class DiveFormModel: AccountStoresObserver {
     dirty = false
     do {
       switch mode {
-      case .create, .draft: try logDive()
+      case .create, .course, .draft: try logDive()
       case .edit(let uuid): try saveEdit(uuid)
       case .failed(let id):
         if purpose == .edit { try resubmitUpdate(id) } else { try resubmitCreate(id) }

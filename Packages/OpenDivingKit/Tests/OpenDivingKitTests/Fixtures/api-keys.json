@@ -1,0 +1,20 @@
+[
+  {
+    "uuid": "019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a80",
+    "name": "laptop",
+    "prefix": "odk_3fA9xQ2b",
+    "scope": "read",
+    "created_at": "2026-09-01T10:00:00Z",
+    "last_used_at": "2026-11-08T07:31:00.512000Z",
+    "expires_at": "2026-10-01T10:00:00Z"
+  },
+  {
+    "uuid": "019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a81",
+    "name": "backup script",
+    "prefix": "odk_Zk81mPq0",
+    "scope": "write",
+    "created_at": "2026-10-20T16:20:00Z",
+    "last_used_at": null,
+    "expires_at": null
+  }
+]

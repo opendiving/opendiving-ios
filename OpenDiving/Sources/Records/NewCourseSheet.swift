@@ -24,15 +24,19 @@ struct NewCourseSheet: View {
   }
 }
 
-private struct CourseSheetForm: View {
+/// The course form, in the web's dialog's sheet or pushed as a screen of its own.
+struct CourseSheetForm: View {
   @State var model: RecordSheetModel<CourseFormValues>
   @State var lookups: LookupsModel
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   var body: some View {
     RecordSheetForm(
-      title: "New Course", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
+      title: model.isEditing ? "Edit Course" : "New Course", isReopened: model.isReopened,
+      createLabel: "Create course", isPushed: isPushed, failure: model.failure,
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
       TrainingFields(
         agencyRequired: false, agency: $model.values.agency,
@@ -73,6 +77,13 @@ private struct CourseSheetForm: View {
   /// Moving the start past the end empties the end.
   private var startDate: Binding<CalendarDate?> {
     Binding(get: { model.values.startDate }, set: { model.values.pickStartDate($0) })
+  }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    return RecordDeletion(
+      title: "Delete course", message: RecordDeletionText.course, delete: model.delete,
+      onDeleted: onDeleted)
   }
 
   private func save() -> Bool {

@@ -5,6 +5,8 @@ import OpenDivingKit
 enum DiveFormMode: Hashable {
   /// A new dive.
   case create
+  /// A new dive logged for a course, by its uuid, as the web's `/dives/new?course_uuid=`.
+  case course(UUID)
   /// A dive draft, by the server's uuid or the phone's own.
   case draft(RecordRef)
   /// A dive the account has, by its uuid.
