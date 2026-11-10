@@ -19,6 +19,9 @@ Bluetooth: it is built for the Shearwater Perdix 3 and the Suunto Ocean, whose s
 experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited on the phone, on the web's own
 form, with or without signal, and reach your server when the phone can; a dive begun on the phone
 is a draft the web can finish, and a gear set opens as a checklist to tick at the water's edge.
+Your account's settings are changed on the phone as on the web, while it has signal — its two
+pictures, check-in details, signed-in devices and API keys, notifications, units, invitations,
+data export and the account itself — except that a passkey is added on the web.
 
 ## Why an app
 

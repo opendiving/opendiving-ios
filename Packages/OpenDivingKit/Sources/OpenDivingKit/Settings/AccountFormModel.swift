@@ -1,12 +1,12 @@
 import Foundation
 import Observation
 
-/// *Account*'s name and username, saved together by one *Save* that sends only what changed,
-/// within the web's bounds. A field the diver has not touched shows the account as the session
-/// holds it, so a read that lands while the screen shows reaches it.
+/// *Account*'s profile picture, name and username, saved together by one *Save* that sends only
+/// what changed, within the web's bounds. A field the diver has not touched shows the account as
+/// the session holds it, so a read that lands while the screen shows reaches it.
 ///
-/// ``save()`` sends the fields first, and only when one changed; whatever else rides the form's
-/// save goes after them, so that ``hasChanges`` and ``save()`` are where it is added.
+/// ``save()`` sends the fields first, and only when one changed; the picture goes after them, so
+/// a picture the server refuses leaves the fields saved and says so.
 @MainActor
 @Observable
 public final class AccountFormModel {
@@ -16,6 +16,7 @@ public final class AccountFormModel {
   public static let savedMessage = "Your profile has been updated."
 
   public let write: AccountWrite
+  public let picture: PictureFieldModel
   @ObservationIgnored private let session: Session
 
   /// What the diver typed, until it is saved; nil shows the account's own.
@@ -23,10 +24,14 @@ public final class AccountFormModel {
   private var usernameEdit: String?
   /// Whether the last save landed, until the next edit.
   public private(set) var saved = false
+  /// Why the picture did not save when the rest of the form did, or when it was all there was,
+  /// until the next save.
+  public private(set) var pictureFailure: String?
 
   public init(session: Session) {
     self.session = session
     write = AccountWrite(session: session)
+    picture = PictureFieldModel(kind: .avatar, session: session)
   }
 
   /// Whether there is an account to edit yet.
@@ -72,21 +77,31 @@ public final class AccountFormModel {
     return update == UserUpdate() ? nil : update
   }
 
-  public var hasChanges: Bool { fieldsUpdate != nil }
+  public var hasChanges: Bool { fieldsUpdate != nil || picture.edit != nil }
+
+  public var isSaving: Bool { write.isSaving || picture.isSending }
 
   public var canSave: Bool {
-    isLoaded && hasChanges && nameProblem == nil && usernameProblem == nil && !write.isSaving
+    isLoaded && hasChanges && nameProblem == nil && usernameProblem == nil && !isSaving
   }
 
-  /// Sends what changed. A refusal — a username another account holds, the rename limit — is
-  /// ``AccountWrite/failure``, and what was typed stays.
+  /// Sends what changed. A refusal of the fields — a username another account holds, the rename
+  /// limit — is ``AccountWrite/failure``, what was typed stays, and the picture is not sent. A
+  /// refusal of the picture is ``pictureFailure``, and the picture stays picked.
   public func save() async {
     guard canSave else { return }
     saved = false
+    pictureFailure = nil
+    var fieldsSaved = false
     if let update = fieldsUpdate {
       guard await write.save(update) else { return }
       nameEdit = nil
       usernameEdit = nil
+      fieldsSaved = true
+    }
+    if picture.edit != nil, let failure = await picture.send() {
+      pictureFailure = picture.kind.notSaved(failure, afterFields: fieldsSaved)
+      return
     }
     saved = true
   }

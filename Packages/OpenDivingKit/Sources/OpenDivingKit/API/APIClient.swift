@@ -693,7 +693,7 @@ public actor APIClient {
 }
 
 extension FetchedBytes {
-  fileprivate init(data: Data, response: HTTPURLResponse) {
+  init(data: Data, response: HTTPURLResponse) {
     self.init(data: data, contentType: response.value(forHTTPHeaderField: "Content-Type"))
   }
 }
