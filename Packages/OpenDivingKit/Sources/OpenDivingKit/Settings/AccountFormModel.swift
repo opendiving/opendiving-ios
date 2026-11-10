@@ -25,9 +25,9 @@ public final class AccountFormModel {
   /// Whether the last save landed, until the next edit: a picture chosen since is one.
   public var saved: Bool { lastSaveLanded && picture.edit == nil }
   private var lastSaveLanded = false
-  /// Why the picture did not save when the rest of the form did, or when it was all there was,
-  /// until the next save.
-  public private(set) var pictureFailure: String?
+  /// Why the last save stored nothing, or stored the fields and not the picture, until the next
+  /// save — which may send no fields, so an earlier refusal of them is never left showing.
+  public private(set) var failure: String?
 
   public init(session: Session) {
     self.session = session
@@ -87,21 +87,24 @@ public final class AccountFormModel {
   }
 
   /// Sends what changed. A refusal of the fields — a username another account holds, the rename
-  /// limit — is ``AccountWrite/failure``, what was typed stays, and the picture is not sent. A
-  /// refusal of the picture is ``pictureFailure``, and the picture stays picked.
+  /// limit — is ``failure``, what was typed stays, and the picture is not sent. A refusal of the
+  /// picture is ``failure`` too, saying whether the fields saved, and the picture stays picked.
   public func save() async {
     guard canSave else { return }
     lastSaveLanded = false
-    pictureFailure = nil
+    failure = nil
     var fieldsSaved = false
     if let update = fieldsUpdate {
-      guard await write.save(update) else { return }
+      guard await write.save(update) else {
+        failure = write.failure
+        return
+      }
       nameEdit = nil
       usernameEdit = nil
       fieldsSaved = true
     }
-    if picture.edit != nil, let failure = await picture.send() {
-      pictureFailure = picture.kind.notSaved(failure, afterFields: fieldsSaved)
+    if picture.edit != nil, let refused = await picture.send() {
+      failure = picture.kind.notSaved(refused, afterFields: fieldsSaved)
       return
     }
     lastSaveLanded = true

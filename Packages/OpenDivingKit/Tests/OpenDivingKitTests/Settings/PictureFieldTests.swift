@@ -116,10 +116,9 @@ struct PictureFieldTests {
     await model.save()
 
     #expect(
-      model.pictureFailure
+      model.failure
         == "Saved, but your profile picture did not. That picture would take you past your"
         + " storage limit.")
-    #expect(model.write.failure == nil)
     #expect(session.user?.name == "Sam Diver")
     #expect(model.name == "Sam Diver")
     #expect(model.picture.edit == replace(square))
@@ -130,7 +129,26 @@ struct PictureFieldTests {
     let before = server.requests.count
     await model.save()
     #expect(sent(server, after: before) == ["PUT user/avatar", "GET user"])
-    #expect(model.pictureFailure == nil)
+    #expect(model.failure == nil)
+    #expect(model.saved)
+  }
+
+  @Test func aRefusalOfTheFieldsIsNotLeftShowingByASaveOfThePictureAlone() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
+    let model = AccountFormModel(session: session)
+    model.setUsername("taken")
+    model.picture.set(replace(square))
+    await model.save()
+    #expect(model.failure == "Username not available")
+
+    model.setUsername("testdiver")
+    let before = server.requests.count
+    await model.save()
+
+    #expect(sent(server, after: before) == ["PUT user/avatar", "GET user"])
+    #expect(model.failure == nil)
     #expect(model.saved)
   }
 
@@ -143,7 +161,7 @@ struct PictureFieldTests {
     model.picture.set(replace(square))
     await model.save()
 
-    #expect(model.pictureFailure == "Your profile picture did not save. Unsupported image.")
+    #expect(model.failure == "Your profile picture did not save. Unsupported image.")
   }
 
   @Test func refusedFieldsSendNoPicture() async throws {
@@ -174,7 +192,7 @@ struct PictureFieldTests {
 
     #expect(server.requests.count == before)
     #expect(
-      model.pictureFailure
+      model.failure
         == "Your profile picture did not save. \(APIError.noRoute.message)")
   }
 

@@ -96,7 +96,7 @@ private struct AccountProfileSection: View {
     } header: {
       Text("Profile")
     } footer: {
-      if let failure = model.write.failure ?? model.pictureFailure {
+      if let failure = model.failure {
         FieldMessage(failure)
       } else if model.saved {
         Text(AccountFormModel.savedMessage)
