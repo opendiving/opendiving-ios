@@ -15,9 +15,12 @@ struct MapWeatherCard: View {
 
   /// The top row's text size, before Dynamic Type scales it.
   static let size: CGFloat = 20
+  static let sides: CGFloat = 40
+  static let ends: CGFloat = 32
+  static let spacing: CGFloat = 8
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
+    VStack(alignment: .leading, spacing: MapWeatherCard.spacing) {
       // The placeholder only holds the line's height while the site's panel reads it.
       Text(title ?? "Place, Region, Country")
         .font(.subheadline.weight(.semibold))
@@ -44,7 +47,8 @@ struct MapWeatherCard: View {
       AttributionLine(credits: [content.attribution], underline: false)
     }
     // Wider than the system's 16: the glass's corners are rounder than a form section's.
-    .padding(32)
+    .padding(.horizontal, MapWeatherCard.sides)
+    .padding(.vertical, MapWeatherCard.ends)
   }
 }
 
@@ -68,7 +72,9 @@ extension MapWeatherCard {
           .mapWeatherSlot(.sea, slots)
       }
     }
-    .padding(.vertical, 10)
+    // With the stack's spacing, the row stands as far from the lines around it as the place's name
+    // does from the card's top.
+    .padding(.vertical, MapWeatherCard.ends - MapWeatherCard.spacing)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(content.accessibilityLabel)
   }
