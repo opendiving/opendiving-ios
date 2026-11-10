@@ -215,6 +215,49 @@ public final class Session {
     _ = await askServerInfo(origin)
   }
 
+  /// How long ``followServerInfo()`` waits to ask again, doubling to ``serverInfoLongestPause``.
+  @ObservationIgnored var serverInfoRetryDelay = Duration.seconds(15)
+  static let serverInfoLongestPause = Duration.seconds(300)
+
+  /// ``loadServerInfo()`` for a screen that offers what the answer allows, which would otherwise
+  /// go without it until a relaunch: while the active server has not answered in this launch,
+  /// a failed ask, or no route to make one, waits ``serverInfoRetryDelay``, doubling, or until a
+  /// route appears, and asks again. Ends once the server has answered or the calling task is
+  /// cancelled.
+  public func followServerInfo() async {
+    var pause = serverInfoRetryDelay
+    while !Task.isCancelled, let origin = state.origin {
+      let appearances = connectivity.routeAppearances
+      if connectivity.isRouteAvailable {
+        await loadServerInfo()
+        if server?.origin == origin { return }
+      }
+      // Subscribed before the count is read again, so no appearance falls between the two.
+      let moments = connectivity.moments()
+      guard connectivity.routeAppearances == appearances else { continue }
+      await wait(pause, orUntilARouteIn: moments)
+      pause = min(pause * 2, Self.serverInfoLongestPause)
+    }
+  }
+
+  private func wait(_ pause: Duration, orUntilARouteIn moments: AsyncStream<ConnectivityMoment>)
+    async
+  {
+    await withTaskGroup(of: Bool.self) { group in
+      group.addTask {
+        try? await Task.sleep(for: pause)
+        return true
+      }
+      group.addTask {
+        for await moment in moments where moment == .routeAppeared { return true }
+        // A connectivity whose moments end has no route to report; the pause still ends.
+        return false
+      }
+      while let ended = await group.next(), !ended {}
+      group.cancelAll()
+    }
+  }
+
   private func isFresh(_ origin: ServerOrigin) -> Bool {
     guard server?.origin == origin, let answeredAt = serverAnsweredAt else { return false }
     return now().timeIntervalSince(answeredAt) < Self.serverInfoFreshness

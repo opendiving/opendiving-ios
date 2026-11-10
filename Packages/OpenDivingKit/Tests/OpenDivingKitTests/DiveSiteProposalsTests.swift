@@ -83,6 +83,57 @@ struct DiveSiteProposalsTests {
     }
   }
 
+  private func primarySession(
+    connectivity: any Connectivity = AlwaysReachable(), failures: Int = 0
+  ) throws -> (Session, StubTransport) {
+    let config = try KitFixture.text("config-commons-primary")
+    let health = try KitFixture.text("health")
+    let left = Mutex(failures)
+    let transport = StubTransport { request in
+      let failing = left.withLock { left in
+        defer { left -= 1 }
+        return left > 0
+      }
+      if failing { throw URLError(.timedOut) }
+      switch StubTransport.routeKey(request) {
+      case "GET config": return .json(config)
+      case "GET health": return .json(health)
+      default: return .json(#"{"detail":"Not Found"}"#, status: 404)
+      }
+    }
+    let origin = ServerOrigin("https://stub.opendiving.invalid")!
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      connectivity: connectivity,
+      applicationSupport: FileManager.default.temporaryDirectory.appendingPathComponent(
+        "DiveSiteProposalsTests-\(UUID().uuidString)", isDirectory: true),
+      userAgent: ClientHarness.userAgent)
+    return (session, transport)
+  }
+
+  @Test func aLaunchWithNoRouteOffersProposingOnceARouteAppears() async throws {
+    let route = RouteSwitch(available: false)
+    let (session, transport) = try primarySession(connectivity: route)
+    session.serverInfoRetryDelay = .seconds(3600)
+    let following = Task { await session.followServerInfo() }
+    while !route.isFollowed { await Task.yield() }
+    #expect(!session.isCommonsPrimary)
+    #expect(transport.requests.isEmpty)
+    route.appear()
+    await following.value
+    #expect(session.isCommonsPrimary)
+  }
+
+  @Test func aFailedAskIsAskedAgain() async throws {
+    let (session, transport) = try primarySession(failures: 1)
+    session.serverInfoRetryDelay = .zero
+    await session.followServerInfo()
+    #expect(session.isCommonsPrimary)
+    #expect(
+      transport.requests.map(StubTransport.routeKey) == ["GET config", "GET config", "GET health"])
+  }
+
   @Test func withdrawingReadsTheSiteAgain() async throws {
     let transport = try siteTransport(withdraw: .json(#"{"message":"Proposal withdrawn"}"#))
     let model = DiveSiteDetailModel(

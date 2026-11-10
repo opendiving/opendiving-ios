@@ -76,7 +76,7 @@ private struct SitesFinder: View {
     .task(id: session.user?.avatarSha256) { await avatar.load() }
     .task { await avatar.followRoute() }
     // Nothing else here asks the server what it is until a card with a pin draws its map.
-    .task { await session.loadServerInfo() }
+    .task { await session.followServerInfo() }
   }
 
   /// Where the bar's weather is for: the map's centre, and nowhere with no map.
