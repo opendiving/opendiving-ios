@@ -314,8 +314,8 @@ private struct DiveSiteSheetForm: View {
     } ?? []
   }
 
-  /// From a dive's picker the record goes on the dive, and from the sites map on the diver's
-  /// list; a record of the diver's being corrected or edited has no use for one.
+  /// From a dive's picker the record goes on the dive, and from the profile or the sites map on
+  /// the diver's list; a record of the diver's being corrected or edited has no use for one.
   private var commonsOffer: CommonsOffer? {
     if model.isReopened { return nil }
     if isPushed {

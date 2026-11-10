@@ -141,8 +141,8 @@ def main() -> None:
     CATALOG.mkdir(parents=True)
     info = {"info": {"author": "xcode", "version": 1}}
     (CATALOG / "Contents.json").write_text(json.dumps(info, indent=2) + "\n")
-    # A record's icon drawn large in a card's water is drawn again: larger in its frame, and
-    # with a heavier stroke, as the tab bar it was first drawn for once needed.
+    # A record's icon drawn large in a card's water is drawn again, larger in its frame and with
+    # a heavier stroke, so it holds its own at that size.
     tab = manifest["tab"]
     symbols = {name: (svg, SCALE, 2.0) for name, svg in sources.items()}
     for name in tab["icons"]:

@@ -37,7 +37,6 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case phone
   case plus
   case search
-  case settings
   case ship
   case sun
   case tabDive = "tab-dive"
