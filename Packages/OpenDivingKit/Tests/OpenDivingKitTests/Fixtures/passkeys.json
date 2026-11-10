@@ -1,0 +1,16 @@
+[
+  {
+    "uuid": "019a1f2e-3c4d-7a5b-8c6d-7e8f9a0b1c2d",
+    "name": "iPhone",
+    "backed_up": true,
+    "created_at": "2026-10-01T09:12:44.123456Z",
+    "last_used_at": "2026-11-02T18:40:05.000001Z"
+  },
+  {
+    "uuid": "019a1f2e-3c4d-7a5b-8c6d-7e8f9a0b1c2e",
+    "name": "YubiKey",
+    "backed_up": false,
+    "created_at": "2026-10-05T07:00:00Z",
+    "last_used_at": null
+  }
+]

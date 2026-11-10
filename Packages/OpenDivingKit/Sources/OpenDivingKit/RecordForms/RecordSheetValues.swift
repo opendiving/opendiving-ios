@@ -48,6 +48,81 @@ extension DiveSiteFormValues: RecordEditValues {
   public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteDiveSite(ref) }
 }
 
+extension PersonFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: PersonFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updatePerson(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> PersonFormValues {
+    if case .updatePerson(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deletePerson(ref) }
+}
+
+extension CourseFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: CourseFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updateCourse(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> CourseFormValues {
+    if case .updateCourse(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteCourse(ref) }
+}
+
+extension ContactFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: ContactFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updateContact(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> ContactFormValues {
+    if case .updateContact(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteContact(ref) }
+}
+
+extension GearItemFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: GearItemFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updateGearItem(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> GearItemFormValues {
+    if case .updateGearItem(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteGearItem(ref) }
+}
+
+extension GearSetFormValues: RecordEditValues {
+  public func update(of ref: RecordRef, from baseline: GearSetFormValues) throws(FormInvalid)
+    -> OutboxOperation?
+  {
+    let update = try diff(from: baseline)
+    return update.isEmpty ? nil : .updateGearSet(ref, update)
+  }
+
+  public func applying(_ operation: OutboxOperation) -> GearSetFormValues {
+    if case .updateGearSet(_, let update) = operation { applying(update) } else { self }
+  }
+
+  public static func delete(_ ref: RecordRef) -> OutboxOperation { .deleteGearSet(ref) }
+}
+
 /// Each record form as a sheet queues it, and reads a refused create back. A body keeps less
 /// than the form did — a blank box left out, a website given its scheme — so what reopens is
 /// what was sent, which saves to the same body again.
@@ -138,5 +213,14 @@ extension GearItemFormValues: RecordSheetValues {
       name: body.name, brand: body.brand ?? "", type: body.type, notes: body.notes,
       rented: body.rented, volume: body.volume, workingPressure: body.workingPressure,
       material: body.material)
+  }
+}
+
+extension GearSetFormValues: RecordSheetValues {
+  public func operation() throws(FormInvalid) -> OutboxOperation { .createGearSet(try toCreate()) }
+
+  public init?(reopening operation: OutboxOperation) {
+    guard case .createGearSet(let body) = operation else { return nil }
+    self.init(name: body.name, weight: body.weight, items: body.gearItems)
   }
 }

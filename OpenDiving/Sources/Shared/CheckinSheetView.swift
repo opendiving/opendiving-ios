@@ -3,9 +3,6 @@ import PDFKit
 import SwiftUI
 import UIKit
 
-/// The card's own shape, `CERTIFICATION_CARD_ASPECT` on the web: every side is drawn at it.
-private let cardAspect: CGFloat = 1013 / 638
-
 /// The check-in sheet a dive centre reads at a counter, as the profile's *Cards* and the signed-out
 /// sheet draw it, inside the host's scroll view: or, with none on the phone, why not.
 struct CheckinSheetView: View {
@@ -167,31 +164,21 @@ struct CheckinSheetView: View {
       Button {
         fullScreen = FullScreenCard(card: card, startingAt: side, pictures: pictures, model: model)
       } label: {
-        // A card stored uncropped fills the frame and loses a sliver of its edge, as on the
-        // web, rather than sitting in a letterbox.
-        Color.clear
-          .aspectRatio(cardAspect, contentMode: .fit)
-          .frame(maxWidth: .infinity)
-          .overlay {
-            Image(uiImage: image)
-              .resizable()
-              .scaledToFill()
-          }
-          .clipShape(RoundedRectangle(cornerRadius: 10))
+        CertificationCardFrame {
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+        }
       }
       .buttonStyle(.plain)
       .accessibilityLabel("\(side.label) of \(card.name)")
       .accessibilityHint("Shows the card full-screen")
     } else {
-      RoundedRectangle(cornerRadius: 10)
-        .strokeBorder(Color(.separator), style: StrokeStyle(lineWidth: 1, dash: [5]))
-        .aspectRatio(cardAspect, contentMode: .fit)
-        .frame(maxWidth: .infinity)
-        .overlay {
-          Text(side.file == nil ? side.missingText : "Couldn't show this image")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
+      CertificationCardFrame(isEmpty: true) {
+        Text(side.file == nil ? side.missingText : "Couldn't show this image")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+      }
     }
   }
 }
@@ -213,7 +200,8 @@ final class PictureCache {
   private static func firstPage(of data: Data) -> UIImage? {
     guard let page = PDFDocument(data: data)?.page(at: 0) else { return nil }
     let width: CGFloat = 2026
-    return page.thumbnail(of: CGSize(width: width, height: width / cardAspect), for: .mediaBox)
+    return page.thumbnail(
+      of: CGSize(width: width, height: width / CertificationCardCrop.aspect), for: .mediaBox)
   }
 }
 

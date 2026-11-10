@@ -24,62 +24,38 @@ struct NewCourseSheet: View {
   }
 }
 
-private struct CourseSheetForm: View {
+/// The course form, in the web's dialog's sheet or pushed as a screen of its own.
+struct CourseSheetForm: View {
   @State var model: RecordSheetModel<CourseFormValues>
   @State var lookups: LookupsModel
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   var body: some View {
     RecordSheetForm(
-      title: "New Course", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
+      title: model.isEditing ? "Edit Course" : "New Course", isReopened: model.isReopened,
+      createLabel: "Create course", isPushed: isPushed, failure: model.failure,
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
-      Section {
+      TrainingFields(
+        agencyRequired: false, agency: $model.values.agency,
+        agencyOther: $model.values.agencyOther,
+        start: .init(label: "Start date", field: "start_date", date: startDate),
+        end: .init(label: "End date", field: "end_date", date: $model.values.endDate),
+        contact: $model.values.contact, instructor: instructor,
+        instructorNumber: $model.values.instructorNumber, lookups: lookups,
+        message: { model.message($0) }
+      ) {
         TextBox(
           label: "Course *", placeholder: "e.g. Advanced Nitrox + Decompression Procedures",
           text: $model.values.name, message: model.message("name"))
-        Picker("Agency", selection: $model.values.agency) {
-          Text("No agency").tag(String?.none)
-          ForEach(FormVocabulary.certificationAgencies, id: \.self) { agency in
-            Text(VocabularyLabels.certificationAgency(agency) ?? agency).tag(Optional(agency))
-          }
-        }
+      } besideAgency: {
         Picker("Status *", selection: $model.values.status) {
           ForEach(FormVocabulary.courseStatuses, id: \.self) { status in
             Text(RecordSheetText.courseStatus(status)).tag(status)
           }
         }
-        if model.values.agency == "other" {
-          TextBox(
-            label: "Agency name *", placeholder: "e.g. SwedTech Diving",
-            text: $model.values.agencyOther, message: model.message("agency_other"))
-        }
-      }
-      Section {
-        CalendarDateField(label: "Start date", date: startDate, rangeEnd: model.values.endDate)
-        CalendarDateField(
-          label: "End date", date: $model.values.endDate, rangeStart: model.values.startDate)
-        FieldMessage(model.message("end_date"))
-      }
-      Section {
-        RecordPicker(
-          label: "Dive center", placeholder: "Select a dive center...",
-          searchPrompt: FormPicker.contact.searchPrompt,
-          addLabel: "Add dive center...", rows: lookups.contacts,
-          selection: $model.values.contact
-        ) { made in
-          NewContactSheet(roles: ["school"], onCreated: made)
-        }
-        RecordPicker(
-          label: "Instructor", placeholder: "Select an instructor...",
-          searchPrompt: "Search instructors...",
-          addLabel: "Add instructor...", rows: lookups.people, selection: instructor
-        ) { made in
-          NewPersonSheet(onCreated: made)
-        }
-        TextBox(
-          label: "Instructor number", text: $model.values.instructorNumber,
-          message: model.message("instructor_number"))
       }
       RecordPeopleField(
         people: $model.values.people, rows: lookups.people, defaultRole: "student",
@@ -101,6 +77,13 @@ private struct CourseSheetForm: View {
   /// Moving the start past the end empties the end.
   private var startDate: Binding<CalendarDate?> {
     Binding(get: { model.values.startDate }, set: { model.values.pickStartDate($0) })
+  }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    return RecordDeletion(
+      title: "Delete course", message: RecordDeletionText.course, delete: model.delete,
+      onDeleted: onDeleted)
   }
 
   private func save() -> Bool {

@@ -31,17 +31,22 @@ struct NewContactSheet: View {
   }
 }
 
-private struct ContactSheetForm: View {
+/// The contact form, in the web's dialog's sheet or pushed as a screen of its own, which a
+/// contact has in place of a page and so offers its delete too.
+struct ContactSheetForm: View {
   @State var model: RecordSheetModel<ContactFormValues>
   @State var map: MapStyleModel
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   @State private var mapOpen = false
 
   var body: some View {
     RecordSheetForm(
-      title: "New Contact", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
+      title: model.isEditing ? "Edit Contact" : "New Contact", isReopened: model.isReopened,
+      createLabel: "Create contact", isPushed: isPushed, failure: model.failure,
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
       Section {
         TextBox(
@@ -119,6 +124,13 @@ private struct ContactSheetForm: View {
   private func ticked(_ role: String) -> Binding<Bool> {
     Binding(
       get: { model.values.roles.contains(role) }, set: { model.values.setRole(role, $0) })
+  }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    return RecordDeletion(
+      title: "Delete contact", message: RecordDeletionText.contact, delete: model.delete,
+      onDeleted: onDeleted)
   }
 
   private func save() -> Bool {

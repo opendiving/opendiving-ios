@@ -118,6 +118,24 @@ public actor APIClient {
     return outcome
   }
 
+  /// `POST /auth/restore`: undoes a deletion inside its grace period and starts a session, kept
+  /// as a sign-in's is. The session lasts the window the sign-in that made the offer asked for,
+  /// which the server signed into the token, so the request names none. A refused token is a 401
+  /// whose sentence says why, not an expired session.
+  public func restoreAccount(_ offer: RestoreOffer) async throws -> AuthOutcome {
+    let body = try Self.json(RestoreRequest(restoreToken: offer.token))
+    let (data, response) = try await perform(
+      Call(method: "POST", path: "auth/restore", body: body, mintsSession: true), bearer: nil)
+    let outcome = try decode(AuthOutcome.self, data, response)
+    if outcome.status == "authenticated", let token = outcome.accessToken {
+      if let cookie = RefreshCookie.value(inSetCookie: setCookie(response)) {
+        try store(cookie)
+      }
+      accessToken = token
+    }
+    return outcome
+  }
+
   /// Rotates the session now, as a cold start does. Throws ``APIError/signedOut`` when the
   /// server refuses it, and keeps the session when the request never reached the server.
   public func refreshSession() async throws {
@@ -137,6 +155,17 @@ public actor APIClient {
   }
 
   // MARK: - The account
+
+  /// `DELETE /user`: the account goes dark on every device at once, recoverable by signing in
+  /// until the day the answer names. The cookie goes with it, so the server revokes the refresh
+  /// token as well as the access token; both are dropped here once it answers.
+  public func deleteAccount() async throws -> AccountDeletionRead {
+    let deletion = try await authorizedDecoded(
+      AccountDeletionRead.self, Call(method: "DELETE", path: "user", sendsRefreshCookie: true))
+    accessToken = nil
+    try? secrets.removeSecret(for: account)
+    return deletion
+  }
 
   /// `GET /user`.
   public func currentUser() async throws -> UserRead {
@@ -479,6 +508,33 @@ public actor APIClient {
       throw APIError.signedOut
     }
     return second
+  }
+
+  /// ``authorized(_:)`` for an answer written to a file as it arrives, which is the caller's to
+  /// move or remove.
+  func authorizedDownload(_ call: Call) async throws -> (URL, HTTPURLResponse) {
+    let token = try await currentAccessToken()
+    let first = try await download(call, bearer: token)
+    guard first.1.statusCode == 401 else { return first }
+    try? FileManager.default.removeItem(at: first.0)
+    let renewed = try await renewedAccessToken(replacing: token)
+    let second = try await download(call, bearer: renewed)
+    if second.1.statusCode == 401 {
+      try? FileManager.default.removeItem(at: second.0)
+      await endSession()
+      throw APIError.signedOut
+    }
+    return second
+  }
+
+  private func download(_ call: Call, bearer: String?) async throws -> (URL, HTTPURLResponse) {
+    let (request, _) = try request(call, bearer: bearer)
+    do {
+      return try await inFlight.run { [transport] in try await transport.download(request) }
+    } catch let error as URLError {
+      throw APIError.unreachable(
+        TransportFailure(code: error.code.rawValue, message: error.localizedDescription))
+    }
   }
 
   private func decoded<T: Decodable>(_ type: T.Type, _ call: Call) async throws -> T {

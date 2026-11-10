@@ -170,7 +170,12 @@ struct DiveDetailContentTests {
     // Helium unrecorded: no name and no MOD, as the web's `gasName` and `isNameableMix`.
     #expect(tanks.tanks.map(\.gas) == [nil, nil])
     #expect(tanks.tanks.map(\.role) == ["Bottom", "Deco"])
-    #expect(tanks.tanks[0].facts == ["Faber Twinset", "12 L", "O₂ 32%"])
+    #expect(
+      tanks.tanks[0].vessel
+        == RecordLink(
+          title: "Faber Twinset", uuid: UUID(uuidString: "01a20000-0000-7000-8000-0000000000b1")))
+    #expect(tanks.tanks[1].vessel == nil)
+    #expect(tanks.tanks[0].facts == ["12 L", "O₂ 32%"])
     #expect(tanks.tanks[1].facts == ["7 L", "O₂ 50%", "Staged"])
     #expect(tanks.tanks[0].start == "200 bar")
     #expect(tanks.tanks[0].end == "60 bar")
@@ -340,6 +345,7 @@ struct DiveDetailContentTests {
     #expect(gear.items.map(\.type) == ["Cylinder"])
     #expect(gear.items.map(\.brand) == ["Faber"])
     #expect(gear.items.map(\.name) == ["Twinset"])
+    #expect(gear.items.map(\.uuid) == [UUID(uuidString: "01a20000-0000-7000-8000-0000000000b1")])
     #expect(gear.items.allSatisfy { !$0.rented && !$0.archived })
     #expect(gear.weight == "6 kg")
     #expect(content(try dive("dive-detail")).gear == nil)
@@ -380,9 +386,11 @@ struct DiveDetailContentTests {
 
   // MARK: - Sidebar
 
-  @Test func trainingIsTheCoursesName() throws {
+  @Test func trainingLinksTheCourseByName() throws {
     let course = try KitFixture.decode(CourseRead.self, "course")
-    #expect(content(try dive("dive-detail"), course: course).course == "Solo Diver")
+    #expect(
+      content(try dive("dive-detail"), course: course).course
+        == RecordLink(title: "Solo Diver", uuid: course.uuid))
     #expect(content(try dive("dive-detail")).course == nil)
   }
 
@@ -425,7 +433,11 @@ struct DiveDetailContentTests {
 
   @Test func peopleAreNamedThroughThePeopleTable() throws {
     let rows = content(try dive("dive-two-recordings"), people: try people()).people
-    #expect(rows.first == PersonRowContent(name: "Ana Diaz", username: "ana", role: "Buddy"))
+    #expect(
+      rows.first
+        == PersonRowContent(
+          uuid: UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d"), name: "Ana Diaz",
+          username: "ana", role: "Buddy"))
     #expect(content(try dive("dive-two-recordings")).people.isEmpty)
   }
 

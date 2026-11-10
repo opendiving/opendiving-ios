@@ -97,6 +97,10 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
   /// not at all.
   public func toCreate() throws(FormInvalid) -> ContactCreate {
     if !issues.isEmpty { throw FormInvalid(issues: issues) }
+    return written
+  }
+
+  private var written: ContactCreate {
     let address =
       hasAddress
       ? ContactAddressWrite(
@@ -109,6 +113,64 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
       latitude: CoordinateEntry.value(latitude), longitude: CoordinateEntry.value(longitude),
       notes: notes, roles: roles, email: FormText.trimmedOrNil(email), website: normalizedWebsite,
       address: address)
+  }
+}
+
+extension ContactFormValues {
+  /// The form an edit opens on.
+  public init(editing contact: ContactRead) {
+    let address = contact.address
+    self.init(
+      name: contact.name, roles: contact.roles, phone: contact.phone ?? "",
+      email: contact.email ?? "", website: contact.website ?? "",
+      street: address?.street ?? "", city: address?.city ?? "",
+      postcode: address?.postcode ?? "", region: address?.region ?? "",
+      country: address?.country ?? "", latitude: CoordinateEntry.text(contact.latitude),
+      longitude: CoordinateEntry.text(contact.longitude), notes: contact.notes)
+  }
+
+  /// `PATCH /contact/{uuid}`'s body: what differs from the values the form opened on. The
+  /// position goes as a pair and the address whole, as the API takes each.
+  public func diff(from baseline: ContactFormValues) throws(FormInvalid) -> ContactUpdate {
+    let now = try toCreate()
+    let before = baseline.written
+    var update = ContactUpdate()
+    if now.name != before.name { update.name = now.name }
+    if now.roles != before.roles { update.roles = now.roles }
+    if now.notes != before.notes { update.notes = now.notes }
+    update.phone = .change(from: before.phone, to: now.phone)
+    update.email = .change(from: before.email, to: now.email)
+    update.website = .change(from: before.website, to: now.website)
+    update.address = .change(from: before.address, to: now.address)
+    if now.latitude != before.latitude || now.longitude != before.longitude {
+      update.latitude = now.latitude.map(Patch.value) ?? .null
+      update.longitude = now.longitude.map(Patch.value) ?? .null
+    }
+    return update
+  }
+
+  /// These values with a queued update laid over.
+  public func applying(_ update: ContactUpdate) -> ContactFormValues {
+    var next = self
+    if let name = update.name { next.name = name }
+    if let roles = update.roles { next.roles = roles }
+    if let notes = update.notes { next.notes = notes }
+    next.phone = update.phone.applied(to: phone) ?? ""
+    next.email = update.email.applied(to: email) ?? ""
+    next.website = update.website.applied(to: website) ?? ""
+    if update.address != .absent {
+      let address = update.address.applied(to: nil)
+      next.street = address?.street ?? ""
+      next.city = address?.city ?? ""
+      next.postcode = address?.postcode ?? ""
+      next.region = address?.region ?? ""
+      next.country = address?.country ?? ""
+    }
+    if update.latitude != .absent {
+      next.latitude = CoordinateEntry.text(update.latitude.applied(to: nil))
+      next.longitude = CoordinateEntry.text(update.longitude.applied(to: nil))
+    }
+    return next
   }
 }
 

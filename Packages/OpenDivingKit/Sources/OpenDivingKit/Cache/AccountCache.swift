@@ -1,9 +1,9 @@
 import Foundation
 
 /// What one account's server answered and the phone has shown, kept under `Cache/` in the
-/// account's directory so it shows at once, and offline: the lists' pages, the dives, sites and
-/// trips opened, the dive drafts, the pickers' lookups, the highest dive number seen, and the
-/// profile's figures, places and picture. Nothing is fetched to fill it. A file this build cannot
+/// account's directory so it shows at once, and offline: the lists' pages, the dives, sites,
+/// trips and More's records opened, the species photos and card images drawn, the dive drafts, the pickers'
+/// lookups, the highest dive number seen, and the profile's figures, places and picture. Nothing is fetched to fill it. A file this build cannot
 /// read is dropped and fetched again.
 public struct AccountCache: Sendable {
   /// A cached value and when the server answered it.
@@ -70,6 +70,9 @@ public struct AccountCache: Sendable {
 
   func writePages<Item: Codable & Sendable>(_ pages: Pages<Item>, key: String) {
     write(Entry(value: pages, fetchedAt: Date()), "pages/\(key).json")
+    for certification in pages.items as? [CertificationRead] ?? [] {
+      dropCardImages(unnamedBy: certification)
+    }
   }
 
   // MARK: - Dives
@@ -85,15 +88,15 @@ public struct AccountCache: Sendable {
   }
 
   /// Drops a dive the server no longer has: its detail, and its row on every kept list of
-  /// dives — the profile's and each site's and trip's page.
+  /// dives — the profile's and each record's page.
   func removeDive(_ uuid: UUID) {
     remove(Self.divePath(uuid))
     let folder = root.appendingPathComponent("pages", isDirectory: true)
     let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
     let keys = names.filter { $0.hasSuffix(".json") }.map { String($0.dropLast(5)) }.filter {
-      $0 == PageCacheKey<DiveListItem>.dives.name
-        || $0.hasPrefix(PageCacheKey<DiveListItem>.siteDivesPrefix)
-        || $0.hasPrefix(PageCacheKey<DiveListItem>.tripDivesPrefix)
+      key in
+      key == PageCacheKey<DiveListItem>.dives.name
+        || PageCacheKey<DiveListItem>.recordDivesPrefixes.contains { key.hasPrefix($0) }
     }
     for key in keys {
       guard var entry = pages(key, of: DiveListItem.self),
@@ -118,7 +121,7 @@ public struct AccountCache: Sendable {
 
   func writeSite(_ site: Site, fetchedAt: Date) {
     write(Entry(value: site, fetchedAt: fetchedAt), Self.detailPath("sites", site.site.uuid))
-    prune("sites") { PageCacheKey<DiveListItem>.siteDives($0).name }
+    prune("sites") { [PageCacheKey<DiveListItem>.siteDives($0).name] }
   }
 
   /// Drops a site the server no longer has, with the dives its panel listed.
@@ -136,7 +139,7 @@ public struct AccountCache: Sendable {
 
   func writeTrip(_ trip: Trip, fetchedAt: Date) {
     write(Entry(value: trip, fetchedAt: fetchedAt), Self.detailPath("trips", trip.trip.uuid))
-    prune("trips") { PageCacheKey<DiveListItem>.tripDives($0).name }
+    prune("trips") { [PageCacheKey<DiveListItem>.tripDives($0).name] }
   }
 
   /// Drops a trip the server no longer has, with the dives its page listed.
@@ -146,6 +149,132 @@ public struct AccountCache: Sendable {
   }
 
   func touchTrip(_ uuid: UUID) { touch(Self.detailPath("trips", uuid)) }
+
+  // MARK: - More's records
+
+  /// The record as its page last loaded it, or nil when the phone has not shown it.
+  public func record<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) -> Entry<Record>? {
+    read(Entry<Record>.self, Self.detailPath(kind.folder, uuid))
+  }
+
+  func writeRecord<Record>(_ record: Record, _ kind: KeptRecordKind<Record>, fetchedAt: Date) {
+    write(
+      Entry(value: record, fetchedAt: fetchedAt), Self.detailPath(kind.folder, kind.uuid(record)))
+    prune(kind.folder, pages: kind.lists)
+    if let certification = record as? CertificationRead {
+      dropCardImages(unnamedBy: certification)
+    }
+  }
+
+  /// Drops a record the server no longer has, with the lists its page showed, and a card's
+  /// images with the card.
+  func removeRecord<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) {
+    remove(Self.detailPath(kind.folder, uuid))
+    for list in kind.lists(uuid) { remove("pages/\(list).json") }
+    if kind.folder == KeptRecordKind<CertificationRead>.certification.folder {
+      remove(Self.cardImagesPath(uuid))
+    }
+  }
+
+  func touchRecord<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) {
+    touch(Self.detailPath(kind.folder, uuid))
+  }
+
+  // MARK: - Card images
+
+  /// One side of a card as last fetched, while the card still names that version of it, or nil.
+  /// A version is the file's uuid and its `updated_at` (`certificationFileVersion`): a replaced
+  /// side moves its `updated_at`, one deleted and uploaded again has a new uuid.
+  public func cardImage(_ certification: UUID, _ file: CertificationFileInfo) -> Data? {
+    try? Data(
+      contentsOf: self.file("\(Self.cardImagesPath(certification))/\(Self.cardImageName(file))"))
+  }
+
+  /// Counts a card's kept sides drawn as drawn, for the bound.
+  func touchCardImages(_ certification: UUID) { touch(Self.cardImagesPath(certification)) }
+
+  /// Kept in place of any other version of that side, the sides of the most recently drawn
+  /// ``detailLimit`` cards kept.
+  func writeCardImage(_ data: Data, _ certification: UUID, _ file: CertificationFileInfo) {
+    let folder = Self.cardImagesPath(certification)
+    let name = Self.cardImageName(file)
+    let url = self.file("\(folder)/\(name)")
+    try? FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let side = Self.cardImageSide(file.side)
+    for older in keptCardImages(certification) where older.hasPrefix(side) && older != name {
+      remove("\(folder)/\(older)")
+    }
+    guard (try? data.write(to: url, options: .atomic)) != nil else { return }
+    touchCardImages(certification)
+    prune("card-images")
+  }
+
+  /// Drops the kept sides `certification` no longer names: a side removed, or replaced while
+  /// the phone was not drawing it.
+  private func dropCardImages(unnamedBy certification: CertificationRead) {
+    let named = Set(certification.files.map(Self.cardImageName))
+    let folder = Self.cardImagesPath(certification.uuid)
+    for kept in keptCardImages(certification.uuid) where !named.contains(kept) {
+      remove("\(folder)/\(kept)")
+    }
+  }
+
+  private func keptCardImages(_ certification: UUID) -> [String] {
+    let folder = root.appendingPathComponent(Self.cardImagesPath(certification), isDirectory: true)
+    return (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+  }
+
+  private static func cardImagesPath(_ certification: UUID) -> String {
+    "card-images/\(certification.uuidString.lowercased())"
+  }
+
+  private static func cardImageSide(_ side: String) -> String {
+    side == CertificationSide.back.rawValue ? "back-" : "front-"
+  }
+
+  /// `front-<file uuid>-<updated_at's letters and digits>`, so no version is ever a path.
+  private static func cardImageName(_ file: CertificationFileInfo) -> String {
+    let updated = (file.updatedAt?.wireValue ?? "").filter {
+      $0.isASCII && ($0.isLetter || $0.isNumber)
+    }
+    return cardImageSide(file.side) + file.uuid.uuidString.lowercased() + "-" + updated
+  }
+
+  // MARK: - Species photos
+
+  /// How many species photos are kept; the least recently drawn go first. A life list runs
+  /// longer than a detail's two hundred, and a photo is a 500-pixel thumbnail.
+  public static let speciesPhotoLimit = 500
+
+  /// The photo whose `photoSha256` is `version`, as last fetched, or nil when it is not kept.
+  public func speciesPhoto(version: String) -> Data? {
+    guard let path = Self.speciesPhotoPath(version) else { return nil }
+    return try? Data(contentsOf: file(path))
+  }
+
+  /// Counts a kept photo drawn as drawn, for the bound.
+  func touchSpeciesPhoto(version: String) {
+    if let path = Self.speciesPhotoPath(version) { touch(path) }
+  }
+
+  /// Kept by its digest, which names the bytes whichever species shows them.
+  func writeSpeciesPhoto(_ data: Data, version: String) {
+    guard let path = Self.speciesPhotoPath(version) else { return }
+    let url = file(path)
+    try? FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard (try? data.write(to: url, options: .atomic)) != nil else { return }
+    prune("species-photos", limit: Self.speciesPhotoLimit)
+  }
+
+  /// Nil for anything but a lowercase hex digest, so a version is never a path.
+  private static func speciesPhotoPath(_ version: String) -> String? {
+    guard !version.isEmpty, version.count <= 128,
+      version.allSatisfy({ ("0"..."9").contains($0) || ("a"..."f").contains($0) })
+    else { return nil }
+    return "species-photos/\(version)"
+  }
 
   /// The number of the newest-dated dive the phone has seen: the first row of the dives page
   /// last loaded, raised by a create that landed with a higher number.
@@ -314,23 +443,25 @@ public struct AccountCache: Sendable {
     "\(folder)/\(uuid.uuidString.lowercased()).json"
   }
 
-  /// Keeps the ``detailLimit`` most recently opened details in `folder`, and drops the pages a
-  /// dropped one's page listed, which `pages` names by its uuid.
-  private func prune(_ folder: String, pages: ((UUID) -> String)? = nil) {
+  /// Keeps the `limit` most recently opened details in `folder`, and drops the pages a dropped
+  /// one's page listed, which `pages` names by its uuid.
+  private func prune(
+    _ folder: String, limit: Int = Self.detailLimit, pages: ((UUID) -> [String])? = nil
+  ) {
     let directory = root.appendingPathComponent(folder, isDirectory: true)
     let manager = FileManager.default
     guard let names = try? manager.contentsOfDirectory(atPath: directory.path),
-      names.count > Self.detailLimit
+      names.count > limit
     else { return }
     let dated = names.map { name in
       let url = directory.appendingPathComponent(name, isDirectory: false)
       let date = (try? manager.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
       return (url, date ?? .distantPast)
     }
-    for (url, _) in dated.sorted(by: { $0.1 < $1.1 }).prefix(names.count - Self.detailLimit) {
+    for (url, _) in dated.sorted(by: { $0.1 < $1.1 }).prefix(names.count - limit) {
       try? manager.removeItem(at: url)
       if let pages, let uuid = UUID(uuidString: url.deletingPathExtension().lastPathComponent) {
-        remove("pages/\(pages(uuid)).json")
+        for page in pages(uuid) { remove("pages/\(page).json") }
       }
     }
   }

@@ -77,6 +77,16 @@ struct PendingScreen: View {
       case .form(let mode): DiveFormView(mode: mode)
       case .trip(let mode): TripFormView(mode: mode)
       case .diveSite(let mode): DiveSiteFormView(mode: mode)
+      case .person(let mode): PersonFormView(mode: mode)
+      case .course(let mode): CourseFormView(mode: mode)
+      case .contact(let mode): ContactFormView(mode: mode)
+      case .gearItem(let mode): GearItemFormView(mode: mode)
+      case .certification(let mode, let failedItem):
+        CertificationFormView(mode: mode, failedItem: failedItem)
+      case .serviceSchedule(let gearItem, let mode, let failedItem):
+        ServiceScheduleFormView(gearItem: gearItem, mode: mode, failedItem: failedItem)
+      case .serviceRecord(let gearItem, let mode, let failedItem):
+        ServiceRecordFormView(gearItem: gearItem, mode: mode, failedItem: failedItem)
       case .importFiles: ImportView()
       }
     }
@@ -222,7 +232,39 @@ struct PendingScreen: View {
       return ref.serverUUID.map { .diveSite(.failed(item: item.id, record: $0)) }
     case .updateTrip(let ref, _):
       return ref.serverUUID.map { .trip(.failed(item: item.id, record: $0)) }
-    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deleteTrip:
+    case .updatePerson(let ref, _):
+      return ref.serverUUID.map { .route(.person(.failed(item: item.id, record: $0))) }
+    case .updateCourse(let ref, _):
+      return ref.serverUUID.map { .route(.course(.failed(item: item.id, record: $0))) }
+    case .updateContact(let ref, _):
+      return ref.serverUUID.map { .route(.contact(.failed(item: item.id, record: $0))) }
+    case .updateGearItem(let ref, _):
+      return ref.serverUUID.map { .route(.gearItem(.failed(item: item.id, record: $0))) }
+    // A refused card image reopens its certification's form, where the side is picked again.
+    case .updateCertification(let ref, _), .putCertificationFile(let ref, _):
+      return ref.serverUUID.map {
+        .route(.certification(.failed(item: item.id, record: $0), failedItem: nil))
+      }
+    case .updateServiceSchedule(let ref, let gearItem, _):
+      return ref.serverUUID.map {
+        .route(
+          .serviceSchedule(
+            gearItem: gearItem, .failed(item: item.id, record: $0), failedItem: nil))
+      }
+    case .updateServiceRecord(let ref, let gearItem, _):
+      return ref.serverUUID.map {
+        .route(
+          .serviceRecord(gearItem: gearItem, .failed(item: item.id, record: $0), failedItem: nil))
+      }
+    case .createCertification:
+      return .route(.certification(.create, failedItem: item.id))
+    case .createServiceSchedule(let body):
+      return .route(.serviceSchedule(gearItem: body.gearItem, .create, failedItem: item.id))
+    case .createServiceRecord(let body):
+      return .route(.serviceRecord(gearItem: body.gearItem, .create, failedItem: item.id))
+    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deletePerson, .deleteTrip, .deleteCourse,
+      .deleteContact, .deleteGearItem, .deleteGearSet, .deleteServiceSchedule,
+      .deleteServiceRecord, .deleteCertification, .deleteCertificationFile:
       return nil
     case .createDiveDraft, .updateDiveDraft, .deleteDiveDraft:
       return (item.creates ?? item.operation.target).map { .form(.draft($0)) }
@@ -245,6 +287,7 @@ struct PendingScreen: View {
     case .form(let mode): route = .form(mode)
     case .trip(let mode): route = .trip(mode)
     case .diveSite(let mode): route = .diveSite(mode)
+    case .route(let target): route = target
     case .sheet(let target): sheet = target
     }
   }
@@ -276,10 +319,18 @@ struct PendingScreen: View {
 }
 
 /// Where the pending screen pushes.
-private enum PendingRoute: Hashable {
+enum PendingRoute: Hashable {
   case form(DiveFormMode)
   case trip(RecordFormMode<TripRead>)
   case diveSite(RecordFormMode<DiveSiteRead>)
+  case person(RecordFormMode<PersonRead>)
+  case course(RecordFormMode<CourseRead>)
+  case contact(RecordFormMode<ContactRead>)
+  case gearItem(RecordFormMode<GearItemRead>)
+  /// `failedItem` is a refused create to reopen, with `.create`.
+  case certification(RecordFormMode<CertificationRead>, failedItem: UUID?)
+  case serviceSchedule(gearItem: RecordRef, RecordFormMode<UUID>, failedItem: UUID?)
+  case serviceRecord(gearItem: RecordRef, RecordFormMode<UUID>, failedItem: UUID?)
   case importFiles
 }
 
@@ -288,6 +339,8 @@ enum PendingEdit: Hashable {
   case form(DiveFormMode)
   case trip(RecordFormMode<TripRead>)
   case diveSite(RecordFormMode<DiveSiteRead>)
+  /// One of More's record forms.
+  case route(PendingRoute)
   case sheet(PendingSheet)
 }
 

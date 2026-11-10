@@ -1,0 +1,5 @@
+{
+  "name": "tide sync",
+  "scope": "read",
+  "lifetime": "30d"
+}

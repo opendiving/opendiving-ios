@@ -104,6 +104,22 @@ struct RecordSheetsTests {
     #expect(!found.contains("Add a tag..."))
   }
 
+  @Test func aNewServiceScheduleStartsFromTheGearTypesPreset() async throws {
+    let found = try await texts(
+      NavigationStack {
+        ServiceScheduleFormView(gearItem: .server(UUID()), mode: .create, gearType: "regulator")
+      })
+    expectFields(
+      ["New Service Schedule", "Service", "e.g. First stage", "12", "100", "e.g. 50"], in: found)
+  }
+
+  @Test func theLogServiceFormDrawsTheWebsFields() async throws {
+    let found = try await texts(
+      NavigationStack { ServiceRecordFormView(gearItem: .server(UUID()), mode: .create) })
+    expectFields(
+      ["Log Service", "Service", "A technician's name, or self"], in: found)
+  }
+
   @Test func thePersonSheetDrawsTheWebsFields() async throws {
     let found = try await texts(NewPersonSheet { _ in })
     expectFields(

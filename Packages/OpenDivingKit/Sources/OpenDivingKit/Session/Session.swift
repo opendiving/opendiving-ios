@@ -28,12 +28,13 @@ public final class Session {
     }
   }
 
-  /// What redeeming a code led to. Only ``signedIn`` started a session; the other two are
-  /// finished on the web.
+  /// What redeeming a code led to. Only ``signedIn`` started a session. An unfinished sign-up
+  /// is finished on the web; an account scheduled for deletion comes with the offer
+  /// ``restore(_:)`` redeems, which is never redeemed without the diver asking.
   public enum SignInOutcome: Hashable, Sendable {
     case signedIn
     case onboardingRequired(email: String?, name: String?)
-    case deletionPending(email: String?, purgeAfter: DiveTimestamp?)
+    case deletionPending(email: String?, purgeAfter: DiveTimestamp?, restore: RestoreOffer?)
   }
 
   public private(set) var state: State
@@ -324,10 +325,36 @@ public final class Session {
     case "onboarding_required":
       return .onboardingRequired(email: outcome.email, name: outcome.name)
     case "deletion_pending":
-      return .deletionPending(email: outcome.email, purgeAfter: outcome.purgeAfter)
+      return .deletionPending(
+        email: outcome.email, purgeAfter: outcome.purgeAfter,
+        restore: outcome.restoreToken.map(RestoreOffer.init(token:)))
     default:
       throw APIError.unreadableResponse("Unknown sign-in outcome \"\(outcome.status)\"")
     }
+  }
+
+  /// Brings back an account scheduled for deletion and signs in to it, as an authenticated code
+  /// does: ``loadAccount()`` is what fetches the account. A refused offer is the API's
+  /// sentence, and changes nothing.
+  public func restore(_ offer: RestoreOffer) async throws {
+    let client = try requireClient()
+    let outcome = try await client.restoreAccount(offer)
+    guard outcome.status == "authenticated" else {
+      throw APIError.unreadableResponse("Unknown restore outcome \"\(outcome.status)\"")
+    }
+    transition(to: .signedIn(client.origin))
+  }
+
+  /// `DELETE /user`, then the session on this server ends as a sign-out ends it: the token and
+  /// the remembered account go, and the server's directory — the writes waiting to sync, the
+  /// check-in sheet, the copies kept for offline — stays for a restore to find, until the
+  /// server is forgotten. A direct call, online only: with no route nothing is sent and nothing
+  /// changes, and a refusal changes nothing either.
+  public func deleteAccount() async throws -> AccountDeletionRead {
+    let client = try routedClient()
+    let deletion = try await client.deleteAccount()
+    endSession(on: client.origin)
+    return deletion
   }
 
   /// A cold start's refresh, then the account and the people table, as signing in loads
@@ -348,12 +375,35 @@ public final class Session {
     let people = try await APIClient.allPages { page, perPage in
       try await client.people(page: page, itemsPerPage: perPage)
     }
-    guard generation == stateGeneration, state == .signedIn(client.origin) else { return }
-    self.user = user
+    guard take(user, readBy: client, at: generation) else { return }
     self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
-    try? store.remember(user, for: client.origin)
-    try? store.rememberLastAccount(user, for: client.origin)
     accountLoaded = true
+  }
+
+  /// Every page of `GET /people` again, after a write to a person landed. A failure leaves the
+  /// table as it was; a session that changed while it ran stores nothing.
+  public func refreshPeople() async {
+    guard let client = try? requireClient() else { return }
+    let generation = stateGeneration
+    guard
+      let people = try? await APIClient.allPages({ page, perPage in
+        try await client.people(page: page, itemsPerPage: perPage)
+      }),
+      generation == stateGeneration, state == .signedIn(client.origin)
+    else { return }
+    self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
+  }
+
+  /// `GET /user` alone, after a settings write or while a settings screen shows: the account
+  /// is stored as ``loadAccount()`` stores it, and nothing when the session changed while it
+  /// ran. Before the account has loaded in this session it is ``loadAccount()`` itself, which
+  /// is what makes the account known. Fails at once with ``APIError/noRoute`` without a route.
+  public func reloadAccount() async throws {
+    let client = try routedClient()
+    guard accountLoaded else { return try await loadAccount() }
+    let generation = stateGeneration
+    let user = try await client.currentUser()
+    _ = take(user, readBy: client, at: generation)
   }
 
   /// Revokes the session on the server, then forgets the token and the account here. An
@@ -390,6 +440,8 @@ public final class Session {
   /// ``requireClient()`` for a read a screen starts on its own, which fails at once with
   /// ``APIError/noRoute`` while the phone believes it has no route rather than waiting a
   /// minute for one; the screen reads again when ``Connectivity/moments()`` says one appeared.
+  /// Every settings call goes through it too, the writes the diver asks for included: a
+  /// settings control says at once that there is no connection, and saves nothing.
   public func routedClient() throws -> APIClient {
     let client = try requireClient()
     guard connectivity.isRouteAvailable else { throw APIError.noRoute }
@@ -433,6 +485,17 @@ public final class Session {
   }
 
   // MARK: - Internals
+
+  /// The one place the session takes the account a server answered, and keeps it as a
+  /// relaunch and the signed-out dive form read it. False, storing nothing, when the session
+  /// changed after `generation` was read.
+  private func take(_ user: UserRead, readBy client: APIClient, at generation: Int) -> Bool {
+    guard generation == stateGeneration, state == .signedIn(client.origin) else { return false }
+    self.user = user
+    try? store.remember(user, for: client.origin)
+    try? store.rememberLastAccount(user, for: client.origin)
+    return true
+  }
 
   private func enter(_ origin: ServerOrigin) {
     if store.hasRefreshToken(origin) {

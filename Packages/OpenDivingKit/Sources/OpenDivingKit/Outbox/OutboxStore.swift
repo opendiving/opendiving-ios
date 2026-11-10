@@ -1,9 +1,10 @@
 import Foundation
 
 /// One account's outbox on disk, in the account's directory: `Outbox/items/` with a file per
-/// queued write, `Outbox/resolutions/` holding the `local → server` table a file per landed
-/// create, and `Outbox/notices/` for what the pending screen says once about a write that is
-/// done. Sign-out leaves it; ``ServerStateStore/forget(_:)`` removes it with the server's.
+/// queued write, `Outbox/files/` with the bytes of each card image waiting, named by its item,
+/// `Outbox/resolutions/` holding the `local → server` table a file per landed create, and
+/// `Outbox/notices/` for what the pending screen says once about a write that is done.
+/// Sign-out leaves it; ``ServerStateStore/forget(_:)`` removes it with the server's.
 public struct OutboxStore: Sendable {
   /// How a create came back: named by the server, or never to be named.
   struct Resolution: Codable, Hashable, Sendable {
@@ -82,8 +83,32 @@ public struct OutboxStore: Sendable {
     try itemFolder.write(item, name: KeptFolder<OutboxItem>.name(for: item.id))
   }
 
+  /// The item, and the bytes it would have sent.
   func remove(_ id: UUID) {
     itemFolder.remove(KeptFolder<OutboxItem>.name(for: id))
+    try? FileManager.default.removeItem(at: cardFile(for: id))
+  }
+
+  // MARK: - Card images
+
+  /// Where the bytes of the card image `id` sends wait.
+  func cardFile(for id: UUID) -> URL {
+    root.appendingPathComponent("files", isDirectory: true)
+      .appendingPathComponent(id.uuidString.lowercased(), isDirectory: false)
+  }
+
+  func writeCardFile(_ data: Data, for id: UUID) throws {
+    let file = cardFile(for: id)
+    try FileManager.default.createDirectory(
+      at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try data.write(to: file, options: .atomic)
+  }
+
+  /// The bytes `id` sends from `other`'s outbox, copied into this one.
+  func copyCardFile(for id: UUID, from other: OutboxStore) throws {
+    let source = other.cardFile(for: id)
+    guard FileManager.default.fileExists(atPath: source.path) else { return }
+    try writeCardFile(Data(contentsOf: source), for: id)
   }
 
   /// Removes an item file this build could not read; the diver's *Discard*.

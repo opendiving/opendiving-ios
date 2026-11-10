@@ -78,6 +78,19 @@ struct SignInViewTests {
     #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
   }
 
+  @Test func theGoodbyeAfterADeletion() async throws {
+    let session = Session.stub(
+      origin: Self.origin,
+      transport: StubTransport(routes: [
+        "DELETE user": Self.json(
+          #"{"message":"User deleted","purge_after":"2026-11-24T10:00:00Z"}"#)
+      ]))
+    let flow = SignInFlow(session: session)
+    try await flow.deleteAccount()
+    #expect(flow.step == .accountDeleted(purgeAfter: "Nov 24, 2026"))
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Account Deleted")
+  }
+
   @Test func theUninvitedSentenceStaysOnTheCodeScreen() async throws {
     let sentence = "This email address has not been invited to this instance."
     let (session, flow) = await Self.atTheCode(

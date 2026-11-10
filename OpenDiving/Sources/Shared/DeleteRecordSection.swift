@@ -23,12 +23,14 @@ struct DeleteRecordSection: View {
       }
       .dangerRow()
       .listRowBackground(Color.clear)
+      .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
       .confirmationDialog(title, isPresented: $confirms, titleVisibility: .visible) {
         Button(confirmation, role: .destructive, action: action)
       } message: {
         Text(message)
       }
     }
+    .listSectionSpacing(.compact)
   }
 }
 

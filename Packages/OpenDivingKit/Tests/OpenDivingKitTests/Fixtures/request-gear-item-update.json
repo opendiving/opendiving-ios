@@ -1,0 +1,11 @@
+{
+  "name": "Steel 12",
+  "brand": null,
+  "type": "cylinder",
+  "notes": "Hydro due next spring.",
+  "rented": false,
+  "is_archived": true,
+  "volume": 12,
+  "working_pressure": 232,
+  "material": null
+}

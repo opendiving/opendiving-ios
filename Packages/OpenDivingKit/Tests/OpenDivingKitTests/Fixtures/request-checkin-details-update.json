@@ -1,0 +1,11 @@
+{
+  "email": "desk@example.org",
+  "phone": null,
+  "date_of_birth": "1988-04-12",
+  "emergency_contacts": [
+    { "name": "Sam Example", "phone": "+49 170 0000000", "relationship": "Partner" }
+  ],
+  "insurance_policies": [
+    { "provider": "DAN Europe", "number": "DE-0000000", "expires_on": "2027-06-30" }
+  ]
+}

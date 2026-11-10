@@ -90,20 +90,20 @@ a second computer's download into a 409.
 
 ## What the app starts on its own waits for a route
 
-Every request waits for connectivity, so that a local-network server's first request outlasts the
-Local Network prompt; offline, that is a minute's spinner and then a failure. So an outbox flush
-the app starts itself does not start while the path reports no route, and a route appearing
-starts it; the Import screen's read of the pending import waits for its next appearance. *Sync
-now* and *Upload* still try: the diver asked. A create
-sent with no route that fails unreachable with none having appeared since waited on the phone,
-so it stays unattempted — editable, and a form's draft create still withdrawn when the dive is
-logged; one that saw a route come and go may have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a request made during
-the prompt; a shorter timeout, which still spins and still counts the create as sent.
+Every request waits for connectivity, so a local-network server's first request outlasts the Local
+Network prompt; offline, that is a minute's spinner, then a failure. So an outbox flush the app
+starts itself waits for the path to report a route; the Import screen's read of the pending import
+waits for its next appearance. *Sync now* and *Upload* still try: the diver asked. A settings
+control, online only, says at once there is no connection. A create sent with no route that fails
+unreachable with none appearing since waited on the phone, so it stays unattempted — editable, and a
+form's draft create still withdrawn when the dive is logged; one that saw a route come and go may
+have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a request
+made during the prompt; a shorter timeout, which still spins and counts the create as sent.
 
 ## A record page reads nothing without a route
 
-A dive's, a site's or a trip's page, the lists on the last two, and the profile's head and its
-*Cards* check the path before reading: with no route they show the phone's copy, or say the record
+A record's page — a dive's, a site's, a trip's, or one of More's — the lists on every page but a
+dive's, and the profile's head and its *Cards* check the path before reading: with no route they show the phone's copy, or say the record
 shows once the server can be reached, at once, and read again when a route appears. *Try again* and a pull skip the
 read too, since the page reads itself the moment it can. Rejected: letting the read wait out the
 minute, which spins over a page the phone could not have filled anyway.
@@ -121,7 +121,10 @@ once no queued item or edit draft names the local ref. Rejected: a sync log of s
 A 4xx is the server's answer and retrying it changes nothing, so the item fails and every item
 naming its record waits behind it — sent first, the dive would lose the site the diver may yet
 correct. A discard is the diver's answer: what named the record drops the reference and goes on,
-because a dive without its site is still a dive. Rejected: cascading the discard.
+because a dive without its site is still a dive. What cannot exist without it — a write to the
+record, a schedule or a service for discarded gear, a card for a discarded certification — goes
+with it, and so on down what those would have created. Rejected: cascading the discard to writes
+that only name the record.
 
 ## A success this build cannot read is done
 
@@ -141,8 +144,9 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives, sites, trips and drafts are written when a screen loads them, never fetched to fill
-the cache, and each kind of detail is bounded to the two hundred most recently opened. It exists so a screen
+Pages, dives, sites, trips, More's records, species photos and drafts are written when a screen
+loads them, never fetched to fill the cache, and each kind of detail is bounded to the two hundred
+most recently opened, a species photo to the five hundred most recently drawn. It exists so a screen
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 
@@ -315,12 +319,12 @@ the server holds the pair.
 
 The phone saves every server it is pointed at until it is forgotten, and moving between them
 signs nothing out: each keeps its token, its account and its directory, so going back needs no
-code and a server that is gone never stands in front of another. Only *Sign out* and *Forget*
-end a session, and both wait ten seconds at most, less when the user stops waiting: *Sign out*
-then leaves the session as it was, and *Forget* removes everything anyway and says the session
-may stay open on the server. Rejected: signing out before the server screen, which leaves a
-cancelled change signed out and blocks on a server that cannot answer; signing out of the
-server left after switching.
+code and a server that is gone never stands in front of another. Only *Sign out*, *Forget* and
+deleting the account end a session, and the first two wait ten seconds at most, less when the
+user stops waiting: *Sign out* then leaves the session as it was, and *Forget* removes everything
+anyway and says the session may stay open on the server. Rejected: signing out before the server
+screen, which leaves a cancelled change signed out and blocks on a server that cannot answer;
+signing out of the server left after switching.
 
 Leaving a server cancels every request still out to it, a refresh's included, so a server that
 does not answer never reports its timeout under the next one. A refresh cut off after the server

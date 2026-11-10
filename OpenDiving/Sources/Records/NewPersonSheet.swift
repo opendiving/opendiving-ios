@@ -23,14 +23,17 @@ struct NewPersonSheet: View {
   }
 }
 
-private struct PersonSheetForm: View {
+/// The person form, in the web's dialog's sheet or pushed as a screen of its own.
+struct PersonSheetForm: View {
   @State var model: RecordSheetModel<PersonFormValues>
+  var isPushed = false
   let onCreated: (RecordRef) -> Void
 
   var body: some View {
     RecordSheetForm(
-      title: "New Person", isReopened: model.isReopened,
-      failure: model.failure, saveError: model.saveError, save: save
+      title: model.isEditing ? "Edit Person" : "New Person", isReopened: model.isReopened,
+      createLabel: "Create person", isPushed: isPushed, failure: model.failure,
+      saveError: model.saveError, save: save
     ) {
       Section {
         TextBox(

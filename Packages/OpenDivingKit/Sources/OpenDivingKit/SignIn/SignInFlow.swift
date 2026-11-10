@@ -1,10 +1,10 @@
 import Foundation
 import Observation
 
-/// The signed-out screens: choosing a server, an email, the code, and what redeeming it led to.
-/// The root holds one for the app's life, so that the servers screen Settings and the sign-in
-/// push reads the same state, and a *Forget* can report what it did on the screen that follows
-/// it.
+/// The signed-out screens: choosing a server, an email, the code, what redeeming it led to, and
+/// the goodbye after an account is deleted. The root holds one for the app's life, so that the
+/// servers screen Settings and the sign-in push reads the same state, and a *Forget* or a
+/// deletion can report what it did on the screen that follows it.
 @MainActor
 @Observable
 public final class SignInFlow {
@@ -16,6 +16,9 @@ public final class SignInFlow {
     case onboardingRequired(email: String?, name: String?)
     /// `purgeAfter` is the day the account stops being recoverable, ready to print.
     case deletionPending(email: String?, purgeAfter: String?)
+    /// The account was just deleted from this phone, and is recoverable by signing in until
+    /// `purgeAfter`, ready to print.
+    case accountDeleted(purgeAfter: String)
   }
 
   public static let codeLength = 6
@@ -63,6 +66,12 @@ public final class SignInFlow {
   public private(set) var isResending = false
   public private(set) var resendMessage: String?
   private var codeSentAt: Date?
+
+  /// The deletion-pending outcome's offer, in memory only and only while it shows.
+  private var restoreOffer: RestoreOffer?
+  public private(set) var isRestoring = false
+  /// Why the last *Restore* brought nothing back, until the next.
+  public private(set) var restoreError: String?
 
   /// `signOutWait` stands in for ``signOutWait`` in a test.
   public init(
@@ -350,8 +359,9 @@ public final class SignInFlow {
         restart(at: .email)
       case .onboardingRequired(let email, let name):
         chosenStep = .onboardingRequired(email: email, name: name)
-      case .deletionPending(let email, let purgeAfter):
+      case .deletionPending(let email, let purgeAfter, let offer):
         chosenStep = .deletionPending(email: email, purgeAfter: purgeAfter.map(Self.day))
+        restoreOffer = offer
       }
     } catch is CancellationError {
     } catch {
@@ -394,9 +404,42 @@ public final class SignInFlow {
     }
   }
 
-  /// Back to the email screen, from the code or from an outcome that was not a sign-in.
+  /// Back to the email screen, from the code, from an outcome that was not a sign-in, or from
+  /// the goodbye.
   public func useDifferentEmail() {
     restart(at: .email)
+  }
+
+  // MARK: - Deleting and restoring
+
+  /// Whether the deletion-pending outcome showing can offer *Restore*.
+  public var canRestore: Bool {
+    guard case .deletionPending = chosenStep else { return false }
+    return restoreOffer != nil
+  }
+
+  /// Redeems the deletion-pending outcome's offer and goes on as an authenticated code does:
+  /// signed in, the account loading. A refusal shows the API's sentence and keeps the screen.
+  public func restore() async {
+    guard canRestore, let offer = restoreOffer, !isRestoring else { return }
+    isRestoring = true
+    restoreError = nil
+    defer { isRestoring = false }
+    do {
+      try await session.restore(offer)
+      email = ""
+      restart(at: .email)
+    } catch is CancellationError {
+    } catch {
+      restoreError = APIError(error).message
+    }
+  }
+
+  /// Deletes the account signed in on the active server and shows the goodbye, which names the
+  /// day the answer gives. With no route nothing is sent; a failure, thrown, changes nothing.
+  public func deleteAccount() async throws {
+    let deletion = try await session.deleteAccount()
+    restart(at: .accountDeleted(purgeAfter: Self.day(deletion.purgeAfter)))
   }
 
   // MARK: - Internals
@@ -407,6 +450,8 @@ public final class SignInFlow {
     resendMessage = nil
     codeSentAt = nil
     emailError = nil
+    restoreOffer = nil
+    restoreError = nil
     chosenStep = step
   }
 

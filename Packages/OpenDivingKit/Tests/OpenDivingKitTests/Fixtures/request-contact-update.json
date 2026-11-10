@@ -1,0 +1,11 @@
+{
+  "name": "Example Dive Centre",
+  "roles": ["dive_center"],
+  "phone": null,
+  "email": "desk@example.org",
+  "website": "https://example.org",
+  "notes": "Nitrox on site.",
+  "latitude": null,
+  "longitude": null,
+  "address": { "city": "Dahab", "country": "Egypt" }
+}

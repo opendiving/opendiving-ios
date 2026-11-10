@@ -4,19 +4,7 @@ import SwiftUI
 /// A short label in a capsule: a gear item's Rented and Archived, a gas and its role, a
 /// site's tags, a card's agency and expiry, and a site's mark before its word.
 struct BadgeView<Icon: View>: View {
-  /// The web's badge variants that the phone's screens use.
-  enum Style {
-    /// Muted fill, as Rented and a gas name.
-    case secondary
-    /// Bordered, no fill, as Archived, a site's mark and an agency.
-    case outline
-    /// The brand's teal, as a gas role and a site's tags.
-    case teal
-    /// The brand's coral, as a card nearing expiry.
-    case coral
-    /// As an expired card.
-    case destructive
-  }
+  typealias Style = Badge.Style
 
   let text: String
   let style: Style
@@ -49,12 +37,15 @@ struct BadgeView<Icon: View>: View {
   private var foreground: Color {
     switch style {
     case .secondary, .outline: .primary
-    case .teal, .coral, .destructive: .white
+    case .primary, .teal, .coral, .destructive: .white
+    case .warning: Self.warningForeground
     }
   }
 
   private var fill: Color {
     switch style {
+    case .primary: Self.primaryFill
+    case .warning: Self.warningFill
     case .secondary: Color(.secondarySystemFill)
     case .outline: .clear
     case .teal: .brandTeal
@@ -64,9 +55,46 @@ struct BadgeView<Icon: View>: View {
   }
 }
 
+extension BadgeView {
+  /// The web's `--primary`, near black in the light and a mid grey in the dark.
+  fileprivate static var primaryFill: Color {
+    Color(
+      UIColor {
+        $0.userInterfaceStyle == .dark
+          ? UIColor(red: 0.441, green: 0.441, blue: 0.459, alpha: 1)
+          : UIColor(red: 0.147, green: 0.147, blue: 0.153, alpha: 1)
+      })
+  }
+
+  /// The web's `--warning`, a dark amber in the light and a light one in the dark.
+  fileprivate static var warningFill: Color {
+    Color(
+      UIColor {
+        $0.userInterfaceStyle == .dark
+          ? UIColor(red: 0.981, green: 0.716, blue: 0.259, alpha: 1)
+          : UIColor(red: 0.518, green: 0.287, blue: 0.022, alpha: 1)
+      })
+  }
+
+  /// The web's `--warning-foreground`: white on the light's dark amber, near black on the dark's.
+  fileprivate static var warningForeground: Color {
+    Color(
+      UIColor {
+        $0.userInterfaceStyle == .dark
+          ? UIColor(red: 0.086, green: 0.086, blue: 0.094, alpha: 1)
+          : .white
+      })
+  }
+}
+
 extension BadgeView where Icon == EmptyView {
   init(_ text: String, style: Style = .secondary) {
     self.init(text, style: style) { EmptyView() }
+  }
+
+  /// A badge as the Kit describes it.
+  init(_ badge: Badge) {
+    self.init(badge.text, style: badge.style)
   }
 }
 
@@ -79,6 +107,10 @@ extension BadgeView where Icon == EmptyView {
     HStack {
       BadgeView("EAN32")
       BadgeView("Bottom gas", style: .teal)
+    }
+    HStack {
+      BadgeView("Completed", style: .primary)
+      BadgeView("Incomplete", style: .warning)
     }
     HStack {
       BadgeView("PADI", style: .outline)

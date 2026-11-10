@@ -237,6 +237,11 @@ struct ModelFixtureTests {
     let pending = try KitFixture.roundTrip(AuthOutcome.self, "auth-outcome-deletion-pending")
     #expect(pending.purgeAfter?.instant == Date(timeIntervalSince1970: 1_795_255_200))
   }
+
+  @Test func anAccountDeletionNamesTheDayItIsErasedOn() throws {
+    let deletion = try KitFixture.roundTrip(AccountDeletionRead.self, "account-deletion")
+    #expect(deletion.purgeAfter.instant == Date(timeIntervalSince1970: 1_795_514_400))
+  }
 }
 
 private enum PictureCropFixture {

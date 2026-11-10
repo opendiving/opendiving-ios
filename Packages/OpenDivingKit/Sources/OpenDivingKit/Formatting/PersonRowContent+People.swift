@@ -10,7 +10,7 @@ extension PersonRowContent {
     references.compactMap { reference in
       guard let person = people[reference.person.uuid] else { return nil }
       return PersonRowContent(
-        name: person.name,
+        uuid: reference.person.serverUUID, name: person.name,
         username: person.username.flatMap { $0.isEmpty ? nil : $0 },
         role: reference.role.flatMap { $0.isEmpty ? nil : VocabularyLabels.personRole($0) })
     }
