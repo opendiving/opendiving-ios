@@ -1,0 +1,9 @@
+{
+  "kind": "other",
+  "label": null,
+  "starts_on": "2026-04-01",
+  "interval_months": null,
+  "interval_dives": 150,
+  "interval_hours": null,
+  "is_active": false
+}

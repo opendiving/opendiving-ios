@@ -9,7 +9,7 @@ import Observation
 /// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. With no
 /// route nothing is asked for, and ``followRoute()`` reads again once one appears. A 404 means
 /// the server no longer has the record, and the phone forgets it with its lists. A write that
-/// lands reads it again.
+/// lands reads it again; one still queued shows as ``hasPendingEdit``.
 @MainActor
 @Observable
 public final class RecordPage<Record: Codable & Hashable & Sendable> {
@@ -19,6 +19,8 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
   public private(set) var phase: DetailPhase<Record> = .loading
   /// When the record shown was fetched, while it is the cache's rather than this visit's.
   public private(set) var lastUpdated: Date?
+  /// The queue holds a change to this record, which the page shows once it lands.
+  public private(set) var hasPendingEdit = false
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let kind: KeptRecordKind<Record>
@@ -39,6 +41,7 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
 
   /// The kept copy at once, then the server's; nothing once the record is on screen.
   public func load() async {
+    watchStores()
     if phase.isLoaded { return }
     showCached()
     await read()
@@ -98,9 +101,25 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
     }
   }
 
+  private func watchStores() {
+    guard let stores = AccountStores.current(session) else { return }
+    OutboxHub.hub(for: stores.directory).observe(self)
+    accountStoresChanged()
+  }
+
   private func observeLists() {
     guard let stores = AccountStores.current(session) else { return }
     OutboxHub.hub(for: stores.directory).observeLists(self)
+  }
+}
+
+extension RecordPage: AccountStoresObserver {
+  func accountStoresChanged() {
+    let ref = RecordRef.server(uuid)
+    hasPendingEdit =
+      AccountStores.current(session)?.outbox.items().contains { item in
+        item.operation.target == ref && item.operation.deletedRecordRef == nil && !item.isFailed
+      } ?? false
   }
 }
 

@@ -42,9 +42,46 @@ public struct PersonFormValues: Codable, Hashable, Sendable {
   /// `POST /person`'s body: every box trimmed, a blank one left out.
   public func toCreate() throws(FormInvalid) -> PersonCreate {
     if !issues.isEmpty { throw FormInvalid(issues: issues) }
-    return PersonCreate(
+    return written
+  }
+
+  private var written: PersonCreate {
+    PersonCreate(
       name: name.trimmedOfWhitespace, email: FormText.trimmedOrNil(email),
       phone: FormText.trimmedOrNil(phone), notes: notes, username: linkedUsername)
+  }
+}
+
+extension PersonFormValues {
+  /// The form an edit opens on.
+  public init(editing person: PersonRead) {
+    self.init(
+      name: person.name, username: person.username ?? "", email: person.email ?? "",
+      phone: person.phone ?? "", notes: person.notes)
+  }
+
+  /// `PATCH /person/{uuid}`'s body: what differs from the values the form opened on.
+  public func diff(from baseline: PersonFormValues) throws(FormInvalid) -> PersonUpdate {
+    let now = try toCreate()
+    let before = baseline.written
+    var update = PersonUpdate()
+    if now.name != before.name { update.name = now.name }
+    if now.notes != before.notes { update.notes = now.notes }
+    update.email = .change(from: before.email, to: now.email)
+    update.phone = .change(from: before.phone, to: now.phone)
+    update.username = .change(from: before.username, to: now.username)
+    return update
+  }
+
+  /// These values with a queued update laid over.
+  public func applying(_ update: PersonUpdate) -> PersonFormValues {
+    var next = self
+    if let name = update.name { next.name = name }
+    if let notes = update.notes { next.notes = notes }
+    next.email = update.email.applied(to: email) ?? ""
+    next.phone = update.phone.applied(to: phone) ?? ""
+    next.username = update.username.applied(to: username) ?? ""
+    return next
   }
 }
 

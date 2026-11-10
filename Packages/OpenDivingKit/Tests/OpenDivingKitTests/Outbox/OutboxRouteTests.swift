@@ -102,7 +102,8 @@ struct OutboxRouteTests {
 
   // MARK: - Lists
 
-  @Test func aLandedCreateOrEditReloadsTheListsAndAPersonDoesNot() async throws {
+  /// More lists people, courses and gear, so a write to any record reloads the lists.
+  @Test func aLandedCreateOrEditReloadsTheLists() async throws {
     let world = try OutboxWorld()
     try await world.load()
     let list = dives(world.session)
@@ -122,7 +123,7 @@ struct OutboxRouteTests {
     try model.queue(.createPerson(PersonCreate(name: "Ana")))
     await model.settled()
     await list.reloading?.value
-    #expect(world.server.count("GET dives") == 3)
+    #expect(world.server.count("GET dives") == 4)
     #expect(list.phase == .loaded)
   }
 

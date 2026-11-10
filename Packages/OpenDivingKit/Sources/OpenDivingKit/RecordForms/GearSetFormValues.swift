@@ -40,6 +40,34 @@ public struct GearSetFormValues: Codable, Hashable, Sendable {
   }
 }
 
+extension GearSetFormValues {
+  /// The form an edit opens on.
+  public init(editing set: GearSetRead) {
+    self.init(
+      name: set.name, weight: set.weight, items: set.gearItems.map(\.ref))
+  }
+
+  /// `PATCH /gear-set/{uuid}`'s body: what differs from the values the form opened on, the
+  /// list whole when it changed.
+  public func diff(from baseline: GearSetFormValues) throws(FormInvalid) -> GearSetUpdate {
+    let now = try toCreate()
+    var update = GearSetUpdate()
+    if now.name != baseline.name.trimmedOfWhitespace { update.name = now.name }
+    if now.gearItems != baseline.items { update.gearItems = now.gearItems }
+    update.weight = .change(from: baseline.weight, to: now.weight)
+    return update
+  }
+
+  /// These values with a queued update laid over.
+  public func applying(_ update: GearSetUpdate) -> GearSetFormValues {
+    var next = self
+    if let name = update.name { next.name = name }
+    if let items = update.gearItems { next.items = items }
+    next.weight = update.weight.applied(to: weight)
+    return next
+  }
+}
+
 extension GearSetFormValues: RewritesLocalRefs {
   public mutating func rewriteRefs(_ rewrite: (RecordRef) -> RecordRef?) {
     items.rewrite(rewrite)
