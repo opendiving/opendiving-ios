@@ -43,7 +43,8 @@ struct MapWeatherCard: View {
       // Not underlined, as the credits over a map are: it is a link with text after it.
       AttributionLine(credits: [content.attribution], underline: false)
     }
-    .padding()
+    // Wider than the system's 16: the glass's corners are rounder than a form section's.
+    .padding(20)
   }
 }
 
@@ -67,7 +68,7 @@ extension MapWeatherCard {
           .mapWeatherSlot(.sea, slots)
       }
     }
-    .padding(.vertical, 4)
+    .padding(.vertical, 10)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(content.accessibilityLabel)
   }
