@@ -68,7 +68,7 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
     .onChange(of: map.hasMap, initial: true) { _, hasMap in model.hasMap = hasMap }
     .onChange(of: typing) { _, typing in
       if typing {
-        detentBeforeTyping = detent
+        detentBeforeTyping = drag.target
         move(to: .full)
       } else {
         detentBeforeTyping = nil
