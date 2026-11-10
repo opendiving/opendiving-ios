@@ -22,8 +22,14 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
 
   public let siteUUID: UUID
   public private(set) var phase: DetailPhase<DiveSiteRead> = .loading
-  /// When the site shown was fetched, while it is the cache's rather than this visit's.
-  public private(set) var lastUpdated: Date?
+  /// When the site shown was fetched, once it is the cache's and no read of this visit's is on
+  /// its way: a read that lands replaces it with nothing to say, so the line saying how old it is
+  /// would show only to go again.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
+  private var fetchedAt: Date?
+  /// A read of the site is on its way.
+  private var isReading = false
   public let dives: PagedList<DiveListItem>
   public private(set) var species: Species = .none
   /// Photo bytes by species uuid, as each card asks for its own.
@@ -111,7 +117,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   func reread() async {
     let stale =
       switch phase {
-      case .loaded: lastUpdated != nil
+      case .loaded: fetchedAt != nil
       case .failed: true
       case .loading, .notFound: false
       }
@@ -127,7 +133,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     guard let stores = AccountStores.current(session), let entry = stores.cache.site(siteUUID)
     else { return }
     if stores.loaded { stores.cache.touchSite(siteUUID) }
-    lastUpdated = entry.fetchedAt
+    fetchedAt = entry.fetchedAt
     phase = .loaded(entry.value.site)
     if entry.value.site.speciesCount > 0, let entries = entry.value.species {
       species = .loaded(entries)
@@ -139,10 +145,12 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
+    isReading = true
+    defer { isReading = false }
     do {
       let site = try await session.routedClient().diveSite(siteUUID)
       skippedForRoute = false
-      lastUpdated = nil
+      fetchedAt = nil
       phase = .loaded(site)
       keep(site, fetchedUnder: stores)
       watchStores()
@@ -151,7 +159,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
       let next = DetailPhase<DiveSiteRead>.failure(error)
       if next == .notFound {
         cacheForAnswer(fetchedUnder: stores, session: session)?.removeSite(siteUUID)
-        lastUpdated = nil
+        fetchedAt = nil
       }
       if !wasLoaded || next == .notFound { phase = next }
     }
@@ -206,7 +214,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
           diveSiteUUID: siteUUID, page: page, itemsPerPage: itemsPerPage)
       }
       species = .loaded(entries)
-      if case .loaded(let shown) = phase, lastUpdated == nil {
+      if case .loaded(let shown) = phase, fetchedAt == nil {
         keep(shown, fetchedUnder: stores)
       }
     } catch {

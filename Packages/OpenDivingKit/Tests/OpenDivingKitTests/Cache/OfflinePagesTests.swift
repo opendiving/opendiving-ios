@@ -120,6 +120,34 @@ struct OfflinePagesTests {
       world.server.count("GET dive-site/\(siteUUID.uuidString.lowercased())", since: mark) == 1)
   }
 
+  /// The kept copy shows at once, and how old it is only once the read for a newer one has failed:
+  /// a read that lands would take the line away again as soon as it showed.
+  @Test func aKeptSitesAgeShowsOnlyOnceItsReadFails() async throws {
+    let first = try world()
+    try await first.load()
+    await DiveSiteDetailModel(session: first.session, siteUUID: siteUUID).load()
+    let world = try first.relaunched()
+    try await world.session.loadAccount()
+    let gate = SiteFinderModelTests.Gate()
+    gate.isHeld = true
+    let asked = Mutex(false)
+    world.server.override { request, _ in
+      guard request.route.hasPrefix("GET dive-site/") else { return nil }
+      asked.withLock { $0 = true }
+      try await gate.pass()
+      throw URLError(.notConnectedToInternet)
+    }
+    let model = DiveSiteDetailModel(session: world.session, siteUUID: siteUUID)
+    let loading = Task { await model.load() }
+    while !asked.withLock({ $0 }) { await Task.yield() }
+    #expect(model.phase.isLoaded)
+    #expect(model.lastUpdated == nil)
+    gate.isHeld = false
+    await loading.value
+    #expect(model.phase.isLoaded)
+    #expect(model.lastUpdated != nil)
+  }
+
   @Test func aSiteNeverOpenedFailsAtOnceAndLoadsWhenARouteAppears() async throws {
     let route = RouteSwitch()
     let world = try world().relaunched(connectivity: route)
