@@ -10,12 +10,6 @@ struct UnplacedBackdropView: View {
   var coveredTop: CGFloat = 0
   let coveredBottom: CGFloat
 
-  private static let water = Color(
-    UIColor {
-      $0.userInterfaceStyle == .dark
-        ? UIColor(red: 68 / 255, green: 108 / 255, blue: 107 / 255, alpha: 1)
-        : UIColor(red: 163 / 255, green: 206 / 255, blue: 205 / 255, alpha: 1)
-    })
   private static let waterForeground = Color(
     UIColor {
       $0.userInterfaceStyle == .dark
@@ -24,7 +18,7 @@ struct UnplacedBackdropView: View {
     })
 
   var body: some View {
-    Self.water
+    Color.mapWater
       .overlay {
         Image(icon)
           .renderingMode(.template)

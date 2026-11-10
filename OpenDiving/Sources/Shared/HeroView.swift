@@ -58,7 +58,8 @@ struct HeroView<Leading: View>: View {
     }
     .background(alignment: .bottom) {
       ZStack {
-        Color(.secondarySystemBackground)
+        // Water past the world's edge too, which a pull-down on a map of the world reaches.
+        Color.mapWater
         if hasMap {
           MapBackdropView(
             points: content.points, fixes: content.fixes,
