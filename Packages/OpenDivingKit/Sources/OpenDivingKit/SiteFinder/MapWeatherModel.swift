@@ -15,7 +15,13 @@ public final class MapWeatherModel {
   public static let minZoom = 6.0
 
   /// The answer for the cell the map was last shown at; nil while there is none to show.
-  public private(set) var current: DiveConditionsCurrentRead?
+  public private(set) var current: DiveConditionsCurrentRead? {
+    didSet { if current != nil { isUnreachable = false } }
+  }
+
+  /// Whether the shown cell has no weather because the server could not be reached, which the
+  /// bar says in place of the weather.
+  public private(set) var isUnreachable = false
 
   /// Where the shown weather is, once the bar has been tapped: nil while it is looked up.
   public private(set) var place: Place?
@@ -79,6 +85,7 @@ public final class MapWeatherModel {
     }
     guard !isOff, let cell else {
       current = nil
+      isUnreachable = false
       return
     }
     if let kept = held[cell], now().timeIntervalSince(kept.at) < Self.freshFor {
@@ -88,8 +95,12 @@ public final class MapWeatherModel {
     try? await Task.sleep(for: settleDelay)
     guard isShown(cell) else { return }
     // Another cell's weather would be wrong here, and there is none to show for this one.
-    guard let client = try? session.routedClient() else {
+    let client: APIClient
+    do {
+      client = try session.routedClient()
+    } catch {
       current = nil
+      isUnreachable = APIError(error).isUnreachable
       return
     }
     let read: DiveConditionsCurrentRead?
@@ -97,12 +108,16 @@ public final class MapWeatherModel {
       read = try await client.currentConditions(
         latitude: cell.latitude, longitude: cell.longitude)
     } catch {
-      if isShown(cell) { current = nil }
+      if isShown(cell) {
+        current = nil
+        isUnreachable = APIError(error).isUnreachable
+      }
       return
     }
     guard let read else {
       isOff = true
       current = nil
+      isUnreachable = false
       return
     }
     held[cell] = (now(), read)

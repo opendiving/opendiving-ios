@@ -2,8 +2,6 @@
 public enum SiteFinderText {
   public static let searchPrompt = "Search sites and places"
   public static let yoursLabel = "Your sites"
-  /// The spinner over the map while the list follows it.
-  public static let searching = "Finding dive sites"
   public static let useMyLocation = "Use my location"
   public static let locating = "Finding your location"
 

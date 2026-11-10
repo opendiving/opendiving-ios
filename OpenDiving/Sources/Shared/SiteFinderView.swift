@@ -41,7 +41,6 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
         } else {
           Color(.systemGroupedBackground).ignoresSafeArea()
         }
-        if map.hasMap && model.isSearching { searchingSpinner }
         // Placed from the top: with the keyboard up the bottom edge moves, though it is ignored.
         panelView(panel, below: geometry.safeAreaInsets.bottom)
           .modifier(
@@ -178,17 +177,6 @@ struct SiteFinderView<Bar: ToolbarContent>: View {
       .frame(height: height + 6)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .ignoresSafeArea()
-  }
-
-  // MARK: - Over the map
-
-  /// Under the top bar, while the list follows the camera.
-  private var searchingSpinner: some View {
-    BubbleSpinner()
-      .frame(width: 36, height: 36)
-      .pickerControl(in: Circle())
-      .padding(.top, 8)
-      .accessibilityLabel(SiteFinderText.searching)
   }
 
   // MARK: - The panel
