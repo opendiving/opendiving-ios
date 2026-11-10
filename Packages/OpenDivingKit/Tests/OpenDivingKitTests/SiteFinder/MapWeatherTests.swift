@@ -76,7 +76,7 @@ struct MapWeatherTests {
     let read = try APICoding.decoder().decode(
       DiveConditionsCurrentRead.self, from: Data(Self.dahab.utf8))
     let metric = try #require(MapWeatherContent(read, units: .metric))
-    #expect(metric.icon == .cloudSun)
+    #expect(metric.sky.map(\.icon) == [.cloudSunSun, .cloudSunCloud])
     #expect(metric.temperature == "24°C")
     #expect(metric.windSpeed == "11 kn")
     #expect(metric.windHeading == 225)
@@ -280,7 +280,7 @@ struct MapWeatherTests {
           ConditionsWeather(
             airTemperature: nil, windSpeed: 0, windDirection: 350, weatherCode: 4)),
         units: .metric))
-    #expect(content.icon == nil)
+    #expect(content.sky.isEmpty)
     #expect(content.temperature == nil)
     #expect(content.windSpeed == "0 kn")
     #expect(content.windHeading == 170)
@@ -294,25 +294,26 @@ struct MapWeatherTests {
     #expect(MapWeatherContent(Self.read(empty), units: .metric) == nil)
   }
 
-  @Test func aClearSkyIsSunnyAndRainIsWaterAndTheRestTakeTheTextsColour() throws {
-    func tone(_ code: Int) throws -> MapWeatherContent.Tone? {
+  @Test func onlyTheSunAndTheDropsTakeAColour() throws {
+    func sky(_ code: Int) throws -> [MapWeatherContent.IconLayer] {
       try #require(
         MapWeatherContent(
           Self.read(
             ConditionsWeather(
               airTemperature: 20, windSpeed: nil, windDirection: nil, weatherCode: code)),
           units: .metric)
-      ).iconTone
+      ).sky
     }
-    #expect(try tone(0) == .sun)
-    #expect(try tone(61) == .water)
-    #expect(try tone(2) == nil)
-    #expect(try tone(95) == nil)
+    #expect(try sky(0).map(\.tone) == [.sun])
+    #expect(try sky(2).map(\.tone) == [.sun, nil])
+    #expect(try sky(61).map(\.tone) == [nil, .water])
+    #expect(try sky(3).map(\.tone) == [nil])
+    #expect(try sky(95).map(\.tone) == [nil])
   }
 
   @Test func everyCodeTheInstanceFillsHasAnIcon() {
     for vocabulary in Set(ConditionsWeather.vocabularyByCode.values) {
-      #expect(MapWeatherContent.icons[vocabulary] != nil, "\(vocabulary)")
+      #expect(MapWeatherContent.skies[vocabulary]?.isEmpty == false, "\(vocabulary)")
     }
   }
 

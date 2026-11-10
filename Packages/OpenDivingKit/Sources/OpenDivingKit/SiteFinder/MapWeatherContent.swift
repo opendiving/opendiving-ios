@@ -11,10 +11,10 @@ public struct MapWeatherContent: Hashable, Sendable {
     public let spokenValue: String
   }
 
-  public let icon: Icon?
-  /// What the sky's icon is coloured as: the sun's yellow for a clear sky, the sea's teal for rain;
-  /// nil for the rest, drawn in the text's colour.
-  public let iconTone: Tone?
+  /// The sky's icon as layers drawn one over another, each in its own tone: a cloud with a sun or
+  /// with rain is drawn as its parts, so only the sun and the drops take a colour. Empty for a sky
+  /// the provider gave no code for that the table lists.
+  public let sky: [IconLayer]
   /// `24°C`, whole.
   public let temperature: String?
   /// `11 kn`, whole.
@@ -44,8 +44,7 @@ public struct MapWeatherContent: Hashable, Sendable {
   public init?(_ read: DiveConditionsCurrentRead, units: UnitSystem) {
     guard let weather = read.weather else { return nil }
     let vocabulary = weather.vocabulary
-    icon = vocabulary.flatMap { Self.icons[$0] }
-    iconTone = vocabulary.flatMap { Self.tones[$0] }
+    sky = vocabulary.flatMap { Self.skies[$0] } ?? []
     temperature = weather.airTemperature.map {
       UnitFormat.temperature($0, units, decimals: 0)
     }
@@ -53,7 +52,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     windHeading = weather.windDirection.map {
       (($0 + 180).truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
     }
-    guard icon != nil || temperature != nil || windSpeed != nil else { return nil }
+    guard !sky.isEmpty || temperature != nil || windSpeed != nil else { return nil }
 
     var spoken: [String] = []
     if let vocabulary {
@@ -164,11 +163,25 @@ public struct MapWeatherContent: Hashable, Sendable {
     case sun, water
   }
 
-  static let tones: [String: Tone] = ["clear": .sun, "rain": .water]
+  /// One symbol of an icon drawn in layers, and its tone; nil, the text's colour.
+  public struct IconLayer: Hashable, Sendable {
+    public let icon: Icon
+    public let tone: Tone?
 
-  static let icons: [String: Icon] = [
-    "clear": .sun, "partly_cloudy": .cloudSun, "overcast": .cloud, "rain": .cloudRain,
-    "storm": .cloudLightning, "snow": .cloudSnow, "fog": .cloudFog,
+    init(_ icon: Icon, _ tone: Tone? = nil) {
+      self.icon = icon
+      self.tone = tone
+    }
+  }
+
+  static let skies: [String: [IconLayer]] = [
+    "clear": [IconLayer(.sun, .sun)],
+    "partly_cloudy": [IconLayer(.cloudSunSun, .sun), IconLayer(.cloudSunCloud)],
+    "overcast": [IconLayer(.cloud)],
+    "rain": [IconLayer(.cloudRainCloud), IconLayer(.cloudRainDrops, .water)],
+    "storm": [IconLayer(.cloudLightning)],
+    "snow": [IconLayer(.cloudSnow)],
+    "fog": [IconLayer(.cloudFog)],
   ]
 
   /// The nearest of the sixteen compass points to a bearing, in words.

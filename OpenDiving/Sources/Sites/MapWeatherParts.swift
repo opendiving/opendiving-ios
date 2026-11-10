@@ -11,12 +11,17 @@ struct MapWeatherSky: View {
 
   var body: some View {
     HStack(spacing: size * 0.4) {
-      if let icon = content.icon {
-        Image(loaded: icon)
-          .resizable()
-          .scaledToFit()
-          .frame(width: size * 1.2, height: size * 1.2)
-          .foregroundStyle(content.iconTone.map(Color.weather) ?? .primary)
+      if !content.sky.isEmpty {
+        // The parts of one icon, each in its own colour, over each other.
+        ZStack {
+          ForEach(content.sky, id: \.icon) { layer in
+            Image(loaded: layer.icon)
+              .resizable()
+              .scaledToFit()
+              .foregroundStyle(layer.tone.map(Color.weather) ?? .primary)
+          }
+        }
+        .frame(width: size * 1.2, height: size * 1.2)
       }
       if let temperature = content.temperature {
         Text(temperature)
@@ -29,7 +34,7 @@ struct MapWeatherSky: View {
   }
 
   static func shows(_ content: MapWeatherContent) -> Bool {
-    content.icon != nil || content.temperature != nil
+    !content.sky.isEmpty || content.temperature != nil
   }
 }
 
