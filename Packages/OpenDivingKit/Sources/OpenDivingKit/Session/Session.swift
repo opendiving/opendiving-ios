@@ -356,6 +356,20 @@ public final class Session {
     accountLoaded = true
   }
 
+  /// Every page of `GET /people` again, after a write to a person landed. A failure leaves the
+  /// table as it was; a session that changed while it ran stores nothing.
+  public func refreshPeople() async {
+    guard let client = try? requireClient() else { return }
+    let generation = stateGeneration
+    guard
+      let people = try? await APIClient.allPages({ page, perPage in
+        try await client.people(page: page, itemsPerPage: perPage)
+      }),
+      generation == stateGeneration, state == .signedIn(client.origin)
+    else { return }
+    self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
+  }
+
   /// Revokes the session on the server, then forgets the token and the account here. An
   /// offline phone cannot sign out: a failure that never reached the server, or any error but
   /// a refused session, changes nothing. The per-server directory stays.

@@ -169,13 +169,13 @@ public final class OutboxModel: AccountStoresObserver {
     let ref = stores.outbox.resolved(certification)
     let sending = OutboxHub.hub(for: stores.directory).sending
     for item in stores.outbox.items() where item.id != sending {
-      switch item.operation {
-      case .putCertificationFile(ref, let upload) where upload.side == side,
-        .deleteCertificationFile(ref, side):
-        stores.outbox.remove(item.id)
-      default:
-        break
-      }
+      let replaced =
+        switch item.operation {
+        case .putCertificationFile(ref, let upload): upload.side == side
+        case .deleteCertificationFile(ref, side): true
+        default: false
+        }
+      if replaced { stores.outbox.remove(item.id) }
     }
   }
 

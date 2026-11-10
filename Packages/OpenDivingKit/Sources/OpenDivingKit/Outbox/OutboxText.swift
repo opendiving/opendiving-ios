@@ -7,6 +7,9 @@ public enum OutboxText {
   /// A keyed create answered 410 with no sentence of its own.
   public static let createdThenDeleted =
     "It was saved, then deleted on another device before this phone heard back."
+  /// A card image whose bytes are no longer on the phone.
+  public static let cardImageMissing =
+    "The image is no longer on this phone. Pick it again from the certification."
   /// An item file this build cannot read.
   public static let unreadableItem = "Saved by another version of the app"
   /// A write naming a record that was discarded before it could be sent.

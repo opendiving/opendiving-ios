@@ -47,6 +47,9 @@ extension OutboxModel {
         if outcome.landedRecord {
           await LookupsModel.refresh(session)
         }
+        if outcome.changedPeople {
+          await session.refreshPeople()
+        }
         guard let again = hub.again else { break }
         retryAll = again
       }
@@ -73,6 +76,8 @@ private struct Flush {
     var landedRecord = false
     /// A write to a record a list shows landed.
     var changedLists = false
+    /// A write to a person landed.
+    var changedPeople = false
   }
 
   /// What sending one item came to.
@@ -170,6 +175,19 @@ private struct Flush {
       return .next
     }
     var body = request.body
+    var parts: [MultipartPart] = []
+    if case .putCertificationFile(_, let upload) = item.operation {
+      let file = outbox.cardFile(for: item.id)
+      guard FileManager.default.fileExists(atPath: file.path) else {
+        fail(&item, .unresolvable, message: OutboxText.cardImageMissing)
+        return .next
+      }
+      parts = [
+        MultipartPart(
+          name: "file", filename: upload.filename, contentType: upload.contentType,
+          content: .file(file))
+      ]
+    }
     let keyed = item.operation.isCreate
     if keyed {
       if let sent = item.sentBody {
@@ -196,7 +214,7 @@ private struct Flush {
     let response: HTTPURLResponse
     do {
       (data, response) = try await client.sendQueued(
-        method: request.method, path: request.path, body: body,
+        method: request.method, path: request.path, body: body, parts: parts,
         idempotencyKey: keyed ? item.idempotencyKey : nil)
     } catch {
       let unreachable = if case .unreachable = APIError(error) { true } else { false }
@@ -221,8 +239,9 @@ private struct Flush {
     switch status {
     // A record already gone from the server is what its delete asked for.
     case 200..<300,
-      404 where item.operation.deletedRecord != nil:
+      404 where item.operation.isDoneWhenGone:
       outcome.changedLists = outcome.changedLists || item.operation.changesLists
+      outcome.changedPeople = outcome.changedPeople || item.operation.changesPeople
       let landed: LandedRecord?
       do {
         landed = try item.operation.landed(data)
@@ -250,7 +269,22 @@ private struct Flush {
         // The dive is gone from the server; the edit fails below, with *Discard* alone.
         if let uuid = ref.serverUUID { stores.cache.removeDive(uuid) }
         outcome.changedLists = true
-      case .updateDiveSite, .updateTrip:
+      case .updateDiveSite, .updateTrip, .updateContact, .updateGearSet, .updateServiceSchedule,
+        .updateServiceRecord:
+        outcome.changedLists = true
+      case .updatePerson(let ref, _):
+        // The edit fails below, with *Discard* alone, and its kept copy goes now.
+        forget(ref, .person)
+        outcome.changedLists = true
+        outcome.changedPeople = true
+      case .updateCourse(let ref, _):
+        forget(ref, .course)
+        outcome.changedLists = true
+      case .updateGearItem(let ref, _):
+        forget(ref, .gearItem)
+        outcome.changedLists = true
+      case .updateCertification(let ref, _), .putCertificationFile(let ref, _):
+        forget(ref, .certification)
         outcome.changedLists = true
       case .logDive(let draft, let dive):
         // The draft went on another device: the dive the diver logged here is still a dive.
@@ -322,6 +356,10 @@ private struct Flush {
       if let uuid = ref.serverUUID { cache.removeSite(uuid) }
     case (.deleteTrip(let ref), _):
       if let uuid = ref.serverUUID { cache.removeTrip(uuid) }
+    case (.deletePerson(let ref), _): forget(ref, .person)
+    case (.deleteCourse(let ref), _): forget(ref, .course)
+    case (.deleteGearItem(let ref), _): forget(ref, .gearItem)
+    case (.deleteCertification(let ref), _): forget(ref, .certification)
     case (.createDiveDraft, .draft(let draft)):
       cache.replaceDiveDraft(draft)
       await readBack(draft: draft.uuid)
@@ -391,6 +429,11 @@ private struct Flush {
       cache.upsertLookupRow(GearSetRow(set), table: .gearSets)
     default: break
     }
+  }
+
+  /// Drops the kept copy of a record the server no longer has, with its page's lists.
+  private func forget<Record>(_ ref: RecordRef, _ kind: KeptRecordKind<Record>) {
+    if let uuid = ref.serverUUID { stores.cache.removeRecord(kind, uuid) }
   }
 
   // MARK: - Reading back
