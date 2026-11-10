@@ -27,6 +27,8 @@ private struct SitePanelContent: View {
   @State private var model: DiveSiteDetailModel
   @State private var replacing: DiveSiteCommonsMatch?
   @State private var section = SiteSection.info
+  /// How tall the tabs stand, which an empty tab's message is centred in the panel under.
+  @State private var tabsHeight: CGFloat = 0
   let onRead: (DiveSiteRead) -> Void
   let onOpen: (UUID) -> Void
 
@@ -61,9 +63,9 @@ private struct SitePanelContent: View {
           Section {
             switch section {
             case .info: info(site)
-            case .marineLife: SiteSpecies(model: model)
+            case .marineLife: SiteSpecies(model: model, below: tabsHeight)
             case .myDives:
-              SiteDives(list: model.dives, units: session.units)
+              SiteDives(list: model.dives, units: session.units, below: tabsHeight)
               PageEndTrigger(list: model.dives)
             }
           } header: {
@@ -77,6 +79,11 @@ private struct SitePanelContent: View {
             // Across the panel's width, as across the profile's page, on the panel's own fill.
             .padding(.horizontal, -16)
             .background(Color(.systemGroupedBackground))
+            .onGeometryChange(for: CGFloat.self) {
+              $0.size.height
+            } action: {
+              tabsHeight = $0
+            }
           }
         }
       }
@@ -207,6 +214,8 @@ private struct CommonsMatchNotice: View {
 private struct SiteDives: View {
   let list: PagedList<DiveListItem>
   let units: UnitSystem
+  /// How tall the tabs stand over the list.
+  let below: CGFloat
 
   var body: some View {
     switch list.phase {
@@ -228,7 +237,9 @@ private struct SiteDives: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     case .loaded where list.items.isEmpty:
       EmptyOrErrorView(
-        status: .empty(icon: .dive, title: "No dives logged at this site yet", message: nil))
+        status: .empty(icon: .dive, title: "No dives logged at this site yet", message: nil)
+      )
+      .centredInPanel(below: below)
     case .loaded:
       DiveCardLinks(items: list.items, units: units)
       LoadMoreFooter(list: list)
@@ -386,13 +397,17 @@ private struct TrailingIconLabelStyle: LabelStyle {
 /// The species seen on the site's dives, read whole.
 private struct SiteSpecies: View {
   let model: DiveSiteDetailModel
+  /// How tall the tabs stand over the cards.
+  let below: CGFloat
 
   var body: some View {
     switch model.species {
     case .none:
       EmptyOrErrorView(
         status: .empty(
-          icon: .fish, title: "No marine life recorded on your dives here yet", message: nil))
+          icon: .fish, title: "No marine life recorded on your dives here yet", message: nil)
+      )
+      .centredInPanel(below: below)
     case .loading:
       BubbleSpinner()
         .frame(maxWidth: .infinity)
@@ -413,6 +428,14 @@ private struct SiteSpecies: View {
         .onAppear { Task { await model.loadPhoto(entry) } }
       }
     }
+  }
+}
+
+extension View {
+  /// Fills what the panel shows under its tabs, `below` points tall, less the stack's gap under
+  /// them and the panel's foot, so a message stands in the middle of what is left.
+  fileprivate func centredInPanel(below: CGFloat) -> some View {
+    containerRelativeFrame(.vertical) { length, _ in max(0, length - below - 32) }
   }
 }
 
