@@ -15,7 +15,7 @@ struct MapWeatherCard: View {
 
   /// The top row's text size, before Dynamic Type scales it.
   static let size: CGFloat = 20
-  static let sides: CGFloat = 40
+  static let sides: CGFloat = 48
   static let ends: CGFloat = 32
   static let spacing: CGFloat = 8
 
