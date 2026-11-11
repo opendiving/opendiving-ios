@@ -30,17 +30,20 @@ struct PullRefreshTests {
   }
 
   @Test func aPullOnAPageReadsItThrough() async throws {
-    try await pull(GearItemDetailView(gearItemUUID: UUID(uuidString: Self.gearItemUUID)!))
+    try await pull(
+      GearItemDetailView(gearItemUUID: UUID(uuidString: Self.gearItemUUID)!),
+      reading: "GET gear-item/\(Self.gearItemUUID)")
   }
 
-  /// Shows `view`, pulls it once it has settled, and expects every read the pull starts to be
-  /// answered rather than cancelled.
-  private func pull(_ view: some View, sourceLocation: SourceLocation = #_sourceLocation)
-    async throws
-  {
+  /// Shows `view`, pulls it once it has settled, and expects `route` and every other read the
+  /// pull starts to be answered rather than cancelled. A list's pull reloads the account first.
+  private func pull(
+    _ view: some View, reading route: String = "GET user",
+    sourceLocation: SourceLocation = #_sourceLocation
+  ) async throws {
     let transport = AnsweringLater { request in
       if let answer = F.account(request) { return answer }
-      if StubTransport.routeKey(request) == "GET gear-items/\(Self.gearItemUUID)" {
+      if StubTransport.routeKey(request) == "GET gear-item/\(Self.gearItemUUID)" {
         return .json(Self.gearItem)
       }
       return F.emptyPage
@@ -74,7 +77,7 @@ struct PullRefreshTests {
       sourceLocation: sourceLocation)
     try await Task.sleep(for: .milliseconds(500))
     #expect(transport.isIdle, sourceLocation: sourceLocation)
-    #expect(transport.answered.dropFirst(sent).contains("GET user"), sourceLocation: sourceLocation)
+    #expect(transport.answered.dropFirst(sent).contains(route), sourceLocation: sourceLocation)
     #expect(transport.cancelled.isEmpty, sourceLocation: sourceLocation)
   }
 
