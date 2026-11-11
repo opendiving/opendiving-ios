@@ -23,7 +23,7 @@ extension CheckinSheetStore {
 
 extension CheckinSheet {
   /// Every picture file the sheet names.
-  fileprivate var fileNames: Set<String> {
+  var fileNames: Set<String> {
     Set(([portrait] + cards.flatMap { [$0.front, $0.back] }).compactMap { $0?.name })
   }
 }

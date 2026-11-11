@@ -1,13 +1,14 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *About You*: the date of birth, the phone and the email the diver gives out. A field added to
-/// the group goes inside this section, and rides its save.
+/// *About You*: the portrait, the date of birth, the phone and the email the diver gives out. A
+/// field added to the group goes inside this section, and rides its save.
 struct CheckinAboutSection: View {
   @Bindable var model: CheckinDetailsModel
 
   var body: some View {
     CheckinGroupSection(model: model, group: .about) {
+      PictureFieldView(model: model.portrait)
       VStack(alignment: .leading, spacing: 6) {
         CalendarDateField(label: "Date of birth", date: $model.draft.dateOfBirth)
         FieldMessage(model.problems[.dateOfBirth])

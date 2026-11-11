@@ -83,7 +83,7 @@ struct AccountFormTests {
 
     await model.save()
 
-    #expect(model.write.failure == "Username not available")
+    #expect(model.failure == "Username not available")
     #expect(model.username == "taken")
     #expect(session.user?.username == "testdiver")
     #expect(!model.saved)
@@ -121,7 +121,7 @@ struct AccountFormTests {
     await model.save()
 
     #expect(server.requests.count == before)
-    #expect(model.write.failure == APIError.noRoute.message)
+    #expect(model.failure == APIError.noRoute.message)
     #expect(model.name == "Sam Diver")
   }
 

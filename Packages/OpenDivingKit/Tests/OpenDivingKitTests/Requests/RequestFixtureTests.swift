@@ -65,6 +65,11 @@ struct RequestFixtureTests {
     _ = try sendsItsFixture(EmailChangeRequest.self, "request-email-change")
   }
 
+  @Test func pictureCropRequest() throws {
+    let request = try sendsItsFixture(PictureCropRequest.self, "request-picture-crop")
+    #expect(request.crop == PictureCrop(x: 0, y: 72, width: 3024, height: 3888))
+  }
+
   @Test func restoreRequest() throws {
     _ = try sendsItsFixture(RestoreRequest.self, "request-restore")
   }

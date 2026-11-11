@@ -24,6 +24,9 @@ people and contacts to add, edit and delete as on the web — gear archived and 
 schedules, and a certification's card pictured from the camera, the photo library or Files. Every
 change is made with or without signal and reaches your server when the phone can, and the pages
 the phone has shown open without it.
+Your account's settings are changed on the phone as on the web too — its two pictures, check-in
+details, signed-in devices and API keys, notifications, units, invitations, data export and the
+account itself — though only with signal, and a passkey is added on the web.
 
 ## Why an app
 
