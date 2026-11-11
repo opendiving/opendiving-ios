@@ -105,7 +105,7 @@ struct MapWeatherExplainer: View {
     .accessibilityAddTraits(.isModal)
   }
 
-  private static let cardSpace = "MapWeatherExplainer.card"
+  nonisolated private static let cardSpace = "MapWeatherExplainer.card"
 
   /// Darker in dark mode, where a light dim over dark tiles and a black panel barely shows.
   private var dimming: Double {

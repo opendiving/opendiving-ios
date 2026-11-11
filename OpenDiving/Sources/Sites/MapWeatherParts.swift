@@ -147,9 +147,10 @@ extension View {
   /// A part held at its slot: undrawn, its middle reported for a flying part to follow.
   @ViewBuilder func mapWeatherSlot(_ part: MapWeatherPart, _ slots: MapWeatherSlots?) -> some View {
     if let slots {
+      let space = slots.space
       opacity(0)
         .onGeometryChange(for: CGPoint.self) { proxy in
-          let frame = proxy.frame(in: slots.space)
+          let frame = proxy.frame(in: space)
           return CGPoint(x: frame.midX, y: frame.midY)
         } action: {
           slots.report(part, $0)
