@@ -40,7 +40,7 @@ private struct InvitationsList: View {
     }
     .task { await model.load() }
     .task { await model.followRoute() }
-    .refreshable { await model.load() }
+    .refreshable { await RefreshRead.run { await model.load() } }
   }
 }
 

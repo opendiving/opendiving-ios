@@ -27,7 +27,7 @@ private struct BubbleRefreshable: ViewModifier {
     content
       .refreshable {
         isRefreshing = true
-        await action()
+        await RefreshRead.run(action)
         isRefreshing = false
       }
       .background(EnclosingScrollView(found: scrollView))
