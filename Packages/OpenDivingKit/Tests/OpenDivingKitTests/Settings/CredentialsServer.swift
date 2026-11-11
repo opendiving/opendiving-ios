@@ -47,6 +47,18 @@ final class CredentialsServer: HTTPTransport {
 
   var keyCount: Int { state.withLock { $0.keys.count } }
 
+  /// Some tool of the diver's used the key `uuid` at `at`, which the next list read says.
+  func use(key uuid: UUID, at: String) {
+    state.withLock { state in
+      guard
+        let row = state.keys.firstIndex(where: {
+          $0["uuid"] as? String == uuid.uuidString.lowercased()
+        })
+      else { return }
+      state.keys[row]["last_used_at"] = at
+    }
+  }
+
   /// `route` answers `response` until ``succeed(_:)``.
   func fail(_ route: String, with response: StubTransport.Response) {
     state.withLock { $0.failing[route] = response }

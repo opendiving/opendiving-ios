@@ -36,19 +36,6 @@ struct PasskeysSection: View {
           Text(PasskeysModel.addedOnTheWeb)
         }
       }
-      .confirmationDialog(
-        PasskeysModel.removeTitle,
-        isPresented: Binding(
-          get: { model.confirmingRemove != nil },
-          set: { if !$0 { model.confirmingRemove = nil } }),
-        titleVisibility: .visible, presenting: model.confirmingRemove
-      ) { passkey in
-        Button(PasskeysModel.removeButton, role: .destructive) {
-          Task { await model.confirmRemove(passkey) }
-        }
-      } message: { passkey in
-        Text(PasskeysModel.removeMessage(passkey))
-      }
     }
   }
 
@@ -82,6 +69,15 @@ struct PasskeysSection: View {
         }
         .tint(Color.danger)
         .accessibilityLabel("Remove \u{201C}\(passkey.name)\u{201D}")
+        .rowConfirmation(
+          PasskeysModel.removeTitle, for: passkey, confirming: Bindable(model).confirmingRemove
+        ) { passkey in
+          Button(PasskeysModel.removeButton, role: .destructive) {
+            Task { await model.confirmRemove(passkey) }
+          }
+        } message: { passkey in
+          Text(PasskeysModel.removeMessage(passkey))
+        }
       }
     }
     .buttonStyle(.borderless)

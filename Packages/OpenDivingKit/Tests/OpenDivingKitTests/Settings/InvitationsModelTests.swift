@@ -108,6 +108,32 @@ struct InvitationsModelTests {
     #expect(!InvitationsModel.canRevoke(after))
   }
 
+  @Test func theSentNoteGoesWithTheNextChangeOnTheScreen() async throws {
+    let harness = try await InvitationsHarness(linked: true)
+    let model = await model(harness)
+    func sent(_ address: String) async throws -> InvitationRead {
+      model.email = address
+      await model.send()
+      #expect(model.sentNote == "\(address) can now create an account here.")
+      return try #require(model.list.value?.invitations.first)
+    }
+
+    await model.confirmRevoke(try await sent("one@example.com"))
+    #expect(model.sentNote == nil)
+
+    _ = try await sent("two@example.com")
+    await model.confirmLinkChange(.reset)
+    #expect(model.sentNote == nil)
+
+    _ = try await sent("three@example.com")
+    await model.confirmLinkChange(.remove)
+    #expect(model.sentNote == nil)
+
+    _ = try await sent("four@example.com")
+    await model.createLink()
+    #expect(model.sentNote == nil)
+  }
+
   @Test func anInstanceAnyoneMayJoinLeavesTheSectionOutAndNeverAsksForTheLink() async throws {
     let harness = try await InvitationsHarness()
     harness.server.fail(
