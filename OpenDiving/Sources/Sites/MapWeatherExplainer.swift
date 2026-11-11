@@ -37,7 +37,6 @@ struct MapWeatherExplainer: View {
     .onAppear {
       morph.animation =
         reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.15)
-      if !morph.isDriven { morph.animateOpen() }
     }
     .accessibilityAction(.escape, morph.close)
   }

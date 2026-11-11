@@ -17,14 +17,21 @@ struct MapWeatherBar: View {
     // Not a `Button`: the bar draws a button's label as its title or its icon alone, never both.
     MapWeatherBarLabel(content: content)
       .mapWeatherBarChrome()
-      .onTapGesture(perform: onTap)
-      // Down, as the card it opens hangs below it. On the window, since what follows the finger is
+      // One gesture from the touch down, a tap being a touch that barely moved: every touch ends
+      // in the card, so its presentation comes up as the finger lands and is ready to follow it.
+      // Down, as the card hangs below the bar; on the window, since what follows the finger is
       // drawn over the bar, not in it.
       .gesture(
-        DragGesture(minimumDistance: 8, coordinateSpace: .global)
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
           .updating($isPulling) { _, pulling, _ in pulling = true }
           .onChanged { onPull($0.translation.height) }
-          .onEnded { onPullEnded($0.predictedEndTranslation.height) }
+          .onEnded { value in
+            if hypot(value.translation.width, value.translation.height) < 8 {
+              onTap()
+            } else {
+              onPullEnded(value.predictedEndTranslation.height)
+            }
+          }
       )
       // A pull ended without `onEnded`, as the presentation it opens may end it, still finishes.
       .onChange(of: isPulling) { _, pulling in
