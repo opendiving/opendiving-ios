@@ -173,8 +173,8 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
         .allowsHitTesting(false)
       let lines = lines(in: glass)
       card
-        // Late enough that the parts flying in have cleared the place's name.
-        .opacity(min(max((progress - 0.8) / 0.2, 0), 1))
+        // Over the second half of the way, as the glass has grown enough for them to read.
+        .opacity(min(max((progress - 0.5) / 0.5, 0), 1))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .scaleEffect(lines.scale, anchor: .topLeading)
         .offset(lines.offset)
