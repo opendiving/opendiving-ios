@@ -152,6 +152,60 @@ struct PictureFieldTests {
     #expect(model.saved)
   }
 
+  @Test func aRefusalOfTheFieldsGoesOnceAFieldItSentIsEdited() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
+    let model = AccountFormModel(session: session)
+    model.setUsername("taken")
+    await model.save()
+    #expect(model.failure == "Username not available")
+
+    // The save sent no name, and the picture is not what was refused.
+    model.setName("Sam Diver")
+    model.picture.set(replace(square))
+    #expect(model.failure == "Username not available")
+
+    model.setUsername("taken2")
+    #expect(model.failure == nil)
+  }
+
+  @Test func aRefusalOfThePictureGoesOnceThePictureChangesAndOnlyThen() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    server.fail("PUT user/avatar", with: .json(#"{"detail":"Unsupported image."}"#, status: 415))
+    let model = AccountFormModel(session: session)
+    model.picture.set(replace(square))
+    await model.save()
+    let refused = "Your profile picture did not save. Unsupported image."
+    #expect(model.failure == refused)
+
+    model.setName("Sam Diver")
+    model.setUsername("samdiver")
+    #expect(model.failure == refused)
+
+    // Changed and changed back is still a change.
+    model.picture.pressBin()
+    model.picture.set(replace(square))
+    #expect(model.failure == nil)
+  }
+
+  @Test func theNextSaveSaysOnlyWhatItRefused() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    server.fail("PUT user/avatar", with: .json(#"{"detail":"Unsupported image."}"#, status: 415))
+    let model = AccountFormModel(session: session)
+    model.setName("Sam Diver")
+    model.picture.set(replace(square))
+    await model.save()
+    #expect(model.failure != nil)
+
+    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
+    model.setUsername("taken")
+    await model.save()
+    #expect(model.failure == "Username not available")
+  }
+
   @Test func aRefusedPictureWithNoFieldsSaysOnlyThatItDidNotSave() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)

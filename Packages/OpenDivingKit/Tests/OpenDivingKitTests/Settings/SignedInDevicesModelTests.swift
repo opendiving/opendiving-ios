@@ -25,8 +25,7 @@ struct SignedInDevicesModelTests {
     let harness = try await CredentialsHarness()
     let model = SignedInDevicesModel(session: harness.session)
     await model.list.load()
-    model.confirmingSignOut = model.rows.first
-    await model.confirmSignOut()
+    await model.confirmSignOut(try #require(model.rows.first))
     #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
   }
 
@@ -39,8 +38,15 @@ struct SignedInDevicesModelTests {
       SignedInDevicesModel.signOutMessage(device)
         == "Chrome on macOS (203.0.113.7) will have to sign in again. It loses access"
         + " immediately, on its very next request.")
+    // Dismissed without confirming.
     model.confirmingSignOut = device
-    await model.confirmSignOut()
+    model.confirmingSignOut = nil
+    #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
+
+    // Confirmed: the dialog clears what it presents as it closes, then its button runs.
+    model.confirmingSignOut = device
+    model.confirmingSignOut = nil
+    await model.confirmSignOut(device)
     #expect(
       harness.server.credentialRoutes.suffix(2) == [
         "DELETE user/session/\(mac.uuidString.lowercased())", "GET user/sessions",

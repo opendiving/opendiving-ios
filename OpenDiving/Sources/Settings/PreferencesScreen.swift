@@ -106,10 +106,10 @@ private struct TagsSection: View {
       isPresented: Binding(
         get: { model.confirmingDelete != nil },
         set: { if !$0 { model.confirmingDelete = nil } }),
-      titleVisibility: .visible
-    ) {
-      Button("Delete", role: .destructive) { Task { await model.confirmDelete() } }
-    } message: {
+      titleVisibility: .visible, presenting: model.confirmingDelete
+    ) { tag in
+      Button("Delete", role: .destructive) { Task { await model.confirmDelete(tag) } }
+    } message: { _ in
       Text(TagsModel.confirmMessage)
     }
   }

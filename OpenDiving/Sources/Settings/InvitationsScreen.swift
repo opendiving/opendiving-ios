@@ -117,7 +117,7 @@ private struct InviteLinkSection: View {
         change == .reset ? InvitationsModel.resetButton : InvitationsModel.removeButton,
         role: change == .remove ? .destructive : nil
       ) {
-        Task { await model.confirmLinkChange() }
+        Task { await model.confirmLinkChange(change) }
       }
     } message: { change in
       Text(change == .reset ? InvitationsModel.resetMessage : InvitationsModel.removeMessage)
@@ -229,9 +229,9 @@ private struct SentInvitationsSection: View {
         get: { model.confirmingRevoke != nil },
         set: { if !$0 { model.confirmingRevoke = nil } }),
       titleVisibility: .visible, presenting: model.confirmingRevoke
-    ) { _ in
+    ) { invitation in
       Button(InvitationsModel.revokeButton, role: .destructive) {
-        Task { await model.confirmRevoke() }
+        Task { await model.confirmRevoke(invitation) }
       }
     } message: { invitation in
       Text(InvitationsModel.revokeMessage(invitation))

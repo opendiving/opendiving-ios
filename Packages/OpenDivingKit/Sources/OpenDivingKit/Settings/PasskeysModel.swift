@@ -48,9 +48,10 @@ public final class PasskeysModel {
     }
   }
 
-  /// Removes ``confirmingRemove``.
-  public func confirmRemove() async {
-    guard let passkey = confirmingRemove, !isBusy else { return }
+  /// Removes `passkey`, the one the confirmation named. It is handed in rather than read from
+  /// ``confirmingRemove``, which the dialog clears as it closes, before this runs.
+  public func confirmRemove(_ passkey: PasskeyRead) async {
+    guard !isBusy else { return }
     confirmingRemove = nil
     removeFailure = nil
     removing = passkey.uuid

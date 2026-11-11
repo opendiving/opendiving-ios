@@ -73,13 +73,18 @@ struct PasskeysModelTests {
     let harness = try await CredentialsHarness()
     let model = PasskeysModel(session: harness.session)
     await model.list.load()
-    await model.confirmRemove()
+    let passkey = try #require(model.list.value?.first)
+
+    // Dismissed without confirming.
+    model.confirmingRemove = passkey
+    model.confirmingRemove = nil
     #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
 
-    let passkey = try #require(model.list.value?.first)
+    // Confirmed: the dialog clears what it presents as it closes, then its button runs.
     model.confirmingRemove = passkey
     #expect(PasskeysModel.removeMessage(passkey).hasPrefix("\u{201C}iPhone\u{201D} will stop"))
-    await model.confirmRemove()
+    model.confirmingRemove = nil
+    await model.confirmRemove(passkey)
     #expect(
       harness.server.credentialRoutes.suffix(2) == [
         "DELETE user/passkey/\(iPhone.uuidString.lowercased())", "GET user/passkeys",
@@ -93,8 +98,7 @@ struct PasskeysModelTests {
     let model = PasskeysModel(session: harness.session)
     await model.list.load()
     harness.connectivity.isRouteAvailable = false
-    model.confirmingRemove = model.list.value?.first
-    await model.confirmRemove()
+    await model.confirmRemove(try #require(model.list.value?.first))
     #expect(model.removeFailure == APIError.noRoute.message)
     #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
     #expect(model.list.value?.count == 2)

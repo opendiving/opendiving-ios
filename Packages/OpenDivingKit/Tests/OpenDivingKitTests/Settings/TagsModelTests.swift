@@ -119,11 +119,15 @@ struct TagsModelTests {
     await model.load()
     let tag = try #require(model.tags?.first)
 
-    await model.confirmDelete()
+    // Dismissed without confirming.
+    model.confirmingDelete = tag
+    model.confirmingDelete = nil
     #expect(tagWrites(server).isEmpty)
 
+    // Confirmed: the dialog clears what it presents as it closes, then its button runs.
     model.confirmingDelete = tag
-    await model.confirmDelete()
+    model.confirmingDelete = nil
+    await model.confirmDelete(tag)
     #expect(tagWrites(server) == ["DELETE tag/\(night)"])
     #expect(model.tags?.map(\.name) == ["wall"])
     #expect(model.deleteFailure == nil)

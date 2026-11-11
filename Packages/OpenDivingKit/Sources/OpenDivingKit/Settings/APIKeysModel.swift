@@ -103,9 +103,10 @@ public final class APIKeysModel {
     created = nil
   }
 
-  /// Revokes ``confirmingRevoke``.
-  public func confirmRevoke() async {
-    guard let key = confirmingRevoke, revoking == nil else { return }
+  /// Revokes `key`, the one the confirmation named. It is handed in rather than read from
+  /// ``confirmingRevoke``, which the dialog clears as it closes, before this runs.
+  public func confirmRevoke(_ key: APIKeyRead) async {
+    guard revoking == nil else { return }
     confirmingRevoke = nil
     revokeFailure = nil
     revoking = key.uuid

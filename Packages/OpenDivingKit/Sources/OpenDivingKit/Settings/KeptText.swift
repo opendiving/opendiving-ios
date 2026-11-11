@@ -1,13 +1,33 @@
 import Foundation
 
-/// What the phone keeps for a server, as a whole: ``held(_:)`` names every kept thing, so a new
-/// one goes there: the sign-in, the account, the check-in sheet, the drafts, the writes waiting
-/// to sync, the card images waiting to be sent, the files waiting to be read, the dive computer
-/// download history, and the copies kept for offline of the logbook and of the gear, training,
-/// people and marine life it names. The paired dive computers are the phone's, kept for no
-/// server, so it does not name them. ``SignedOutEntry/info(on:)`` says what stays of one entry
-/// alone.
+/// What the phone keeps for a server, as a whole: ``Kept`` is every kept thing, so a new one goes
+/// there, and ``held(_:)`` names them all: the sign-in, the account, the check-in sheet, the
+/// drafts, the writes waiting to sync, the card images waiting to be sent, the files waiting to
+/// be read, the dive computer download history, and the copies kept for offline of the logbook
+/// and of the gear, training, people and marine life it names. The paired dive computers are the
+/// phone's, kept for no server, so it does not name them. ``SignedOutEntry/info(on:)`` says what
+/// stays of one entry alone.
 public enum KeptText {
+  /// One kind of thing the phone keeps for a server, in the order ``held(_:)`` names them.
+  enum Kept: CaseIterable {
+    case signIn, account, checkinSheet, drafts, waitingToSync, cardImages, filesToRead,
+      downloadHistory, offlineCopies
+
+    var phrase: String {
+      switch self {
+      case .signIn: "a sign-in"
+      case .account: "an account"
+      case .checkinSheet: "a check-in sheet"
+      case .drafts: "drafts"
+      case .waitingToSync: "dives and other changes waiting to sync"
+      case .cardImages: "card images waiting to be sent"
+      case .filesToRead: "files waiting to be read"
+      case .downloadHistory: "dive computer download history"
+      case .offlineCopies: "copies of the logbook, gear, training, people and marine life"
+      }
+    }
+  }
+
   /// Under the saved servers.
   public static let savedServersFooter =
     "Changing server keeps you signed in to the one you leave, and everything this phone keeps"
@@ -15,10 +35,16 @@ public enum KeptText {
 
   /// Under a *Forget* offered for a server that is not active.
   public static func held(_ origin: ServerOrigin) -> String {
-    "This phone holds a sign-in, an account, a check-in sheet, drafts, dives and other changes"
-      + " waiting to sync, card images waiting to be sent, files waiting to be read, dive"
-      + " computer download history or copies of the logbook, gear, training, people and marine"
-      + " life for \(origin)."
+    held(origin, except: [])
+  }
+
+  /// ``held(_:)`` without what the phone no longer holds for `origin`.
+  static func held(_ origin: ServerOrigin, except gone: Set<Kept>) -> String {
+    let named = Kept.allCases.filter { !gone.contains($0) }.map(\.phrase)
+    let list =
+      named.count < 2
+      ? named.joined() : named.dropLast().joined(separator: ", ") + " or " + named[named.count - 1]
+    return "This phone holds \(list) for \(origin)."
   }
 
   /// The one line the *Forget* confirmation carries, and only when it would lose something:

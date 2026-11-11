@@ -122,7 +122,7 @@ public final class InvitationsModel {
     "\(name ?? "A diver") invited you to OpenDiving"
   }
 
-  /// Makes the link, or resets it once ``confirmingLink`` asked to.
+  /// Makes the link, or resets it once the diver confirmed a reset.
   public func createLink() async {
     guard !isChangingLink else { return }
     confirmingLink = nil
@@ -137,12 +137,12 @@ public final class InvitationsModel {
     }
   }
 
-  /// Carries out ``confirmingLink``.
-  public func confirmLinkChange() async {
-    switch confirmingLink {
+  /// Carries out `change`, the one the confirmation named. It is handed in rather than read
+  /// from ``confirmingLink``, which the dialog clears as it closes, before this runs.
+  public func confirmLinkChange(_ change: LinkChange) async {
+    switch change {
     case .reset: await createLink()
     case .remove: await removeLink()
-    case nil: break
     }
   }
 
@@ -227,9 +227,11 @@ public final class InvitationsModel {
 
   // MARK: - Revoking
 
-  /// Revokes ``confirmingRevoke``, then reads the list again for the server's stamp.
-  public func confirmRevoke() async {
-    guard let invitation = confirmingRevoke, revoking == nil else { return }
+  /// Revokes `invitation`, the one the confirmation named, then reads the list again for the
+  /// server's stamp. It is handed in rather than read from ``confirmingRevoke``, which the
+  /// dialog clears as it closes, before this runs.
+  public func confirmRevoke(_ invitation: InvitationRead) async {
+    guard revoking == nil else { return }
     confirmingRevoke = nil
     revokeFailure = nil
     revoking = invitation.uuid
