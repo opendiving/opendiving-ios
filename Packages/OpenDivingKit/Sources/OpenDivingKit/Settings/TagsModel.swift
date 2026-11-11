@@ -72,9 +72,10 @@ public final class TagsModel: ReloadingListObserver {
     if renamed { await reloadWithEveryList(on: session) }
   }
 
-  /// Deletes ``confirmingDelete``.
-  public func confirmDelete() async {
-    guard let tag = confirmingDelete, !isBusy else { return }
+  /// Deletes `tag`, the one the confirmation named. It is handed in rather than read from
+  /// ``confirmingDelete``, which the dialog clears as it closes, before this runs.
+  public func confirmDelete(_ tag: TagRead) async {
+    guard !isBusy else { return }
     confirmingDelete = nil
     deleteFailure = nil
     deleting = tag.uuid

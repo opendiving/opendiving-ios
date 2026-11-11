@@ -53,9 +53,9 @@ struct SignedInDevicesSection: View {
           get: { model.confirmingSignOut != nil },
           set: { if !$0 { model.confirmingSignOut = nil } }),
         titleVisibility: .visible, presenting: model.confirmingSignOut
-      ) { _ in
+      ) { device in
         Button(SignedInDevicesModel.signOutButton, role: .destructive) {
-          Task { await model.confirmSignOut() }
+          Task { await model.confirmSignOut(device) }
         }
       } message: { device in
         Text(SignedInDevicesModel.signOutMessage(device))

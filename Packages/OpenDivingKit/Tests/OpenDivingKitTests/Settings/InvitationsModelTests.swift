@@ -84,16 +84,21 @@ struct InvitationsModelTests {
   @Test func aRevocationWaitsForItsConfirmationAndReadsTheStamp() async throws {
     let harness = try await InvitationsHarness()
     let model = await model(harness)
-    await model.confirmRevoke()
+    let row = try #require(model.list.value?.invitations.first)
+
+    // Dismissed without confirming.
+    model.confirmingRevoke = row
+    model.confirmingRevoke = nil
     #expect(!harness.server.invitationRoutes.contains { $0.hasPrefix("DELETE") })
 
-    let row = try #require(model.list.value?.invitations.first)
     #expect(
       InvitationsModel.revokeMessage(row)
         == "invite-0@example.com will no longer be able to create an account here. The row stays"
         + " in this list as revoked, and you can invite the address again later.")
+    // Confirmed: the dialog clears what it presents as it closes, then its button runs.
     model.confirmingRevoke = row
-    await model.confirmRevoke()
+    model.confirmingRevoke = nil
+    await model.confirmRevoke(row)
     #expect(
       harness.server.invitationRoutes.suffix(2) == [
         "DELETE user/invitation/\(row.uuid.uuidString.lowercased())", "GET user/invitations",
@@ -146,20 +151,25 @@ struct InvitationsModelTests {
     let harness = try await InvitationsHarness(linked: true)
     let model = await model(harness)
     #expect(model.link?.token == InvitationsServer.token(0))
-    await model.confirmLinkChange()
+
+    // Dismissed without confirming.
+    model.confirmingLink = .reset
+    model.confirmingLink = nil
     #expect(
       !harness.server.invitationRoutes.contains {
         $0.hasSuffix(" user/invite-link") && !$0.hasPrefix("GET")
       })
 
+    // Confirmed: the dialog clears what it presents as it closes, then its button runs.
     model.confirmingLink = .reset
-    await model.confirmLinkChange()
-    #expect(model.confirmingLink == nil)
+    model.confirmingLink = nil
+    await model.confirmLinkChange(.reset)
     #expect(model.link?.token == InvitationsServer.token(1))
     #expect(harness.server.token == InvitationsServer.token(1))
 
     model.confirmingLink = .remove
-    await model.confirmLinkChange()
+    model.confirmingLink = nil
+    await model.confirmLinkChange(.remove)
     #expect(model.link == nil)
     #expect(model.isLinkRead)
     #expect(harness.server.token == nil)
@@ -169,8 +179,7 @@ struct InvitationsModelTests {
     let harness = try await InvitationsHarness(linked: true)
     let model = await model(harness)
     harness.connectivity.isRouteAvailable = false
-    model.confirmingLink = .remove
-    await model.confirmLinkChange()
+    await model.confirmLinkChange(.remove)
     #expect(model.linkFailure == APIError.noRoute.message)
     #expect(model.link?.token == InvitationsServer.token(0))
     #expect(!harness.server.invitationRoutes.contains("DELETE user/invite-link"))

@@ -122,15 +122,20 @@ struct APIKeysModelTests {
   @Test func aRevocationWaitsForItsConfirmationAndTakesTheSecretWithIt() async throws {
     let harness = try await CredentialsHarness()
     let model = await model(harness)
-    await model.confirmRevoke()
-    #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
-
     model.startCreating()
     model.name = "tide sync"
     await model.create()
     let row = try #require(model.list.value?.last)
+
+    // Dismissed without confirming.
     model.confirmingRevoke = row
-    await model.confirmRevoke()
+    model.confirmingRevoke = nil
+    #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
+
+    // Confirmed: the dialog clears what it presents as it closes, then its button runs.
+    model.confirmingRevoke = row
+    model.confirmingRevoke = nil
+    await model.confirmRevoke(row)
     #expect(
       harness.server.credentialRoutes.suffix(2) == [
         "DELETE user/api-key/\(made.uuidString.lowercased())", "GET user/api-keys",

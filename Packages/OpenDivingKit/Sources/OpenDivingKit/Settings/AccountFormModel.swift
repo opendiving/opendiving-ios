@@ -6,7 +6,9 @@ import Observation
 /// the session holds it, so a read that lands while the screen shows reaches it.
 ///
 /// ``save()`` sends the fields first, and only when one changed; the picture goes after them, so
-/// a picture the server refuses leaves the fields saved and says so.
+/// a picture the server refuses leaves the fields saved and says so. A refusal stands only beside
+/// what it refused, where the web's form keeps its own until the next submit: changing what it
+/// refused takes it away, and changing anything else leaves it showing.
 @MainActor
 @Observable
 public final class AccountFormModel {
@@ -25,9 +27,27 @@ public final class AccountFormModel {
   /// Whether the last save landed, until the next edit: a picture chosen since is one.
   public var saved: Bool { lastSaveLanded && picture.edit == nil }
   private var lastSaveLanded = false
-  /// Why the last save stored nothing, or stored the fields and not the picture, until the next
-  /// save — which may send no fields, so an earlier refusal of them is never left showing.
-  public private(set) var failure: String?
+  /// Why the last save stored nothing, or stored the fields and not the picture. A refusal of the
+  /// fields goes once a field that save sent is edited, one of the picture once the picture
+  /// changes, and either at the next save — which may send no fields, so an earlier refusal of
+  /// them is never left showing.
+  public var failure: String? {
+    switch refusal {
+    case .fields(let message, _, _): message
+    case .picture(let message, let revision): picture.revision == revision ? message : nil
+    case nil: nil
+    }
+  }
+
+  /// What the last save's refusal was of, which says what takes it away.
+  private enum Refusal {
+    /// The fields, with which of them that save sent.
+    case fields(String, name: Bool, username: Bool)
+    /// The picture, at the ``PictureFieldModel/revision`` it was refused at: any change of the
+    /// picture moves it on.
+    case picture(String, revision: Int)
+  }
+  private var refusal: Refusal?
 
   public init(session: Session) {
     self.session = session
@@ -44,11 +64,13 @@ public final class AccountFormModel {
   public func setName(_ text: String) {
     nameEdit = text
     lastSaveLanded = false
+    if case .fields(_, name: true, _) = refusal { refusal = nil }
   }
 
   public func setUsername(_ text: String) {
     usernameEdit = text
     lastSaveLanded = false
+    if case .fields(_, _, username: true) = refusal { refusal = nil }
   }
 
   /// Why the name, as it would be sent, would be refused; nil when it would not.
@@ -92,11 +114,13 @@ public final class AccountFormModel {
   public func save() async {
     guard canSave else { return }
     lastSaveLanded = false
-    failure = nil
+    refusal = nil
     var fieldsSaved = false
     if let update = fieldsUpdate {
       guard await write.save(update) else {
-        failure = write.failure
+        refusal = write.failure.map {
+          .fields($0, name: update.name != nil, username: update.username != nil)
+        }
         return
       }
       nameEdit = nil
@@ -104,7 +128,8 @@ public final class AccountFormModel {
       fieldsSaved = true
     }
     if picture.edit != nil, let refused = await picture.send() {
-      failure = picture.kind.notSaved(refused, afterFields: fieldsSaved)
+      refusal = .picture(
+        picture.kind.notSaved(refused, afterFields: fieldsSaved), revision: picture.revision)
       return
     }
     lastSaveLanded = true

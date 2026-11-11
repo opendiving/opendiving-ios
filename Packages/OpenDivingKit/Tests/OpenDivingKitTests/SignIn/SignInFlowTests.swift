@@ -612,11 +612,22 @@ struct SignInFlowTests {
         == "You're signed out everywhere, and nothing has been erased yet. Your dives, dive"
         + " drafts, dive sites, trips, courses, certifications, gear, contacts, people and tags"
         + " will be permanently erased on Nov 24, 2026.")
+    // The deletion took the sign-in and the remembered account; everything else stays.
     #expect(
       SignInFlow.goodbyeKept(origin)
-        == KeptText.held(origin) + " Forget this server removes all of it.")
+        == "This phone holds a check-in sheet, drafts, dives and other changes waiting to sync,"
+        + " card images waiting to be sent, files waiting to be read, dive computer download"
+        + " history or copies of the logbook, gear, training, people and marine life for"
+        + " https://dive.example.org. Forget this server removes all of it.")
     // The flagship offers no Forget.
-    #expect(SignInFlow.goodbyeKept(.flagship) == KeptText.held(.flagship))
+    #expect(!SignInFlow.goodbyeKept(.flagship).contains("Forget"))
+    // A Forget's own sentence still names them.
+    #expect(
+      KeptText.held(origin)
+        == "This phone holds a sign-in, an account, a check-in sheet, drafts, dives and other"
+        + " changes waiting to sync, card images waiting to be sent, files waiting to be read,"
+        + " dive computer download history or copies of the logbook, gear, training, people and"
+        + " marine life for https://dive.example.org.")
   }
 
   @Test func resendWaitsThirtySeconds() async throws {

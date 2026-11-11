@@ -47,9 +47,9 @@ struct APIKeysSection: View {
           get: { model.confirmingRevoke != nil },
           set: { if !$0 { model.confirmingRevoke = nil } }),
         titleVisibility: .visible, presenting: model.confirmingRevoke
-      ) { _ in
+      ) { key in
         Button(APIKeysModel.revokeButton, role: .destructive) {
-          Task { await model.confirmRevoke() }
+          Task { await model.confirmRevoke(key) }
         }
       } message: { key in
         Text(APIKeysModel.revokeMessage(key))

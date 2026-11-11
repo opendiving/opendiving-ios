@@ -37,9 +37,10 @@ public final class SignedInDevicesModel {
 
   public var isBusy: Bool { signingOut != nil || isSigningOutOthers }
 
-  /// Signs ``confirmingSignOut`` out.
-  public func confirmSignOut() async {
-    guard let device = confirmingSignOut, !device.current, !isBusy else { return }
+  /// Signs `device` out, the one the confirmation named. It is handed in rather than read from
+  /// ``confirmingSignOut``, which the dialog clears as it closes, before this runs.
+  public func confirmSignOut(_ device: UserSessionRead) async {
+    guard !device.current, !isBusy else { return }
     confirmingSignOut = nil
     failure = nil
     outcome = nil

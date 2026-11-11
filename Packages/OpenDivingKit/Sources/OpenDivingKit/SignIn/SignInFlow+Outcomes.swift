@@ -40,9 +40,11 @@ extension SignInFlow {
     + " back. Afterwards, nothing can be restored."
 
   /// What the phone still keeps for `origin` after the deletion, and what removes it. The
+  /// deletion ended the session, which took the sign-in and the remembered account with it. The
   /// flagship offers no *Forget*, so its sentence stops at what is kept.
   public static func goodbyeKept(_ origin: ServerOrigin) -> String {
-    KeptText.held(origin) + (origin.isFlagship ? "" : " Forget this server removes all of it.")
+    KeptText.held(origin, except: [.signIn, .account])
+      + (origin.isFlagship ? "" : " Forget this server removes all of it.")
   }
 
   /// Everything a deletion erases, in the web's order.

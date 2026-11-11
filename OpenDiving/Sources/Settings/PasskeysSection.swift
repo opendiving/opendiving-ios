@@ -42,9 +42,9 @@ struct PasskeysSection: View {
           get: { model.confirmingRemove != nil },
           set: { if !$0 { model.confirmingRemove = nil } }),
         titleVisibility: .visible, presenting: model.confirmingRemove
-      ) { _ in
+      ) { passkey in
         Button(PasskeysModel.removeButton, role: .destructive) {
-          Task { await model.confirmRemove() }
+          Task { await model.confirmRemove(passkey) }
         }
       } message: { passkey in
         Text(PasskeysModel.removeMessage(passkey))
