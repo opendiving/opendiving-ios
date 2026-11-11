@@ -65,7 +65,7 @@ struct MapWeatherExplainer: View {
             .accessibilityHidden(true)
           }
         }
-        .offset(y: lift)
+        .offset(y: drag)
       }
     }
     .ignoresSafeArea()
@@ -103,7 +103,7 @@ struct MapWeatherExplainer: View {
     // The whole card takes a touch, its blanks included: a swipe starting between a label and its
     // value moves the card, and a tap there leaves it open rather than reaching the dim behind.
     .contentShape(.rect(cornerRadius: 26))
-    .gesture(swipeUp)
+    .gesture(dragging)
     .matchedGeometryEffect(id: "card", in: morph)
     .frame(width: window.width, height: height)
     .padding(.top, barFrame.minY)
@@ -137,14 +137,10 @@ struct MapWeatherExplainer: View {
     }
   }
 
-  /// The card under a finger: followed up, held back down, as a sheet is past its top.
-  private var lift: CGFloat {
-    drag < 0 ? drag : drag / 4
-  }
-
-  /// Up, far or fast enough, sends the card back into the bar; anything less settles it back.
-  /// Measured on the window, since the card moves under the finger.
-  private var swipeUp: some Gesture {
+  /// The card follows a finger up and down. Let go up, far or fast enough, and it goes back into
+  /// the bar; anywhere else, it settles back where it opened. Measured on the window, since the
+  /// card moves under the finger.
+  private var dragging: some Gesture {
     DragGesture(minimumDistance: 12, coordinateSpace: .global)
       .onChanged { drag = $0.translation.height }
       .onEnded { value in
