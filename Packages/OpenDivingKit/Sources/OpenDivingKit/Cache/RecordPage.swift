@@ -8,7 +8,8 @@ import Observation
 /// A record the phone has shown before shows at once from the account's cache, under
 /// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. With no
 /// route nothing is asked for, and ``followRoute()`` reads again once one appears. A 404 means
-/// the server no longer has the record, and the phone forgets it with its lists. A write that
+/// the server no longer has the record: the phone forgets it with its lists, and every list on
+/// screen leaves its row out at once. A write that
 /// lands reads it again; one still queued shows as ``hasPendingEdit``.
 @MainActor
 @Observable
@@ -93,11 +94,12 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
     } catch {
       skippedForRoute = APIError(error) == .noRoute
       let next = DetailPhase<Record>.failure(error)
-      if next == .notFound {
-        cacheForAnswer(fetchedUnder: stores, session: session)?.removeRecord(kind, uuid)
-        lastUpdated = nil
-      }
       if !wasLoaded || next == .notFound { phase = next }
+      if next == .notFound {
+        lastUpdated = nil
+        // After the phase, so the lists' signal does not send this page reading again.
+        storesForAnswer(fetchedUnder: stores, session: session)?.forgetRecord(kind, uuid)
+      }
     }
   }
 

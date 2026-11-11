@@ -17,7 +17,8 @@ import Observation
 /// waiting for a pull, and rather than dropping back to page 1 under a diver scrolled past it.
 ///
 /// A list that names its rows' records leaves out a record whose delete is queued, offline too,
-/// and shows it again if the delete is discarded or refused.
+/// and shows it again if the delete is discarded or refused; and, at once, one the server no
+/// longer has.
 ///
 /// A list made `routed` asks for nothing while the phone believes it has no route: it fails at
 /// once with ``APIError/noRoute``, quietly behind kept pages, and the page that owns it reads

@@ -6,7 +6,8 @@ public struct PageCacheKey<Item: Codable & Sendable>: Sendable {
   public let name: String
   /// The highest known dive number a first page sets, for the dives list alone.
   let highestDiveNumber: (@Sendable ([Item]) -> Int?)?
-  /// The record a row shows, for a list a queued delete takes rows out of.
+  /// The record a row shows, for a list a delete, or a 404 on the record's page, takes rows out
+  /// of.
   let record: (@Sendable (Item) -> UUID)?
 
   /// A list of its own name, which no other list in the app uses.
@@ -137,9 +138,9 @@ extension PageCacheKey where Item == ContactRead {
 }
 
 extension PageCacheKey where Item == SpeciesLifeListEntry {
-  /// More's *Marine Life*, the life list. A species is logged on a dive and never deleted, so
-  /// nothing takes a row out.
-  public static var lifeList: Self { Self("life-list") }
+  /// More's *Marine Life*, the life list. No write deletes a species, but a species' page the
+  /// server answers 404 for takes its row out.
+  public static var lifeList: Self { Self("life-list", record: \.uuid) }
 }
 
 extension PageCacheKey where Item == DiveSiteSearchRow {

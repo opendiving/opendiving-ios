@@ -83,8 +83,8 @@ final class OutboxHub {
   /// Drafts being changed in a form: their queued writes wait for it to be left or for the
   /// changes to pause, so a flush running meanwhile does not send every keystroke.
   var editing: Set<RecordRef> = []
-  /// Records whose delete landed since launch, which a list's pages may still hold until its
-  /// next fetch.
+  /// Records the server no longer has since launch — a delete landed, or a page was answered
+  /// 404 — which a list's pages may still hold until its next fetch.
   var deleted: Set<UUID> = []
   var lookupsRefresh: Task<Void, Never>?
   var draftsRefresh: Task<Void, Never>?
