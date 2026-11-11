@@ -25,6 +25,9 @@ struct CardFramingSheet: View {
   }
 
   static let title = "Frame Your Card"
+  /// The web's *Use this crop*, cut to its verb: on a 375-point phone the full label leaves the
+  /// title no room between it and *Cancel*.
+  static let confirm = "Use"
   static let description =
     "Drag to move, pinch or use the slider to zoom. Everything inside the frame is saved, and that is the shape cards are shown in."
 
@@ -55,7 +58,7 @@ struct CardFramingSheet: View {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          ToolbarConfirmButton(title: "Use this crop") {
+          ToolbarConfirmButton(title: Self.confirm) {
             guard let data = render() else { return }
             onFramed(data)
             dismiss()
