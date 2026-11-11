@@ -126,6 +126,7 @@ public final class PagedList<Item: Codable & Sendable> {
     do {
       try await session.loadAccount()
     } catch {
+      guard !Task.isCancelled else { return }
       pageError = APIError(error)
       if fetched.isEmpty { phase = .failed(APIError(error)) }
       return

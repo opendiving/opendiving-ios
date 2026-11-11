@@ -75,7 +75,7 @@ private struct HeroUnderTopBar: ViewModifier {
     if let refresh {
       content.refreshable {
         isRefreshing = true
-        await refresh()
+        await RefreshRead.run(refresh)
         isRefreshing = false
       }
     } else {

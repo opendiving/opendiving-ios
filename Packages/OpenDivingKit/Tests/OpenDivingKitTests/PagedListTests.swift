@@ -188,6 +188,20 @@ struct PagedListTests {
     #expect(list.lastUpdated == nil)
   }
 
+  @Test func aRefreshCancelledWhileTheAccountReloadsIsNoFailure() async throws {
+    let transport = HangingAccount(inner: try transport())
+    let list = trips(Session.stub(transport: transport))
+    await list.load()
+    transport.hangs.withLock { $0 = true }
+    let refresh = Task { await list.refresh() }
+    while !transport.isHanging { await Task.yield() }
+    refresh.cancel()
+    await refresh.value
+    #expect(list.pageError == nil)
+    #expect(list.phase == .loaded)
+    #expect(list.items.map(\.name) == ["Trip 1"])
+  }
+
   @Test func aFailedFirstPageIsTheError() async throws {
     let list = trips(Session.stub(transport: try transport(failPage: 1)))
     await list.load()
@@ -232,6 +246,33 @@ private final class GatedTransport: HTTPTransport {
         return armed
       }
     if hold { await gate.pass() }
+    return try await inner.send(request)
+  }
+
+  func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
+    try await inner.upload(request, fromFile: file)
+  }
+}
+
+/// Holds `GET user` until its task is cancelled once ``hangs`` is set, as a pull's read is
+/// cut short.
+private final class HangingAccount: HTTPTransport {
+  let inner: StubTransport
+  let hangs = Mutex(false)
+  private let hanging = Mutex(false)
+
+  init(inner: StubTransport) {
+    self.inner = inner
+  }
+
+  var isHanging: Bool { hanging.withLock { $0 } }
+
+  func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    if request.route == "GET user", hangs.withLock({ $0 }) {
+      hanging.withLock { $0 = true }
+      while !Task.isCancelled { await Task.yield() }
+      throw URLError(.cancelled)
+    }
     return try await inner.send(request)
   }
 
