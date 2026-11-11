@@ -156,9 +156,8 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
         .frame(width: glass.width, height: glass.height)
         .position(x: glass.midX, y: glass.midY)
         .allowsHitTesting(false)
-      // The card's lines hung from the glass's top and centred on it, so they travel with it, and
-      // never drawn outside it: the card's sides are wide enough that a narrower glass cuts only
-      // its margins.
+      // The card's lines centred on the glass, so they travel with it, and never drawn outside it:
+      // the card's margins are wide enough that a smaller glass cuts mostly into them.
       card
         // Late enough that the parts flying in have cleared the place's name.
         .opacity(min(max((progress - 0.8) / 0.2, 0), 1))
@@ -167,7 +166,7 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
         // away from where it rests, measures as moved, and is moved again, without end.
         .offset(
           x: pixels(glass.midX - (cardFrame?.midX ?? glass.midX)),
-          y: pixels(glass.minY - (cardFrame?.minY ?? glass.minY))
+          y: pixels(glass.midY - (cardFrame?.midY ?? glass.midY))
         )
         .mask {
           RoundedRectangle(cornerRadius: corner, style: .continuous)
