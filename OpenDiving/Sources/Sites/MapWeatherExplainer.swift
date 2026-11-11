@@ -4,24 +4,23 @@ import SwiftUI
 /// The weather bar grown into ``MapWeatherCard`` over the dimmed, softened map, presented over
 /// everything, the top bar's other buttons included.
 ///
-/// It opens on a copy of the bar where the bar is drawn, while the bar itself is hidden, and grows
-/// the copy's glass into the card's; closing shrinks it back before the presentation ends, so the
-/// bar is never seen to leave. The glass morphs, the bar's parts fly to the top of the card
-/// growing as they go, and the card's other lines fade in once there is room for them, so no line
-/// is laid out at a size it is never shown at.
+/// Everything is laid out from ``MapWeatherMorph``'s progress, so a finger can hold it anywhere
+/// between the bar and the card as a tap's animation passes through it: the glass grows from where
+/// the bar is drawn to the card's place, the bar's parts fly to the top of the card growing as they
+/// go, the map dims, and the card's other lines fade in once there is room for them. The bar is
+/// hidden for as long as its copy here stands in for it.
 struct MapWeatherExplainer: View {
   let content: MapWeatherContent
   /// The open site's place, else its name.
   let title: String?
   /// Where the bar is drawn, in the window's space.
   let barFrame: CGRect
-  /// Ends the presentation, once the card is back in the bar.
-  let onClosed: () -> Void
+  let morph: MapWeatherMorph
 
-  @State private var isOpen = false
-  /// How far a finger has dragged the card, up negative.
-  @State private var drag: CGFloat = 0
-  @Namespace private var morph
+  /// Where the card stands open, in the window's space; nil until it is laid out.
+  @State private var cardFrame: CGRect?
+  @State private var barSlots: [MapWeatherPart: CGPoint] = [:]
+  @State private var cardSlots: [MapWeatherPart: CGPoint] = [:]
   @ScaledMetric(relativeTo: .subheadline) private var barSize = MapWeatherBarLabel.size
   @ScaledMetric(relativeTo: .title2) private var cardSize = MapWeatherCard.size
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -29,89 +28,68 @@ struct MapWeatherExplainer: View {
 
   var body: some View {
     GeometryReader { window in
-      ZStack(alignment: .topLeading) {
-        BackdropBlur(amount: 0.3)
-          .opacity(isOpen ? 1 : 0)
-          .overlay(Color.black.opacity(isOpen ? dimming : 0))
-          .contentShape(.rect)
-          .onTapGesture(perform: close)
-          .accessibilityLabel("Close")
-          .accessibilityAddTraits(.isButton)
-        ZStack(alignment: .topLeading) {
-          // One glass, following the bar's copy and then the card, its corners easing between
-          // them.
-          Self.glass(
-            in: RoundedRectangle(
-              cornerRadius: isOpen ? 26 : barFrame.height / 2, style: .continuous)
-          )
-          .matchedGeometryEffect(id: isOpen ? "card" : "bar", in: morph, isSource: false)
-          .allowsHitTesting(false)
-          if isOpen {
-            card(in: window.size)
-          } else {
-            bar
-          }
-          // The bar's parts, flown between its slots in the bar and in the card and redrawn
-          // at each size between, over both.
-          ForEach(parts, id: \.self) { part in
-            MapWeatherSized(size: isOpen ? cardSize : barSize) { size in
-              part.view(content, size: size)
-            }
-            .matchedGeometryEffect(
-              id: MapWeatherSlots.id(part, isOpen ? .card : .bar), in: morph,
-              properties: .position, isSource: false
-            )
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-          }
-        }
-        .offset(y: drag)
-      }
+      MapWeatherMorphScene(
+        progress: morph.progress, content: content, barFrame: barFrame, cardFrame: cardFrame,
+        barSlots: barSlots, cardSlots: cardSlots, barSize: barSize, cardSize: cardSize,
+        dimming: dimming, close: morph.close, bar: bar, card: card(in: window.size))
     }
     .ignoresSafeArea()
-    .onAppear { withAnimation(morphing) { isOpen = true } }
-    .accessibilityAction(.escape, close)
+    .onAppear {
+      morph.animation =
+        reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.15)
+      if !morph.isDriven { morph.animateOpen() }
+    }
+    .accessibilityAction(.escape, morph.close)
   }
 
+  /// The bar's copy, laid out where the bar is for its parts' places, and drawn by nothing.
   private var bar: some View {
-    MapWeatherBarLabel(content: content, slots: MapWeatherSlots(namespace: morph, place: .bar))
-      .mapWeatherBarLayout()
-      .frame(width: barFrame.width, height: barFrame.height)
-      .matchedGeometryEffect(id: "bar", in: morph)
-      .padding(.leading, barFrame.minX)
-      .padding(.top, barFrame.minY)
-      // Only slots: the parts themselves are the flying ones.
-      .transition(.identity)
-      .accessibilityHidden(true)
+    MapWeatherBarLabel(
+      content: content,
+      slots: MapWeatherSlots(place: .bar) { part, point in
+        barSlots[part] = point
+        if barSlots.count == parts.count { morph.coversBar = true }
+      }
+    )
+    .mapWeatherBarLayout()
+    .frame(width: barFrame.width, height: barFrame.height)
+    .padding(.leading, barFrame.minX)
+    .padding(.top, barFrame.minY)
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
   }
 
   private func card(in window: CGSize) -> some View {
     // From the bar's top edge to as far again and a little more from the bottom: centred there,
     // the card sits just above the screen's middle, where it reads as centred.
     let height = window.height - 2 * barFrame.minY - 40
+    let slots = MapWeatherSlots(place: .card) { part, point in cardSlots[part] = point }
     return ViewThatFits(in: .vertical) {
-      MapWeatherCard(
-        content: content, title: title, slots: MapWeatherSlots(namespace: morph, place: .card))
+      MapWeatherCard(content: content, title: title, slots: slots)
       ScrollView {
-        MapWeatherCard(
-          content: content, title: title, slots: MapWeatherSlots(namespace: morph, place: .card))
+        MapWeatherCard(content: content, title: title, slots: slots)
       }
     }
     .frame(width: min(window.width - 32, 380))
     .frame(maxHeight: height, alignment: .top)
     .fixedSize(horizontal: false, vertical: true)
-    // The whole card takes a touch, its blanks included: a swipe starting between a label and its
-    // value moves the card, and a tap there leaves it open rather than reaching the dim behind.
+    .onGeometryChange(for: CGRect.self) {
+      $0.frame(in: .global)
+    } action: { frame in
+      cardFrame = frame
+      morph.distance = max(120, frame.midY - barFrame.midY)
+    }
+    // The whole card takes a touch, its blanks included: a push starting between a label and its
+    // value moves it, and a tap there leaves it open rather than reaching the dim behind.
     .contentShape(.rect(cornerRadius: 26))
-    .gesture(dragging)
-    .matchedGeometryEffect(id: "card", in: morph)
+    .gesture(
+      // On the window, since the card changes under the finger.
+      DragGesture(minimumDistance: 12, coordinateSpace: .global)
+        .onChanged { morph.push($0.translation.height) }
+        .onEnded { morph.pushEnded(predicted: $0.predictedEndTranslation.height) }
+    )
     .frame(width: window.width, height: height)
     .padding(.top, barFrame.minY)
-    .transition(
-      .asymmetric(
-        insertion: .opacity.animation(.easeInOut(duration: 0.25).delay(0.12)),
-        removal: .opacity.animation(.easeOut(duration: 0.15)))
-    )
     .accessibilityAddTraits(.isModal)
   }
 
@@ -123,41 +101,79 @@ struct MapWeatherExplainer: View {
   private var parts: [MapWeatherPart] {
     MapWeatherPart.allCases.filter { $0.shows(content) }
   }
+}
 
-  private var morphing: Animation {
-    reduceMotion ? .easeInOut(duration: 0.2) : .spring(duration: 0.45, bounce: 0.15)
+/// The presentation at one point of its progress, redrawn at each point an animation or a finger
+/// passes through, rather than animated between two layouts: what eases in late, as the card's
+/// lines do, then follows the progress whatever drives it.
+private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
+  var progress: CGFloat
+  let content: MapWeatherContent
+  let barFrame: CGRect
+  let cardFrame: CGRect?
+  let barSlots: [MapWeatherPart: CGPoint]
+  let cardSlots: [MapWeatherPart: CGPoint]
+  let barSize: CGFloat
+  let cardSize: CGFloat
+  let dimming: Double
+  let close: () -> Void
+  let bar: Bar
+  let card: Card
+
+  var animatableData: CGFloat {
+    get { progress }
+    set { progress = newValue }
   }
 
-  private func close() {
-    withAnimation(morphing) {
-      isOpen = false
-      drag = 0
-    } completion: {
-      onClosed()
+  var body: some View {
+    let glass = Self.between(barFrame, cardFrame ?? barFrame, progress)
+    let corner = Self.between(barFrame.height / 2, 26, progress)
+    ZStack(alignment: .topLeading) {
+      BackdropBlur(amount: 0.3)
+        .opacity(progress)
+        .overlay(Color.black.opacity(progress * dimming))
+        .contentShape(.rect)
+        .onTapGesture(perform: close)
+        .accessibilityLabel("Close")
+        .accessibilityAddTraits(.isButton)
+      bar
+      Self.glass(in: RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .frame(width: glass.width, height: glass.height)
+        .position(x: glass.midX, y: glass.midY)
+        .allowsHitTesting(false)
+      // The card's lines once the glass has room for them, and never outside it.
+      card
+        // Late enough that the parts flying in have cleared the place's name.
+        .opacity(min(max((progress - 0.8) / 0.2, 0), 1))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .mask {
+          RoundedRectangle(cornerRadius: corner, style: .continuous)
+            .frame(width: glass.width, height: glass.height)
+            .position(x: glass.midX, y: glass.midY)
+        }
+      ForEach(MapWeatherPart.allCases.filter { $0.shows(content) }, id: \.self) { part in
+        if let from = barSlots[part] {
+          let to = cardSlots[part] ?? from
+          part.view(content, size: Self.between(barSize, cardSize, progress))
+            .position(
+              x: Self.between(from.x, to.x, progress), y: Self.between(from.y, to.y, progress)
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+      }
     }
   }
 
-  /// The card follows a finger up and down. Let go up, far or fast enough, and it goes back into
-  /// the bar; anywhere else, it settles back where it opened. Measured on the window, since the
-  /// card moves under the finger.
-  private var dragging: some Gesture {
-    DragGesture(minimumDistance: 12, coordinateSpace: .global)
-      .onChanged { drag = $0.translation.height }
-      .onEnded { value in
-        if value.translation.height < -60 || value.predictedEndTranslation.height < -160 {
-          close()
-        } else {
-          withAnimation(.spring(duration: 0.3)) { drag = 0 }
-        }
-      }
+  private static func between(_ from: CGFloat, _ to: CGFloat, _ progress: CGFloat) -> CGFloat {
+    from + (to - from) * progress
   }
 
-  /// Shows or ends the presentation without its own slide, which would carry the bar away: the
-  /// explainer animates what moves.
-  static func present(_ change: () -> Void) {
-    var transaction = Transaction()
-    transaction.disablesAnimations = true
-    withTransaction(transaction, change)
+  private static func between(_ from: CGRect, _ to: CGRect, _ progress: CGFloat) -> CGRect {
+    CGRect(
+      x: between(from.minX, to.minX, progress), y: between(from.minY, to.minY, progress),
+      width: between(from.width, to.width, progress),
+      height: between(from.height, to.height, progress))
   }
 
   /// The toolbar's glass, or its material before iOS 26: what the bar is drawn on, so the copy
@@ -172,28 +188,29 @@ struct MapWeatherExplainer: View {
 }
 
 #Preview {
-  @Previewable @State var isExplaining = false
+  @Previewable @State var morph = MapWeatherMorph()
   @Previewable @State var barFrame = CGRect.zero
   NavigationStack {
     Color.teal.opacity(0.3)
       .ignoresSafeArea()
       .toolbar {
         ToolbarItem(placement: .principal) {
-          MapWeatherBar(content: .sample) { MapWeatherExplainer.present { isExplaining = true } }
-            .onGeometryChange(for: CGRect.self) {
-              $0.frame(in: .global)
-            } action: {
-              barFrame = $0
-            }
-            .opacity(isExplaining ? 0 : 1)
+          MapWeatherBar(
+            content: .sample, onTap: morph.open, onPull: morph.pull,
+            onPullEnded: morph.pullEnded
+          )
+          .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+          } action: {
+            barFrame = $0
+          }
+          .opacity(morph.coversBar ? 0 : 1)
         }
       }
   }
-  .fullScreenCover(isPresented: $isExplaining) {
+  .fullScreenCover(isPresented: $morph.isPresented) {
     MapWeatherExplainer(
-      content: .sample,
-      title: "Dahab, South Sinai, Egypt", barFrame: barFrame,
-      onClosed: { MapWeatherExplainer.present { isExplaining = false } }
+      content: .sample, title: "Dahab, South Sinai, Egypt", barFrame: barFrame, morph: morph
     )
     .presentationBackground(.clear)
   }

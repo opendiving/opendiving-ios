@@ -2,23 +2,34 @@ import OpenDivingKit
 import SwiftUI
 
 /// The weather at a site on the Sites map, in its top bar: the sky, the air temperature, the wind
-/// with an arrow along it and the sea's temperature. A tap, or a swipe down, grows it into
-/// ``MapWeatherCard``, the whole reading.
+/// with an arrow along it and the sea's temperature. A tap grows it into ``MapWeatherCard``, the
+/// whole reading, and a pull down grows it as far as the finger goes.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
   let onTap: () -> Void
+  /// How far a finger has pulled the bar down.
+  var onPull: (CGFloat) -> Void = { _ in }
+  /// The finger lifted, its pull heading for that far down; nil where the system cut it short.
+  var onPullEnded: (CGFloat?) -> Void = { _ in }
+  @GestureState private var isPulling = false
 
   var body: some View {
     // Not a `Button`: the bar draws a button's label as its title or its icon alone, never both.
     MapWeatherBarLabel(content: content)
       .mapWeatherBarChrome()
       .onTapGesture(perform: onTap)
-      // Down, as the card it opens hangs below it.
+      // Down, as the card it opens hangs below it. On the window, since what follows the finger is
+      // drawn over the bar, not in it.
       .gesture(
-        DragGesture(minimumDistance: 12).onEnded { value in
-          if value.translation.height > 24 || value.predictedEndTranslation.height > 80 { onTap() }
-        }
+        DragGesture(minimumDistance: 8, coordinateSpace: .global)
+          .updating($isPulling) { _, pulling, _ in pulling = true }
+          .onChanged { onPull($0.translation.height) }
+          .onEnded { onPullEnded($0.predictedEndTranslation.height) }
       )
+      // A pull ended without `onEnded`, as the presentation it opens may end it, still finishes.
+      .onChange(of: isPulling) { _, pulling in
+        if !pulling { onPullEnded(nil) }
+      }
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(content.accessibilityLabel)
       .accessibilityHint("Shows the whole reading and where it is from")

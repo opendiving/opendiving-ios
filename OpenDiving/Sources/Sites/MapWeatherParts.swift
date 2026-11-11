@@ -129,52 +129,32 @@ enum MapWeatherPart: String, CaseIterable {
   }
 }
 
-/// Where the bar's parts sit, in the bar's copy or the card, for the parts flying between them to
-/// follow: the parts at a slot are laid out and left undrawn.
+/// Where the bar's parts sit, in the bar's copy or in the card, reported for the parts that fly
+/// between them: the parts at a slot are laid out and left undrawn.
 struct MapWeatherSlots {
-  enum Place: String {
+  enum Place {
     case bar, card
   }
 
-  let namespace: Namespace.ID
   let place: Place
-
-  static func id(_ part: MapWeatherPart, _ place: Place) -> String {
-    "\(part.rawValue)-\(place.rawValue)"
-  }
+  /// A part's middle in the window's space.
+  let report: (MapWeatherPart, CGPoint) -> Void
 }
 
 extension View {
-  /// A part held at its slot: undrawn, its middle the one a flying part follows.
+  /// A part held at its slot: undrawn, its middle reported for a flying part to follow.
   @ViewBuilder func mapWeatherSlot(_ part: MapWeatherPart, _ slots: MapWeatherSlots?) -> some View {
     if let slots {
       opacity(0)
-        .matchedGeometryEffect(
-          id: MapWeatherSlots.id(part, slots.place), in: slots.namespace, properties: .position)
+        .onGeometryChange(for: CGPoint.self) { proxy in
+          let frame = proxy.frame(in: .global)
+          return CGPoint(x: frame.midX, y: frame.midY)
+        } action: {
+          slots.report(part, $0)
+        }
     } else {
       self
     }
-  }
-}
-
-/// A part redrawn at each size an animation passes through, rather than scaled, so its text stays
-/// sharp while it grows.
-struct MapWeatherSized<Part: View>: View, Animatable {
-  var size: CGFloat
-  let part: (CGFloat) -> Part
-
-  init(size: CGFloat, @ViewBuilder part: @escaping (CGFloat) -> Part) {
-    self.size = size
-    self.part = part
-  }
-
-  var animatableData: CGFloat {
-    get { size }
-    set { size = newValue }
-  }
-
-  var body: some View {
-    part(size)
   }
 }
 
