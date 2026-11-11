@@ -19,6 +19,8 @@ struct MapWeatherExplainer: View {
   let onClosed: () -> Void
 
   @State private var isOpen = false
+  /// How far a finger has dragged the card, up negative.
+  @State private var drag: CGFloat = 0
   @Namespace private var morph
   @ScaledMetric(relativeTo: .subheadline) private var barSize = MapWeatherBarLabel.size
   @ScaledMetric(relativeTo: .title2) private var cardSize = MapWeatherCard.size
@@ -35,30 +37,35 @@ struct MapWeatherExplainer: View {
           .onTapGesture(perform: close)
           .accessibilityLabel("Close")
           .accessibilityAddTraits(.isButton)
-        // One glass, following the bar's copy and then the card, its corners easing between them.
-        Self.glass(
-          in: RoundedRectangle(cornerRadius: isOpen ? 26 : barFrame.height / 2, style: .continuous)
-        )
-        .matchedGeometryEffect(id: isOpen ? "card" : "bar", in: morph, isSource: false)
-        .allowsHitTesting(false)
-        if isOpen {
-          card(in: window.size)
-        } else {
-          bar
-        }
-        // The bar's parts, flown between its slots in the bar and in the card and redrawn
-        // at each size between, over both.
-        ForEach(parts, id: \.self) { part in
-          MapWeatherSized(size: isOpen ? cardSize : barSize) { size in
-            part.view(content, size: size)
-          }
-          .matchedGeometryEffect(
-            id: MapWeatherSlots.id(part, isOpen ? .card : .bar), in: morph,
-            properties: .position, isSource: false
+        ZStack(alignment: .topLeading) {
+          // One glass, following the bar's copy and then the card, its corners easing between
+          // them.
+          Self.glass(
+            in: RoundedRectangle(
+              cornerRadius: isOpen ? 26 : barFrame.height / 2, style: .continuous)
           )
+          .matchedGeometryEffect(id: isOpen ? "card" : "bar", in: morph, isSource: false)
           .allowsHitTesting(false)
-          .accessibilityHidden(true)
+          if isOpen {
+            card(in: window.size)
+          } else {
+            bar
+          }
+          // The bar's parts, flown between its slots in the bar and in the card and redrawn
+          // at each size between, over both.
+          ForEach(parts, id: \.self) { part in
+            MapWeatherSized(size: isOpen ? cardSize : barSize) { size in
+              part.view(content, size: size)
+            }
+            .matchedGeometryEffect(
+              id: MapWeatherSlots.id(part, isOpen ? .card : .bar), in: morph,
+              properties: .position, isSource: false
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+          }
         }
+        .offset(y: lift)
       }
     }
     .ignoresSafeArea()
@@ -93,6 +100,10 @@ struct MapWeatherExplainer: View {
     .frame(width: min(window.width - 32, 380))
     .frame(maxHeight: height, alignment: .top)
     .fixedSize(horizontal: false, vertical: true)
+    // The whole card takes a touch, its blanks included: a swipe starting between a label and its
+    // value moves the card, and a tap there leaves it open rather than reaching the dim behind.
+    .contentShape(.rect(cornerRadius: 26))
+    .gesture(swipeUp)
     .matchedGeometryEffect(id: "card", in: morph)
     .frame(width: window.width, height: height)
     .padding(.top, barFrame.minY)
@@ -120,9 +131,29 @@ struct MapWeatherExplainer: View {
   private func close() {
     withAnimation(morphing) {
       isOpen = false
+      drag = 0
     } completion: {
       onClosed()
     }
+  }
+
+  /// The card under a finger: followed up, held back down, as a sheet is past its top.
+  private var lift: CGFloat {
+    drag < 0 ? drag : drag / 4
+  }
+
+  /// Up, far or fast enough, sends the card back into the bar; anything less settles it back.
+  /// Measured on the window, since the card moves under the finger.
+  private var swipeUp: some Gesture {
+    DragGesture(minimumDistance: 12, coordinateSpace: .global)
+      .onChanged { drag = $0.translation.height }
+      .onEnded { value in
+        if value.translation.height < -60 || value.predictedEndTranslation.height < -160 {
+          close()
+        } else {
+          withAnimation(.spring(duration: 0.3)) { drag = 0 }
+        }
+      }
   }
 
   /// Shows or ends the presentation without its own slide, which would carry the bar away: the

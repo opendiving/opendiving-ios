@@ -2,7 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The weather at a site on the Sites map, in its top bar: the sky, the air temperature, the wind
-/// with an arrow along it and the sea's temperature. A tap grows it into ``MapWeatherCard``, the whole reading.
+/// with an arrow along it and the sea's temperature. A tap, or a swipe down, grows it into
+/// ``MapWeatherCard``, the whole reading.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
   let onTap: () -> Void
@@ -12,6 +13,12 @@ struct MapWeatherBar: View {
     MapWeatherBarLabel(content: content)
       .mapWeatherBarChrome()
       .onTapGesture(perform: onTap)
+      // Down, as the card it opens hangs below it.
+      .gesture(
+        DragGesture(minimumDistance: 12).onEnded { value in
+          if value.translation.height > 24 || value.predictedEndTranslation.height > 80 { onTap() }
+        }
+      )
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(content.accessibilityLabel)
       .accessibilityHint("Shows the whole reading and where it is from")
