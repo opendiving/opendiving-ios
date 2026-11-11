@@ -18,7 +18,13 @@ struct MoreRecordCacheTests {
   /// A phone signed in to a server that answers each of More's single reads for ``uuid``.
   private func world() throws -> OutboxWorld {
     let world = try OutboxWorld()
-    let answers: [String: String] = try [
+    let answers = try answers()
+    world.server.override { request, _ in answers[request.route].map { .json($0) } }
+    return world
+  }
+
+  private func answers() throws -> [String: String] {
+    try [
       "GET gear-item/\(wire)": OutboxServer.with(KitFixture.text("gear-item"), uuid: wire),
       "GET course/\(wire)": OutboxServer.with(KitFixture.text("course"), uuid: wire),
       "GET certification/\(wire)": OutboxServer.with(
@@ -28,8 +34,6 @@ struct MoreRecordCacheTests {
       "GET user/species/\(wire)": OutboxServer.with(
         KitFixture.text("species-life-list-entry"), uuid: wire),
     ]
-    world.server.override { request, _ in answers[request.route].map { .json($0) } }
-    return world
   }
 
   /// Each page kind: what the phone opened shows offline under its age, asking for nothing, and
@@ -160,6 +164,92 @@ struct MoreRecordCacheTests {
     #expect(page.lastUpdated == nil)
     #expect(world.cacheA.record(.gearItem, uuid) == nil)
     #expect(world.cacheA.pages(lists[0], of: DiveListItem.self) == nil)
+  }
+
+  /// A list on screen that holds ``uuid``'s row, whose page the server then answers 404 for on a
+  /// pull: the row goes at once, stays gone when the list reads again — here from a server that
+  /// still lists it — and is gone from the list opened afresh.
+  private func aGoneRecordLeaves<Record, Row: Identifiable>(
+    _ list: @MainActor (Session) -> PagedList<Row>, route: String, page fixture: String,
+    _ page: @MainActor (Session) -> RecordPage<Record>, pageRoute: String
+  ) async throws where Row.ID == UUID {
+    let world = try world()
+    var object = try #require(
+      JSONSerialization.jsonObject(with: Data(fixture.utf8)) as? [String: Any])
+    var rows = try #require(object["data"] as? [[String: Any]])
+    rows[0]["uuid"] = wire
+    object["data"] = rows
+    let listed = String(
+      decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+    let answers = try answers()
+    let recordRoute = "\(pageRoute)/\(wire)"
+    let gone = Mutex(false)
+    world.server.override { request, _ in
+      if request.route == route { return .json(listed) }
+      if request.route == recordRoute, gone.withLock({ $0 }) {
+        return .json(#"{"detail":"Not Found"}"#, status: 404)
+      }
+      return answers[request.route].map { .json($0) }
+    }
+    try await world.load()
+    let shown = list(world.session)
+    await shown.load()
+    #expect(shown.items.contains { $0.id == uuid })
+    let open = page(world.session)
+    await open.load()
+    #expect(open.phase.isLoaded)
+
+    gone.withLock { $0 = true }
+    let mark = world.server.mark
+    await open.refresh()
+    #expect(open.phase == .notFound)
+    #expect(!shown.items.contains { $0.id == uuid })
+
+    await shown.reloading?.value
+    #expect(world.server.count(route, since: mark) == 1)
+    #expect(!shown.items.contains { $0.id == uuid })
+    #expect(open.reloading == nil)
+    #expect(world.server.count(recordRoute, since: mark) == 1)
+
+    let reopened = list(world.session)
+    await reopened.load()
+    #expect(!reopened.items.contains { $0.id == uuid })
+  }
+
+  @Test func aGearItemTheServerNoLongerHasLeavesTheGearList() async throws {
+    try await aGoneRecordLeaves(
+      { GearListModel(session: $0).items }, route: "GET gear-items",
+      page: KitFixture.text("gear-items-page"), { RecordPage(session: $0, gearItem: uuid) },
+      pageRoute: "GET gear-item")
+  }
+
+  @Test func aCourseTheServerNoLongerHasLeavesTheCourseList() async throws {
+    try await aGoneRecordLeaves(
+      { CourseListModel(session: $0).courses }, route: "GET courses",
+      page: KitFixture.text("courses-page"), { RecordPage(session: $0, course: uuid) },
+      pageRoute: "GET course")
+  }
+
+  @Test func aPersonTheServerNoLongerHasLeavesThePeopleList() async throws {
+    try await aGoneRecordLeaves(
+      { PeopleListModel(session: $0).people }, route: "GET people",
+      page: KitFixture.text("people-page"), { RecordPage(session: $0, person: uuid) },
+      pageRoute: "GET person")
+  }
+
+  @Test func aCertificationTheServerNoLongerHasLeavesTheCertificationList() async throws {
+    let row = try KitFixture.text("certification-front-only")
+    try await aGoneRecordLeaves(
+      PagedList.certifications, route: "GET certifications",
+      page: #"{"data":[\#(row)],"total_count":1,"has_more":false,"page":1,"items_per_page":20}"#,
+      { RecordPage(session: $0, certification: uuid) }, pageRoute: "GET certification")
+  }
+
+  @Test func aSpeciesTheServerNoLongerHasLeavesTheLifeList() async throws {
+    try await aGoneRecordLeaves(
+      PagedList.lifeList, route: "GET user/species",
+      page: KitFixture.text("species-life-list"), { RecordPage(session: $0, species: uuid) },
+      pageRoute: "GET species")
   }
 
   @Test func aKeptRecordIsTheAccountsAlone() async throws {

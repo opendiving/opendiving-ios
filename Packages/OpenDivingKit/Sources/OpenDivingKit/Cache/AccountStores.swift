@@ -44,6 +44,18 @@ struct AccountStores: Sendable {
     OutboxHub.hub(for: directory).listsChanged()
   }
 
+  /// The server answered 404 for one of More's records, so it no longer has it: the cache drops
+  /// it with its page's lists, every list on screen leaves its row out at once, as after a landed
+  /// delete, and every list fetches again.
+  @MainActor
+  func forgetRecord<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) {
+    cache.removeRecord(kind, uuid)
+    let hub = OutboxHub.hub(for: directory)
+    hub.deleted.insert(uuid)
+    hub.changed()
+    hub.listsChanged()
+  }
+
   func sameAccount(_ other: AccountStores?) -> Bool {
     other?.origin == origin && other?.account == account && other?.loaded == loaded
   }
@@ -55,7 +67,13 @@ struct AccountStores: Sendable {
 /// under that same account.
 @MainActor
 func cacheForAnswer(fetchedUnder before: AccountStores?, session: Session) -> AccountCache? {
+  storesForAnswer(fetchedUnder: before, session: session)?.cache
+}
+
+/// The stores ``cacheForAnswer(fetchedUnder:session:)`` writes to, under the same conditions.
+@MainActor
+func storesForAnswer(fetchedUnder before: AccountStores?, session: Session) -> AccountStores? {
   guard let now = AccountStores.current(session), now.loaded else { return nil }
   if let before, before.loaded, before.account != now.account { return nil }
-  return now.cache
+  return now
 }
