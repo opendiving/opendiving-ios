@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Builds the app and installs it on a physical iPhone, asking which when more than one is paired.
 
-Pressing return takes the first device listed. Simulators are skipped, and the script stops when
-no physical device is known to the Mac.
+Pressing return takes the first device listed, and `--first` takes it without asking. Simulators
+are skipped, and the script stops when no physical device is known to the Mac.
 """
 
+import argparse
 import json
 import os
 import subprocess
@@ -57,6 +58,14 @@ def run(command):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--first",
+        action="store_true",
+        help="install on the first device listed without asking, for runs with no terminal",
+    )
+    args = parser.parse_args()
+
     devices = physical_devices()
     if not devices:
         print(
@@ -66,7 +75,7 @@ def main():
         )
         return 1
 
-    _, _, udid, _ = choose(devices)
+    _, _, udid, _ = devices[0] if args.first else choose(devices)
 
     run(["xcodegen", "generate"])
     run(
