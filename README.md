@@ -16,9 +16,17 @@ the units your account uses. Your dive computer's files can be shared to the app
 app or picked from Files, and it imports them the way the web does, showing what each file
 becomes before anything is written. Or the app downloads them from the computer itself over
 Bluetooth: it is built for the Shearwater Perdix 3 and the Suunto Ocean, whose support is
-experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited on the phone, on the web's own
-form, with or without signal, and reach your server when the phone can; a dive begun on the phone
-is a draft the web can finish, and a gear set opens as a checklist to tick at the water's edge.
+experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited
+on the phone, on the web's own form; a dive begun on the phone is a draft the web can finish, and
+a gear set opens as a checklist to tick at the water's edge. The profile's *More* holds the rest
+of the logbook: your dive sites and marine life to browse, and gear, certifications, courses,
+people and contacts to add, edit and delete as on the web — gear archived and serviced on its
+schedules, and a certification's card pictured from the camera, the photo library or Files. Every
+change is made with or without signal and reaches your server when the phone can, and the pages
+the phone has shown open without it.
+Your account's settings are changed on the phone as on the web too — its two pictures, check-in
+details, signed-in devices and API keys, notifications, units, invitations, data export and the
+account itself — though only with signal, and a passkey is added on the web.
 
 ## Why an app
 

@@ -242,6 +242,11 @@ struct ModelFixtureTests {
     let deletion = try KitFixture.roundTrip(AccountDeletionRead.self, "account-deletion")
     #expect(deletion.purgeAfter.instant == Date(timeIntervalSince1970: 1_795_514_400))
   }
+
+  @Test func aPictureWriteAnswersItsRenditionsDigest() throws {
+    let picture = try KitFixture.roundTrip(PictureRead.self, "picture")
+    #expect(picture.sha256.count == 64)
+  }
 }
 
 private enum PictureCropFixture {

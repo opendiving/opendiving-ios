@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Settings* → *Account*: the name and username, saved together; the email, changed through a
-/// confirmation link; and deleting the account.
+/// *Settings* → *Account*: the profile picture, the name and the username, saved together; the
+/// email, changed through a confirmation link; and deleting the account.
 struct AccountScreen: View {
   @Environment(Session.self) private var session
 
@@ -50,12 +50,14 @@ private struct AccountList: View {
   }
 }
 
-/// The name and username, and the one *Save* that sends whichever changed.
+/// The profile picture, the name and the username, and the one *Save* that sends whichever
+/// changed.
 private struct AccountProfileSection: View {
   let model: AccountFormModel
 
   var body: some View {
     Section {
+      PictureFieldView(model: model.picture)
       VStack(alignment: .leading, spacing: 4) {
         LabeledContent("Name") {
           TextField("Name", text: Binding(get: { model.name }, set: { model.setName($0) }))
@@ -80,7 +82,7 @@ private struct AccountProfileSection: View {
           FieldMessage(problem)
         }
       }
-      if model.write.isSaving {
+      if model.isSaving {
         HStack {
           BubbleSpinner()
           Text("Saving…")
@@ -94,13 +96,13 @@ private struct AccountProfileSection: View {
     } header: {
       Text("Profile")
     } footer: {
-      if let failure = model.write.failure {
+      if let failure = model.failure {
         FieldMessage(failure)
       } else if model.saved {
         Text(AccountFormModel.savedMessage)
       }
     }
-    .disabled(model.write.isSaving)
+    .disabled(model.isSaving)
   }
 }
 

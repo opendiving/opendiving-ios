@@ -1,5 +1,4 @@
 import OpenDivingKit
-import PhotosUI
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -18,7 +17,6 @@ struct CertificationCardSlotView: View {
 
   @State private var takingPhoto = false
   @State private var choosingPhoto = false
-  @State private var photo: PhotosPickerItem?
   @State private var choosingFile = false
   @State private var framing: FramedImage?
   @State private var refusal: Refusal?
@@ -69,11 +67,8 @@ struct CertificationCardSlotView: View {
       }
       .ignoresSafeArea()
     }
-    .photosPicker(isPresented: $choosingPhoto, selection: $photo, matching: .images)
-    .onChange(of: photo) { _, item in
-      guard let item else { return }
-      photo = nil
-      Task { await loadPhoto(item) }
+    .photoLibraryPick(isPresented: $choosingPhoto) { data in
+      if let data { frame(data) } else { refusal = .unreadable }
     }
     .fileImporter(
       isPresented: $choosingFile, allowedContentTypes: [.jpeg, .png, .webP, .pdf]
@@ -124,14 +119,6 @@ struct CertificationCardSlotView: View {
         }
       }
     }
-  }
-
-  private func loadPhoto(_ item: PhotosPickerItem) async {
-    guard let data = try? await item.loadTransferable(type: Data.self) else {
-      refusal = .unreadable
-      return
-    }
-    frame(data)
   }
 
   private func loadFile(_ url: URL) {
