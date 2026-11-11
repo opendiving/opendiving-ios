@@ -137,9 +137,9 @@ struct MapWeatherSlots {
   }
 
   let place: Place
-  /// What a part's middle is measured in: the window's space, or one standing in for it where the
-  /// slot is drawn moved from where it is laid out.
-  var space: CoordinateSpace = .global
+  /// The named space a part's middle is measured in, standing in for the window's where the slot
+  /// is drawn moved from where it is laid out; nil for the window's own.
+  var space: String?
   let report: (MapWeatherPart, CGPoint) -> Void
 }
 
@@ -150,7 +150,7 @@ extension View {
       let space = slots.space
       opacity(0)
         .onGeometryChange(for: CGPoint.self) { proxy in
-          let frame = proxy.frame(in: space)
+          let frame = space.map { proxy.frame(in: .named($0)) } ?? proxy.frame(in: .global)
           return CGPoint(x: frame.midX, y: frame.midY)
         } action: {
           slots.report(part, $0)

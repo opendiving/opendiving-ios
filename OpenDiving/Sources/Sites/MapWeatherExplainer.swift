@@ -62,7 +62,7 @@ struct MapWeatherExplainer: View {
     // From the bar's top edge to as far again and a little more from the bottom: centred there,
     // the card sits just above the screen's middle, where it reads as centred.
     let height = window.height - 2 * barFrame.minY - 40
-    let slots = MapWeatherSlots(place: .card, space: .named(Self.cardSpace)) { part, point in
+    let slots = MapWeatherSlots(place: .card, space: Self.cardSpace) { part, point in
       cardSlots[part] = point
     }
     return ViewThatFits(in: .vertical) {
