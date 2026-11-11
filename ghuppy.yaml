@@ -1,0 +1,4 @@
+actions:
+  - name: Install
+    icon: iphone.and.arrow.forward
+    run: ./scripts/install-on-device.py --first
