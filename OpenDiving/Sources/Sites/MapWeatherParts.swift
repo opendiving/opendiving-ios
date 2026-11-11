@@ -132,11 +132,6 @@ enum MapWeatherPart: String, CaseIterable {
 /// Where the bar's parts sit, in the bar's copy or in the card, reported for the parts that fly
 /// between them: the parts at a slot are laid out and left undrawn.
 struct MapWeatherSlots {
-  enum Place {
-    case bar, card
-  }
-
-  let place: Place
   /// The named space a part's middle is measured in, standing in for the window's where the slot
   /// is drawn moved from where it is laid out; nil for the window's own.
   var space: String?

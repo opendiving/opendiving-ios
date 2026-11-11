@@ -46,7 +46,7 @@ struct MapWeatherExplainer: View {
   private var bar: some View {
     MapWeatherBarLabel(
       content: content,
-      slots: MapWeatherSlots(place: .bar) { part, point in
+      slots: MapWeatherSlots { part, point in
         barSlots[part] = point
         if barSlots.count == parts.count { morph.coversBar = true }
       }
@@ -63,7 +63,7 @@ struct MapWeatherExplainer: View {
     // From the bar's top edge to as far again and a little more from the bottom: centred there,
     // the card sits just above the screen's middle, where it reads as centred.
     let height = window.height - 2 * barFrame.minY - 40
-    let slots = MapWeatherSlots(place: .card, space: Self.cardSpace) { part, point in
+    let slots = MapWeatherSlots(space: Self.cardSpace) { part, point in
       if Self.moved(cardSlots[part], point) { cardSlots[part] = point }
     }
     return ViewThatFits(in: .vertical) {

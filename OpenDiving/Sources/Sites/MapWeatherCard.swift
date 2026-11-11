@@ -2,9 +2,10 @@ import OpenDivingKit
 import SwiftUI
 
 /// The whole reading the weather bar stands for: the site's place over the sky, the wind and the
-/// sea's temperature large across the top, the rest of the weather under them, the sea with its waves and tide drawn below that, and whose data
-/// it is, which the provider's licence asks to be shown. Without a background: ``MapWeatherExplainer``
-/// gives it the one it grows from the bar with.
+/// sea's temperature large across the top, the rest of the weather under them, the sea with its
+/// waves and tide drawn below that, and whose data it is, which the provider's licence asks to be
+/// shown. Without a background: ``MapWeatherExplainer`` gives it the one it grows from the bar
+/// with.
 struct MapWeatherCard: View {
   let content: MapWeatherContent
   /// The open site's place, else its name; nil while its panel reads it.

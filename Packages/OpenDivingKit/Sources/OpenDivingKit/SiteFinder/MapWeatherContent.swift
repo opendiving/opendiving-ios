@@ -1,6 +1,6 @@
 /// What the Sites map's weather bar draws for the weather at a site: the sky's icon, the air
-/// temperature, and the wind's speed with an arrow along it; and, under its tap, the rest of the
-/// provider's weather and the sea.
+/// temperature, the wind's speed with an arrow along it and the sea's temperature; and, under its
+/// tap, the rest of the provider's weather and the sea.
 public struct MapWeatherContent: Hashable, Sendable {
   /// A line of the reading the bar has no room for.
   public struct Detail: Hashable, Sendable {
@@ -28,7 +28,8 @@ public struct MapWeatherContent: Hashable, Sendable {
   /// Gusts, cloud cover, the last hour's rain, humidity and pressure, each where the provider
   /// has it.
   public let details: [Detail]
-  /// The sea's surface temperature, `26°C`, which the card shows large beside the sky and the wind.
+  /// The sea's surface temperature, `26°C`, which the bar and the top of its card show beside the
+  /// sky and the wind.
   public let seaTemperature: Detail?
   /// The tide with its last and next turn where ``tide`` cannot draw it, and a wave period with no
   /// height to draw it on, each where the marine model has it; empty inland.

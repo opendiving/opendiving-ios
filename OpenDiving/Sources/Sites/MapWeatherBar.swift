@@ -8,9 +8,9 @@ struct MapWeatherBar: View {
   let content: MapWeatherContent
   let onTap: () -> Void
   /// How far a finger has pulled the bar down.
-  var onPull: (CGFloat) -> Void = { _ in }
+  let onPull: (CGFloat) -> Void
   /// The finger lifted, its pull heading for that far down; nil where the system cut it short.
-  var onPullEnded: (CGFloat?) -> Void = { _ in }
+  let onPullEnded: (CGFloat?) -> Void
   @GestureState private var isPulling = false
 
   var body: some View {
@@ -100,7 +100,7 @@ extension View {
       .ignoresSafeArea()
       .toolbar {
         ToolbarItem(placement: .principal) {
-          MapWeatherBar(content: .sample, onTap: {})
+          MapWeatherBar(content: .sample, onTap: {}, onPull: { _ in }, onPullEnded: { _ in })
         }
       }
   }
