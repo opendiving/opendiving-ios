@@ -7,8 +7,8 @@ import SwiftUI
 /// Everything is laid out from ``MapWeatherMorph``'s progress, so a finger can hold it anywhere
 /// between the bar and the card as a tap's animation passes through it: the glass grows from where
 /// the bar is drawn to the card's place, the bar's parts fly to the top of the card growing as they
-/// go, the map dims, and the card's other lines fade in once there is room for them. The bar is
-/// hidden for as long as its copy here stands in for it.
+/// go, the map dims, and the card's other lines travel with the glass, fading in as it nears the
+/// card's place. The bar is hidden for as long as its copy here stands in for it.
 struct MapWeatherExplainer: View {
   let content: MapWeatherContent
   /// The open site's place, else its name.
@@ -62,7 +62,9 @@ struct MapWeatherExplainer: View {
     // From the bar's top edge to as far again and a little more from the bottom: centred there,
     // the card sits just above the screen's middle, where it reads as centred.
     let height = window.height - 2 * barFrame.minY - 40
-    let slots = MapWeatherSlots(place: .card) { part, point in cardSlots[part] = point }
+    let slots = MapWeatherSlots(place: .card, space: .named(Self.cardSpace)) { part, point in
+      cardSlots[part] = point
+    }
     return ViewThatFits(in: .vertical) {
       MapWeatherCard(content: content, title: title, slots: slots)
       ScrollView {
@@ -72,8 +74,16 @@ struct MapWeatherExplainer: View {
     .frame(width: min(window.width - 32, 380))
     .frame(maxHeight: height, alignment: .top)
     .fixedSize(horizontal: false, vertical: true)
+    // A sheet's grabber on the edge the card is pushed from, in its bottom margin.
+    .overlay(alignment: .bottom) {
+      Capsule()
+        .fill(.tertiary)
+        .frame(width: 36, height: 5)
+        .padding(.bottom, 10)
+        .accessibilityHidden(true)
+    }
     .onGeometryChange(for: CGRect.self) {
-      $0.frame(in: .global)
+      $0.frame(in: .named(Self.cardSpace))
     } action: { frame in
       cardFrame = frame
       morph.distance = max(120, frame.midY - barFrame.midY)
@@ -89,8 +99,13 @@ struct MapWeatherExplainer: View {
     )
     .frame(width: window.width, height: height)
     .padding(.top, barFrame.minY)
+    // The window's space as the card is laid out, which moving it with the glass leaves alone: its
+    // place and its slots are where it comes to rest, not where it is passing.
+    .coordinateSpace(.named(Self.cardSpace))
     .accessibilityAddTraits(.isModal)
   }
+
+  private static let cardSpace = "MapWeatherExplainer.card"
 
   /// Darker in dark mode, where a light dim over dark tiles and a black panel barely shows.
   private var dimming: Double {
@@ -118,6 +133,7 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
   let close: () -> Void
   let bar: Bar
   let card: Card
+  @Environment(\.displayScale) private var displayScale
 
   var animatableData: CGFloat {
     get { progress }
@@ -140,11 +156,19 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
         .frame(width: glass.width, height: glass.height)
         .position(x: glass.midX, y: glass.midY)
         .allowsHitTesting(false)
-      // The card's lines once the glass has room for them, and never outside it.
+      // The card's lines hung from the glass's top and centred on it, so they travel with it, and
+      // never drawn outside it: the card's sides are wide enough that a narrower glass cuts only
+      // its margins.
       card
         // Late enough that the parts flying in have cleared the place's name.
         .opacity(min(max((progress - 0.8) / 0.2, 0), 1))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // In whole pixels: moved by a fraction of one, the card rounds onto the screen a fraction
+        // away from where it rests, measures as moved, and is moved again, without end.
+        .offset(
+          x: pixels(glass.midX - (cardFrame?.midX ?? glass.midX)),
+          y: pixels(glass.minY - (cardFrame?.minY ?? glass.minY))
+        )
         .mask {
           RoundedRectangle(cornerRadius: corner, style: .continuous)
             .frame(width: glass.width, height: glass.height)
@@ -162,6 +186,10 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
         }
       }
     }
+  }
+
+  private func pixels(_ points: CGFloat) -> CGFloat {
+    (points * displayScale).rounded() / displayScale
   }
 
   private static func between(_ from: CGFloat, _ to: CGFloat, _ progress: CGFloat) -> CGFloat {
