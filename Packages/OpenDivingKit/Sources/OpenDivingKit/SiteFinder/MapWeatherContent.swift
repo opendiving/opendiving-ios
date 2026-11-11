@@ -181,7 +181,7 @@ public struct MapWeatherContent: Hashable, Sendable {
     "clear": [IconLayer(.sun, .sun)],
     "partly_cloudy": [IconLayer(.cloudSunSun, .sun), IconLayer(.cloudSunCloud)],
     "overcast": [IconLayer(.cloud)],
-    "rain": [IconLayer(.cloudRainCloud), IconLayer(.cloudRainDrops, .water)],
+    "rain": [IconLayer(.cloudRainWindCloud), IconLayer(.cloudRainWindDrops, .water)],
     "storm": [IconLayer(.cloudLightning)],
     "snow": [IconLayer(.cloudSnow)],
     "fog": [IconLayer(.cloudFog)],

@@ -326,6 +326,7 @@ struct MapWeatherTests {
     #expect(try sky(0).map(\.tone) == [.sun])
     #expect(try sky(2).map(\.tone) == [.sun, nil])
     #expect(try sky(61).map(\.tone) == [nil, .water])
+    #expect(try sky(61).map(\.icon) == [.cloudRainWindCloud, .cloudRainWindDrops])
     #expect(try sky(3).map(\.tone) == [nil])
     #expect(try sky(95).map(\.tone) == [nil])
   }

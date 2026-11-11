@@ -19,9 +19,9 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case cloud
   case cloudFog = "cloud-fog"
   case cloudLightning = "cloud-lightning"
-  case cloudRain = "cloud-rain"
-  case cloudRainCloud = "cloud-rain-cloud"
-  case cloudRainDrops = "cloud-rain-drops"
+  case cloudRainWind = "cloud-rain-wind"
+  case cloudRainWindCloud = "cloud-rain-wind-cloud"
+  case cloudRainWindDrops = "cloud-rain-wind-drops"
   case cloudSnow = "cloud-snow"
   case cloudSun = "cloud-sun"
   case cloudSunCloud = "cloud-sun-cloud"
