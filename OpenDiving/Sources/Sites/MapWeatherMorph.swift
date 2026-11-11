@@ -85,6 +85,19 @@ final class MapWeatherMorph {
     settle(at: heading < pulled || (heading == pulled && pulled < 1) ? 0 : 1)
   }
 
+  /// Ends the presentation at once, with nothing animated and whatever was driving it dropped: for
+  /// when the weather it shows is gone.
+  func dismiss() {
+    Self.present {
+      isDriven = false
+      waitingEnd = nil
+      pulled = 0
+      progress = 0
+      coversBar = false
+      isPresented = false
+    }
+  }
+
   private func present() {
     guard !isPresented else { return }
     progress = 0

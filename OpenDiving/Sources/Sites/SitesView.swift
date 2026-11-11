@@ -89,9 +89,7 @@ private struct SitesFinder: View {
         // Always there, even empty: it stands in for the title, which names the back button on
         // what the map opens and is never shown over it.
         ToolbarItem(placement: .principal) {
-          if let current = weather.current,
-            let content = MapWeatherContent(current, units: session.units)
-          {
+          if let content = weatherContent {
             MapWeatherBar(
               content: content, onTap: weatherMorph.open, onPull: weatherMorph.pull,
               onPullEnded: weatherMorph.pullEnded
@@ -118,14 +116,17 @@ private struct SitesFinder: View {
     .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
     .fullScreenCover(isPresented: $weatherMorph.isPresented) {
-      if let current = weather.current,
-        let content = MapWeatherContent(current, units: session.units)
-      {
+      if let content = weatherContent {
         MapWeatherExplainer(
           content: content, title: weatherTitle, barFrame: weatherBarFrame, morph: weatherMorph
         )
         .presentationBackground(.clear)
       }
+    }
+    // A failed ask or a lost session takes the weather away with the card open: with nothing left
+    // to draw, nor to close it from, the presentation ends rather than stay over the app.
+    .onChange(of: weatherContent == nil) { _, isGone in
+      if isGone { weatherMorph.dismiss() }
     }
     .task(id: weatherAsk) { [weatherShown] in await weather.show(weatherShown) }
     .task { await weather.followRoute() }
@@ -133,6 +134,11 @@ private struct SitesFinder: View {
     .task { if !isPushed { await avatar.followRoute() } }
     // Nothing else here asks the server what it is until a card with a pin draws its map.
     .task { await session.followServerInfo() }
+  }
+
+  /// What the bar and its card draw; nil with no weather to show.
+  private var weatherContent: MapWeatherContent? {
+    weather.current.flatMap { MapWeatherContent($0, units: session.units) }
   }
 
   /// The site the bar's weather is for: the one the finder picks, and none with no map.
