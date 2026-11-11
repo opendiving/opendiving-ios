@@ -53,7 +53,7 @@ public struct EntryUnits: Codable, Hashable, Sendable {
     case .pressure: "pressure"
     case .visibility: "visibility"
     case .altitude: "altitude"
-    case .sac, .rmv, .gasVolume: nil
+    case .sac, .rmv, .gasVolume, .precipitation: nil
     }
   }
 }

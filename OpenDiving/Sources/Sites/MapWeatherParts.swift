@@ -1,0 +1,171 @@
+import OpenDivingKit
+import SwiftUI
+
+/// The sky and the air temperature, drawn at `size` points: small in the weather bar, large at the
+/// top of its card, and every size between as one flies to the other. The icon is sized from the
+/// text rather than by the font, which a loaded symbol does not follow, so the two keep their
+/// proportions at any size.
+struct MapWeatherSky: View {
+  let content: MapWeatherContent
+  let size: CGFloat
+
+  var body: some View {
+    HStack(spacing: size * 0.4) {
+      if !content.sky.isEmpty {
+        // The parts of one icon, each in its own colour, over each other.
+        ZStack {
+          ForEach(content.sky, id: \.icon) { layer in
+            Image(loaded: layer.icon)
+              .resizable()
+              .scaledToFit()
+              .foregroundStyle(layer.tone.map(Color.weather) ?? .primary)
+          }
+        }
+        .frame(width: size * 1.2, height: size * 1.2)
+      }
+      if let temperature = content.temperature {
+        Text(temperature)
+      }
+    }
+    .font(.system(size: size))
+    .monospacedDigit()
+    .lineLimit(1)
+    .fixedSize()
+  }
+
+  static func shows(_ content: MapWeatherContent) -> Bool {
+    !content.sky.isEmpty || content.temperature != nil
+  }
+}
+
+/// The wind's speed with an arrow along it, drawn at `size` points as ``MapWeatherSky`` is.
+struct MapWeatherWind: View {
+  let content: MapWeatherContent
+  let size: CGFloat
+
+  var body: some View {
+    // Wider than the label's: turned, the arrow's corners reach past its frame.
+    HStack(spacing: size / 3) {
+      if let heading = content.windHeading {
+        Image(loaded: .navigation2)
+          .resizable()
+          .scaledToFit()
+          .frame(width: size * 0.85, height: size * 0.85)
+          .rotationEffect(.degrees(heading))
+          .foregroundStyle(Color.brandCoral)
+      }
+      if let windSpeed = content.windSpeed {
+        Text(windSpeed)
+      }
+    }
+    .font(.system(size: size))
+    .monospacedDigit()
+    .lineLimit(1)
+    .fixedSize()
+  }
+
+  static func shows(_ content: MapWeatherContent) -> Bool {
+    content.windSpeed != nil
+  }
+}
+
+/// The sea's surface temperature beside a wave, drawn at `size` points as ``MapWeatherSky`` is.
+struct MapWeatherSea: View {
+  let content: MapWeatherContent
+  let size: CGFloat
+
+  var body: some View {
+    HStack(spacing: size * 0.4) {
+      Image(loaded: .waves)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size * 1.2, height: size * 1.2)
+        .foregroundStyle(Color.weather(.water))
+      if let sea = content.seaTemperature {
+        Text(sea.value)
+      }
+    }
+    .font(.system(size: size))
+    .monospacedDigit()
+    .lineLimit(1)
+    .fixedSize()
+  }
+
+  static func shows(_ content: MapWeatherContent) -> Bool {
+    content.seaTemperature != nil
+  }
+}
+
+extension Color {
+  /// The colour a weather icon's tone is drawn in: the sun's yellow, or the teal of water, lighter
+  /// in the dark, where #008080 is too dim on dark glass.
+  static func weather(_ tone: MapWeatherContent.Tone) -> Color {
+    switch tone {
+    case .sun: .sun
+    case .water: .accentText
+    }
+  }
+}
+
+/// The parts of the bar, each flying to the top of its card.
+enum MapWeatherPart: String, CaseIterable {
+  case sky, wind, sea
+
+  func shows(_ content: MapWeatherContent) -> Bool {
+    switch self {
+    case .sky: MapWeatherSky.shows(content)
+    case .wind: MapWeatherWind.shows(content)
+    case .sea: MapWeatherSea.shows(content)
+    }
+  }
+
+  /// The part drawn at `size` points.
+  @ViewBuilder func view(_ content: MapWeatherContent, size: CGFloat) -> some View {
+    switch self {
+    case .sky: MapWeatherSky(content: content, size: size)
+    case .wind: MapWeatherWind(content: content, size: size)
+    case .sea: MapWeatherSea(content: content, size: size)
+    }
+  }
+}
+
+/// Where the bar's parts sit, in the bar's copy or in the card, reported for the parts that fly
+/// between them: the parts at a slot are laid out and left undrawn.
+struct MapWeatherSlots {
+  /// The named space a part's middle is measured in, standing in for the window's where the slot
+  /// is drawn moved from where it is laid out; nil for the window's own.
+  var space: String?
+  let report: (MapWeatherPart, CGPoint) -> Void
+}
+
+extension View {
+  /// A part held at its slot: undrawn, its middle reported for a flying part to follow.
+  @ViewBuilder func mapWeatherSlot(_ part: MapWeatherPart, _ slots: MapWeatherSlots?) -> some View {
+    if let slots {
+      let space = slots.space
+      opacity(0)
+        .onGeometryChange(for: CGPoint.self) { proxy in
+          let frame = space.map { proxy.frame(in: .named($0)) } ?? proxy.frame(in: .global)
+          return CGPoint(x: frame.midX, y: frame.midY)
+        } action: {
+          slots.report(part, $0)
+        }
+    } else {
+      self
+    }
+  }
+}
+
+#Preview {
+  VStack(alignment: .leading, spacing: 16) {
+    HStack {
+      MapWeatherSky(content: .sample, size: MapWeatherBarLabel.size)
+      MapWeatherWind(content: .sample, size: MapWeatherBarLabel.size)
+    }
+    HStack {
+      MapWeatherSky(content: .sample, size: MapWeatherCard.size)
+      MapWeatherWind(content: .sample, size: MapWeatherCard.size)
+    }
+  }
+  .padding()
+}

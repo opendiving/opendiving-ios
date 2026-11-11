@@ -21,6 +21,8 @@ public enum UnitFormat {
   public static let feetPerMile = 5280.0
   /// Metres in one international nautical mile, exactly: a knot is one an hour.
   public static let metersPerNauticalMile = 1852.0
+  /// Millimetres in one international inch, exactly.
+  public static let millimetersPerInch = 25.4
 
   /// The bare number `metric` shows as in `units`, with no unit after it.
   public static func number(

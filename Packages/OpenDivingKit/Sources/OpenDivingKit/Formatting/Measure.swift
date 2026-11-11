@@ -5,7 +5,8 @@
 /// Deliberately absent, because they read the same in both systems: ppO₂ and surface
 /// pressure (bar on every dive computer), a cylinder's volume (litres of water
 /// capacity), O₂ and He percentages, CNS and OTU, coordinates and durations, and a wind
-/// speed (knots, as boats and marine forecasts give it).
+/// speed and the air's sea-level pressure (knots and hectopascals, as marine forecasts
+/// give them).
 public enum Measure: Sendable, Hashable, CaseIterable {
   case depth
   case temperature
@@ -18,6 +19,8 @@ public enum Measure: Sendable, Hashable, CaseIterable {
   /// Respiratory minute volume, L/min.
   case rmv
   case gasVolume
+  /// Rain, snow and the rest as water, mm.
+  case precipitation
 
   /// The short unit, as it follows a value: `"m"`, `"°F"`, `"psi/min"`.
   public func label(_ units: UnitSystem) -> String {
@@ -36,6 +39,8 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case (.rmv, .imperial): "cuft/min"
     case (.gasVolume, .metric): "L"
     case (.gasVolume, .imperial): "cuft"
+    case (.precipitation, .metric): "mm"
+    case (.precipitation, .imperial): "in"
     }
   }
 
@@ -56,6 +61,8 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case (.rmv, .imperial): "cubic feet per minute"
     case (.gasVolume, .metric): "liters"
     case (.gasVolume, .imperial): "cubic feet"
+    case (.precipitation, .metric): "millimeters"
+    case (.precipitation, .imperial): "inches"
     }
   }
 
@@ -75,6 +82,7 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case .weight: return metric / UnitFormat.kgPerPound
     case .pressure, .sac: return metric * UnitFormat.psiPerBar
     case .rmv, .gasVolume: return metric / UnitFormat.litersPerCubicFoot
+    case .precipitation: return metric / UnitFormat.millimetersPerInch
     }
   }
 
@@ -93,6 +101,7 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     case .weight: return display * UnitFormat.kgPerPound
     case .pressure, .sac: return display / UnitFormat.psiPerBar
     case .rmv, .gasVolume: return display * UnitFormat.litersPerCubicFoot
+    case .precipitation: return display * UnitFormat.millimetersPerInch
     }
   }
 
@@ -122,12 +131,12 @@ public enum Measure: Sendable, Hashable, CaseIterable {
     self == .visibility || self == .altitude ? 0 : nil
   }
 
-  /// Whole numbers for everything but the rates: a whole psi/min is one significant
-  /// figure, and a cubic foot is 28 litres.
+  /// Whole numbers for everything but the rates and the rain: a whole psi/min is one
+  /// significant figure, a cubic foot is 28 litres, and an hour's rain is mostly under an inch.
   var imperialDecimals: Int {
     switch self {
     case .sac, .gasVolume: 1
-    case .rmv: 2
+    case .rmv, .precipitation: 2
     default: 0
     }
   }

@@ -46,7 +46,9 @@ generated from `scripts/icons` and committed. To add an icon, name a Lucide one 
 `scripts/icons/icons.json` or draw one into `scripts/icons/custom/`, on Lucide's 24-unit grid
 with its 2-unit stroke, then regenerate — this needs [uv](https://docs.astral.sh/uv/). A record's
 icon that a card draws large in its water is also listed under `tab`, which draws a larger,
-heavier `tab-` copy of it:
+heavier `tab-` copy of it. An icon drawn in two colours is listed under `parts`, which names each
+part's shapes by their place in the Lucide file and draws one symbol per part, to lay over each
+other:
 
 ```bash
 scripts/icons/generate.py

@@ -1,68 +1,76 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The weather at the centre of the Sites map, in its top bar: the sky, the air temperature and
-/// the wind with an arrow along it. A tap shows where it is, the reading in words and whose data
-/// it is, which the providers' licences ask to be shown.
+/// The weather at a site on the Sites map, in its top bar: the sky, the air temperature, the wind
+/// with an arrow along it and the sea's temperature. A tap grows it into ``MapWeatherCard``, the
+/// whole reading, and a pull down grows it as far as the finger goes.
 struct MapWeatherBar: View {
   let content: MapWeatherContent
-  /// Where the weather is, nil while it is looked up.
-  let place: MapWeatherModel.Place?
-  /// Looks up `place`, when the tap opens it.
-  let lookUpPlace: () async -> Void
-  @State private var isExplained = false
+  let onTap: () -> Void
+  /// How far a finger has pulled the bar down.
+  let onPull: (CGFloat) -> Void
+  /// The finger lifted, its pull heading for that far down; nil where the system cut it short.
+  let onPullEnded: (CGFloat?) -> Void
+  @GestureState private var isPulling = false
 
   var body: some View {
     // Not a `Button`: the bar draws a button's label as its title or its icon alone, never both.
+    MapWeatherBarLabel(content: content)
+      .mapWeatherBarChrome()
+      // One gesture from the touch down, a tap being a touch that barely moved: every touch ends
+      // in the card, so its presentation comes up as the finger lands and is ready to follow it.
+      // Down, as the card hangs below the bar; on the window, since what follows the finger is
+      // drawn over the bar, not in it.
+      .gesture(
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
+          .updating($isPulling) { _, pulling, _ in pulling = true }
+          .onChanged { onPull($0.translation.height) }
+          .onEnded { value in
+            if hypot(value.translation.width, value.translation.height) < 8 {
+              onTap()
+            } else {
+              onPullEnded(value.predictedEndTranslation.height)
+            }
+          }
+      )
+      // A pull ended without `onEnded`, as the presentation it opens may end it, still finishes.
+      .onChange(of: isPulling) { _, pulling in
+        if !pulling { onPullEnded(nil) }
+      }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(content.accessibilityLabel)
+      .accessibilityHint("Shows the whole reading and where it is from")
+      .accessibilityAddTraits(.isButton)
+      .accessibilityAction { onTap() }
+  }
+}
+
+/// The bar's sky, temperature, wind and sea, without its capsule: drawn by the bar, and laid out by
+/// its copy in the card's presentation, where `slots` marks where its parts fly from.
+struct MapWeatherBarLabel: View {
+  let content: MapWeatherContent
+  var slots: MapWeatherSlots?
+  @ScaledMetric(relativeTo: .subheadline) private var size = MapWeatherBarLabel.size
+
+  /// The bar's text size, before Dynamic Type scales it.
+  static let size: CGFloat = 15
+
+  var body: some View {
     HStack(spacing: 6) {
-      if let icon = content.icon {
-        Image(loaded: icon)
+      if MapWeatherSky.shows(content) {
+        MapWeatherSky(content: content, size: size)
+          .mapWeatherSlot(.sky, slots)
       }
-      if let temperature = content.temperature {
-        Text(temperature)
+      if MapWeatherWind.shows(content) {
+        MapWeatherWind(content: content, size: size)
+          .mapWeatherSlot(.wind, slots)
+          .padding(.leading, 4)
       }
-      if let windSpeed = content.windSpeed {
-        // Wider than the label's: turned, the arrow's corners reach past its frame.
-        HStack(spacing: 5) {
-          if let heading = content.windHeading {
-            Image(loaded: .navigation2)
-              .imageScale(.small)
-              .rotationEffect(.degrees(heading))
-          }
-          Text(windSpeed)
-        }
-        .padding(.leading, 4)
+      if MapWeatherSea.shows(content) {
+        MapWeatherSea(content: content, size: size)
+          .mapWeatherSlot(.sea, slots)
+          .padding(.leading, 4)
       }
-    }
-    .mapWeatherBarChrome()
-    .onTapGesture { isExplained = true }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(content.accessibilityLabel)
-    .accessibilityHint("Shows where the weather is from")
-    .accessibilityAddTraits(.isButton)
-    .accessibilityAction { isExplained = true }
-    .popover(isPresented: $isExplained) {
-      VStack(alignment: .leading, spacing: 8) {
-        // The placeholder only holds the line's height while the name is looked up.
-        Text(place?.title ?? "Place, Region, Country")
-          .font(.subheadline.weight(.semibold))
-          .redacted(reason: place == nil ? .placeholder : [])
-        Text(content.summary)
-          .font(.subheadline)
-        // A credit a line, so neither wraps; not underlined, as the credits over a map are, since
-        // one credit is a single link and the other two with text between.
-        VStack(alignment: .leading, spacing: 2) {
-          AttributionLine(credits: [content.attribution], underline: false)
-          if let credit = place?.credit {
-            AttributionLine(credits: [credit], underline: false)
-          }
-        }
-      }
-      .task { await lookUpPlace() }
-      .padding()
-      // Wide enough for the provider's credit on one line.
-      .frame(idealWidth: 320)
-      .presentationCompactAdaptation(.popover)
     }
   }
 }
@@ -70,14 +78,19 @@ struct MapWeatherBar: View {
 extension View {
   /// The weather bar's capsule, as tall as the map's round buttons beside it.
   func mapWeatherBarChrome() -> some View {
+    mapWeatherBarLayout()
+      .contentShape(Capsule())
+      .pickerControl(in: Capsule())
+  }
+
+  /// The bar's type and size without its glass.
+  func mapWeatherBarLayout() -> some View {
     font(.subheadline)
       .monospacedDigit()
       .lineLimit(1)
       .fixedSize()
       .padding(.horizontal, 14)
       .frame(height: MapRoundButtonStyle.side)
-      .contentShape(Capsule())
-      .pickerControl(in: Capsule())
   }
 }
 
@@ -87,19 +100,7 @@ extension View {
       .ignoresSafeArea()
       .toolbar {
         ToolbarItem(placement: .principal) {
-          if let content = MapWeatherContent(
-            DiveConditionsCurrentRead(
-              attribution: "[Weather data by Open-Meteo.com](https://open-meteo.com/)",
-              weather: ConditionsWeather(
-                airTemperature: 24.4, windSpeed: 5.9, windDirection: 45, weatherCode: 2)),
-            units: .metric)
-          {
-            MapWeatherBar(
-              content: content,
-              place: MapWeatherModel.Place(
-                title: "Dahab, South Sinai, Egypt", credit: "[OSM](https://osm.org)"),
-              lookUpPlace: {})
-          }
+          MapWeatherBar(content: .sample, onTap: {}, onPull: { _ in }, onPullEnded: { _ in })
         }
       }
   }

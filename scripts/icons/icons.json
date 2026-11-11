@@ -19,7 +19,7 @@
       "cloud",
       "cloud-fog",
       "cloud-lightning",
-      "cloud-rain",
+      "cloud-rain-wind",
       "cloud-snow",
       "cloud-sun",
       "file-text",
@@ -73,5 +73,29 @@
       "image-off",
       "luggage"
     ]
+  },
+  "parts": {
+    "cloud-rain-wind": {
+      "cloud": [
+        0
+      ],
+      "drops": [
+        1,
+        2,
+        3
+      ]
+    },
+    "cloud-sun": {
+      "sun": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "cloud": [
+        5
+      ]
+    }
   }
 }

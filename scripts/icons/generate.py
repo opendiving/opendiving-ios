@@ -23,6 +23,7 @@ import urllib.request
 from pathlib import Path
 
 from picosvg.svg import SVG
+from picosvg.svg_types import SVGPath
 from picosvg.svg_transform import Affine2D
 
 HERE = Path(__file__).resolve().parent
@@ -66,6 +67,22 @@ def outlined_paths(svg: bytes, scale: float, stroke: float) -> list[str]:
     return [
         shape.as_path().apply_transform(to_template).round_floats(2).d
         for shape in picture.shapes()
+    ]
+
+
+def anchored(part: list[str], whole: list[str]) -> list[str]:
+    # A symbol is drawn to its own shapes' bounds, so a part alone would be scaled to fill the
+    # frame. A speck at two corners of the whole icon's bounds, too small to draw, gives every part
+    # the whole's bounds, and the parts land on each other where the whole has them.
+    boxes = [SVGPath(d=d).bounding_box() for d in whole]
+    left = min(box.x for box in boxes)
+    top = min(box.y for box in boxes)
+    right = max(box.x + box.w for box in boxes)
+    bottom = max(box.y + box.h for box in boxes)
+    speck = 0.01
+    return part + [
+        f"M{left:g} {top:g}h{speck}v{speck}h-{speck}Z",
+        f"M{right - speck:g} {bottom - speck:g}h{speck}v{speck}h-{speck}Z",
     ]
 
 
@@ -144,13 +161,21 @@ def main() -> None:
     # A record's icon drawn large in a card's water is drawn again, larger in its frame and with
     # a heavier stroke, so it holds its own at that size.
     tab = manifest["tab"]
-    symbols = {name: (svg, SCALE, 2.0) for name, svg in sources.items()}
+    symbols = {name: (svg, SCALE, 2.0, None) for name, svg in sources.items()}
     for name in tab["icons"]:
-        symbols[f"tab-{name}"] = (sources[name], SCALE * tab["scale"], tab["stroke"])
-    for name, (svg, scale, stroke) in sorted(symbols.items()):
+        symbols[f"tab-{name}"] = (sources[name], SCALE * tab["scale"], tab["stroke"], None)
+    # An icon drawn in two colours is drawn as its parts, one symbol each, which laid over each
+    # other make the whole: a part is the icon's shapes at those places, in its file's order.
+    for name, parts in manifest.get("parts", {}).items():
+        for part, shapes in parts.items():
+            symbols[f"{name}-{part}"] = (sources[name], SCALE, 2.0, shapes)
+    for name, (svg, scale, stroke, shapes) in sorted(symbols.items()):
         symbolset = CATALOG / f"{name}.symbolset"
         symbolset.mkdir()
-        (symbolset / f"{name}.svg").write_text(template(outlined_paths(svg, scale, stroke), scale))
+        paths = outlined_paths(svg, scale, stroke)
+        if shapes is not None:
+            paths = anchored([paths[index] for index in shapes], paths)
+        (symbolset / f"{name}.svg").write_text(template(paths, scale))
         contents = {"info": info["info"], "symbols": [{"filename": f"{name}.svg", "idiom": "universal"}]}
         (symbolset / "Contents.json").write_text(json.dumps(contents, indent=2) + "\n")
 

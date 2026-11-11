@@ -3,9 +3,9 @@ import SwiftUI
 
 /// What the app opens on signed in: the site finder over the diver's sites and the Commons, full
 /// screen under a top bar with no background, each site opening in the panel, the weather at the
-/// map's centre, the diver's picture that opens their profile, and a long press on the map that
-/// adds a site where it was pressed. Under *Your sites* it is the diver's list, the most recently
-/// dived first.
+/// open site or else, zoomed in, at the site nearest the middle, the diver's picture that opens
+/// their profile, and a long press on the map that adds a site where it was pressed. Under *Your
+/// sites* it is the diver's list, the most recently dived first.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -46,6 +46,10 @@ private struct SitesFinder: View {
   private let isPushed: Bool
   /// Where a long press asked for a new site.
   @State private var adding: PinnedNewSite?
+  /// How far the weather bar is grown into its card.
+  @State private var weatherMorph = MapWeatherMorph()
+  /// Where the weather bar is drawn, for its card to grow from.
+  @State private var weatherBarFrame = CGRect.zero
   @Environment(Session.self) private var session
 
   init(session: Session, site: UUID?) {
@@ -85,10 +89,18 @@ private struct SitesFinder: View {
         // Always there, even empty: it stands in for the title, which names the back button on
         // what the map opens and is never shown over it.
         ToolbarItem(placement: .principal) {
-          if let current = weather.current,
-            let content = MapWeatherContent(current, units: session.units)
-          {
-            MapWeatherBar(content: content, place: weather.place) { await weather.lookUpPlace() }
+          if let content = weatherContent {
+            MapWeatherBar(
+              content: content, onTap: weatherMorph.open, onPull: weatherMorph.pull,
+              onPullEnded: weatherMorph.pullEnded
+            )
+            .onGeometryChange(for: CGRect.self) {
+              $0.frame(in: .global)
+            } action: {
+              weatherBarFrame = $0
+            }
+            // The card's copy of it stands in its place while the card is open.
+            .opacity(weatherMorph.coversBar ? 0 : 1)
           } else if weather.isUnreachable {
             MapWeatherOfflineBar()
           } else {
@@ -103,7 +115,20 @@ private struct SitesFinder: View {
     // Never shown: it is what a page pushed from the map offers to go back to.
     .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
-    .task(id: weatherCell) { [weatherCell] in await weather.show(weatherCell) }
+    .fullScreenCover(isPresented: $weatherMorph.isPresented) {
+      if let content = weatherContent {
+        MapWeatherExplainer(
+          content: content, title: weatherTitle, barFrame: weatherBarFrame, morph: weatherMorph
+        )
+        .presentationBackground(.clear)
+      }
+    }
+    // A failed ask or a lost session takes the weather away with the card open: with nothing left
+    // to draw, nor to close it from, the presentation ends rather than stay over the app.
+    .onChange(of: weatherContent == nil) { _, isGone in
+      if isGone { weatherMorph.dismiss() }
+    }
+    .task(id: weatherAsk) { [weatherShown] in await weather.show(weatherShown) }
     .task { await weather.followRoute() }
     .task(id: session.user?.avatarSha256) { if !isPushed { await avatar.load() } }
     .task { if !isPushed { await avatar.followRoute() } }
@@ -111,9 +136,28 @@ private struct SitesFinder: View {
     .task { await session.followServerInfo() }
   }
 
-  /// Where the bar's weather is for: the map's centre, and nowhere with no map.
-  private var weatherCell: MapWeatherModel.Cell? {
-    map.hasMap ? MapWeatherModel.cell(model.camera) : nil
+  /// What the bar and its card draw; nil with no weather to show.
+  private var weatherContent: MapWeatherContent? {
+    weather.current.flatMap { MapWeatherContent($0, units: session.units) }
+  }
+
+  /// The site the bar's weather is for: the one the finder picks, and none with no map.
+  private var weatherShown: SiteFinderModel.WeatherSite? {
+    map.hasMap ? model.weatherSite : nil
+  }
+
+  /// What a new look at the weather waits on: another site, or its pin moving to another cell. Not
+  /// its title, which an opened site's read fills while its weather is still being asked for.
+  private var weatherAsk: WeatherAsk? {
+    weatherShown.map { WeatherAsk(site: $0.uuid, cell: MapWeatherModel.cell($0.pin)) }
+  }
+
+  /// The card's title: the shown answer's site, as the finder titles it now if it is still the one
+  /// picked, which an opened site's read may since have named.
+  private var weatherTitle: String? {
+    guard let shown = weather.site else { return nil }
+    guard let picked = model.weatherSite, picked.uuid == shown.uuid else { return shown.title }
+    return picked.title ?? shown.title
   }
 
   /// Only where the instance takes proposals, whose routes answer nowhere else.
@@ -127,6 +171,11 @@ private struct SitesFinder: View {
     .accessibilityLabel(YourProposalsView.title)
     .mapBarButton()
   }
+}
+
+private struct WeatherAsk: Hashable {
+  let site: UUID
+  let cell: MapWeatherModel.Cell
 }
 
 /// A new site asked for at a point of the map, which the form opens pinned to.
