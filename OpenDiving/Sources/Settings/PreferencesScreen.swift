@@ -101,17 +101,6 @@ private struct TagsSection: View {
     }
     .task { await model.load() }
     .task { await model.followRoute() }
-    .confirmationDialog(
-      "Delete tag",
-      isPresented: Binding(
-        get: { model.confirmingDelete != nil },
-        set: { if !$0 { model.confirmingDelete = nil } }),
-      titleVisibility: .visible, presenting: model.confirmingDelete
-    ) { tag in
-      Button("Delete", role: .destructive) { Task { await model.confirmDelete(tag) } }
-    } message: { _ in
-      Text(TagsModel.confirmMessage)
-    }
   }
 
   private func row(_ tag: TagRead) -> some View {
@@ -134,6 +123,13 @@ private struct TagsSection: View {
         }
         .tint(Color.danger)
         .accessibilityLabel("Delete \u{201C}\(tag.name)\u{201D}")
+        .rowConfirmation(
+          TagsModel.deleteTitle, for: tag, confirming: Bindable(model).confirmingDelete
+        ) { tag in
+          Button("Delete", role: .destructive) { Task { await model.confirmDelete(tag) } }
+        } message: { tag in
+          Text(TagsModel.deleteMessage(tag))
+        }
       }
     }
     .buttonStyle(.borderless)

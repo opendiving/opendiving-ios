@@ -110,39 +110,29 @@ private struct InviteLinkSection: View {
         FieldMessage(failure)
       }
     }
-    .confirmationDialog(
-      title, isPresented: confirming, titleVisibility: .visible, presenting: model.confirmingLink
-    ) { change in
-      Button(
-        change == .reset ? InvitationsModel.resetButton : InvitationsModel.removeButton,
-        role: change == .remove ? .destructive : nil
-      ) {
-        Task { await model.confirmLinkChange(change) }
-      }
-    } message: { change in
-      Text(change == .reset ? InvitationsModel.resetMessage : InvitationsModel.removeMessage)
-    }
-  }
-
-  private var title: String {
-    model.confirmingLink == .remove ? InvitationsModel.removeTitle : InvitationsModel.resetTitle
-  }
-
-  private var confirming: Binding<Bool> {
-    Binding(
-      get: { model.confirmingLink != nil },
-      set: { if !$0 { model.confirmingLink = nil } })
   }
 
   private func changeButton(
     _ title: String, _ icon: String, _ change: InvitationsModel.LinkChange
   ) -> some View {
-    Button(role: change == .remove ? .destructive : nil) {
+    let role: ButtonRole? = change == .remove ? .destructive : nil
+    return Button(role: role) {
       model.confirmingLink = change
     } label: {
       Label(title, systemImage: icon)
     }
     .disabled(model.isChangingLink)
+    .confirmationDialog(
+      change == .reset ? InvitationsModel.resetTitle : InvitationsModel.removeTitle,
+      isPresented: Binding(
+        get: { model.confirmingLink == change },
+        set: { if !$0, model.confirmingLink == change { model.confirmingLink = nil } }),
+      titleVisibility: .visible, presenting: change
+    ) { change in
+      Button(title, role: role) { Task { await model.confirmLinkChange(change) } }
+    } message: { change in
+      Text(change == .reset ? InvitationsModel.resetMessage : InvitationsModel.removeMessage)
+    }
   }
 }
 
@@ -223,19 +213,6 @@ private struct SentInvitationsSection: View {
         FieldMessage(failure)
       }
     }
-    .confirmationDialog(
-      InvitationsModel.revokeTitle,
-      isPresented: Binding(
-        get: { model.confirmingRevoke != nil },
-        set: { if !$0 { model.confirmingRevoke = nil } }),
-      titleVisibility: .visible, presenting: model.confirmingRevoke
-    ) { invitation in
-      Button(InvitationsModel.revokeButton, role: .destructive) {
-        Task { await model.confirmRevoke(invitation) }
-      }
-    } message: { invitation in
-      Text(InvitationsModel.revokeMessage(invitation))
-    }
   }
 
   private func row(_ invitation: InvitationRead) -> some View {
@@ -264,6 +241,16 @@ private struct SentInvitationsSection: View {
         .accessibilityLabel("Revoke the invitation to \(invitation.email ?? "")")
         .buttonStyle(.borderless)
         .disabled(model.revoking != nil)
+        .rowConfirmation(
+          InvitationsModel.revokeTitle, for: invitation,
+          confirming: Bindable(model).confirmingRevoke
+        ) { invitation in
+          Button(InvitationsModel.revokeButton, role: .destructive) {
+            Task { await model.confirmRevoke(invitation) }
+          }
+        } message: { invitation in
+          Text(InvitationsModel.revokeMessage(invitation))
+        }
       }
     }
   }

@@ -67,6 +67,30 @@ struct APIKeysModelTests {
     #expect(model.created == nil)
   }
 
+  @Test func aKeyUsedElsewhereSaysSoOnceTheAppReturnsToTheForeground() async throws {
+    let harness = try await CredentialsHarness()
+    let model = await model(harness)
+    model.startCreating()
+    model.name = "tide sync"
+    await model.create()
+    let row = try #require(model.list.value?.last)
+    #expect(row.lastUsedAt == nil)
+
+    let following = Task { await model.list.followRouteAndForeground() }
+    defer { following.cancel() }
+    while !harness.connectivity.isFollowed { await Task.yield() }
+    harness.server.use(key: made, at: "2026-11-10T13:00:00Z")
+    harness.connectivity.becomeActive()
+    for _ in 0..<200 where model.list.value?.last?.lastUsedAt == nil {
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    let used = try #require(model.list.value?.last)
+    #expect(used.lastUsedAt != nil)
+    #expect(APIKeysModel.details(used, now: model.now, in: .gmt).contains("Last used Nov 10, 2026"))
+    // Read again, the row keeps its secret until the diver is done with it.
+    #expect(model.secret(for: used) == CredentialsServer.secret)
+  }
+
   @Test func theSecretReachesNoFileAndNoKeychainItem() async throws {
     let harness = try await CredentialsHarness()
     let model = await model(harness)

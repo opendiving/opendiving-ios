@@ -38,9 +38,12 @@ public final class TagsModel: ReloadingListObserver {
     "\(n) \(n == 1 ? noun : noun + "s")"
   }
 
-  public static let confirmMessage =
-    "Are you sure you want to delete this tag? The dives and sites carrying it keep everything"
-    + " else, but will no longer be filed under it."
+  public static let deleteTitle = "Delete tag"
+
+  public static func deleteMessage(_ tag: TagRead) -> String {
+    "Are you sure you want to delete \u{201C}\(tag.name)\u{201D}? The dives and sites carrying"
+      + " it keep everything else, but will no longer be filed under it."
+  }
 
   /// Every page of `GET /tags`. With no route nothing is asked for: tags already read stay,
   /// and without any the screen says it needs a connection; ``followRoute()`` reads again.

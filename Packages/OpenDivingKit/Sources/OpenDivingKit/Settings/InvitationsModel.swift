@@ -53,7 +53,8 @@ public final class InvitationsModel {
   public private(set) var isSending = false
   /// Why the last send invited nobody: the API's sentence.
   public private(set) var sendFailure: String?
-  /// What the last send did, until the next.
+  /// What the last send did, until the next change made on this screen — a send, a revocation
+  /// or a change to the link — which it would no longer describe.
   public private(set) var sentNote: String?
 
   public private(set) var isLoadingMore = false
@@ -127,6 +128,7 @@ public final class InvitationsModel {
     guard !isChangingLink else { return }
     confirmingLink = nil
     linkFailure = nil
+    sentNote = nil
     isChangingLink = true
     defer { isChangingLink = false }
     do {
@@ -150,6 +152,7 @@ public final class InvitationsModel {
     guard !isChangingLink else { return }
     confirmingLink = nil
     linkFailure = nil
+    sentNote = nil
     isChangingLink = true
     defer { isChangingLink = false }
     do {
@@ -234,6 +237,7 @@ public final class InvitationsModel {
     guard revoking == nil else { return }
     confirmingRevoke = nil
     revokeFailure = nil
+    sentNote = nil
     revoking = invitation.uuid
     defer { revoking = nil }
     do {

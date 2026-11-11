@@ -48,6 +48,13 @@ public final class OptionalList<Value: Sendable> {
     await session.connectivity.eachRouteAppearance { await load() }
   }
 
+  /// Reads again each time a route appears or the app returns to the foreground, until the
+  /// calling task is cancelled: for a list whose rows change elsewhere while the screen shows,
+  /// as a key's last use does.
+  public func followRouteAndForeground() async {
+    for await _ in session.connectivity.moments() { await load() }
+  }
+
   /// Changes what was read in place — a rename, a row added from a write's answer — without
   /// reading again. Nothing happens before a read has landed.
   public func update(_ change: (Value) -> Value) {

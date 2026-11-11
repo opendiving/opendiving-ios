@@ -34,6 +34,16 @@ struct SignedInDevicesSection: View {
             }
           }
           .disabled(model.isBusy)
+          .confirmationDialog(
+            SignedInDevicesModel.signOutOthersButton,
+            isPresented: Bindable(model).confirmingSignOutOthers, titleVisibility: .visible
+          ) {
+            Button(SignedInDevicesModel.signOutOthersConfirm, role: .destructive) {
+              Task { await model.confirmSignOutOthers() }
+            }
+          } message: {
+            Text(SignedInDevicesModel.signOutOthersMessage)
+          }
         }
       } header: {
         Text("Signed-in devices")
@@ -46,29 +56,6 @@ struct SignedInDevicesSection: View {
           }
           Text(SignedInDevicesModel.description)
         }
-      }
-      .confirmationDialog(
-        SignedInDevicesModel.signOutTitle,
-        isPresented: Binding(
-          get: { model.confirmingSignOut != nil },
-          set: { if !$0 { model.confirmingSignOut = nil } }),
-        titleVisibility: .visible, presenting: model.confirmingSignOut
-      ) { device in
-        Button(SignedInDevicesModel.signOutButton, role: .destructive) {
-          Task { await model.confirmSignOut(device) }
-        }
-      } message: { device in
-        Text(SignedInDevicesModel.signOutMessage(device))
-      }
-      .confirmationDialog(
-        SignedInDevicesModel.signOutOthersButton,
-        isPresented: Bindable(model).confirmingSignOutOthers, titleVisibility: .visible
-      ) {
-        Button(SignedInDevicesModel.signOutOthersConfirm, role: .destructive) {
-          Task { await model.confirmSignOutOthers() }
-        }
-      } message: {
-        Text(SignedInDevicesModel.signOutOthersMessage)
       }
     }
   }
@@ -104,6 +91,16 @@ struct SignedInDevicesSection: View {
           .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")
           .buttonStyle(.borderless)
           .disabled(model.isBusy)
+          .rowConfirmation(
+            SignedInDevicesModel.signOutTitle, for: device,
+            confirming: Bindable(model).confirmingSignOut
+          ) { device in
+            Button(SignedInDevicesModel.signOutButton, role: .destructive) {
+              Task { await model.confirmSignOut(device) }
+            }
+          } message: { device in
+            Text(SignedInDevicesModel.signOutMessage(device))
+          }
         }
       }
     }

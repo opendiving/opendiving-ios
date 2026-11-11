@@ -41,19 +41,6 @@ struct APIKeysSection: View {
           Text(APIKeysModel.description)
         }
       }
-      .confirmationDialog(
-        APIKeysModel.revokeTitle,
-        isPresented: Binding(
-          get: { model.confirmingRevoke != nil },
-          set: { if !$0 { model.confirmingRevoke = nil } }),
-        titleVisibility: .visible, presenting: model.confirmingRevoke
-      ) { key in
-        Button(APIKeysModel.revokeButton, role: .destructive) {
-          Task { await model.confirmRevoke(key) }
-        }
-      } message: { key in
-        Text(APIKeysModel.revokeMessage(key))
-      }
     }
   }
 
@@ -87,6 +74,15 @@ struct APIKeysSection: View {
         .accessibilityLabel("Revoke \u{201C}\(key.name)\u{201D}")
         .buttonStyle(.borderless)
         .disabled(model.revoking != nil)
+        .rowConfirmation(
+          APIKeysModel.revokeTitle, for: key, confirming: Bindable(model).confirmingRevoke
+        ) { key in
+          Button(APIKeysModel.revokeButton, role: .destructive) {
+            Task { await model.confirmRevoke(key) }
+          }
+        } message: { key in
+          Text(APIKeysModel.revokeMessage(key))
+        }
       }
     }
   }

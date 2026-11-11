@@ -124,6 +124,10 @@ struct TagsModelTests {
     model.confirmingDelete = nil
     #expect(tagWrites(server).isEmpty)
 
+    #expect(
+      TagsModel.deleteMessage(tag)
+        == "Are you sure you want to delete \u{201C}\(tag.name)\u{201D}? The dives and sites"
+        + " carrying it keep everything else, but will no longer be filed under it.")
     // Confirmed: the dialog clears what it presents as it closes, then its button runs.
     model.confirmingDelete = tag
     model.confirmingDelete = nil
