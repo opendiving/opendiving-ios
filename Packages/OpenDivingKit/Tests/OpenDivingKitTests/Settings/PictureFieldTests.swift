@@ -294,6 +294,39 @@ struct PictureFieldTests {
     #expect(portrait.canCopy)
   }
 
+  @Test func anEditTheServerAnswersWithTheSameAccountLeavesNothingSent() async throws {
+    let server = try SettingsServer()
+    server.set("avatar_original_sha256", "avatar-original")
+    // The account already holds what the adjust writes, as an unmoved crop leaves it.
+    server.set("avatar_sha256", "adjusted-avatar")
+    server.set("avatar_crop", ["x": 0, "y": 504, "width": 3024, "height": 3024])
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    await picture.loadStored()
+    let before = session.user
+
+    #expect(await picture.save(.adjust(photo, crop: square)) == nil)
+    #expect(session.user == before)
+
+    #expect(picture.sent == nil)
+    #expect(picture.canAdjust)
+  }
+
+  @Test func aPictureChangedElsewhereAfterASaveIsNotStoodInForByTheSavedOne() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    #expect(await picture.save(replace(square)) == nil)
+    await picture.loadStored()
+    #expect(picture.sent == nil)
+
+    server.set("avatar_sha256", "changed-on-the-web")
+    try await session.reloadAccount()
+
+    #expect(picture.storedData == nil)
+    #expect(picture.sent == nil)
+  }
+
   @Test func theSlotSaysWhatSavingWillDo() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)

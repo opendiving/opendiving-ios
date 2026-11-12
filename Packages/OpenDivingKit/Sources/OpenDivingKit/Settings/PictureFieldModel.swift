@@ -53,7 +53,16 @@ public final class PictureFieldModel {
   @ObservationIgnored private let avatar: AvatarModel?
   /// The last edit the server took, with the account it was sent over; ``sent`` says how long it
   /// is drawn.
-  private var landed: (edit: PictureEdit, over: UserRead?)?
+  private var landed: Landed?
+
+  /// An edit the server took: over which account it was sent, and, once the read after it has
+  /// landed, the version that read named.
+  private struct Landed {
+    let edit: PictureEdit
+    let over: UserRead?
+    var isRead = false
+    var readVersion: String?
+  }
   private var portrait: (version: String, data: Data)?
 
   public init(kind: PictureKind, session: Session) {
@@ -90,13 +99,17 @@ public final class PictureFieldModel {
     session.user.flatMap { AvatarText.initials($0.name) }
   }
 
-  /// An edit the server took, drawn until the stored picture shows what it made: while the
-  /// account the session holds is the one it was sent over, the read after it having failed, and
-  /// then, where the account names a picture, until its bytes are to hand — so the previous
-  /// picture never shows in between.
+  /// An edit the server took, drawn until the stored picture shows what it made, so the previous
+  /// picture never shows in between: until the bytes of the version the read after it named are
+  /// to hand — a version named since is another change, which the edit does not stand in for.
+  /// Where that read failed, while the session holds the account it was sent over, and then
+  /// until the bytes of whatever version the next read named.
   public var sent: PictureEdit? {
     guard let landed else { return nil }
     let awaitingBytes = storedSha != nil && storedData == nil
+    if landed.isRead {
+      return awaitingBytes && storedSha == landed.readVersion ? landed.edit : nil
+    }
     return landed.over == session.user || awaitingBytes ? landed.edit : nil
   }
 
@@ -255,9 +268,12 @@ public final class PictureFieldModel {
     } catch {
       return APIError(error).message
     }
-    landed = (edit, session.user)
+    landed = Landed(edit: edit, over: session.user)
     set(nil)
-    _ = try? await session.reloadAccount()
+    if (try? await session.reloadAccount()) != nil {
+      landed?.isRead = true
+      landed?.readVersion = storedSha
+    }
     return nil
   }
 
