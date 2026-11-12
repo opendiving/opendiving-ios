@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 
-/// One of the account's two pictures as a field of the form it is saved with, as the web's
-/// `PictureField` has it: what is stored, the edit the form will send after its fields, and the
-/// originals fetched to adjust or copy a crop. Every call is direct and online only, through
+/// One of the account's two pictures: as a field of the form it is saved with, as the web's
+/// `PictureField` has it, holding the edit the form will send after its fields; or, on *Account*,
+/// sent as soon as it is chosen, by ``save(_:)``. Either way, what is stored, and the originals
+/// fetched to adjust or copy a crop. Every call is direct and online only, through
 /// ``Session/routedClient()``.
 @MainActor
 @Observable
@@ -50,9 +51,18 @@ public final class PictureFieldModel {
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let avatar: AvatarModel?
-  /// An edit the server took, shown while the account the session holds is the one it was sent
-  /// over — until the read after it, which failed, is made again.
-  private var landed: (edit: PictureEdit, over: UserRead?)?
+  /// The last edit the server took, with the account it was sent over; ``sent`` says how long it
+  /// is drawn.
+  private var landed: Landed?
+
+  /// An edit the server took: over which account it was sent, and, once the read after it has
+  /// landed, the version that read named.
+  private struct Landed {
+    let edit: PictureEdit
+    let over: UserRead?
+    var isRead = false
+    var readVersion: String?
+  }
   private var portrait: (version: String, data: Data)?
 
   public init(kind: PictureKind, session: Session) {
@@ -76,10 +86,12 @@ public final class PictureFieldModel {
     kind == .avatar ? session.user?.avatarCrop : session.user?.portraitCrop
   }
 
-  /// The stored rendition's bytes, once ``loadStored()`` has them.
+  /// The stored rendition's bytes, once ``loadStored()`` has them for the version the account
+  /// names: the previous version's are not them.
   public var storedData: Data? {
-    guard storedSha != nil else { return nil }
-    return kind == .avatar ? avatar?.data : portrait?.data
+    guard let storedSha else { return nil }
+    if let avatar { return avatar.version == storedSha ? avatar.data : nil }
+    return portrait?.version == storedSha ? portrait?.data : nil
   }
 
   /// Whose initials an empty profile picture shows.
@@ -87,13 +99,20 @@ public final class PictureFieldModel {
     session.user.flatMap { AvatarText.initials($0.name) }
   }
 
-  private var landedEdit: PictureEdit? {
-    landed.flatMap { $0.over == session.user ? $0.edit : nil }
+  /// An edit the server took, drawn until the stored picture shows what it made, so the previous
+  /// picture never shows in between: until the bytes of the version the read after it named are
+  /// to hand — a version named since is another change, which the edit does not stand in for.
+  /// Where that read failed, while the session holds the account it was sent over.
+  public var sent: PictureEdit? {
+    guard let landed else { return nil }
+    guard landed.isRead else { return landed.over == session.user ? landed.edit : nil }
+    let awaitingBytes = storedSha != nil && storedSha == landed.readVersion && storedData == nil
+    return awaitingBytes ? landed.edit : nil
   }
 
-  /// What the slot draws in place of the stored picture: the pending edit, or one that landed
-  /// and has not been read back. A removal draws nothing.
-  public var shown: PictureEdit? { edit ?? landedEdit }
+  /// What the slot draws in place of the stored picture: the pending edit, or one that was
+  /// ``sent``. A removal draws nothing.
+  public var shown: PictureEdit? { edit ?? sent }
 
   /// Whether the stored picture is drawn.
   public var showsStored: Bool { shown == nil && storedSha != nil }
@@ -106,12 +125,16 @@ public final class PictureFieldModel {
 
   /// Whether *Adjust* has something to open: a pending picture, or a stored one.
   public var canAdjust: Bool {
-    edit?.source != nil || (landedEdit == nil && !isRemoved && storedSha != nil)
+    edit?.source != nil || (sent == nil && !isRemoved && storedSha != nil)
   }
+
+  /// Whether the slot holds a picture to adjust or delete: the stored one, or one that landed
+  /// and has not been read back.
+  public var hasPicture: Bool { shown?.source != nil || showsStored }
 
   /// Whether *Use profile picture* has an original to copy.
   public var canCopy: Bool {
-    kind == .portrait && landedEdit == nil && session.user?.avatarOriginalSha256 != nil
+    kind == .portrait && sent == nil && session.user?.avatarOriginalSha256 != nil
   }
 
   public var bin: Bin? {
@@ -204,6 +227,18 @@ public final class PictureFieldModel {
 
   // MARK: - Sending
 
+  /// Sends `edit` at once, for a host with no form to wait for. Nil once the server took it;
+  /// otherwise why not, with the edit dropped, so the slot shows what is stored again.
+  public func save(_ edit: PictureEdit) async -> String? {
+    guard !isSending else { return nil }
+    set(edit)
+    guard let refused = await send() else { return nil }
+    set(nil)
+    return edit == .remove
+      ? "Your \(kind.label) was not deleted. \(refused)"
+      : kind.notSaved(refused, afterFields: false)
+  }
+
   /// Sends the edit, then reads the account, so every screen showing the picture shows the new
   /// one. Nil once the server took it; otherwise why not, with the edit kept for another try.
   public func send() async -> String? {
@@ -230,10 +265,11 @@ public final class PictureFieldModel {
     } catch {
       return APIError(error).message
     }
-    landed = (edit, session.user)
+    landed = Landed(edit: edit, over: session.user)
     set(nil)
     if (try? await session.reloadAccount()) != nil {
-      landed = nil
+      landed?.isRead = true
+      landed?.readVersion = storedSha
     }
     return nil
   }

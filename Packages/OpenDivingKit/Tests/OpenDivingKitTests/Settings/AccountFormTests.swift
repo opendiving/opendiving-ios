@@ -6,7 +6,7 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// *Account*'s name and username, and its email.
+/// *Account*'s name and username, each on its own screen, and its email.
 @MainActor
 struct AccountFormTests {
   private let origin = ClientHarness.origin
@@ -30,82 +30,104 @@ struct AccountFormTests {
 
   // MARK: - Name and username
 
-  @Test func theFieldsShowTheAccountAndNothingIsSavedUntilOneChanges() async throws {
-    let server = try SettingsServer()
-    let model = AccountFormModel(session: try await loaded(server))
-    #expect(model.name == "Test Diver")
-    #expect(model.username == "testdiver")
-    #expect(!model.canSave)
-    model.setName("  Test Diver ")
-    #expect(model.fieldsUpdate == nil)
-    #expect(!model.canSave)
+  private func field(_ field: AccountFieldModel.Field, _ session: Session) -> AccountFieldModel {
+    AccountFieldModel(field: field, write: AccountWrite(session: session), session: session)
   }
 
-  @Test func onlyWhatChangedIsSentTrimmedAndTheSessionHoldsTheAnswer() async throws {
+  @Test func eachFieldShowsTheAccountAndNothingIsSavedUntilItChanges() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
-    let model = AccountFormModel(session: session)
+    let name = field(.name, session)
+    #expect(name.text == "Test Diver")
+    #expect(field(.username, session).text == "testdiver")
+    #expect(!name.canSave)
+    name.setText("  Test Diver ")
+    #expect(name.update == nil)
+    #expect(!name.canSave)
+  }
+
+  @Test func theChangeIsSentTrimmedAndTheSessionHoldsTheAnswer() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let model = field(.name, session)
     let before = server.requests.count
 
-    model.setName(" Sam Diver ")
+    model.setText(" Sam Diver ")
     #expect(model.canSave)
-    await model.save()
+    #expect(await model.save())
 
     #expect(sent(server, after: before) == ["PATCH user", "GET user"])
     #expect(
       server.requests.first { $0.httpMethod == "PATCH" }?.json
         == (try JSONValue.parse(Data(#"{"name":"Sam Diver"}"#.utf8))))
     #expect(session.user?.name == "Sam Diver")
-    #expect(model.name == "Sam Diver")
-    #expect(model.saved)
+    #expect(model.text == "Sam Diver")
     #expect(!model.canSave)
   }
 
-  @Test func bothFieldsSaveTogether() async throws {
+  @Test func theUsernameSendsOnlyItself() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
-    let model = AccountFormModel(session: session)
-    model.setName("Sam Diver")
-    model.setUsername("samdiver")
-    await model.save()
+    let model = field(.username, session)
+    model.setText("samdiver")
+    #expect(await model.save())
     #expect(
       server.requests.first { $0.httpMethod == "PATCH" }?.json
-        == (try JSONValue.parse(Data(#"{"name":"Sam Diver","username":"samdiver"}"#.utf8))))
+        == (try JSONValue.parse(Data(#"{"username":"samdiver"}"#.utf8))))
     #expect(session.user?.username == "samdiver")
   }
 
-  @Test func aTakenUsernameIsTheAPIsSentenceAndWhatWasTypedStays() async throws {
+  @Test func aSaveWhoseReadFailedShowsOnTheAccountScreensWrite() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let write = AccountWrite(session: session)
+    let model = AccountFieldModel(field: .name, write: write, session: session)
+    server.fail("GET user", with: .json(#"{"detail":"Down"}"#, status: 500))
+
+    model.setText("Sam Diver")
+    #expect(await model.save())
+
+    #expect(session.user?.name == "Test Diver")
+    #expect(AccountFieldModel.shown(.name, write: write, session: session) == "Sam Diver")
+  }
+
+  @Test func aTakenUsernameIsTheAPIsSentenceAndWhatWasTypedStaysUntilEdited() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
     server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
-    let model = AccountFormModel(session: session)
-    model.setUsername("taken")
+    let model = field(.username, session)
+    model.setText("taken")
 
-    await model.save()
+    #expect(!(await model.save()))
 
     #expect(model.failure == "Username not available")
-    #expect(model.username == "taken")
+    #expect(model.text == "taken")
     #expect(session.user?.username == "testdiver")
-    #expect(!model.saved)
+    model.setText("taken2")
+    #expect(model.failure == nil)
   }
 
   @Test func theWebsBoundsAreKeptBeforeAnythingIsSent() async throws {
     let server = try SettingsServer()
-    let model = AccountFormModel(session: try await loaded(server))
+    let session = try await loaded(server)
+    let name = field(.name, session)
+    let username = field(.username, session)
     let before = server.requests.count
 
-    model.setName("S")
-    #expect(model.nameProblem == "Name must be at least 2 characters")
-    model.setName(String(repeating: "a", count: 31))
-    #expect(model.nameProblem == "Name cannot exceed 30 characters")
-    model.setName(String(repeating: "a", count: 30))
-    #expect(model.nameProblem == nil)
-    model.setUsername("Sam")
-    #expect(model.usernameProblem == "Username can only contain lowercase letters and numbers")
-    model.setUsername(String(repeating: "a", count: 21))
-    #expect(model.usernameProblem == "Username cannot exceed 20 characters")
-    #expect(!model.canSave)
-    await model.save()
+    name.setText("S")
+    #expect(name.problem == "Name must be at least 2 characters")
+    name.setText(String(repeating: "a", count: 31))
+    #expect(name.problem == "Name cannot exceed 30 characters")
+    name.setText(String(repeating: "a", count: 30))
+    #expect(name.problem == nil)
+    name.setText("Sam Diver")
+    #expect(name.problem == nil)
+    username.setText("Sam")
+    #expect(username.problem == "Username can only contain lowercase letters and numbers")
+    username.setText(String(repeating: "a", count: 21))
+    #expect(username.problem == "Username cannot exceed 20 characters")
+    #expect(!username.canSave)
+    #expect(!(await username.save()))
     #expect(server.requests.count == before)
   }
 
@@ -114,15 +136,15 @@ struct AccountFormTests {
     let connectivity = SettingsConnectivity()
     let session = try await loaded(server, connectivity: connectivity)
     connectivity.isRouteAvailable = false
-    let model = AccountFormModel(session: session)
+    let model = field(.name, session)
     let before = server.requests.count
-    model.setName("Sam Diver")
+    model.setText("Sam Diver")
 
-    await model.save()
+    #expect(!(await model.save()))
 
     #expect(server.requests.count == before)
     #expect(model.failure == APIError.noRoute.message)
-    #expect(model.name == "Sam Diver")
+    #expect(model.text == "Sam Diver")
   }
 
   // MARK: - Email

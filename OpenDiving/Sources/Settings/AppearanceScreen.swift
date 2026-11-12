@@ -13,7 +13,7 @@ struct AppearanceScreen: View {
             appearance.choice = choice
           } label: {
             HStack {
-              Label(choice.title, icon: choice.icon)
+              Label(row: choice.title, icon: choice.icon)
                 .foregroundStyle(Color.primary)
               Spacer()
               if appearance.choice == choice {

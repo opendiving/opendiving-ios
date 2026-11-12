@@ -1,6 +1,5 @@
-/// What saving the form will do to its picture. Nothing is sent when the diver chooses it: the
-/// form holds the edit and sends it after its fields, so leaving the screen leaves the stored
-/// picture as it was.
+/// What is done to a picture: sent with the form's save, after its fields, or at once where the
+/// picture has no form to wait for.
 public enum PictureEdit: Hashable, Sendable {
   /// A new photo, kept as the original under `filename`.
   case replace(PictureSource, filename: String, type: PictureFileType, crop: PictureCrop)
