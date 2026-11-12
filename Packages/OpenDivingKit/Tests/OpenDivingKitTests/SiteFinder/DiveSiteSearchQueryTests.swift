@@ -24,6 +24,14 @@ struct DiveSiteSearchQueryTests {
     #expect(sent["my"] == nil)
   }
 
+  @Test func aSpeciesNarrowsTheDiversSitesToThoseItWasSeenAt() {
+    let species = UUID(uuidString: "6F0C2A52-6F43-4B35-9F1B-2C1D0E3A4B5C")!
+    let sent = values(DiveSiteSearchQuery(yours: true, species: species))
+    #expect(sent["my"] == "true")
+    #expect(sent["species_uuid"] == "6f0c2a52-6f43-4b35-9f1b-2c1d0e3a4b5c")
+    #expect(values(DiveSiteSearchQuery(yours: true))["species_uuid"] == nil)
+  }
+
   @Test func theViewIsRoundedOutward() {
     let sent = values(
       DiveSiteSearchQuery(

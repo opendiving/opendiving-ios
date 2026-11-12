@@ -50,10 +50,13 @@ extension KeptRecordKind where Record == PersonRead {
 }
 
 extension KeptRecordKind where Record == SpeciesPage {
-  /// A species' page, with the dives it was seen on.
+  /// A species' page, with the dives it was seen on and their sites.
   public static var species: Self {
     Self(folder: "species", uuid: \.species.uuid) { uuid in
-      [PageCacheKey<DiveListItem>.speciesDives(uuid).name]
+      [
+        PageCacheKey<DiveListItem>.speciesDives(uuid).name,
+        PageCacheKey<DiveSiteSearchRow>.speciesDiveSites(uuid).name,
+      ]
     }
   }
 }

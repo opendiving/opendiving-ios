@@ -19,16 +19,19 @@ public struct DiveSiteSearchQuery: Hashable, Sendable {
   public var until: DiveTimestamp?
   /// Only the diver's own sites and the Commons records they saved.
   public var yours: Bool
+  /// With ``yours``, only the sites a dive of the diver's saw this species at.
+  public var species: UUID?
 
   public init(
     text: String = "", camera: DeviceLocation? = nil, box: LatLonBounds? = nil,
-    until: DiveTimestamp? = nil, yours: Bool = false
+    until: DiveTimestamp? = nil, yours: Bool = false, species: UUID? = nil
   ) {
     self.text = text
     self.camera = camera
     self.box = box
     self.until = until
     self.yours = yours
+    self.species = species
   }
 
   /// The query string, rounded.
@@ -51,6 +54,9 @@ public struct DiveSiteSearchQuery: Hashable, Sendable {
     }
     if let until { items.append(URLQueryItem(name: "until", value: until.wireValue)) }
     if yours { items.append(URLQueryItem(name: "my", value: "true")) }
+    if let species {
+      items.append(URLQueryItem(name: "species_uuid", value: APIClient.wire(species)))
+    }
     return items
   }
 

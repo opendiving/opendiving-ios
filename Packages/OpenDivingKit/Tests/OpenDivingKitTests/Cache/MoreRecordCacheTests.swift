@@ -311,6 +311,7 @@ struct MoreRecordCacheTests {
         PageCacheKey<DiveListItem>.courseDives(uuid).name,
         PageCacheKey<DiveListItem>.personDives(uuid).name,
         PageCacheKey<DiveListItem>.speciesDives(uuid).name,
+        PageCacheKey<DiveSiteSearchRow>.speciesDiveSites(uuid).name,
         PageCacheKey<GearServiceScheduleRead>.gearServiceSchedules(uuid).name,
         PageCacheKey<GearServiceRecordRead>.gearServiceRecords(uuid).name,
         PageCacheKey<CertificationRead>.courseCertifications(uuid).name,

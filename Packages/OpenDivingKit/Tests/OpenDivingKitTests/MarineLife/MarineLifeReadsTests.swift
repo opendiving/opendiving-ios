@@ -94,15 +94,18 @@ struct MarineLifeReadsTests {
     #expect(world.server.count("GET dive-sites/search", since: mark) == 0)
   }
 
-  @Test func aSpeciesPageReadsTheSpeciesItsHistoryAndItsDives() async throws {
+  @Test func aSpeciesPageReadsTheSpeciesItsHistoryItsDivesAndTheirSites() async throws {
     let (world, queries) = try world()
     try await world.load()
     let model = SpeciesDetailModel(session: world.session, speciesUUID: uuid)
     await model.load()
     #expect(model.page.phase.isLoaded)
     #expect(model.dives.phase == .loaded)
-    let sent = queries["GET dives"]
-    #expect(Self.value("species_uuid", in: sent) == wire)
+    #expect(model.sites.phase == .loaded)
+    #expect(Self.value("species_uuid", in: queries["GET dives"]) == wire)
+    let sites = queries["GET dive-sites/search"]
+    #expect(Self.value("my", in: sites) == "true")
+    #expect(Self.value("species_uuid", in: sites) == wire)
   }
 
   @Test func aSpeciesPageNeverShownAsksNothingUntilARouteAppears() async throws {

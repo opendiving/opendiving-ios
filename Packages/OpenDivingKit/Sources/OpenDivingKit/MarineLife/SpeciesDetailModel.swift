@@ -2,13 +2,15 @@ import Foundation
 import Observation
 
 /// A species' page: the species and the diver's history with it, its photo, and the dives it
-/// was seen on, a page at a time. Each shows at once from the account's copy where the phone has
+/// was seen on and their sites, each a page at a time. Each shows at once from the account's copy where the phone has
 /// shown it, and with no route nothing is asked for until one appears.
 @MainActor
 @Observable
 public final class SpeciesDetailModel {
   public let page: RecordPage<SpeciesPage>
   public let dives: PagedList<DiveListItem>
+  /// The diver's sites a dive of theirs saw the species at, most recently dived first.
+  public let sites: PagedList<DiveSiteSearchRow>
   /// The photo's bytes, once read; nil with no photo and while it is neither kept nor reachable.
   public private(set) var photo: Data?
 
@@ -27,20 +29,33 @@ public final class SpeciesDetailModel {
     ) { client, page, itemsPerPage in
       try await client.dives(.species(speciesUUID), page: page, itemsPerPage: itemsPerPage)
     }
+    sites = PagedList(
+      session: session, itemsPerPage: APIClient.nestedListPageSize,
+      cache: .speciesDiveSites(speciesUUID), routed: true
+    ) { client, page, itemsPerPage in
+      try await client.searchDiveSites(
+        DiveSiteSearchQuery(yours: true, species: speciesUUID), page: page,
+        itemsPerPage: itemsPerPage
+      ).listPage
+    }
   }
 
-  /// The species, then its dives and its photo; on a return, whatever shows only the phone's
-  /// copy, again.
+  /// The species, then its dives, their sites and its photo; on a return, whatever shows only
+  /// the phone's copy, again.
   public func load() async {
     appearancesAtLoad = session.connectivity.routeAppearances
     await page.load()
-    await readBeside { await dives.rereadIfStale() }
+    await readBeside { await rereadListsIfStale() }
   }
 
   /// Pull-to-refresh. A species already on screen stays there when the refresh fails.
   public func refresh() async {
     await page.refresh()
-    await readBeside { await dives.refresh() }
+    await readBeside {
+      async let dives: Void = dives.refresh()
+      async let sites: Void = sites.refresh()
+      _ = await (dives, sites)
+    }
   }
 
   /// Reads again what a route can mend, each time one appears, until the calling task is
@@ -52,7 +67,13 @@ public final class SpeciesDetailModel {
 
   private func reread() async {
     await page.reread()
-    await readBeside { await dives.rereadIfStale() }
+    await readBeside { await rereadListsIfStale() }
+  }
+
+  private func rereadListsIfStale() async {
+    async let dives: Void = dives.rereadIfStale()
+    async let sites: Void = sites.rereadIfStale()
+    _ = await (dives, sites)
   }
 
   /// The dives, by `list`, and the photo, which a read that could not have it is the only
