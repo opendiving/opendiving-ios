@@ -7,8 +7,10 @@
 #
 # Where `ontherun-lease.sh` is on PATH the device is a slot of a pool of four, leased to
 # this checkout: the number of simulators stays at four however many worktrees come and
-# go, and a fifth concurrent checkout waits for a slot instead of sharing one. Anywhere
-# else - CI, a plain terminal - it is a simulator named after the checkout's path.
+# go. A checkout keeps its slot between runs - until it releases it, its directory is
+# removed or the lease goes six hours unrenewed - so a fifth checkout waits for a slot
+# instead of sharing one. Anywhere else - CI, a plain terminal - it is a simulator named
+# after the checkout's path.
 set -eu
 
 pool=opendiving-sim
@@ -22,7 +24,15 @@ if command -v ontherun-lease.sh >/dev/null 2>&1; then
   # A lease file still naming this checkout means nobody else has had the slot since.
   held=$(ontherun-lease.sh list "$pool" |
     owner=$root awk -F '\t' '$5 == ENVIRON["owner"] { print $2; exit }')
-  if ! slot=$(ontherun-lease.sh acquire "$pool" "$pool_size" --owner "$root" --wait 1800); then
+  slot=$(ontherun-lease.sh acquire "$pool" "$pool_size" --owner "$root") && status=0 || status=$?
+  if [ "$status" -eq 1 ]; then
+    # The lease script has just listed the holders on stderr; it says nothing while it waits.
+    echo "simulator.sh: every slot of pool $pool is leased; waiting up to 30 minutes for one." \
+      "A checkout that is done testing frees its slot with: ontherun-lease.sh release $pool" >&2
+    slot=$(ontherun-lease.sh acquire "$pool" "$pool_size" --owner "$root" --wait 1800) &&
+      status=0 || status=$?
+  fi
+  if [ "$status" -ne 0 ]; then
     echo "simulator.sh: no simulator slot to lease in pool $pool" >&2
     exit 1
   fi
