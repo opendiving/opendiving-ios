@@ -122,6 +122,7 @@ private struct APIKeyForm: View {
     }
     HStack {
       Button("Cancel") { model.cancelCreating() }
+        .accentRow()
         .disabled(model.isSubmitting)
       Spacer()
       if model.isSubmitting {

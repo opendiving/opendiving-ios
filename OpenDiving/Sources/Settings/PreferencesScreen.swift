@@ -115,6 +115,7 @@ private struct TagsSection: View {
         } label: {
           Image(systemName: "pencil")
         }
+        .accentRow()
         .accessibilityLabel("Rename \u{201C}\(tag.name)\u{201D}")
         Button(role: .destructive) {
           model.confirmingDelete = tag
