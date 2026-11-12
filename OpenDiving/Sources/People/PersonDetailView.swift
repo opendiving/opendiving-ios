@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// A person's page, by their uuid: their name and username, their email and phone opening Mail
-/// and the dialler, the dives together and their notes. They are edited and deleted from the top
+/// and the dialler, their notes and the dives together. They are edited and deleted from the top
 /// bar.
 struct PersonDetailView: View {
   let personUUID: UUID
@@ -59,14 +59,14 @@ private struct PersonDetailContent: View {
               if model.page.hasPendingEdit {
                 PendingEditLine()
               }
-              RecordDivesSection(
-                list: model.dives, content: .person, units: session.units, logDive: .create)
               if let notes = PersonPageContent.notes(person) {
                 SectionCard(title: "Notes", icon: .fileText) {
                   Text(notes)
                     .foregroundStyle(.secondary)
                 }
               }
+              RecordDivesSection(
+                list: model.dives, content: .person, units: session.units, logDive: .create)
             }
             .padding(.horizontal)
           }
