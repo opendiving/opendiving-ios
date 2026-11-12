@@ -40,8 +40,9 @@ struct PicturePreview: View {
         .scaledToFill()
         .accessibilityLabel("Your \(kind.label)")
     } else if kind == .avatar {
+      // A fill, not a ground: it shows on a list's row and on the page behind one alike.
       UserAvatarView(initials: model.initials, picture: nil, side: width)
-        .background(Color(.secondarySystemBackground))
+        .background(Color(.tertiarySystemFill))
     } else {
       ZStack {
         Color(.secondarySystemBackground)
