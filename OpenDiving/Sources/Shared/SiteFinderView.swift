@@ -283,8 +283,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   }
 
   /// Moves the panel to `target`, laid out at its tallest until it lands rather than resized on
-  /// every frame of the way. The finder takes the new detent once it lands, so the spring moves
-  /// the panel and nothing else.
+  /// every frame of the way. The map makes room for `target` as the spring sets off and the list
+  /// takes it once it lands, so the finder is drawn again at either end of the move and not on
+  /// the way.
   private func move(to target: SiteFinderPanel.Detent, on animation: Animation = .snappy) {
     if target != .full { typing = false }
     let number = drag.begin()
@@ -525,8 +526,8 @@ extension SiteFinderView where Site == EmptyView, SiteAction == EmptyView {
 
 /// Moves what it modifies with the panel's top edge, which is `foot` less the panel's height
 /// from where it sits: the panel is placed from the top of the finder, the controls riding on
-/// it from the bottom. Only this reads how far the panel is dragged and where it is heading, so a
-/// move draws nothing else again.
+/// it from the bottom. Only this reads how far the panel is dragged and how tall it stands on the
+/// way, so a frame of the move draws nothing else again.
 private struct RidesPanel: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
@@ -551,7 +552,7 @@ private struct RidesPanel: ViewModifier {
 }
 
 /// The panel's height: its detent's at rest, its tallest while it moves. Read here rather than in
-/// the finder, so a move starting lays out the panel without drawing the finder again.
+/// the finder, which a finger's first pull would otherwise draw again.
 private struct PanelFrame: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
@@ -565,7 +566,7 @@ private struct PanelFrame: ViewModifier {
 }
 
 /// What VoiceOver says the handle is at: where the panel is heading, so a step reads back at
-/// once. Read here rather than in the finder, which a move starting would draw again.
+/// once.
 private struct HandleValue: ViewModifier {
   let drag: SiteFinderPanelDrag
 
