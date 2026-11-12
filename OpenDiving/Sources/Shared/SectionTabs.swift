@@ -22,9 +22,11 @@ struct SectionTabs<Section: TabSection>: View {
   var title: (Section) -> String = { $0.title }
 
   /// How far the names sit below the tabs' top with the icons over them, beyond where they sit
-  /// without: one height for every icon, so the names line up whatever each icon's own height.
+  /// without, at the default text size: one height for every icon, so the names line up whatever
+  /// each icon's own height. It scales with the icons' `title2`, wherever it is read.
   static var iconRowHeight: CGFloat { 28 }
 
+  @ScaledMetric(relativeTo: .title2) private var iconRow = Self.iconRowHeight
   @Namespace private var underline
 
   var body: some View {
@@ -48,7 +50,7 @@ struct SectionTabs<Section: TabSection>: View {
         if showsIcons, let icon = section.icon {
           Image(icon)
             .font(.title2)
-            .frame(height: Self.iconRowHeight)
+            .frame(height: iconRow)
         }
         Text(title(section))
           .lineLimit(1)

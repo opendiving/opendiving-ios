@@ -156,11 +156,13 @@ private struct ProfileTabs: View {
   @Binding var selection: ProfileSection
   @Binding var isStuck: Bool
   @Environment(\.heroTopInset) private var topInset
+  @ScaledMetric(relativeTo: .title2) private var iconRow = SectionTabs<ProfileSection>
+    .iconRowHeight
 
   var body: some View {
     SectionTabs(selection: $selection)
       .onGeometryChange(for: Bool.self) {
-        [top = topInset - SectionTabs<ProfileSection>.iconRowHeight] in
+        [top = topInset - iconRow] in
         $0.frame(in: .scrollView).minY <= top
       } action: {
         isStuck = $0
