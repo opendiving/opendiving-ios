@@ -32,6 +32,7 @@ private struct AccountList: View {
       if session.user != nil {
         Section {
           AccountPictureHeader(model: picture)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 5, trailing: 0))
         }
         .listRowBackground(Color.clear)
         Section {
@@ -63,6 +64,7 @@ private struct AccountList: View {
         .foregroundStyle(.secondary)
       }
     }
+    .contentMargins(.top, 30, for: .scrollContent)
   }
 
   private func fieldRow(_ field: AccountFieldModel.Field, icon: Icon) -> some View {
