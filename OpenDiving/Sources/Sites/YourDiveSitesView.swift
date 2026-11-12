@@ -44,13 +44,13 @@ private struct YourDiveSitesContent: View {
             LastUpdatedLine(date: lastUpdated)
           }
           ForEach(list.items) { row in
-            if let content = YourDiveSiteRowContent(row, units: session.units),
+            if let content = YourDiveSiteCardContent(row, units: session.units),
               let site = content.siteUUID
             {
               NavigationLink {
                 SiteMapView(siteUUID: site)
               } label: {
-                DiveSiteRowView(content: content)
+                YourDiveSiteCard(content: content)
               }
               .buttonStyle(.plain)
               .onAppear { Task { await list.loadMore(after: row) } }

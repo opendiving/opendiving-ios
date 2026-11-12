@@ -133,11 +133,11 @@ private struct SpeciesDiveSites: View {
     case .loaded:
       LazyVStack(spacing: 12) {
         ForEach(list.items) { row in
-          if let content = YourDiveSiteRowContent(row, units: units), let site = content.siteUUID {
+          if let content = YourDiveSiteCardContent(row, units: units), let site = content.siteUUID {
             NavigationLink {
               SiteMapView(siteUUID: site)
             } label: {
-              DiveSiteRowView(content: content)
+              YourDiveSiteCard(content: content)
             }
             .buttonStyle(.plain)
           }

@@ -10,12 +10,10 @@ struct FactsLine: View {
     if !facts.isEmpty {
       FlowLayout(spacing: 4, lineSpacing: 2) {
         ForEach(Array(facts.enumerated()), id: \.offset) { index, fact in
-          HStack(spacing: 4) {
-            if index > 0 {
-              Text("·").accessibilityHidden(true)
-            }
-            FactView(fact: fact)
+          if index > 0 {
+            Text("·").accessibilityHidden(true).flowSeparator()
           }
+          FactView(fact: fact)
         }
       }
       .font(.caption)
@@ -57,5 +55,15 @@ private struct FactView: View {
     Fact(text: "Legend", icon: .ship, accessibilityLabel: "Boat"),
     Fact(icon: .diveComputer, iconCount: 2, accessibilityLabel: "2 dive computers"),
   ])
+  .padding()
+}
+
+#Preview("Wrapped") {
+  FactsLine(facts: [
+    Fact(text: "Apr 4, 2021, 10:04"),
+    Fact(text: "Ras Mohammed, South Sinai, Egypt"),
+    Fact(text: "Legend", icon: .ship, accessibilityLabel: "Boat"),
+  ])
+  .frame(width: 200, alignment: .leading)
   .padding()
 }
