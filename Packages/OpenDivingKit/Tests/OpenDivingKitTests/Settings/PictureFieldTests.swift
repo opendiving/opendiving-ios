@@ -279,6 +279,21 @@ struct PictureFieldTests {
     #expect(picture.edit == nil)
   }
 
+  @Test func aRemovalReadBackLeavesNothingSentAndUseProfilePictureComesBack() async throws {
+    let server = try SettingsServer()
+    server.set("avatar_original_sha256", "avatar-original")
+    let session = try await loaded(server)
+    let portrait = PictureFieldModel(kind: .portrait, session: session)
+    #expect(portrait.canCopy)
+
+    portrait.set(.remove)
+    #expect(await portrait.send() == nil)
+
+    #expect(session.user?.portraitSha256 == nil)
+    #expect(portrait.sent == nil)
+    #expect(portrait.canCopy)
+  }
+
   @Test func theSlotSaysWhatSavingWillDo() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
