@@ -1,17 +1,15 @@
 import Foundation
 
-/// One row of More's *Your dive sites*, as the web's finder draws a site under *Your sites*:
-/// its name; where it is, in what water, how deep, how high and how divers get in; what the
-/// diver's dives there add up to; whether a proposal on it waits; and for a Commons record its
-/// mark and the credit its source asks for. No distance: the list sends no camera.
-public struct YourDiveSiteRowContent: Hashable, Sendable, Identifiable {
+/// One card of More's *Your dive sites*, as a trip's card on its list: a map of the site's pin,
+/// its name, where it is, in what water, how deep, how high and how divers get in, and what the
+/// diver's dives there add up to; then whether a proposal on it waits, and for a Commons record
+/// its mark and the credit its source asks for. No distance: the list sends no camera.
+public struct YourDiveSiteCardContent: Hashable, Sendable, Identifiable {
   public let id: String
-  /// The site the row opens on the map.
+  /// The site the card opens on the map.
   public let siteUUID: UUID?
-  public let title: String
-  public let facts: [Fact]
-  /// `12 dives · deepest 31 m · 4 species seen`; nil where the server sends no summary.
-  public let figures: String?
+  /// Its figures empty where the server sends no summary of the diver's dives there.
+  public let card: RecordCardContent
   public let isWaitingForReview: Bool
   public let isCommons: Bool
   /// The Commons record's credit, as `[label](href)`.
@@ -22,12 +20,19 @@ public struct YourDiveSiteRowContent: Hashable, Sendable, Identifiable {
     guard case .site(let item) = row else { return nil }
     id = row.id
     siteUUID = item.ref.serverUUID
-    title = item.name
-    facts = Self.facts(item, units: units)
-    figures = item.dives.map { Self.figures($0, units: units) }
+    card = RecordCardContent(
+      title: item.name, facts: Self.facts(item, units: units),
+      figures: item.dives.map { Self.figures($0, units: units) } ?? [],
+      points: Self.points(item))
     isWaitingForReview = item.isWaitingForReview
     isCommons = item.site.isCommons
     credit = item.site.isCommons ? item.attribution : nil
+  }
+
+  /// The site's pin; none for a site with no position, whose card shows the water instead.
+  static func points(_ item: DiveSiteSearchItem) -> [MapPoint] {
+    guard let latitude = item.latitude, let longitude = item.longitude else { return [] }
+    return [MapPoint(name: item.name, latitude: latitude, longitude: longitude)]
   }
 
   /// The water only where it is not the sea's, and the altitude only where it is not sea
@@ -60,12 +65,17 @@ public struct YourDiveSiteRowContent: Hashable, Sendable, Identifiable {
     return facts
   }
 
-  static func figures(_ dives: DiveSiteDives, units: UnitSystem) -> String {
-    var parts = ["\(dives.diveCount) \(dives.diveCount == 1 ? "dive" : "dives")"]
+  /// The dives, at one or more; the deepest where there is one, in whole units as a dive card
+  /// rounds its depths; the species once there are some.
+  static func figures(_ dives: DiveSiteDives, units: UnitSystem) -> [Figure] {
+    var figures = [Figure(label: "Dives", value: String(dives.diveCount))]
     if let deepest = dives.maxDiveDepth {
-      parts.append("deepest " + UnitFormat.depth(deepest, units, decimals: 0))
+      figures.append(
+        Figure(label: "Max depth", value: UnitFormat.depth(deepest, units, decimals: 0)))
     }
-    if dives.speciesCount > 0 { parts.append("\(dives.speciesCount) species seen") }
-    return parts.joined(separator: " · ")
+    if dives.speciesCount > 0 {
+      figures.append(Figure(label: "Species seen", value: String(dives.speciesCount)))
+    }
+    return figures
   }
 }
