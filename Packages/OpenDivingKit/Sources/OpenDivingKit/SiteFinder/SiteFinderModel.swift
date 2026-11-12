@@ -54,6 +54,10 @@ public final class SiteFinderModel {
   public private(set) var opened: OpenedSite?
   /// The site whose pin stands out on the map: the one opened, or the dive form's touched one.
   public var highlighted: UUID? { opened?.uuid ?? selected?.uuid }
+  /// The camera has been moved to the opened site, whose pin the map then holds at its middle:
+  /// it zooms about the pin and pans nowhere. Not before, while the site waits on its panel's read
+  /// of where it is.
+  public var holdsOpenedSite: Bool { opened?.isPlaced == true }
   /// The camera's last move is drawn as a glide rather than a jump: an opened site being centred.
   public private(set) var glides = false
   public let points: DiveSitePointsModel

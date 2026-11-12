@@ -7,9 +7,9 @@ import SwiftUI
 /// over the map's corner above the panel, and a spinner under the top bar while the list is asked
 /// for again. With no map on the instance the panel stands alone, at its tallest. On the sites map
 /// a site opened from its row or its point takes the panel's search and list, its pin larger at
-/// the middle of the map and the others faded; on the dive form a touched point is named under a
-/// sheet. What a row does when chosen, what an opened site shows, and the top bar's buttons, are
-/// the host's; the bar draws no background over the map.
+/// the middle of the map, which then only zooms about it, and the others faded; on the dive form a
+/// touched point is named under a sheet. What a row does when chosen, what an opened site shows,
+/// and the top bar's buttons, are the host's; the bar draws no background over the map.
 struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
@@ -115,7 +115,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       SiteFinderMap(
         styleJSON: style.styleJSON, camera: model.camera, glides: model.glides, covered: covered,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
-        selected: model.highlighted,
+        selected: model.highlighted, holdsMiddle: model.holdsOpenedSite,
         onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
         onPoint: { model.select($0) },
         onMapTap: { model.closeSite() },

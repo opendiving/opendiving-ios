@@ -21,9 +21,12 @@ struct SiteFinderMap: UIViewRepresentable {
   let commons: CommonsDiveSitePoints?
   let yours: [DiveSitePoint]
   let selected: UUID?
+  /// The map stays on what it is looking at: it zooms about the middle of what shows and pans
+  /// nowhere, and a group's tap lets go of the hold before it opens the group.
+  var holdsMiddle = false
   let onCameraChange: (MapCamera, Bool) -> Void
   let onPoint: (UUID) -> Void
-  /// A tap on the map that touched neither a site nor a group.
+  /// A tap on the map that touched no site, and no group but one tapped with the middle held.
   var onMapTap: () -> Void = {}
   var onLongPress: ((CLLocationCoordinate2D) -> Void)?
 
@@ -57,6 +60,7 @@ struct SiteFinderMap: UIViewRepresentable {
     coordinator.onPoint = onPoint
     coordinator.onMapTap = onMapTap
     coordinator.onLongPress = onLongPress
+    coordinator.holdsMiddle = holdsMiddle
     if styleJSON != coordinator.styleJSON {
       coordinator.styleJSON = styleJSON
       coordinator.fonts = MapStyleFonts.textFont(in: styleJSON)
@@ -66,6 +70,7 @@ struct SiteFinderMap: UIViewRepresentable {
     coordinator.show(Layers(commons: commons, yours: yours, selected: selected), on: map)
     coordinator.cover(map, with: covered)
     coordinator.move(map, to: camera, glides: glides)
+    coordinator.grip(map)
   }
 
   func makeCoordinator() -> Coordinator {
@@ -86,6 +91,7 @@ struct SiteFinderMap: UIViewRepresentable {
     var onPoint: ((UUID) -> Void)?
     var onMapTap: (() -> Void)?
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
+    var holdsMiddle = false
     var styleJSON = ""
     var fonts: [String]?
     /// The appearance the marks are drawn for, taken from SwiftUI with the style that matches it:
@@ -271,6 +277,14 @@ struct SiteFinderMap: UIViewRepresentable {
         guard let self, let map else { return }
         report(map, byGesture: false)
       }
+    }
+
+    /// Holding the middle, a finger pans nowhere and zooms about it — and not at all while a glide
+    /// is still on its way there, which a pinch would stop short of it.
+    func grip(_ map: MLNMapView) {
+      map.isScrollEnabled = !holdsMiddle
+      map.isZoomEnabled = !(holdsMiddle && isGliding)
+      map.anchorRotateOrZoomGesturesToCenterCoordinate = holdsMiddle
     }
 
     func move(_ map: MLNMapView, to camera: MapCamera, glides: Bool) {
@@ -470,6 +484,8 @@ struct SiteFinderMap: UIViewRepresentable {
             sites, splitting: splitting >= 0 ? splitting : map.zoomLevel + 1,
             width: showing.width, height: showing.height, padding: Self.groupPadding)
         else { return }
+        // A group opened is somewhere else to look, which a hold on the middle would contradict.
+        if holdsMiddle { onMapTap?() }
         zoomedIntoCluster = true
         map.setCenter(
           CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
@@ -504,6 +520,7 @@ struct SiteFinderMap: UIViewRepresentable {
       // would let the panel's cover, applied next, keep the pin at the screen's centre.
       if isGliding, reason.contains(.transitionCancelled), !byFinger { return }
       isGliding = false
+      grip(map)
       report(map, byGesture: byFinger || zoomedIntoCluster)
       zoomedIntoCluster = false
     }
