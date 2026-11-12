@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One species as a card, as a site's and a trip's: its photo filling the card — the water and a
-/// fish where there is none — under its names, the diver's note and the figures on glass in its
+/// One species as a card, as a site's and a trip's: its photo framed on the card's band — the water
+/// and a fish where there is none — under its names, the diver's note and the figures on glass in its
 /// foot. The photo is decorative; the name says what it is.
 struct SpeciesCardView: View {
   let content: SpeciesCardContent
@@ -10,15 +10,13 @@ struct SpeciesCardView: View {
   var body: some View {
     BackdropCardView { frame in
       if let data = content.photo, let image = UIImage(data: data) {
-        // Filled into the card and clipped to it, as a photo's own size would set the card's.
-        Color.clear
-          .overlay {
-            Image(uiImage: image)
-              .resizable()
-              .scaledToFill()
-          }
-          .clipped()
-          .accessibilityHidden(true)
+        // Centred on the band the details leave showing, rather than on the card they cover the
+        // foot of.
+        PlacedPhotoView(data: data, image: image) { photo, card in
+          .card(
+            photoWidth: photo.width, photoHeight: photo.height, width: card.width,
+            band: CardBackdropFrame.band)
+        }
       } else {
         UnplacedBackdropView(icon: .fish, coveredBottom: frame.coveredBottom)
       }
@@ -58,6 +56,12 @@ struct SpeciesCardView: View {
             Figure(label: "Dives", value: "14"), Figure(label: "Last seen", value: "Jun 3, 2024"),
           ]
         ))
+      ForEach(PlacedPhotoView.previewPhotos, id: \.self) { photo in
+        SpeciesCardView(
+          content: SpeciesCardContent(
+            photo: photo, commonName: "Sea goldie", scientificName: "Pseudanthias squamipinnis",
+            figures: [Figure(label: "Dives", value: "4")]))
+      }
     }
     .padding()
   }

@@ -65,8 +65,6 @@ struct HeroView<Leading: View>: View {
         Color.mapWater
         if case .photo(let data, let placeholder) = backdrop {
           photo(data, placeholder: placeholder)
-            .frame(height: height)
-            .clipped()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
@@ -84,14 +82,20 @@ struct HeroView<Leading: View>: View {
     }
   }
 
-  /// Decorative: the title over it says what it is.
+  /// Decorative: the title over it says what it is. Framed on what the bar and the details leave
+  /// showing, its blurred copy filling the pull-down's reach above.
   @ViewBuilder private func photo(_ data: Data?, placeholder: OpenDivingKit.Icon) -> some View {
     if let data, let image = UIImage(data: data) {
-      Image(uiImage: image)
-        .resizable()
-        .scaledToFill()
+      PlacedPhotoView(data: data, image: image, fadesTop: true) { photo, frame in
+        .hero(
+          photoWidth: photo.width, photoHeight: photo.height, width: frame.width,
+          uncoveredTop: Self.pullReach + topInset,
+          uncoveredBottom: Self.pullReach + height - detailsHeight)
+      }
     } else {
       UnplacedBackdropView(icon: placeholder, coveredTop: topInset, coveredBottom: detailsHeight)
+        .frame(height: height)
+        .clipped()
     }
   }
 
@@ -144,6 +148,21 @@ extension HeroView where Leading == EmptyView {
         ],
         points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)],
         fixes: [MapPoint(name: "Exit", latitude: 28.5735, longitude: 34.5361)]))
+  }
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
+}
+
+#Preview("Species photos") {
+  ScrollView {
+    VStack(spacing: 0) {
+      ForEach(PlacedPhotoView.previewPhotos, id: \.self) { photo in
+        HeroView(
+          content: HeroContent(
+            title: "Sea goldie", facts: [Fact(text: "Pseudanthias squamipinnis")],
+            figures: [Figure(label: "Dives", value: "4"), Figure(label: "Dive sites", value: "3")]),
+          backdrop: .photo(photo, placeholder: .fish), detailsOnGlass: true)
+      }
+    }
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))
 }
