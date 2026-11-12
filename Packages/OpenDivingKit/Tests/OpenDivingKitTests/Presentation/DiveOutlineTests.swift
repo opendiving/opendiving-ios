@@ -39,7 +39,7 @@ struct DiveOutlineTests {
   }
 
   @Test func theShallowestReadsTheCurveRatherThanTheStraightLine() throws {
-    // A quarter of the way down the first piece of a one-depth dive: the straight line's 0.5, the
+    // A quarter of the way down the first piece of a one-depth dive: the straight line's 0.25, the
     // curve deeper, flattening into the bottom.
     let depth = try #require(DiveOutline.shallowest([1], from: 0.125, to: 0.125))
     #expect(abs(depth - 0.296875) < 1e-9)
