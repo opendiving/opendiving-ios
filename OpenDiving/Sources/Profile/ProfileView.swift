@@ -31,6 +31,7 @@ private struct ProfileContent: View {
   @State private var pictures = PictureCache()
   @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
+  @State private var tabsStuck = false
 
   init(session: Session, avatar: AvatarModel) {
     self.avatar = avatar
@@ -52,7 +53,7 @@ private struct ProfileContent: View {
             // In the name's colour, ringing the picture off the glass in either appearance.
             .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
         }
-        SectionTabs(selection: $section)
+        ProfileTabs(selection: $section, isStuck: $tabsStuck)
         Group {
           switch section {
           case .dives: ProfileDives(list: dives, units: session.units)
@@ -64,6 +65,9 @@ private struct ProfileContent: View {
         .padding(.horizontal)
       }
       .padding(.bottom)
+    }
+    .overlay(alignment: .top) {
+      if tabsStuck { StuckProfileTabs(selection: $section) }
     }
     .background(Color.pageBackground)
     .heroUnderTopBar { [model, dives, trips, checkin, section] in
@@ -143,6 +147,39 @@ private struct ProfileContent: View {
       case .more: break
       }
     }
+  }
+}
+
+/// The tabs under the head, which report when their names reach the top bar, their icons
+/// already gone under it.
+private struct ProfileTabs: View {
+  @Binding var selection: ProfileSection
+  @Binding var isStuck: Bool
+  @Environment(\.heroTopInset) private var topInset
+
+  var body: some View {
+    SectionTabs(selection: $selection)
+      .onGeometryChange(for: Bool.self) {
+        [top = topInset - SectionTabs<ProfileSection>.iconRowHeight] in
+        $0.frame(in: .scrollView).minY <= top
+      } action: {
+        isStuck = $0
+      }
+      // The copy held at the top stands for them while it shows.
+      .accessibilityHidden(isStuck)
+  }
+}
+
+/// The tabs held under the top bar, by their names alone, once the page scrolls them up to it:
+/// their names land where the scrolled tabs' were, so the swap does not show.
+private struct StuckProfileTabs: View {
+  @Binding var selection: ProfileSection
+  @Environment(\.heroTopInset) private var topInset
+
+  var body: some View {
+    SectionTabs(selection: $selection, showsIcons: false)
+      .padding(.top, topInset)
+      .background(Color.pageBackground)
   }
 }
 
