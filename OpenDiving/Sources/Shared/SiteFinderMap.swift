@@ -300,13 +300,14 @@ struct SiteFinderMap: UIViewRepresentable {
     /// Holding the middle, a finger pans nowhere and zooms about it — and not at all while a glide
     /// is still on its way there, which a pinch would stop short of it.
     /// Nor does it zoom out past where MapLibre would move the camera off it to keep the world
-    /// over the map.
+    /// over the map — a floor set once the glide lands, since raising it above the zoom the map
+    /// is at jumps there and stops the glide where it started.
     func grip(_ map: MLNMapView) {
       map.isScrollEnabled = !holdsMiddle
       map.isZoomEnabled = !(holdsMiddle && isGliding)
       map.anchorRotateOrZoomGesturesToCenterCoordinate = holdsMiddle
       var furthest = MapCamera.minZoom
-      if holdsMiddle, let camera {
+      if holdsMiddle, !isGliding, let camera {
         furthest = MapCamera.zoomHolding(
           latitude: camera.latitude, height: Double(map.bounds.height))
       }
