@@ -74,6 +74,7 @@ private struct ProfileContent: View {
           }
         }
         .padding(.horizontal)
+        .modifier(HiddenUnderTopBar())
       }
       .padding(.bottom)
     }
@@ -165,6 +166,23 @@ private struct ProfileContent: View {
   /// A tap on the chosen tab takes the page back to its head, as a tap on the status bar does.
   private func toTop() {
     withAnimation { scroll.scrollTo(edge: .top) }
+  }
+}
+
+/// Keeps what is under the tabs from showing above the copy of them held under the bar: a fast
+/// scroll brings it up there while the band over the bar is still fading in.
+private struct HiddenUnderTopBar: ViewModifier {
+  @Environment(\.heroTopInset) private var topInset
+
+  func body(content: Content) -> some View {
+    content.mask {
+      GeometryReader { proxy in
+        Rectangle()
+          .padding(.top, min(max(topInset - proxy.frame(in: .global).minY, 0), proxy.size.height))
+          // Room for the cards' shadows, which a mask the content's own size would cut.
+          .padding([.horizontal, .bottom], -32)
+      }
+    }
   }
 }
 
