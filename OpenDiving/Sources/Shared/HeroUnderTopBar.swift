@@ -21,16 +21,26 @@ private struct HeroUnderTopBar: ViewModifier {
 
   @State private var inset: CGFloat = 0
   @State private var pull: CGFloat = 0
+  @State private var scrolled: CGFloat = 0
   @State private var isRefreshing = false
 
   func body(content: Content) -> some View {
-    softTopEdge(refreshable(content))
+    topEdge(refreshable(content))
       .environment(\.heroTopInset, inset)
       .ignoresSafeArea(edges: .top)
       .onScrollGeometryChange(for: CGFloat.self) {
         max(-$0.contentOffset.y - $0.contentInsets.top, 0)
       } action: { _, pulled in
         pull = pulled
+      }
+      // Held at the bar's foot, by which the veil is whole.
+      .onScrollGeometryChange(for: CGFloat.self) {
+        min(max($0.contentOffset.y + $0.contentInsets.top, 0), inset)
+      } action: { _, scrolled in
+        self.scrolled = scrolled
+      }
+      .overlay(alignment: .top) {
+        TopBarBlur(cover: inset > 0 ? scrolled / inset : 0, barFoot: inset)
       }
       .overlay(alignment: .top) {
         ZStack {
@@ -59,12 +69,12 @@ private struct HeroUnderTopBar: ViewModifier {
     min(max(Double(pull - 8) / 40, 0), 1)
   }
 
-  /// Named, because a bar item drawing glass of its own, with the bar's hidden, otherwise draws
-  /// the bar's edge hard across the map.
+  /// Hidden, for ``TopBarBlur`` to veil the bar by degrees as the page scrolls; left at its
+  /// default, a bar item drawing glass of its own also draws the bar's edge hard across the map.
   @ViewBuilder
-  private func softTopEdge(_ content: some View) -> some View {
+  private func topEdge(_ content: some View) -> some View {
     if #available(iOS 26, *) {
-      content.scrollEdgeEffectStyle(.soft, for: .top)
+      content.scrollEdgeEffectHidden(true, for: .top)
     } else {
       content
     }

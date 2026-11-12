@@ -59,6 +59,8 @@ private final class VariableBlurView: UIView {
   override class var layerClass: AnyClass { backdropLayer ?? CALayer.self }
 
   private var shown: (edge: VerticalEdge, radius: Double, hold: Double)?
+  /// Kept while the radius alone changes, which it does on every frame of a scroll.
+  private var maskImage: (edge: VerticalEdge, hold: Double, image: CGImage?)?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -78,8 +80,11 @@ private final class VariableBlurView: UIView {
     if let shown, shown == (edge, radius, hold) { return }
     shown = (edge, radius, hold)
     guard let filter = Self.makeFilter() else { return }
+    if maskImage?.edge != edge || maskImage?.hold != hold {
+      maskImage = (edge, hold, Self.mask(edge: edge, hold: hold))
+    }
     filter.setValue(radius, forKey: "inputRadius")
-    filter.setValue(Self.mask(edge: edge, hold: hold), forKey: "inputMaskImage")
+    filter.setValue(maskImage?.image, forKey: "inputMaskImage")
     // Without it, the edges of the blur darken where it samples past the layer.
     filter.setValue(true, forKey: "inputNormalizeEdges")
     layer.filters = [filter]
