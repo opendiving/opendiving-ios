@@ -173,6 +173,11 @@ struct MapWeatherTests {
     let rough = try #require(
       WaveProfile(ConditionsSea(waveHeight: 3, wavePeriod: 8, swellWaveHeight: 1.5), units: .metric)
     )
+    // One point on each edge and every other inside, so no line runs up an edge.
+    for row in (calm.strips + rough.strips).flatMap({ [$0.surface, $0.behind] }) {
+      #expect(row.first?.x == 0 && row.last?.x == 1)
+      #expect(row.dropFirst().dropLast().allSatisfy { $0.x > 0 && $0.x < 1 })
+    }
     #expect((0.39...0.4 + 1e-9).contains(Self.reach(rough.strips[0])))
     #expect((0.19...0.2 + 1e-9).contains(Self.reach(rough.strips[1])))
   }

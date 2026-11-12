@@ -105,16 +105,26 @@ public struct WaveProfile: Hashable, Sendable {
     let first = -3 * Double.pi
     let last = 2 * Double.pi * (cycles + 1.5)
     let samples = Int((cycles + 3) * 120)
-    var points: [CurvePoint] = []
-    for step in 0...samples {
+    let points = (0...samples).map { step in
       let theta = first + (last - first) * Double(step) / Double(samples)
       let crest = pow((cos(theta) + 1) / 2, 3)
       let along = theta - steepness * sin(theta) + lean * crest + phase
-      let x = along / (2 * Double.pi) * period / span
-      guard (-0.02...1.02).contains(x) else { continue }
-      points.append(CurvePoint(x: min(max(x, 0), 1), y: 0.5 - amplitude * cos(theta)))
+      return CurvePoint(
+        x: along / (2 * Double.pi) * period / span, y: 0.5 - amplitude * cos(theta))
     }
-    return points
+    // A leaning crest runs backward, so the line can cross an edge more than once; cut it where
+    // it last enters the strip and first leaves it, so each edge holds one point rather than a
+    // run of them drawn as a tick.
+    guard let start = points.lastIndex(where: { $0.x < 0 }),
+      let end = points[start...].firstIndex(where: { $0.x > 1 })
+    else { return points }
+    return [edge(points[start], points[start + 1], at: 0)] + points[(start + 1)..<end]
+      + [edge(points[end - 1], points[end], at: 1)]
+  }
+
+  /// Where the segment from `a` to `b` crosses `x`.
+  private static func edge(_ a: CurvePoint, _ b: CurvePoint, at x: Double) -> CurvePoint {
+    CurvePoint(x: x, y: a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x))
   }
 
   private static func spoken(_ meters: Double, _ units: UnitSystem) -> String {
