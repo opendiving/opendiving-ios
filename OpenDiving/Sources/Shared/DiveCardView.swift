@@ -15,8 +15,8 @@ struct DiveCardView: View {
 
   var body: some View {
     BackdropCardView { frame in
-      // The water's icon centres above the chips, and sits where it would without a silhouette,
-      // so every unplaced dive's icon is at one height down a list.
+      // The water's icon centres above the chips, and where it would without a silhouette, which
+      // is drawn over it.
       let aboveChips =
         content.chips.isEmpty ? frame.coveredBottom : frame.coveredBottom + Self.chipsHeight
       ZStack {
