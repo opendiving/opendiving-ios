@@ -66,17 +66,25 @@ xcodebuild build -project OpenDiving.xcodeproj -scheme OpenDiving \
   -destination 'generic/platform=iOS Simulator' -derivedDataPath .build
 ```
 
-Test the app bundle on a simulator of this checkout's own:
+Test the app bundle on a simulator no other checkout is using:
 
 ```bash
 xcodebuild test -project OpenDiving.xcodeproj -scheme OpenDiving \
   -destination "id=$(scripts/simulator.sh)" -derivedDataPath .build
 ```
 
-`scripts/simulator.sh` creates an iPhone simulator named after the checkout's path on first use and
-prints its UDID every time after. Never point the test command at a shared, named simulator: two
-test runs installing the app on the same device kill each other's test host, and two checkouts of
-this repository can easily be testing at once.
+`scripts/simulator.sh` prints the UDID of the iPhone simulator this checkout tests on, creating it
+on first use. Two test runs installing the app on the same device kill each other's test host, and
+two checkouts of this repository can easily be testing at once, so the script never gives two of
+them the same one. Where `ontherun-lease.sh` is on `PATH` — a Claude Code session with the plugin
+that ships it — the simulator is one of a pool of four, `OpenDiving pool 1` to `OpenDiving pool 4`:
+the checkout leases a slot and keeps it from run to run, until its directory is removed or six
+hours pass without a run, and a simulator is erased when it passes to a checkout that did not hold
+it on its previous run. With all four leased, a fifth checkout says so and waits up to thirty
+minutes for one, whether or not the other four are testing — so free the slot when the work is
+handed over, with `ontherun-lease.sh release opendiving-sim`. Anywhere else the simulator is the
+checkout's own, named after its path. Never point the test command at a simulator the script did
+not print.
 
 Test the Kit, which the app's scheme leaves out — CI runs this on Linux and on macOS:
 

@@ -1,13 +1,55 @@
 #!/bin/sh
-# Prints the UDID of this checkout's own iPhone simulator, creating it on first use.
+# Prints the UDID of the iPhone simulator this checkout tests on, creating it on first use.
 #
-# One simulator per checkout, named after its path, because two `xcodebuild test` runs
-# installing app.opendiving.ios on the same device kill each other's test host - and
-# worktrees of this repository run their tests concurrently on one Mac.
+# Two `xcodebuild test` runs installing app.opendiving.ios on the same device kill each
+# other's test host, and worktrees of this repository run their tests concurrently on one
+# Mac, so no two checkouts may get the same device.
+#
+# Where `ontherun-lease.sh` is on PATH the device is a slot of a pool of four, leased to
+# this checkout: the number of simulators stays at four however many worktrees come and
+# go. A checkout keeps its slot between runs - until it releases it, its directory is
+# removed or the lease goes six hours unrenewed - so a fifth checkout waits for a slot
+# instead of sharing one. Anywhere else - CI, a plain terminal - it is a simulator named
+# after the checkout's path.
 set -eu
 
+pool=opendiving-sim
+pool_size=4
+
 root=$(cd "$(dirname "$0")/.." && pwd -P)
-name="OpenDiving $(basename "$root") $(printf '%s' "$root" | shasum | cut -c1-8)"
+slot=
+fresh_slot=
+
+if command -v ontherun-lease.sh >/dev/null 2>&1; then
+  # A lease file still naming this checkout means nobody else has had the slot since.
+  held=$(ontherun-lease.sh list "$pool" |
+    owner=$root awk -F '\t' '$5 == ENVIRON["owner"] { print $2; exit }')
+  slot=$(ontherun-lease.sh acquire "$pool" "$pool_size" --owner "$root") && status=0 || status=$?
+  if [ "$status" -eq 1 ]; then
+    # The lease script has just listed the holders on stderr; it says nothing while it waits.
+    echo "simulator.sh: every slot of pool $pool is leased; waiting up to 30 minutes for one." \
+      "A checkout that is done testing frees its slot with: ontherun-lease.sh release $pool" >&2
+    slot=$(ontherun-lease.sh acquire "$pool" "$pool_size" --owner "$root" --wait 1800) &&
+      status=0 || status=$?
+  fi
+  if [ "$status" -ne 0 ]; then
+    echo "simulator.sh: no simulator slot to lease in pool $pool" >&2
+    exit 1
+  fi
+  case $slot in
+    '' | *[!0-9]*)
+      echo "simulator.sh: ontherun-lease.sh printed no slot number: $slot" >&2
+      exit 1
+      ;;
+  esac
+  marker=$root/.build/simulator-slot
+  if [ "$held" != "$slot" ] || [ "$(cat "$marker" 2>/dev/null)" != "$slot" ]; then
+    fresh_slot=1
+  fi
+  name="OpenDiving pool $slot"
+else
+  name="OpenDiving $(basename "$root") $(printf '%s' "$root" | shasum | cut -c1-8)"
+fi
 
 udid=$(xcrun simctl list devices available |
   awk -v prefix="$name (" '{ sub(/^ +/, "") } index($0, prefix) == 1 {
@@ -23,6 +65,15 @@ if [ -z "$udid" ]; then
     exit 1
   fi
   udid=$(xcrun simctl create "$name" "$device_type")
+elif [ -n "$fresh_slot" ]; then
+  # Another checkout's build of the app may have left its data on the device.
+  xcrun simctl shutdown "$udid" >/dev/null 2>&1 || true
+  xcrun simctl erase "$udid" >&2
+fi
+
+if [ -n "$fresh_slot" ]; then
+  mkdir -p "$root/.build"
+  printf '%s\n' "$slot" >"$marker"
 fi
 
 printf '%s\n' "$udid"
