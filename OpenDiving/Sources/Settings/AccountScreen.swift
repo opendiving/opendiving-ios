@@ -77,14 +77,10 @@ private struct AccountList: View {
 
   /// The value beside its symbol, which stands in for the label on screen and not to VoiceOver.
   private func row(_ label: String, value: String, icon: Icon) -> some View {
-    Label {
-      Text(value)
-    } icon: {
-      Image(icon)
-    }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(label)
-    .accessibilityValue(value)
+    Label(row: value, icon: icon)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(label)
+      .accessibilityValue(value)
   }
 }
 

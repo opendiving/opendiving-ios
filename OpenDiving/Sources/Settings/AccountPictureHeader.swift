@@ -1,9 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Account*'s head: the profile picture, centred, over *Edit photo*, whose menu takes a photo,
-/// chooses one and, once there is a picture, adjusts its crop or deletes it. Each is sent as soon
-/// as it is chosen; a refusal puts the stored picture back and says why.
+/// *Account*'s head: the profile picture, centred, over *Edit photo* — *Add photo* while there is
+/// none — whose menu takes a photo, chooses one and, once there is a picture, adjusts its crop or
+/// deletes it. Each is sent as soon as it is chosen; a refusal puts the stored picture back and
+/// says why.
 struct AccountPictureHeader: View {
   let model: PictureFieldModel
 
@@ -39,7 +40,8 @@ struct AccountPictureHeader: View {
           Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
         }
       } label: {
-        Text("Edit photo")
+        Text(model.hasPicture ? "Edit photo" : "Add photo")
+          .bold()
       }
       .buttonStyle(.borderless)
       .disabled(busy)
