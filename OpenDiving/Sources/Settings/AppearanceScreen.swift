@@ -13,8 +13,12 @@ struct AppearanceScreen: View {
             appearance.choice = choice
           } label: {
             HStack {
-              Label(row: choice.title, icon: choice.icon)
-                .foregroundStyle(Color.primary)
+              Label {
+                Text(choice.title)
+              } icon: {
+                Image(loaded: choice.icon).foregroundStyle(choice.iconColor)
+              }
+              .foregroundStyle(Color.primary)
               Spacer()
               if appearance.choice == choice {
                 Image(systemName: "checkmark")
@@ -30,6 +34,18 @@ struct AppearanceScreen: View {
       }
     }
     .navigationTitle("Appearance")
+  }
+}
+
+extension Appearance {
+  /// The weather bar's colours: the sun's yellow, the wind's coral for the moon, the waves' teal
+  /// for the phone's own.
+  fileprivate var iconColor: Color {
+    switch self {
+    case .light: .sun
+    case .dark: .brandCoral
+    case .system: .accentText
+    }
   }
 }
 
