@@ -54,7 +54,7 @@ struct PendingTests {
 
     #expect(
       PendingSection.summary(outbox, inbox).rows.map(\.text) == [
-        "A dive, a site and a buddy waiting to sync", "1 could not be saved", "1 file waiting",
+        "A dive, a site and a person waiting to sync", "1 could not be saved", "1 file waiting",
       ])
     let failed = try #require(outbox.item(refused.id))
     #expect(failed.failure?.message == "A dive site of this name exists.")
