@@ -35,17 +35,16 @@ struct DiveComputerDownloadButtonLabel: View {
 
   private static let ringWidth: CGFloat = 2.5
   /// The toolbar's circular buttons, the `+` among them.
-  private static let size: CGFloat = 44
+  private static let size: CGFloat = MapRoundButtonStyle.side
 
-  /// The label, and the ring around it. On iOS 26 the bar's glass pads the label 10 a side across
-  /// to a circle of `size`, and cuts an item off at about 36 points square however tall its
-  /// label, so the ring sits inside the circle: measured, as the system names neither. Before,
-  /// the bar draws no glass, the label is the whole button and the ring is on its edge.
-  private static var metrics: (label: CGSize, ring: CGFloat) {
+  /// The label, which the ring overlays on the button's edge. From iOS 26 the bar's glass pads the
+  /// label 10 a side across to a circle of `size`: measured, as the system does not name it.
+  /// Before, the bar draws no glass and the label is the whole button.
+  private static var label: CGSize {
     if #available(iOS 26, *) {
-      (CGSize(width: 24, height: 30), 34)
+      CGSize(width: 24, height: 30)
     } else {
-      (CGSize(width: size, height: size), size)
+      CGSize(width: size, height: size)
     }
   }
 
@@ -55,7 +54,7 @@ struct DiveComputerDownloadButtonLabel: View {
       DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
         .frame(width: 22, height: 22)
         .foregroundStyle(Color.primary)
-        .frame(width: Self.metrics.label.width, height: Self.metrics.label.height)
+        .frame(width: Self.label.width, height: Self.label.height)
         .overlay {
           if let content {
             ZStack {
@@ -65,7 +64,8 @@ struct DiveComputerDownloadButtonLabel: View {
             }
             // Its stroke inside its side.
             .padding(Self.ringWidth / 2)
-            .frame(width: Self.metrics.ring, height: Self.metrics.ring)
+            .frame(width: Self.size, height: Self.size)
+            .barItemOverflow()
           }
         }
         .animation(.easeOut(duration: 0.2), value: content == nil)
