@@ -27,11 +27,16 @@ struct DiveSilhouetteView: View {
 
     func path(in rect: CGRect) -> Path {
       var path = Path()
-      let line = DiveOutline.vertices(depths).map {
-        CGPoint(x: rect.minX + $0.x * rect.width, y: rect.minY + $0.y * rect.height)
+      let pieces = DiveOutline.segments(depths)
+      guard let first = pieces.first else { return path }
+      func point(_ vertex: DiveOutline.Vertex) -> CGPoint {
+        CGPoint(x: rect.minX + vertex.x * rect.width, y: rect.minY + vertex.y * rect.height)
       }
-      guard !line.isEmpty else { return path }
-      path.addLines(line)
+      path.move(to: point(first.start))
+      for piece in pieces {
+        path.addCurve(
+          to: point(piece.end), control1: point(piece.control1), control2: point(piece.control2))
+      }
       if closed {
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
