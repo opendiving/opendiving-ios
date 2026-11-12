@@ -58,6 +58,7 @@ private struct InviteLinkSection: View {
               .foregroundStyle(.secondary)
             Button("Try again") { Task { await model.loadLink() } }
               .buttonStyle(.borderless)
+              .accentRow()
           }
         } else {
           HStack {
