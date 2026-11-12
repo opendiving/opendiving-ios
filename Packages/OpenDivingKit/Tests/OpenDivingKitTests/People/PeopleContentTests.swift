@@ -24,14 +24,14 @@ struct PeopleContentTests {
     #expect(
       PlainCardContent.person(ana)
         == PlainCardContent(
-          title: "Ana Diaz", facts: [Fact(text: "@ana")],
-          figures: [Figure(label: "Dives", value: "12")]))
+          title: "Ana Diaz", facts: [Fact(text: "@ana"), Fact(text: "12 dives")]))
   }
 
-  @Test func aPersonWithNoAccountHasNoUsernameLine() throws {
+  @Test func aPersonWithNoAccountHasOnlyTheirDives() throws {
     let ben = try people()[1]
-    #expect(PlainCardContent.person(ben).facts.isEmpty)
-    #expect(PlainCardContent.person(ben).figures == [Figure(label: "Dives", value: "0")])
+    #expect(
+      PlainCardContent.person(ben)
+        == PlainCardContent(title: ben.name, facts: [Fact(text: "0 dives")]))
   }
 
   @Test func aContactsCardIsItsRolesAndCity() throws {
