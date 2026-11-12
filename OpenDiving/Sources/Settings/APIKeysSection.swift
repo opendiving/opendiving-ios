@@ -30,6 +30,7 @@ struct APIKeysSection: View {
           } label: {
             Label(APIKeysModel.createButton, systemImage: "plus")
           }
+          .accentRow()
         }
       } header: {
         Text("API keys")

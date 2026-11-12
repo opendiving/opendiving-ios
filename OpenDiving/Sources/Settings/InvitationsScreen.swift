@@ -96,6 +96,7 @@ private struct InviteLinkSection: View {
           } label: {
             Label(InvitationsModel.linkCreate, systemImage: "link")
           }
+          .accentRow()
           .disabled(model.isChangingLink)
           if model.isChangingLink {
             Spacer()
@@ -161,6 +162,7 @@ private struct SendInvitationSection: View {
         } label: {
           Label(InvitationsModel.sendButton, systemImage: "paperplane")
         }
+        .accentRow()
         .disabled(model.isSending)
         if model.isSending {
           Spacer()
@@ -203,6 +205,7 @@ private struct SentInvitationsSection: View {
             .frame(maxWidth: .infinity)
         } else {
           Button(InvitationsModel.showOlder) { Task { await model.loadMore() } }
+            .accentRow()
             .frame(maxWidth: .infinity)
         }
       }

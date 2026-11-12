@@ -45,6 +45,7 @@ struct AccountPictureHeader: View {
           .bold()
       }
       .buttonStyle(.borderless)
+      .accentRow()
       .disabled(busy)
     }
     .frame(maxWidth: .infinity)

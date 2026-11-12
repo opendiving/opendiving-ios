@@ -32,20 +32,22 @@ extension Label where Title == Text, Icon == Image {
     }
   }
 
-  /// A list row's label, whose symbol has to reach the row already loaded.
-  init(row title: String, icon: OpenDivingKit.Icon) {
-    self.init {
-      Text(title)
-    } icon: {
-      Image(loaded: icon)
-    }
-  }
-
   init(_ title: String, icon: OpenDivingKit.Icon) {
     self.init {
       Text(title)
     } icon: {
       Image(icon)
+    }
+  }
+}
+
+extension Label where Title == Text, Icon == RowLabelIcon {
+  /// A list row's label, its symbol in the accent.
+  init(row title: String, icon: OpenDivingKit.Icon) {
+    self.init {
+      Text(title)
+    } icon: {
+      RowLabelIcon(icon: icon)
     }
   }
 }
