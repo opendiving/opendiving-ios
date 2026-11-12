@@ -142,14 +142,34 @@ struct CertificationFormValuesTests {
     #expect(values.instructor == Self.kim)
   }
 
-  @Test func aPickersRowLeavesTheInstructorNumberAlone() {
+  @Test func aPickersRowFillsTheAgencyAndTheInstructorNumber() {
     var values = CertificationFormValues()
     values.fill(from: Self.tdiCourse)
     let row = CourseLookupItem(
-      ref: Self.course, name: "Rescue",
-      people: [PersonReference(person: Self.sam, role: "instructor")])
+      ref: Self.course, name: "Rescue", agency: "other", agencyOther: "Swed",
+      instructorNumber: "S-9", people: [PersonReference(person: Self.sam, role: "instructor")])
     values.fill(from: CertificationCourseFill(row))
-    #expect(values.instructor == Self.sam && values.instructorNumber == "123")
+    #expect(values.agency == "other" && values.agencyOther == "Swed")
+    #expect(values.instructor == Self.sam && values.instructorNumber == "S-9")
+  }
+
+  @Test func aPickersRowLeavesWhatTheDiverTyped() {
+    var values = CertificationFormValues()
+    values.fill(from: Self.tdiCourse)
+    values.agency = "naui"
+    values.instructorNumber = "N-1"
+    let row = CourseLookupItem(
+      ref: Self.course, name: "Rescue", agency: "ssi", instructorNumber: "S-9")
+    values.fill(from: CertificationCourseFill(row))
+    #expect(values.name == "Rescue")
+    #expect(values.agency == "naui" && values.instructorNumber == "N-1")
+  }
+
+  @Test func aRowFromAnOlderServerLeavesTheAgencyAndEmptiesAFilledNumber() {
+    var values = CertificationFormValues()
+    values.fill(from: Self.tdiCourse)
+    values.fill(from: CertificationCourseFill(CourseLookupItem(ref: Self.course, name: "Rescue")))
+    #expect(values.agency == "tdi" && values.instructorNumber.isEmpty)
   }
 
   @Test func aCardForACourseOpensFilledAndTreatsTheFillAsItsOwn() throws {

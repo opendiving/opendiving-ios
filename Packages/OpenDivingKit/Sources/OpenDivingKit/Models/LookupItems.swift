@@ -135,25 +135,33 @@ public struct PersonLookupItem: LookupRow {
   }
 }
 
-/// A row of `GET /courses/lookup`, with the dive centre and the people a dive form fills from
-/// the course.
+/// A row of `GET /courses/lookup`, with what a dive or certification form fills from the
+/// course: its agency, its dive centre, its people and the instructor's number.
 public struct CourseLookupItem: LookupRow {
   public var ref: RecordRef
   public var name: String
+  /// An agency key, as the API sent it; `other` names it in `agencyOther`.
+  public var agency: String?
+  public var agencyOther: String?
+  public var instructorNumber: String?
   public var contact: RecordRef?
   public var people: [PersonReference]
 
   enum CodingKeys: String, CodingKey {
     case ref = "uuid"
     case contact = "contactUuid"
-    case name, people
+    case name, agency, agencyOther, instructorNumber, people
   }
 
   public init(
-    ref: RecordRef, name: String, contact: RecordRef? = nil, people: [PersonReference] = []
+    ref: RecordRef, name: String, agency: String? = nil, agencyOther: String? = nil,
+    instructorNumber: String? = nil, contact: RecordRef? = nil, people: [PersonReference] = []
   ) {
     self.ref = ref
     self.name = name
+    self.agency = agency
+    self.agencyOther = agencyOther
+    self.instructorNumber = instructorNumber
     self.contact = contact
     self.people = people
   }

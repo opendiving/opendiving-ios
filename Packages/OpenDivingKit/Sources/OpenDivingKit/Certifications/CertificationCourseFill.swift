@@ -10,12 +10,11 @@ public struct CertificationCourseFill: Hashable, Sendable {
   public var agencyOther: String
   public var contact: RecordRef?
   public var instructor: RecordRef?
-  /// Nil where the phone does not know it, which leaves the field alone.
-  public var instructorNumber: String?
+  public var instructorNumber: String
 
   public init(
     name: String, agency: String? = nil, agencyOther: String = "", contact: RecordRef? = nil,
-    instructor: RecordRef? = nil, instructorNumber: String? = ""
+    instructor: RecordRef? = nil, instructorNumber: String = ""
   ) {
     self.name = name
     self.agency = agency
@@ -40,11 +39,12 @@ public struct CertificationCourseFill: Hashable, Sendable {
       instructorNumber: body.instructorNumber ?? "")
   }
 
-  /// A picker's row, which carries no agency and no number, so a pick leaves both alone.
+  /// A picker's row, which carries what `CourseRead` does for a fill.
   public init(_ row: CourseLookupItem) {
     self.init(
-      name: row.name, contact: row.contact, instructor: Self.instructor(row.people),
-      instructorNumber: nil)
+      name: row.name, agency: row.agency, agencyOther: row.agencyOther ?? "",
+      contact: row.contact, instructor: Self.instructor(row.people),
+      instructorNumber: row.instructorNumber ?? "")
   }
 
   /// The course's first instructor (`splitCourseInstructor`).

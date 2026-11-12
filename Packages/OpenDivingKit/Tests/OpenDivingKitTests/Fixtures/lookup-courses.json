@@ -3,9 +3,18 @@
     {
       "uuid": "01a14b2e-0c3d-7a10-9f00-1a2b3c4d5e6f",
       "name": "Advanced Open Water",
+      "agency": "other",
+      "agency_other": "Swedish Diving Federation",
+      "instructor_number": "SE-4410",
       "contact_uuid": "01a14b2e-0c3d-7a10-9f00-2a2b3c4d5e6f",
       "people": [{ "person_uuid": "01a0e2ed-1be1-7142-996d-0639721e344d", "role": "instructor" }]
+    },
+    {
+      "uuid": "01a14b2e-0c3d-7a10-9f00-3a2b3c4d5e6f",
+      "name": "Sidemount",
+      "contact_uuid": null,
+      "people": []
     }
   ],
-  "total_count": 1, "has_more": false, "page": 1, "items_per_page": 50
+  "total_count": 2, "has_more": false, "page": 1, "items_per_page": 50
 }

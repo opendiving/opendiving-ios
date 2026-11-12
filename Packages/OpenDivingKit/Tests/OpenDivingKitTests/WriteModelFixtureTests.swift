@@ -28,6 +28,11 @@ struct WriteModelFixtureTests {
     let courses = try KitFixture.roundTrip(
       PaginatedListResponse<CourseLookupItem>.self, "lookup-courses")
     #expect(courses.data.first?.contact?.serverUUID != nil)
+    #expect(courses.data.first?.agency == "other")
+    #expect(courses.data.first?.agencyOther == "Swedish Diving Federation")
+    #expect(courses.data.first?.instructorNumber == "SE-4410")
+    // A server from before the row carried them.
+    #expect(courses.data.last?.agency == nil && courses.data.last?.instructorNumber == nil)
 
     let contacts = try KitFixture.roundTrip(
       PaginatedListResponse<ContactLookupItem>.self, "lookup-contacts")
