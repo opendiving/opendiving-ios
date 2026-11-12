@@ -44,9 +44,8 @@ private struct TabsReselectReading: ViewModifier {
     content.onScrollGeometryChange(for: TabsReselect.self) {
       [tabsAtBar = tabsTop - topInset] geometry in
       let top = -geometry.contentInsets.top
-      let bottom =
-        geometry.contentSize.height + geometry.contentInsets.bottom
-        - geometry.containerSize.height
+      // The container is the scroll view's height less its insets.
+      let bottom = top + geometry.contentSize.height - geometry.containerSize.height
       return TabsReselect(
         offset: geometry.contentOffset.y, range: top...max(top, bottom), tabsAtBar: tabsAtBar)
     } action: {
