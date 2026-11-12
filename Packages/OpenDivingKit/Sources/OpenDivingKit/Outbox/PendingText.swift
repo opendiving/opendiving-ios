@@ -18,7 +18,7 @@ public enum PendingText {
     count == 1 ? "1 draft" : "\(count) drafts"
   }
 
-  /// *A dive, a site and a buddy waiting to sync*: the writes that have not failed, a draft's
+  /// *A dive, a site and a person waiting to sync*: the writes that have not failed, a draft's
   /// own create and changes left to the drafts row. Nil when there are none.
   public static func waiting(_ items: [OutboxItem]) -> String? {
     var counts: [Noun: Int] = [:]
@@ -100,10 +100,10 @@ public enum PendingText {
       return body.name.map { named("Changes to dive site", $0) } ?? "Changes to a dive site"
     case .deleteDiveSite: return "A deleted dive site"
     case .saveDiveSite(let site): return named("Save to your sites", site.name)
-    case .createPerson(let body): return named("Buddy", body.name)
+    case .createPerson(let body): return named("Person", body.name)
     case .updatePerson(_, let body):
-      return body.name.map { named("Changes to buddy", $0) } ?? "Changes to a buddy"
-    case .deletePerson: return "A deleted buddy"
+      return body.name.map { named("Changes to person", $0) } ?? "Changes to a person"
+    case .deletePerson: return "A deleted person"
     case .createTrip(let body): return named("Trip", body.name)
     case .updateTrip(_, let body):
       return body.name.map { named("Changes to trip", $0) } ?? "Changes to a trip"
@@ -205,7 +205,7 @@ public enum PendingText {
 
   /// What a queued write is about, in the pending section's words, in the order it lists them.
   private enum Noun: Int, Comparable {
-    case dive, site, buddy, trip, course, contact, gear, gearSet, serviceSchedule, serviceRecord,
+    case dive, site, person, trip, course, contact, gear, gearSet, serviceSchedule, serviceRecord,
       certification, cardImage, discardedDraft, deletion
 
     init?(_ operation: OutboxOperation) {
@@ -219,7 +219,7 @@ public enum PendingText {
         switch operation.kind {
         case .dive: self = .dive
         case .diveSite: self = .site
-        case .person: self = .buddy
+        case .person: self = .person
         case .trip: self = .trip
         case .course: self = .course
         case .contact: self = .contact
@@ -237,7 +237,7 @@ public enum PendingText {
       switch self {
       case .dive: "dive"
       case .site: "site"
-      case .buddy: "buddy"
+      case .person: "person"
       case .trip: "trip"
       case .course: "course"
       case .contact: "contact"
@@ -254,7 +254,7 @@ public enum PendingText {
 
     var plural: String {
       switch self {
-      case .buddy: "buddies"
+      case .person: "people"
       case .gear: "pieces of gear"
       default: singular + "s"
       }
@@ -266,7 +266,7 @@ public enum PendingText {
       switch kind {
       case .dive: "dive"
       case .diveSite: "dive site"
-      case .person: "buddy"
+      case .person: "person"
       case .trip: "trip"
       case .course: "course"
       case .contact: "contact"

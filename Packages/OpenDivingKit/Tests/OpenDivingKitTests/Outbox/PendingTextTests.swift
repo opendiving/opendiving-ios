@@ -18,14 +18,14 @@ struct PendingTextTests {
   private static let dive = item(
     .createDive(DiveCreate(diveNumber: 42, startTime: start, submergedTime: 2700)))
   private static let site = item(.createDiveSite(DiveSiteCreate(name: "Blue Hole")))
-  private static let buddy = item(.createPerson(PersonCreate(name: "Sam")))
+  private static let person = item(.createPerson(PersonCreate(name: "Sam")))
   private static let refused = OutboxItemState.failed(
     OutboxFailure(kind: .refused, status: 422, message: "Name is required."))
 
   @Test func theWritesRowNamesWhatIsWaitingInPlainWords() {
     #expect(
-      PendingText.waiting([Self.buddy, Self.site, Self.dive])
-        == "A dive, a site and a buddy waiting to sync")
+      PendingText.waiting([Self.person, Self.site, Self.dive])
+        == "A dive, a site and a person waiting to sync")
     #expect(
       PendingText.waiting([Self.dive, Self.dive, Self.site]) == "2 dives and a site waiting to sync"
     )
@@ -47,11 +47,11 @@ struct PendingTextTests {
     let draft = DiveDraftEntry(
       ref: .local(UUID()), write: DiveDraftWrite(), changedAt: Date(), hasPendingChange: true)
     let summary = PendingSummary(
-      drafts: [draft, draft], items: [Self.dive, Self.site, Self.buddy, failed],
+      drafts: [draft, draft], items: [Self.dive, Self.site, Self.person, failed],
       notices: [notice], unreadable: 1, files: 2)
     #expect(
       summary.rows.map(\.text) == [
-        "2 drafts", "A dive, a site and a buddy waiting to sync", "1 could not be saved",
+        "2 drafts", "A dive, a site and a person waiting to sync", "1 could not be saved",
         "Saved, but this version could not read the server's answer.",
         "Saved by another version of the app", "2 files waiting",
       ])
@@ -93,7 +93,7 @@ struct PendingTextTests {
     trip.dropped = [.person, .contact]
     #expect(
       PendingText.dropped(trip)
-        == "Saved before your account was known; the buddy and the contact it named were left out"
+        == "Saved before your account was known; the person and the contact it named were left out"
     )
   }
 
@@ -145,6 +145,6 @@ struct PendingTextTests {
     #expect(PendingText.title(of: items[5]) == "A paused service schedule")
     #expect(
       PendingText.title(of: Self.item(.updatePerson(ref, PersonUpdate(name: "Sam"))))
-        == "Changes to buddy: Sam")
+        == "Changes to person: Sam")
   }
 }
