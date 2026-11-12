@@ -7,8 +7,8 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// The two pictures as fields of their forms: what each edit sends, in what order beside the
-/// fields, what a refusal says, and where the new picture shows afterwards.
+/// The two pictures: the profile picture sent as it is chosen, the portrait as a field of its
+/// form — what each edit sends, what a refusal says, and where the new picture shows afterwards.
 @MainActor
 struct PictureFieldTests {
   private let origin = ClientHarness.origin
@@ -48,19 +48,15 @@ struct PictureFieldTests {
 
   // MARK: - Account
 
-  @Test func thePictureGoesAfterTheFieldsAndEveryScreenReadsTheNewOne() async throws {
+  @Test func onAccountAPictureIsSentAtOnceAndEveryScreenReadsTheNewOne() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
-    let model = AccountFormModel(session: session)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
     let before = server.requests.count
 
-    model.setName("Sam Diver")
-    model.picture.set(replace(square))
-    #expect(model.canSave)
-    await model.save()
+    #expect(await picture.save(replace(square)) == nil)
 
-    #expect(
-      sent(server, after: before) == ["PATCH user", "GET user", "PUT user/avatar", "GET user"])
+    #expect(sent(server, after: before) == ["PUT user/avatar", "GET user"])
     let upload = String(
       decoding: try #require(body(server, "PUT user/avatar")?.httpBody), as: UTF8.self)
     #expect(upload.contains(#"name="file"; filename="avatar.jpg""#))
@@ -69,168 +65,27 @@ struct PictureFieldTests {
     #expect(
       try JSONValue.parse(JSONSerialization.data(withJSONObject: crop))
         == (try json(#"{"x":0,"y":504,"width":3024,"height":3024}"#)))
-    #expect(session.user?.name == "Sam Diver")
     #expect(session.user?.avatarSha256 == "uploaded-avatar")
     #expect(session.user?.avatarCrop == square)
-    #expect(model.picture.edit == nil)
-    #expect(model.saved)
-    #expect(!model.canSave)
+    #expect(picture.edit == nil)
+    #expect(picture.hasPicture)
   }
 
-  @Test func aPictureAloneSendsNoFields() async throws {
-    let server = try SettingsServer()
-    let model = AccountFormModel(session: try await loaded(server))
-    let before = server.requests.count
-
-    model.picture.set(replace(square))
-    await model.save()
-
-    #expect(sent(server, after: before) == ["PUT user/avatar", "GET user"])
-    #expect(model.saved)
-  }
-
-  @Test func aPictureChosenAfterASaveIsNotShownAsSaved() async throws {
-    let server = try SettingsServer()
-    let model = AccountFormModel(session: try await loaded(server))
-    model.setName("Sam Diver")
-    await model.save()
-    #expect(model.saved)
-
-    model.picture.set(replace(square))
-    #expect(!model.saved)
-    model.picture.pressBin()
-    #expect(model.saved)
-  }
-
-  @Test func aRefusedPictureLeavesTheFieldsSavedAndSaysExactlyThat() async throws {
+  @Test func aRefusedPictureIsDroppedAndSaysWhy() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
     server.fail(
       "PUT user/avatar",
       with: .json(
         #"{"detail":"That picture would take you past your storage limit."}"#, status: 413))
-    let model = AccountFormModel(session: session)
-
-    model.setName("Sam Diver")
-    model.picture.set(replace(square))
-    await model.save()
+    let picture = PictureFieldModel(kind: .avatar, session: session)
 
     #expect(
-      model.failure
-        == "Saved, but your profile picture did not. That picture would take you past your"
-        + " storage limit.")
-    #expect(session.user?.name == "Sam Diver")
-    #expect(model.name == "Sam Diver")
-    #expect(model.picture.edit == replace(square))
-    #expect(!model.saved)
-
-    // Another try sends the picture alone.
-    server.succeed("PUT user/avatar")
-    let before = server.requests.count
-    await model.save()
-    #expect(sent(server, after: before) == ["PUT user/avatar", "GET user"])
-    #expect(model.failure == nil)
-    #expect(model.saved)
-  }
-
-  @Test func aRefusalOfTheFieldsIsNotLeftShowingByASaveOfThePictureAlone() async throws {
-    let server = try SettingsServer()
-    let session = try await loaded(server)
-    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
-    let model = AccountFormModel(session: session)
-    model.setUsername("taken")
-    model.picture.set(replace(square))
-    await model.save()
-    #expect(model.failure == "Username not available")
-
-    model.setUsername("testdiver")
-    let before = server.requests.count
-    await model.save()
-
-    #expect(sent(server, after: before) == ["PUT user/avatar", "GET user"])
-    #expect(model.failure == nil)
-    #expect(model.saved)
-  }
-
-  @Test func aRefusalOfTheFieldsGoesOnceAFieldItSentIsEdited() async throws {
-    let server = try SettingsServer()
-    let session = try await loaded(server)
-    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
-    let model = AccountFormModel(session: session)
-    model.setUsername("taken")
-    await model.save()
-    #expect(model.failure == "Username not available")
-
-    // The save sent no name, and the picture is not what was refused.
-    model.setName("Sam Diver")
-    model.picture.set(replace(square))
-    #expect(model.failure == "Username not available")
-
-    model.setUsername("taken2")
-    #expect(model.failure == nil)
-  }
-
-  @Test func aRefusalOfThePictureGoesOnceThePictureChangesAndOnlyThen() async throws {
-    let server = try SettingsServer()
-    let session = try await loaded(server)
-    server.fail("PUT user/avatar", with: .json(#"{"detail":"Unsupported image."}"#, status: 415))
-    let model = AccountFormModel(session: session)
-    model.picture.set(replace(square))
-    await model.save()
-    let refused = "Your profile picture did not save. Unsupported image."
-    #expect(model.failure == refused)
-
-    model.setName("Sam Diver")
-    model.setUsername("samdiver")
-    #expect(model.failure == refused)
-
-    // Changed and changed back is still a change.
-    model.picture.pressBin()
-    model.picture.set(replace(square))
-    #expect(model.failure == nil)
-  }
-
-  @Test func theNextSaveSaysOnlyWhatItRefused() async throws {
-    let server = try SettingsServer()
-    let session = try await loaded(server)
-    server.fail("PUT user/avatar", with: .json(#"{"detail":"Unsupported image."}"#, status: 415))
-    let model = AccountFormModel(session: session)
-    model.setName("Sam Diver")
-    model.picture.set(replace(square))
-    await model.save()
-    #expect(model.failure != nil)
-
-    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
-    model.setUsername("taken")
-    await model.save()
-    #expect(model.failure == "Username not available")
-  }
-
-  @Test func aRefusedPictureWithNoFieldsSaysOnlyThatItDidNotSave() async throws {
-    let server = try SettingsServer()
-    let session = try await loaded(server)
-    server.fail("PUT user/avatar", with: .json(#"{"detail":"Unsupported image."}"#, status: 415))
-    let model = AccountFormModel(session: session)
-
-    model.picture.set(replace(square))
-    await model.save()
-
-    #expect(model.failure == "Your profile picture did not save. Unsupported image.")
-  }
-
-  @Test func refusedFieldsSendNoPicture() async throws {
-    let server = try SettingsServer()
-    let session = try await loaded(server)
-    server.fail("PATCH user", with: .json(#"{"detail":"Username not available"}"#, status: 422))
-    let model = AccountFormModel(session: session)
-    let before = server.requests.count
-
-    model.setUsername("taken")
-    model.picture.set(replace(square))
-    await model.save()
-
-    #expect(sent(server, after: before) == ["PATCH user"])
-    #expect(model.picture.edit == replace(square))
+      await picture.save(replace(square))
+        == "Your profile picture did not save. That picture would take you past your storage"
+        + " limit.")
+    #expect(picture.edit == nil)
+    #expect(picture.showsStored)
   }
 
   @Test func offlineNothingIsSentAndThePictureSaysThereIsNoConnection() async throws {
@@ -238,37 +93,74 @@ struct PictureFieldTests {
     let connectivity = SettingsConnectivity()
     let session = try await loaded(server, connectivity: connectivity)
     connectivity.isRouteAvailable = false
-    let model = AccountFormModel(session: session)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
     let before = server.requests.count
 
-    model.picture.set(replace(square))
-    await model.save()
-
-    #expect(server.requests.count == before)
     #expect(
-      model.failure
+      await picture.save(replace(square))
         == "Your profile picture did not save. \(APIError.noRoute.message)")
+    #expect(server.requests.count == before)
   }
 
   @Test func aPictureTakenWhoseReadFailedShowsUntilTheAccountIsRead() async throws {
     let server = try SettingsServer()
     let session = try await loaded(server)
-    let model = AccountFormModel(session: session)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
     server.fail("GET user", with: .json(#"{"detail":"Down"}"#, status: 500))
 
-    model.picture.set(replace(square))
-    await model.save()
+    #expect(await picture.save(replace(square)) == nil)
 
-    #expect(model.saved)
-    #expect(model.picture.edit == nil)
-    #expect(model.picture.shown == replace(square))
-    #expect(!model.picture.canAdjust)
-    #expect(!model.canSave)
+    #expect(picture.edit == nil)
+    #expect(picture.shown == replace(square))
+    #expect(picture.hasPicture)
+    #expect(!picture.canAdjust)
 
     server.succeed("GET user")
     try await session.reloadAccount()
-    #expect(model.picture.shown == nil)
-    #expect(model.picture.storedSha == "uploaded-avatar")
+    #expect(picture.shown == nil)
+    #expect(picture.storedSha == "uploaded-avatar")
+  }
+
+  @Test func theSentPictureShowsUntilTheNewVersionsBytesAreToHandNeverThePreviousOnes()
+    async throws
+  {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    await picture.loadStored()
+    let previous = try #require(picture.storedData)
+
+    #expect(await picture.save(replace(square)) == nil)
+
+    #expect(picture.storedSha == "uploaded-avatar")
+    #expect(picture.storedData == nil)
+    #expect(picture.sent == replace(square))
+    #expect(!picture.showsStored)
+    await picture.loadStored()
+    #expect(picture.storedData == Data("uploaded-avatar".utf8))
+    #expect(picture.storedData != previous)
+    #expect(picture.sent == nil)
+    #expect(picture.showsStored)
+  }
+
+  @Test func deleteIsSentAtOnceAndARefusalLeavesThePicture() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    #expect(picture.hasPicture)
+
+    server.fail("DELETE user/avatar", with: .json(#"{"detail":"Down"}"#, status: 500))
+    #expect(await picture.save(.remove) == "Your profile picture was not deleted. Down")
+    #expect(picture.edit == nil)
+    #expect(picture.hasPicture)
+
+    server.succeed("DELETE user/avatar")
+    let before = server.requests.count
+    #expect(await picture.save(.remove) == nil)
+    #expect(sent(server, after: before) == ["DELETE user/avatar", "GET user"])
+    #expect(session.user?.avatarSha256 == nil)
+    #expect(!picture.hasPicture)
+    #expect(!picture.canAdjust)
   }
 
   // MARK: - Adjust, copy, remove
@@ -383,6 +275,54 @@ struct PictureFieldTests {
     picture.set(.remove)
     #expect(await picture.send() == nil)
     #expect(picture.edit == nil)
+  }
+
+  @Test func aRemovalReadBackLeavesNothingSentAndUseProfilePictureComesBack() async throws {
+    let server = try SettingsServer()
+    server.set("avatar_original_sha256", "avatar-original")
+    let session = try await loaded(server)
+    let portrait = PictureFieldModel(kind: .portrait, session: session)
+    #expect(portrait.canCopy)
+
+    portrait.set(.remove)
+    #expect(await portrait.send() == nil)
+
+    #expect(session.user?.portraitSha256 == nil)
+    #expect(portrait.sent == nil)
+    #expect(portrait.canCopy)
+  }
+
+  @Test func anEditTheServerAnswersWithTheSameAccountLeavesNothingSent() async throws {
+    let server = try SettingsServer()
+    server.set("avatar_original_sha256", "avatar-original")
+    // The account already holds what the adjust writes, as an unmoved crop leaves it.
+    server.set("avatar_sha256", "adjusted-avatar")
+    server.set("avatar_crop", ["x": 0, "y": 504, "width": 3024, "height": 3024])
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    await picture.loadStored()
+    let before = session.user
+
+    #expect(await picture.save(.adjust(photo, crop: square)) == nil)
+    #expect(session.user == before)
+
+    #expect(picture.sent == nil)
+    #expect(picture.canAdjust)
+  }
+
+  @Test func aPictureChangedElsewhereAfterASaveIsNotStoodInForByTheSavedOne() async throws {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    #expect(await picture.save(replace(square)) == nil)
+    await picture.loadStored()
+    #expect(picture.sent == nil)
+
+    server.set("avatar_sha256", "changed-on-the-web")
+    try await session.reloadAccount()
+
+    #expect(picture.storedData == nil)
+    #expect(picture.sent == nil)
   }
 
   @Test func theSlotSaysWhatSavingWillDo() async throws {

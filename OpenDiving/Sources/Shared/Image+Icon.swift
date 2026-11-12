@@ -11,8 +11,8 @@ extension Image {
   }
 
   /// One of the app's own symbols, already loaded. What the system draws by name — a menu, a
-  /// view in the top bar — it finds only in its own set. A template, as a symbol by name is:
-  /// loaded, it keeps the black it was drawn in, whatever the foreground.
+  /// view in the top bar, a list row's label — it finds only in its own set. A template, as a
+  /// symbol by name is: loaded, it keeps the black it was drawn in, whatever the foreground.
   init(loaded icon: OpenDivingKit.Icon) {
     if let symbol = UIImage(named: icon.rawValue) {
       self.init(uiImage: symbol.withRenderingMode(.alwaysTemplate))
@@ -25,6 +25,15 @@ extension Image {
 extension Label where Title == Text, Icon == Image {
   /// A menu item, whose symbol has to reach the menu already loaded.
   init(menuItem title: String, icon: OpenDivingKit.Icon) {
+    self.init {
+      Text(title)
+    } icon: {
+      Image(loaded: icon)
+    }
+  }
+
+  /// A list row's label, whose symbol has to reach the row already loaded.
+  init(row title: String, icon: OpenDivingKit.Icon) {
     self.init {
       Text(title)
     } icon: {

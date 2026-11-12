@@ -43,8 +43,10 @@ public enum PictureKind: String, Hashable, Sendable, CaseIterable {
 
   public static let cropTitle = "Adjust Your Photo"
   /// The web's *Use this crop*, cut to its verb: on a 375-point phone the full label leaves the
-  /// title no room between it and *Cancel*.
+  /// title no room between it and *Cancel*. For a form that sends the crop with its own save.
   public static let cropConfirm = "Use"
+  /// For a host that sends the crop as it is chosen.
+  public static let cropSave = "Save"
 
   /// What the crop sheet asks of the diver.
   public var cropDescription: String {

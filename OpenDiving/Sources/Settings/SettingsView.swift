@@ -38,7 +38,7 @@ private struct SettingsList: View {
           NavigationLink {
             Self.screen(section)
           } label: {
-            Label(section.title, icon: section.icon)
+            Label(row: section.title, icon: section.icon)
           }
         }
       }
@@ -59,7 +59,7 @@ private struct SettingsList: View {
         NavigationLink {
           AppearanceScreen()
         } label: {
-          Label("Appearance", icon: .monitor)
+          Label(row: "Appearance", icon: .monitor)
         }
         LabeledContent("Version", value: Self.appVersion)
       }

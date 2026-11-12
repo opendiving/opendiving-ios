@@ -4,8 +4,9 @@ import SwiftUI
 /// The diver's own page, opened from the sites map by their picture: their name over the places
 /// their trips went, with the logbook's figures, as the web's Home has it; the way back to the
 /// map, the dive-computer button, the `+` that logs a dive, imports files or adds a trip or a
-/// site, and the settings in the top bar; and under the head their dives, their trips, their
-/// check-in sheet or *More*, the menu of the rest, one at a time.
+/// site, and the settings in the top bar; their picture, which opens *Account*; and under the
+/// head their dives, their trips, their check-in sheet or *More*, the menu of the rest, one at a
+/// time.
 struct ProfileView: View {
   let avatar: AvatarModel
   @Environment(Session.self) private var session
@@ -17,7 +18,7 @@ struct ProfileView: View {
 
 /// Where the top bar's buttons lead.
 private enum ProfileRoute: Hashable {
-  case logDive, importFiles, addTrip, addSite, diveComputer, settings
+  case logDive, importFiles, addTrip, addSite, diveComputer, settings, account
 }
 
 private struct ProfileContent: View {
@@ -51,10 +52,16 @@ private struct ProfileContent: View {
           HeroView(
             content: model.hero(today: .today()), detailsOnGlass: true, figureMinWidth: 100
           ) {
-            UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
-              .background(Color(.tertiarySystemFill), in: Circle())
-              // In the name's colour, ringing the picture off the glass in either appearance.
-              .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
+            Button {
+              route = .account
+            } label: {
+              UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
+                .background(Color(.tertiarySystemFill), in: Circle())
+                // In the name's colour, ringing the picture off the glass in either appearance.
+                .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Account")
           }
           ProfileTabs(selection: $section, isStuck: $tabsStuck, toTop: toTop)
         }
@@ -132,6 +139,7 @@ private struct ProfileContent: View {
       case .addSite: DiveSiteFormView(mode: .create)
       case .diveComputer: DiveComputerView()
       case .settings: SettingsView()
+      case .account: AccountScreen()
       }
     }
     .task {
