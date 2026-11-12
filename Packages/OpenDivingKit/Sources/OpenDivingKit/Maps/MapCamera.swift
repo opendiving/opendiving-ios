@@ -39,6 +39,18 @@ public struct MapCamera: Hashable, Sendable {
       longitude: WebMercator.wrap(longitude: (box.west + box.east) / 2), zoom: zoom)
   }
 
+  /// The furthest out a map `height` points tall can zoom with its camera on `latitude`: the
+  /// renderer keeps half the map's height of world above and below the camera's point, wherever
+  /// an inset puts that point on the screen, and further out moves the camera off the latitude.
+  public static func zoomHolding(latitude: Double, height: Double) -> Double {
+    let y = WebMercator.y(latitude: WebMercator.clamp(latitude: latitude))
+    guard height > 0 else { return minZoom }
+    // On the cut there is no world on one side of the point at any zoom.
+    guard y > 0, y < 1 else { return maxZoom }
+    let world = height / 2 / min(y, 1 - y)
+    return min(maxZoom, max(minZoom, log2(world / WebMercator.tileSize)))
+  }
+
   /// What a frame `width` by `height` points centred on this camera shows. Its west and east may
   /// pass ±180, and a frame wider than the world spans more than 360 degrees; its south and north
   /// stop where Web Mercator is cut.

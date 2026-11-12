@@ -1,10 +1,10 @@
 import Foundation
 import Observation
 
-/// Where the site finder's panel is and how it is moving. The detent it rests at, which the finder
+/// Where the site finder's panel is and how it is moving. The detent it rests at, which the list
 /// lays out for, changes only once a move lands; while a finger or a spring moves it, only what
-/// rides on the panel's edge reads the move, so neither the first pull nor the letting go draws
-/// the finder, its list and its map again.
+/// rides on the panel's edge reads the move, so neither the first pull nor the letting go lays the
+/// list out again. The map makes room for ``target`` from the moment a spring sets off.
 @MainActor
 @Observable
 public final class SiteFinderPanelDrag {
