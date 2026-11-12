@@ -46,22 +46,25 @@ private struct ProfileContent: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 16) {
-        // Three figures to a row on a phone's width, the six in two rows.
-        HeroView(
-          content: model.hero(today: .today()), detailsOnGlass: true, figureMinWidth: 100
-        ) {
-          Button {
-            route = .account
-          } label: {
-            UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
-              .background(Color(.tertiarySystemFill), in: Circle())
-              // In the name's colour, ringing the picture off the glass in either appearance.
-              .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
+        // Closer than the sections below: the head's own padding already parts them.
+        VStack(spacing: 8) {
+          // Three figures to a row on a phone's width, the six in two rows.
+          HeroView(
+            content: model.hero(today: .today()), detailsOnGlass: true, figureMinWidth: 100
+          ) {
+            Button {
+              route = .account
+            } label: {
+              UserAvatarView(initials: avatar.initials, picture: avatar.data, side: 52)
+                .background(Color(.tertiarySystemFill), in: Circle())
+                // In the name's colour, ringing the picture off the glass in either appearance.
+                .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Account")
           }
-          .buttonStyle(.plain)
-          .accessibilityLabel("Account")
+          ProfileTabs(selection: $section, isStuck: $tabsStuck, toTop: toTop)
         }
-        ProfileTabs(selection: $section, isStuck: $tabsStuck, toTop: toTop)
         Group {
           switch section {
           case .dives: ProfileDives(list: dives, units: session.units)
@@ -71,12 +74,13 @@ private struct ProfileContent: View {
           }
         }
         .padding(.horizontal)
+        .modifier(HiddenUnderTopBar())
       }
       .padding(.bottom)
     }
     .scrollPosition($scroll)
     .overlay(alignment: .top) {
-      if tabsStuck { StuckProfileTabs(selection: $section, toTop: toTop) }
+      StuckProfileTabs(selection: $section, isStuck: tabsStuck, toTop: toTop)
     }
     .background(Color.pageBackground)
     .heroUnderTopBar { [model, dives, trips, checkin, section] in
@@ -165,6 +169,23 @@ private struct ProfileContent: View {
   }
 }
 
+/// Keeps what is under the tabs from showing above the copy of them held under the bar: a fast
+/// scroll brings it up there while the band over the bar is still fading in.
+private struct HiddenUnderTopBar: ViewModifier {
+  @Environment(\.heroTopInset) private var topInset
+
+  func body(content: Content) -> some View {
+    content.mask {
+      GeometryReader { proxy in
+        Rectangle()
+          .padding(.top, min(max(topInset - proxy.frame(in: .global).minY, 0), proxy.size.height))
+          // Room for the cards' shadows, which a mask the content's own size would cut.
+          .padding([.horizontal, .bottom], -32)
+      }
+    }
+  }
+}
+
 /// The tabs under the head, which report when their names reach the top bar, their icons
 /// already gone under it.
 private struct ProfileTabs: View {
@@ -183,22 +204,43 @@ private struct ProfileTabs: View {
       } action: {
         isStuck = $0
       }
-      // The copy held at the top stands for them while it shows.
+      // The copy held at the top stands for them while it shows. Their icons stay, to fade out
+      // under its band with the page above them; their names, underline and hairline go, which
+      // would show twice over the copy's while it fades.
+      .mask {
+        VStack(spacing: 0) {
+          Rectangle().frame(height: iconRow)
+          Rectangle().opacity(isStuck ? 0 : 1)
+        }
+      }
       .accessibilityHidden(isStuck)
   }
 }
 
 /// The tabs held under the top bar, by their names alone, once the page scrolls them up to it:
-/// their names land where the scrolled tabs' were, so the swap does not show.
+/// their names land where the scrolled tabs' were, so the swap does not show. The band over what
+/// was above them fades in and out rather than hiding it at once.
 private struct StuckProfileTabs: View {
   @Binding var selection: ProfileSection
+  let isStuck: Bool
   let toTop: () -> Void
   @Environment(\.heroTopInset) private var topInset
 
   var body: some View {
-    SectionTabs(selection: $selection, showsIcons: false, onReselect: toTop)
-      .padding(.top, topInset)
-      .background(Color.pageBackground)
+    VStack(spacing: 0) {
+      Color.pageBackground
+        .frame(height: topInset)
+        .opacity(isStuck ? 1 : 0)
+        .animation(.easeInOut(duration: 0.25), value: isStuck)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+      if isStuck {
+        // Inside the row alone: a colour's background otherwise runs up under the bar, over the
+        // band, and hides what it fades over at once.
+        SectionTabs(selection: $selection, showsIcons: false, onReselect: toTop)
+          .background { Color.pageBackground }
+      }
+    }
   }
 }
 
