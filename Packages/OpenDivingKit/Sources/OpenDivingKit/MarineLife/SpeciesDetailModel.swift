@@ -2,8 +2,8 @@ import Foundation
 import Observation
 
 /// A species' page: the species and the diver's history with it, its photo, and the dives it
-/// was seen on and their sites, each a page at a time. Each shows at once from the account's copy where the phone has
-/// shown it, and with no route nothing is asked for until one appears.
+/// was seen on and their sites, each a page at a time. Each shows at once from the account's copy
+/// where the phone has shown it, and with no route nothing is asked for until one appears.
 @MainActor
 @Observable
 public final class SpeciesDetailModel {
@@ -76,7 +76,7 @@ public final class SpeciesDetailModel {
     _ = await (dives, sites)
   }
 
-  /// The dives, by `list`, and the photo, which a read that could not have it is the only
+  /// The lists, by `list`, and the photo, which a read that could not have it is the only
   /// chance to ask for again: its version has not changed.
   private func readBeside(_ list: () async -> Void) async {
     guard page.phase.isLoaded else { return }

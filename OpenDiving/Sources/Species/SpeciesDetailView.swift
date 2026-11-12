@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// A species' page, by its uuid: its photo across the hero and the photo's credit under it, then
-/// the dives with it, the sites it was seen at and its taxonomy, one tab at a time. Every species card opens it, which is what credits their
-/// photos.
+/// its taxonomy, the sites it was seen at and the dives with it, one tab at a time. Every species
+/// card opens it, which is what credits their photos.
 struct SpeciesDetailView: View {
   let speciesUUID: UUID
   @Environment(Session.self) private var session
@@ -120,7 +120,7 @@ private struct SpeciesDiveSites: View {
       }
     case .failed(let error):
       SectionCard(title: Self.title, icon: .diveSite) {
-        Text(error.isUnreachable ? OfflineText.yourDiveSitesNotShown : error.message)
+        Text(error.isUnreachable ? OfflineText.speciesDiveSitesNotShown : error.message)
           .font(.subheadline)
           .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
