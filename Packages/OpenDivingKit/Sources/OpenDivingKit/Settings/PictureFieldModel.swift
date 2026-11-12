@@ -102,15 +102,12 @@ public final class PictureFieldModel {
   /// An edit the server took, drawn until the stored picture shows what it made, so the previous
   /// picture never shows in between: until the bytes of the version the read after it named are
   /// to hand — a version named since is another change, which the edit does not stand in for.
-  /// Where that read failed, while the session holds the account it was sent over, and then
-  /// until the bytes of whatever version the next read named.
+  /// Where that read failed, while the session holds the account it was sent over.
   public var sent: PictureEdit? {
     guard let landed else { return nil }
-    let awaitingBytes = storedSha != nil && storedData == nil
-    if landed.isRead {
-      return awaitingBytes && storedSha == landed.readVersion ? landed.edit : nil
-    }
-    return landed.over == session.user || awaitingBytes ? landed.edit : nil
+    guard landed.isRead else { return landed.over == session.user ? landed.edit : nil }
+    let awaitingBytes = storedSha != nil && storedSha == landed.readVersion && storedData == nil
+    return awaitingBytes ? landed.edit : nil
   }
 
   /// What the slot draws in place of the stored picture: the pending edit, or one that was

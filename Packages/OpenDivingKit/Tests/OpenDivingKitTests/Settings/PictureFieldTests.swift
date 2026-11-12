@@ -117,10 +117,8 @@ struct PictureFieldTests {
 
     server.succeed("GET user")
     try await session.reloadAccount()
-    #expect(picture.storedSha == "uploaded-avatar")
-    #expect(picture.shown == replace(square))
-    await picture.loadStored()
     #expect(picture.shown == nil)
+    #expect(picture.storedSha == "uploaded-avatar")
   }
 
   @Test func theSentPictureShowsUntilTheNewVersionsBytesAreToHandNeverThePreviousOnes()
