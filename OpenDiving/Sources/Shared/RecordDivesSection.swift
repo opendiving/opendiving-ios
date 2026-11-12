@@ -2,14 +2,16 @@ import OpenDivingKit
 import SwiftUI
 
 /// A record page's dives — a gear item's, a course's, a person's, a species' — a page at a time
-/// as cards each opening the dive's page, under the card's title and the sentence under it. While
-/// the list holds none it is the empty state alone, whose button opens the dive form on `logDive`.
+/// as cards each opening the dive's page, under the card's title and the sentence under it — or,
+/// not `isCarded`, the dive cards alone, where a tab already names them. While the list holds none
+/// it is the empty state alone, whose button opens the dive form on `logDive`.
 struct RecordDivesSection: View {
   let list: PagedList<DiveListItem>
   let content: RecordDivesContent
   let units: UnitSystem
   /// What *Log a dive* opens the dive form on.
   let logDive: DiveFormMode
+  var isCarded = true
 
   var body: some View {
     switch list.phase {
@@ -48,12 +50,18 @@ struct RecordDivesSection: View {
     }
   }
 
-  private func card(@ViewBuilder _ rows: () -> some View) -> some View {
-    SectionCard(title: content.title, icon: .dive) {
-      Text(content.description)
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-      rows()
+  @ViewBuilder private func card(@ViewBuilder _ rows: () -> some View) -> some View {
+    if isCarded {
+      SectionCard(title: content.title, icon: .dive) {
+        Text(content.description)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+        rows()
+      }
+    } else {
+      VStack(alignment: .leading, spacing: 12) {
+        rows()
+      }
     }
   }
 }

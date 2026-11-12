@@ -38,7 +38,7 @@ private struct TripDetailContent: View {
       case .loaded(let trip):
         ScrollView {
           LazyVStack(spacing: 16) {
-            HeroView(content: TripSummary.hero(trip, units: session.units))
+            HeroView(content: TripSummary.hero(trip, units: session.units), detailsOnGlass: true)
             Group {
               if let lastUpdated = model.lastUpdated {
                 LastUpdatedLine(date: lastUpdated)

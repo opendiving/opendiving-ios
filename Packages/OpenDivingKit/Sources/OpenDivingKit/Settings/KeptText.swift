@@ -146,6 +146,10 @@ public enum OfflineText {
   public static let yourDiveSitesNotShown =
     "Your dive sites have not been listed on this phone, so they show once the server can be"
     + " reached."
+  /// A species' *Dive Sites* tab never listed.
+  public static let speciesDiveSitesNotShown =
+    "The dive sites this species was seen at have not been listed on this phone, so they show"
+    + " once the server can be reached."
   /// The Sites map's weather bar, where the weather could not be asked for.
   public static let noConnection = "No connection"
   /// The profile card of a dive shown from the phone's copy: profiles are not kept.

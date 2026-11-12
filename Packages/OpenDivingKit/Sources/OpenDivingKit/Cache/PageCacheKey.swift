@@ -154,6 +154,11 @@ extension PageCacheKey where Item == DiveSiteSearchRow {
   /// from the map's *Your sites*, whose kept pages are the sites in view.
   public static var yourDiveSites: Self { Self("your-dive-sites", record: { siteRecord($0) }) }
 
+  /// The dive sites on one species' page, kept and dropped with the species' own copy.
+  public static func speciesDiveSites(_ species: UUID) -> Self {
+    Self("species-dive-sites-" + species.uuidString.lowercased(), record: { siteRecord($0) })
+  }
+
   private static func siteRecord(_ row: DiveSiteSearchRow) -> UUID {
     guard case .site(let item) = row, let uuid = item.ref.serverUUID else {
       return UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
