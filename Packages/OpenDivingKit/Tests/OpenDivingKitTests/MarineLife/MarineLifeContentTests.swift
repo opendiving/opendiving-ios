@@ -80,36 +80,46 @@ struct MarineLifeContentTests {
     #expect(bare.photoCredit == nil)
   }
 
-  @Test func aSiteRowSaysWhatTheWebsRowSays() throws {
+  @Test func aSiteCardSaysWhatATripCardSays() throws {
     let page = try KitFixture.decode(DiveSiteSearchPage.self, "dive-site-search")
-    let own = try #require(YourDiveSiteRowContent(page.rows[0], units: .metric))
-    #expect(own.title == "Canyon")
+    let own = try #require(YourDiveSiteCardContent(page.rows[0], units: .metric))
+    #expect(own.card.title == "Canyon")
     // Salt water and sea level go without saying.
     #expect(
-      own.facts.map(\.text) == ["Dahab, South Sinai, Egypt", "12 m – 52 m", "Shore"])
-    #expect(own.facts.map(\.accessibilityLabel) == [nil, "Depth", "Entry type"])
-    #expect(own.figures == "3 dives · deepest 31 m · 7 species seen")
+      own.card.facts.map(\.text) == ["Dahab, South Sinai, Egypt", "12 m – 52 m", "Shore"])
+    #expect(own.card.facts.map(\.accessibilityLabel) == [nil, "Depth", "Entry type"])
+    #expect(
+      own.card.figures == [
+        Figure(label: "Dives", value: "3"), Figure(label: "Max depth", value: "31 m"),
+        Figure(label: "Species seen", value: "7"),
+      ])
+    #expect(
+      own.card.points == [MapPoint(name: "Canyon", latitude: 28.5687, longitude: 34.5372)])
     #expect(own.isWaitingForReview)
     #expect(!own.isCommons)
     #expect(own.credit == nil)
 
-    let commons = try #require(YourDiveSiteRowContent(page.rows[1], units: .metric))
+    let commons = try #require(YourDiveSiteCardContent(page.rows[1], units: .metric))
     #expect(commons.isCommons)
     #expect(
       commons.credit == "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)")
-    #expect(commons.figures == nil)
+    #expect(commons.card.figures.isEmpty)
   }
 
-  @Test func aSiteRowPrintsFreshWaterAltitudeAndOneDive() {
+  @Test func aSiteCardPrintsFreshWaterAltitudeAndOneDive() {
     let item = DiveSiteSearchItem(
       site: DiveSiteLookupItem(
         ref: .server(UUID()), name: "Lake", waterType: "fresh", altitude: 1200,
         entryTypes: ["shore", "boat"]),
       depthTo: 18, dives: DiveSiteDives(diveCount: 1))
-    let row = YourDiveSiteRowContent(.site(item), units: .metric)
+    let row = YourDiveSiteCardContent(.site(item), units: .metric)
     #expect(
-      row?.facts.map(\.accessibilityLabel) == ["Water type", "Depth", "Altitude", "Entry types"])
-    #expect(row?.facts[1].text == "To 18 m")
-    #expect(row?.figures == "1 dive")
+      row?.card.facts.map(\.accessibilityLabel) == [
+        "Water type", "Depth", "Altitude", "Entry types",
+      ])
+    #expect(row?.card.facts[1].text == "To 18 m")
+    #expect(row?.card.figures == [Figure(label: "Dives", value: "1")])
+    // No position, no pin: the card shows the water.
+    #expect(row?.card.points.isEmpty == true)
   }
 }
