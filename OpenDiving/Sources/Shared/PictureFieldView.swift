@@ -11,7 +11,6 @@ struct PictureFieldView: View {
 
   @State private var picker: PicturePicker
 
-  /// One width for both pictures, so the two forms line up.
   private static let width: CGFloat = 120
 
   init(model: PictureFieldModel) {
