@@ -23,7 +23,7 @@ struct SectionTabs<Section: TabSection>: View {
 
   /// How far the names sit below the tabs' top with the icons over them, beyond where they sit
   /// without: one height for every icon, so the names line up whatever each icon's own height.
-  static var iconRowHeight: CGFloat { 32 }
+  static var iconRowHeight: CGFloat { 28 }
 
   @Namespace private var underline
 
@@ -48,7 +48,7 @@ struct SectionTabs<Section: TabSection>: View {
         if showsIcons, let icon = section.icon {
           Image(icon)
             .font(.title2)
-            .frame(height: Self.iconRowHeight - 4)
+            .frame(height: Self.iconRowHeight)
         }
         Text(title(section))
           .lineLimit(1)
