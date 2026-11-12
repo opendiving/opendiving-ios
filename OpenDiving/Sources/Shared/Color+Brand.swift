@@ -34,6 +34,15 @@ extension Color {
   /// The web's `--destructive-solid`, the fill under white text in both appearances.
   static let dangerFill = Color(red: 0.752, green: 0.165, blue: 0.048)
 
+  /// The label on a disabled filled button: a step lighter than the system's grey fill in the
+  /// light and a step darker in the dark, so it reads as the button's own text, put away.
+  static let disabledOnFill = Color(
+    UIColor {
+      $0.userInterfaceStyle == .dark
+        ? UIColor(white: 12 / 255, alpha: 1)
+        : UIColor(white: 248 / 255, alpha: 1)
+    })
+
   /// A page that opens with a map head: the colour the head's map fades into, so the two meet
   /// without a seam.
   static let pageBackground = Color(.systemBackground)

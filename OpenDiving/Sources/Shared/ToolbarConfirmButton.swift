@@ -14,7 +14,7 @@ struct ToolbarConfirmButton: View {
     Button(action: action) {
       Text(title)
         .fontWeight(.regular)
-        .foregroundStyle(isEnabled ? Color.white : Color.secondary)
+        .foregroundStyle(isEnabled ? Color.white : Color.disabledOnFill)
     }
     .brandProminentButton(fill)
   }
