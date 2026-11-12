@@ -34,6 +34,8 @@ private struct ProfileContent: View {
   @State private var route: ProfileRoute?
   @State private var tabsStuck = false
   @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
 
   init(session: Session, avatar: AvatarModel) {
     self.avatar = avatar
@@ -63,7 +65,8 @@ private struct ProfileContent: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Account")
           }
-          ProfileTabs(selection: $section, isStuck: $tabsStuck, toTop: toTop)
+          ProfileTabs(
+            selection: $section, isStuck: $tabsStuck, top: $tabsTop, onReselect: scrollOnReselect)
         }
         Group {
           switch section {
@@ -76,11 +79,13 @@ private struct ProfileContent: View {
         .padding(.horizontal)
         .modifier(HiddenUnderTopBar())
       }
+      .coordinateSpace(.pageContent)
       .padding(.bottom)
     }
     .scrollPosition($scroll)
+    .tabsReselect($reselect, tabsTop: tabsTop)
     .overlay(alignment: .top) {
-      StuckProfileTabs(selection: $section, isStuck: tabsStuck, toTop: toTop)
+      StuckProfileTabs(selection: $section, isStuck: tabsStuck, onReselect: scrollOnReselect)
     }
     .background(Color.pageBackground)
     .heroUnderTopBar { [model, dives, trips, checkin, section] in
@@ -163,9 +168,8 @@ private struct ProfileContent: View {
     }
   }
 
-  /// A tap on the chosen tab takes the page back to its head, as a tap on the status bar does.
-  private func toTop() {
-    withAnimation { scroll.scrollTo(edge: .top) }
+  private func scrollOnReselect() {
+    withAnimation { scroll.scroll(to: reselect) }
   }
 }
 
@@ -186,18 +190,20 @@ private struct HiddenUnderTopBar: ViewModifier {
   }
 }
 
-/// The tabs under the head, which report when their names reach the top bar, their icons
-/// already gone under it.
+/// The tabs under the head, which report where their names sit and when those reach the top
+/// bar, their icons already gone under it.
 private struct ProfileTabs: View {
   @Binding var selection: ProfileSection
   @Binding var isStuck: Bool
-  let toTop: () -> Void
+  @Binding var top: CGFloat
+  let onReselect: () -> Void
   @Environment(\.heroTopInset) private var topInset
   @ScaledMetric(relativeTo: .title2) private var iconRow = SectionTabs<ProfileSection>
     .iconRowHeight
 
   var body: some View {
-    SectionTabs(selection: $selection, onReselect: toTop)
+    SectionTabs(selection: $selection, onReselect: onReselect)
+      .readsTabsTop($top, below: iconRow)
       .onGeometryChange(for: Bool.self) {
         [top = topInset - iconRow] in
         $0.frame(in: .scrollView).minY <= top
@@ -223,7 +229,7 @@ private struct ProfileTabs: View {
 private struct StuckProfileTabs: View {
   @Binding var selection: ProfileSection
   let isStuck: Bool
-  let toTop: () -> Void
+  let onReselect: () -> Void
   @Environment(\.heroTopInset) private var topInset
 
   var body: some View {
@@ -237,7 +243,7 @@ private struct StuckProfileTabs: View {
       if isStuck {
         // Inside the row alone: a colour's background otherwise runs up under the bar, over the
         // band, and hides what it fades over at once.
-        SectionTabs(selection: $selection, showsIcons: false, onReselect: toTop)
+        SectionTabs(selection: $selection, showsIcons: false, onReselect: onReselect)
           .background { Color.pageBackground }
       }
     }
