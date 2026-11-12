@@ -1,22 +1,29 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One species as a card: its photo behind its names — a fish where there is none — then
-/// the diver's note and the figures. The photo is decorative; the name says what it is.
+/// One species as a card, as a site's and a trip's: its photo filling the card — the water and a
+/// fish where there is none — under its names, the diver's note and the figures on glass in its
+/// foot. The photo is decorative; the name says what it is.
 struct SpeciesCardView: View {
   let content: SpeciesCardContent
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      photo
-        .frame(height: 120)
-        .frame(maxWidth: .infinity)
-        .clipped()
-        // A photo filled into the frame runs past it untouched by the clip, and would take taps
-        // meant for whatever stands above or below the card.
-        .contentShape(Rectangle())
-        .accessibilityHidden(true)
-      VStack(alignment: .leading, spacing: 4) {
+    BackdropCardView { frame in
+      if let data = content.photo, let image = UIImage(data: data) {
+        // Filled into the card and clipped to it, as a photo's own size would set the card's.
+        Color.clear
+          .overlay {
+            Image(uiImage: image)
+              .resizable()
+              .scaledToFill()
+          }
+          .clipped()
+          .accessibilityHidden(true)
+      } else {
+        UnplacedBackdropView(icon: .fish, coveredBottom: frame.coveredBottom)
+      }
+    } details: {
+      VStack(alignment: .leading, spacing: 2) {
         Text(content.commonName)
           .font(.headline)
         if content.scientificName != content.commonName {
@@ -29,28 +36,10 @@ struct SpeciesCardView: View {
             .font(.caption)
         }
         FiguresRow(figures: content.figures)
-          .padding(.top, 2)
+          .padding(.top, 4)
       }
-      .padding(12)
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .background(Color(.secondarySystemGroupedBackground))
-    .clipShape(RoundedRectangle(cornerRadius: 12))
-    .accessibilityElement(children: .combine)
-  }
-
-  @ViewBuilder private var photo: some View {
-    if let data = content.photo, let image = UIImage(data: data) {
-      Image(uiImage: image)
-        .resizable()
-        .scaledToFill()
-    } else {
-      ZStack {
-        Color(.tertiarySystemGroupedBackground)
-        Image(.fish)
-          .font(.largeTitle)
-          .foregroundStyle(.secondary)
-      }
+      // The glow the other cards' details have, lifting them off what the glass leaves showing.
+      .shadow(color: Color(.systemBackground).opacity(0.6), radius: 3)
     }
   }
 }

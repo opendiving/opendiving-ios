@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A species' page, by its uuid: its photo across the hero and the photo's credit under it, the
-/// dives with it and its taxonomy. Every species card opens it, which is what credits their
+/// A species' page, by its uuid: its photo across the hero and the photo's credit under it, then
+/// the dives with it, the sites it was seen at and its taxonomy, one tab at a time. Every species card opens it, which is what credits their
 /// photos.
 struct SpeciesDetailView: View {
   let speciesUUID: UUID
@@ -25,6 +25,7 @@ extension SpeciesDetailView {
 private struct SpeciesDetailContent: View {
   @Environment(Session.self) private var session
   @State private var model: SpeciesDetailModel
+  @State private var section = SpeciesSection.dives
 
   init(model: SpeciesDetailModel) {
     _model = State(initialValue: model)
@@ -46,7 +47,8 @@ private struct SpeciesDetailContent: View {
         ScrollView {
           LazyVStack(spacing: 16) {
             HeroView(
-              content: content.hero, backdrop: .photo(model.photo, placeholder: .fish))
+              content: content.hero, backdrop: .photo(model.photo, placeholder: .fish),
+              detailsOnGlass: true)
             Group {
               if let lastUpdated = model.page.lastUpdated {
                 LastUpdatedLine(date: lastUpdated)
@@ -58,10 +60,20 @@ private struct SpeciesDetailContent: View {
                   .frame(maxWidth: .infinity, alignment: .leading)
                   .background(Color.cardFill, in: .formSection)
               }
-              RecordDivesSection(
-                list: model.dives, content: content.dives, units: session.units,
-                logDive: .create)
-              TaxonomyCard(content: content)
+            }
+            .padding(.horizontal)
+            SectionTabs(selection: $section)
+            Group {
+              switch section {
+              case .dives:
+                RecordDivesSection(
+                  list: model.dives, content: content.dives, units: session.units,
+                  logDive: .create)
+              case .diveSites:
+                SpeciesDiveSites(list: model.sites, units: session.units)
+              case .taxonomy:
+                TaxonomyCard(content: content)
+              }
             }
             .padding(.horizontal)
           }
@@ -88,6 +100,51 @@ private struct SpeciesDetailContent: View {
         scientificName: page.species.scientificName, commonName: page.species.commonName)
     } else {
       "Species"
+    }
+  }
+}
+
+/// The sites on the diver's list a dive of theirs saw the species at, each opening on the map.
+private struct SpeciesDiveSites: View {
+  let list: PagedList<DiveSiteSearchRow>
+  let units: UnitSystem
+
+  private static let title = "Dive Sites"
+
+  var body: some View {
+    switch list.phase {
+    case .idle, .loading:
+      SectionCard(title: Self.title, icon: .diveSite) {
+        BubbleSpinner()
+          .frame(maxWidth: .infinity)
+      }
+    case .failed(let error):
+      SectionCard(title: Self.title, icon: .diveSite) {
+        Text(error.isUnreachable ? OfflineText.yourDiveSitesNotShown : error.message)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+        Button("Try again") { Task { await list.load() } }
+          .buttonStyle(.bordered)
+      }
+    case .loaded where list.items.isEmpty:
+      EmptyOrErrorView(
+        status: .empty(
+          icon: .diveSite, title: "Not seen at any of your dive sites yet", message: nil))
+    case .loaded:
+      LazyVStack(spacing: 12) {
+        ForEach(list.items) { row in
+          if let content = YourDiveSiteRowContent(row, units: units), let site = content.siteUUID {
+            NavigationLink {
+              SiteMapView(siteUUID: site)
+            } label: {
+              DiveSiteRowView(content: content)
+            }
+            .buttonStyle(.plain)
+          }
+        }
+        PageEndTrigger(list: list)
+        LoadMoreFooter(list: list)
+      }
     }
   }
 }

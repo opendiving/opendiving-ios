@@ -123,8 +123,10 @@ struct HeroView<Leading: View>: View {
 }
 
 extension HeroView where Leading == EmptyView {
-  init(content: HeroContent, backdrop: HeroBackdrop = .map) {
-    self.init(content: content, backdrop: backdrop) { EmptyView() }
+  init(content: HeroContent, backdrop: HeroBackdrop = .map, detailsOnGlass: Bool = false) {
+    self.init(content: content, backdrop: backdrop, detailsOnGlass: detailsOnGlass) {
+      EmptyView()
+    }
   }
 }
 
