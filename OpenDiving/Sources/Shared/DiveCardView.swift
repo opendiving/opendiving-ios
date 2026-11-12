@@ -15,13 +15,12 @@ struct DiveCardView: View {
 
   var body: some View {
     BackdropCardView { frame in
-      // The water's icon centres above the silhouette and the chips rather than behind them.
-      let aboveProfile =
-        hasOutline
-        ? frame.coveredBottom + Self.silhouetteGap + Self.silhouetteHeight
-        : content.chips.isEmpty ? frame.coveredBottom : frame.coveredBottom + Self.chipsHeight
+      // The water's icon centres above the chips, and where it would without a silhouette, which
+      // is drawn over it.
+      let aboveChips =
+        content.chips.isEmpty ? frame.coveredBottom : frame.coveredBottom + Self.chipsHeight
       ZStack {
-        UnplacedBackdropView(icon: .tabDive, coveredBottom: aboveProfile)
+        UnplacedBackdropView(icon: .tabDive, coveredBottom: aboveChips)
         if !content.points.isEmpty || !content.fixes.isEmpty {
           let covers = frame.mapCovers(pinCentre: pinCentre(frame))
           MapBackdropView(
