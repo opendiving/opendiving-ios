@@ -241,20 +241,19 @@ struct SiteFinderMap: UIViewRepresentable {
           zoomLevel: camera.zoom, animated: true)
         return
       }
-      // A held middle is what a pinch zooms about, so it glides to the middle of what shows now
-      // rather than staying where it was on the screen.
-      if holdsMiddle {
-        let held = map.centerCoordinate
-        isGliding = true
-        map.contentInset = covered
-        map.setCenter(held, zoomLevel: map.zoomLevel, animated: true)
-        return
-      }
+      let held = map.centerCoordinate
       let middle = map.convert(CGPoint(x: showing.midX, y: showing.midY), toCoordinateFrom: map)
       isMoving = true
       map.contentInset = covered
       map.setCenter(middle, zoomLevel: map.zoomLevel, animated: false)
       isMoving = false
+      // A held middle is what a pinch zooms about, so it glides from where it was left to the
+      // middle of what shows now.
+      if holdsMiddle {
+        isGliding = true
+        map.setCenter(held, zoomLevel: map.zoomLevel, animated: true)
+        return
+      }
       DispatchQueue.main.async { [weak self, weak map] in
         guard let self, let map else { return }
         report(map, byGesture: false)
