@@ -35,7 +35,7 @@ private struct AuthenticationList: View {
     .task { await devices.list.followRoute() }
     // A key's last use happens elsewhere, so its row is read again as the app comes back.
     .task { await apiKeys.list.followRouteAndForeground() }
-    .refreshable { await RefreshRead.run { await load() } }
+    .bubbleRefreshable { await load() }
     // Leaving the screen lets a new key's secret go: it is never shown again.
     .onDisappear { apiKeys.done() }
   }
