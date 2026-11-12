@@ -20,6 +20,8 @@ struct SectionTabs<Section: TabSection>: View {
   var showsIcons = true
   /// What a tab is called, where a count goes with its name.
   var title: (Section) -> String = { $0.title }
+  /// What a tap on the chosen tab does, where it does anything.
+  var onReselect: (() -> Void)?
 
   /// How far the names sit below the tabs' top with the icons over them, beyond where they sit
   /// without, at the default text size: one height for every icon, so the names line up whatever
@@ -44,7 +46,11 @@ struct SectionTabs<Section: TabSection>: View {
   private func tab(_ section: Section) -> some View {
     let isSelected = selection == section
     return Button {
-      withAnimation(.easeOut(duration: 0.2)) { selection = section }
+      if isSelected {
+        onReselect?()
+      } else {
+        withAnimation(.easeOut(duration: 0.2)) { selection = section }
+      }
     } label: {
       VStack(spacing: 0) {
         if showsIcons, let icon = section.icon {

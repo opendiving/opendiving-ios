@@ -32,6 +32,7 @@ private struct ProfileContent: View {
   @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
   @State private var tabsStuck = false
+  @State private var scroll = ScrollPosition(edge: .top)
 
   init(session: Session, avatar: AvatarModel) {
     self.avatar = avatar
@@ -53,7 +54,7 @@ private struct ProfileContent: View {
             // In the name's colour, ringing the picture off the glass in either appearance.
             .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
         }
-        ProfileTabs(selection: $section, isStuck: $tabsStuck)
+        ProfileTabs(selection: $section, isStuck: $tabsStuck, toTop: toTop)
         Group {
           switch section {
           case .dives: ProfileDives(list: dives, units: session.units)
@@ -66,8 +67,9 @@ private struct ProfileContent: View {
       }
       .padding(.bottom)
     }
+    .scrollPosition($scroll)
     .overlay(alignment: .top) {
-      if tabsStuck { StuckProfileTabs(selection: $section) }
+      if tabsStuck { StuckProfileTabs(selection: $section, toTop: toTop) }
     }
     .background(Color.pageBackground)
     .heroUnderTopBar { [model, dives, trips, checkin, section] in
@@ -148,6 +150,11 @@ private struct ProfileContent: View {
       }
     }
   }
+
+  /// A tap on the chosen tab takes the page back to its head, as a tap on the status bar does.
+  private func toTop() {
+    withAnimation { scroll.scrollTo(edge: .top) }
+  }
 }
 
 /// The tabs under the head, which report when their names reach the top bar, their icons
@@ -155,12 +162,13 @@ private struct ProfileContent: View {
 private struct ProfileTabs: View {
   @Binding var selection: ProfileSection
   @Binding var isStuck: Bool
+  let toTop: () -> Void
   @Environment(\.heroTopInset) private var topInset
   @ScaledMetric(relativeTo: .title2) private var iconRow = SectionTabs<ProfileSection>
     .iconRowHeight
 
   var body: some View {
-    SectionTabs(selection: $selection)
+    SectionTabs(selection: $selection, onReselect: toTop)
       .onGeometryChange(for: Bool.self) {
         [top = topInset - iconRow] in
         $0.frame(in: .scrollView).minY <= top
@@ -176,10 +184,11 @@ private struct ProfileTabs: View {
 /// their names land where the scrolled tabs' were, so the swap does not show.
 private struct StuckProfileTabs: View {
   @Binding var selection: ProfileSection
+  let toTop: () -> Void
   @Environment(\.heroTopInset) private var topInset
 
   var body: some View {
-    SectionTabs(selection: $selection, showsIcons: false)
+    SectionTabs(selection: $selection, showsIcons: false, onReselect: toTop)
       .padding(.top, topInset)
       .background(Color.pageBackground)
   }
