@@ -26,7 +26,7 @@ struct SpeciesPickerSheet: View {
           } label: {
             HStack {
               VStack(alignment: .leading, spacing: 2) {
-                Text(pick.title).foregroundStyle(Color.primary)
+                Text(pick.title).foregroundStyle(adding == nil ? Color.primary : Color.secondary)
                 if let subtitle = pick.subtitle {
                   Text(subtitle).font(.subheadline).italic().foregroundStyle(Color.secondary)
                 }
