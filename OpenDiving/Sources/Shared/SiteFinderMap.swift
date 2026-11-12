@@ -244,21 +244,19 @@ struct SiteFinderMap: UIViewRepresentable {
         return
       }
       pendingCover = nil
-      // A glide under way goes on to the middle of what shows now, rather than stopping where
-      // it had got to.
-      if isGliding, let camera {
-        map.contentInset = covered
-        map.setCenter(
-          CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
-          zoomLevel: camera.zoom, animated: true)
-        return
-      }
       let held = map.centerCoordinate
       let middle = map.convert(CGPoint(x: showing.midX, y: showing.midY), toCoordinateFrom: map)
       isMoving = true
       map.contentInset = covered
       map.setCenter(middle, zoomLevel: map.zoomLevel, animated: false)
       isMoving = false
+      // A glide under way goes on from where it had got to, to the middle of what shows now.
+      if isGliding, let camera {
+        map.setCenter(
+          CLLocationCoordinate2D(latitude: camera.latitude, longitude: camera.longitude),
+          zoomLevel: camera.zoom, animated: true)
+        return
+      }
       // A held middle is what a pinch zooms about, so it glides from where it was left to the
       // middle of what shows now.
       if holdsMiddle {
@@ -301,10 +299,18 @@ struct SiteFinderMap: UIViewRepresentable {
 
     /// Holding the middle, a finger pans nowhere and zooms about it — and not at all while a glide
     /// is still on its way there, which a pinch would stop short of it.
+    /// Nor does it zoom out past where MapLibre would move the camera off it to keep the world
+    /// over the map.
     func grip(_ map: MLNMapView) {
       map.isScrollEnabled = !holdsMiddle
       map.isZoomEnabled = !(holdsMiddle && isGliding)
       map.anchorRotateOrZoomGesturesToCenterCoordinate = holdsMiddle
+      var furthest = MapCamera.minZoom
+      if holdsMiddle, let camera {
+        furthest = MapCamera.zoomHolding(
+          latitude: camera.latitude, height: Double(map.bounds.height))
+      }
+      if map.minimumZoomLevel != furthest { map.minimumZoomLevel = furthest }
     }
 
     /// MapLibre keeps a zoom on the held middle only while two fingers pinch: a pinch left with one
@@ -316,7 +322,8 @@ struct SiteFinderMap: UIViewRepresentable {
       let step: Double? =
         mapDoubleTap?.state == .ended ? 1 : mapTwoFingerTap?.state == .ended ? -1 : nil
       guard let step else { return true }
-      let zoom = min(max(map.zoomLevel.rounded() + step, MapCamera.minZoom), MapCamera.maxZoom)
+      let zoom = min(
+        max(map.zoomLevel.rounded() + step, map.minimumZoomLevel), map.maximumZoomLevel)
       // Once MapLibre's tap handler, which is asking, has returned.
       DispatchQueue.main.async { [weak map] in map?.setZoomLevel(zoom, animated: true) }
       return false

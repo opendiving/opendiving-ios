@@ -95,10 +95,11 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
 
   // MARK: - The map
 
-  /// The detent the map makes room for: at its tallest the panel hides the map, which keeps the
-  /// half it had.
+  /// The detent the map makes room for: where the panel is heading, so that a site opened as it
+  /// moves glides once, straight to where it will show. At its tallest the panel hides the map,
+  /// which keeps the half it had.
   private var mapDetent: SiteFinderPanel.Detent {
-    drag.detent == .full ? .half : drag.detent
+    drag.target == .full ? .half : drag.target
   }
 
   private func mapArea(
