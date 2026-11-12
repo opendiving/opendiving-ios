@@ -53,7 +53,7 @@ private struct TankView: View {
         FlowLayout(spacing: 4, lineSpacing: 2) {
           VesselLink(vessel: vessel)
           if !tank.facts.isEmpty {
-            Text("·").accessibilityHidden(true)
+            Text("·").accessibilityHidden(true).flowSeparator()
             FactsLine(facts: tank.facts.map { Fact(text: $0) })
           }
         }
