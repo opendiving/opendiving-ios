@@ -117,8 +117,32 @@ struct PictureFieldTests {
 
     server.succeed("GET user")
     try await session.reloadAccount()
-    #expect(picture.shown == nil)
     #expect(picture.storedSha == "uploaded-avatar")
+    #expect(picture.shown == replace(square))
+    await picture.loadStored()
+    #expect(picture.shown == nil)
+  }
+
+  @Test func theSentPictureShowsUntilTheNewVersionsBytesAreToHandNeverThePreviousOnes()
+    async throws
+  {
+    let server = try SettingsServer()
+    let session = try await loaded(server)
+    let picture = PictureFieldModel(kind: .avatar, session: session)
+    await picture.loadStored()
+    let previous = try #require(picture.storedData)
+
+    #expect(await picture.save(replace(square)) == nil)
+
+    #expect(picture.storedSha == "uploaded-avatar")
+    #expect(picture.storedData == nil)
+    #expect(picture.sent == replace(square))
+    #expect(!picture.showsStored)
+    await picture.loadStored()
+    #expect(picture.storedData == Data("uploaded-avatar".utf8))
+    #expect(picture.storedData != previous)
+    #expect(picture.sent == nil)
+    #expect(picture.showsStored)
   }
 
   @Test func deleteIsSentAtOnceAndARefusalLeavesThePicture() async throws {
