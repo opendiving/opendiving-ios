@@ -536,9 +536,11 @@ struct SiteFinderModelTests {
     #expect(model.settling == nil)
     #expect(searches.queries.count == sent)
     #expect(model.highlighted == Self.canyon)
+    #expect(model.holdsOpenedSite)
     model.closeSite()
     #expect(model.opened == nil)
     #expect(model.highlighted == nil)
+    #expect(!model.holdsOpenedSite)
   }
 
   /// The open site's own pin brings it back to the middle and keeps what its panel has read.
@@ -578,6 +580,7 @@ struct SiteFinderModelTests {
     #expect(model.opened?.name == nil)
     #expect(model.opened?.mark == nil)
     #expect(model.camera == before)
+    #expect(!model.holdsOpenedSite)
     // Another site's read says nothing about this one.
     model.read(try site(Self.canyon, latitude: 1, longitude: 2))
     #expect(model.opened?.name == nil)
@@ -588,10 +591,20 @@ struct SiteFinderModelTests {
     #expect(model.opened?.site?.uuid == other)
     #expect(model.camera.latitude == 12.5)
     #expect(model.glides)
+    #expect(model.holdsOpenedSite)
     // Placed once: a later read renames it and leaves the camera where the diver took it.
     await pan(model, to: MapCamera(latitude: 3, longitude: 4, zoom: 12))
     model.read(try site(other, latitude: 12.5, longitude: 45.25))
     #expect(model.camera == MapCamera(latitude: 3, longitude: 4, zoom: 12))
+  }
+
+  @Test func aSiteWithNowhereToBeLeavesTheMapFree() async throws {
+    let (model, _) = try await withPoints()
+    let other = UUID()
+    model.open(uuid: other)
+    model.read(try site(other, latitude: nil, longitude: nil))
+    #expect(model.opened?.name == "Renamed")
+    #expect(!model.holdsOpenedSite)
   }
 
   /// The weather bar's pin and title, from whichever of the point, the row and the read said them.
