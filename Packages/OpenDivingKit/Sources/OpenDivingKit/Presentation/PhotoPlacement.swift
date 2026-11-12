@@ -14,13 +14,16 @@ public struct PhotoPlacement: Hashable, Sendable {
   public let y: Double
   public let width: Double
   public let height: Double
+  /// Where the photo is cut and fades in from, so every photo meets that line alike however far
+  /// past it its own top would reach; nil where its own top edge is what shows.
+  public let cutTop: Double?
 
   /// The photo centred `centreY` from the frame's top, scaled to the frame's width or up from it
   /// until its top is at or above `reachTop` and its bottom at or below `reachBottom`. Nil for an
   /// empty photo or frame.
   public init?(
     photoWidth: Double, photoHeight: Double, frameWidth: Double, centreY: Double,
-    reachTop: Double, reachBottom: Double
+    reachTop: Double, reachBottom: Double, cutTop: Double? = nil
   ) {
     guard photoWidth > 0, photoHeight > 0, frameWidth > 0 else { return nil }
     let scale = max(
@@ -31,6 +34,7 @@ public struct PhotoPlacement: Hashable, Sendable {
     height = photoHeight * scale
     x = (frameWidth - width) / 2
     y = centreY - height / 2
+    self.cutTop = cutTop
   }
 
   /// On a card whose top `band` points are uncovered: centred ``belowMiddle`` under the band's
@@ -44,15 +48,16 @@ public struct PhotoPlacement: Hashable, Sendable {
       centreY: band / 2 + belowMiddle, reachTop: 0, reachBottom: band + fade)
   }
 
-  /// In a page's head, uncovered from `uncoveredTop` to `uncoveredBottom`: centred
-  /// ``belowMiddle`` under that span's middle, with both its fades outside the span.
+  /// In a page's head whose top edge is `top` and which is uncovered from `uncoveredTop` to
+  /// `uncoveredBottom`: centred ``belowMiddle`` under that span's middle, cut at `top` and fading
+  /// in from it, and its bottom fade under the span.
   public static func hero(
-    photoWidth: Double, photoHeight: Double, width: Double, uncoveredTop: Double,
+    photoWidth: Double, photoHeight: Double, width: Double, top: Double, uncoveredTop: Double,
     uncoveredBottom: Double
   ) -> PhotoPlacement? {
     PhotoPlacement(
       photoWidth: photoWidth, photoHeight: photoHeight, frameWidth: width,
       centreY: (uncoveredTop + uncoveredBottom) / 2 + belowMiddle,
-      reachTop: uncoveredTop - fade, reachBottom: uncoveredBottom + fade)
+      reachTop: top, reachBottom: uncoveredBottom + fade, cutTop: top)
   }
 }

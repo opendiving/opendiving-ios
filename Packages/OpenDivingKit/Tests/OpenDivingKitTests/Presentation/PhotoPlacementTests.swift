@@ -45,24 +45,33 @@ struct PhotoPlacementTests {
     #expect(placed.y + placed.height / 2 == 200)
   }
 
-  @Test func aHeroKeepsBothFadesOutsideTheUncoveredSpan() throws {
-    let placed = try #require(
-      PhotoPlacement.hero(
-        photoWidth: 1500, photoHeight: 1000, width: 393, uncoveredTop: 110,
-        uncoveredBottom: 250))
-    #expect(placed.y + placed.height / 2 == 188)
-    #expect(placed.y + PhotoPlacement.fade <= 110)
-    #expect(placed.y + placed.height - PhotoPlacement.fade >= 250)
-    #expect(placed.width >= 393)
+  @Test func aHeroIsCutAtItsTopWhateverThePhotosShape() throws {
+    for (photoWidth, photoHeight) in [(1500.0, 1000.0), (500.0, 667.0), (3000.0, 1000.0)] {
+      let placed = try #require(
+        PhotoPlacement.hero(
+          photoWidth: photoWidth, photoHeight: photoHeight, width: 393, top: 400,
+          uncoveredTop: 516, uncoveredBottom: 750))
+      #expect(placed.cutTop == 400)
+      #expect(placed.y <= 400)
+      #expect(placed.y + placed.height / 2 == 641)
+      #expect(placed.y + placed.height - PhotoPlacement.fade >= 750)
+      #expect(placed.width >= 393)
+    }
   }
 
   @Test func aHeroShowsAWidePhotosWholeWidthWhereItCan() throws {
     let placed = try #require(
       PhotoPlacement.hero(
-        photoWidth: 1500, photoHeight: 1000, width: 393, uncoveredTop: 120,
-        uncoveredBottom: 220))
+        photoWidth: 1500, photoHeight: 1000, width: 393, top: 0, uncoveredTop: 60,
+        uncoveredBottom: 140))
     #expect(placed.width == 393)
     #expect(placed.x == 0)
+  }
+
+  @Test func aCardShowsItsPhotosOwnTop() throws {
+    let placed = try #require(
+      PhotoPlacement.card(photoWidth: 1500, photoHeight: 1000, width: width, band: band))
+    #expect(placed.cutTop == nil)
   }
 
   @Test func anEmptyPhotoOrFrameIsNotPlaced() {

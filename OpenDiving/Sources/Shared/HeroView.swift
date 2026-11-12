@@ -83,13 +83,13 @@ struct HeroView<Leading: View>: View {
   }
 
   /// Decorative: the title over it says what it is. Framed on what the bar and the details leave
-  /// showing, its blurred copy filling the pull-down's reach above.
+  /// showing and cut at the head's top, its blurred copy filling the pull-down's reach above.
   @ViewBuilder private func photo(_ data: Data?, placeholder: OpenDivingKit.Icon) -> some View {
     if let data, let image = UIImage(data: data) {
-      PlacedPhotoView(data: data, image: image, fadesTop: true) { photo, frame in
+      PlacedPhotoView(data: data, image: image) { photo, frame in
         .hero(
           photoWidth: photo.width, photoHeight: photo.height, width: frame.width,
-          uncoveredTop: Self.pullReach + topInset,
+          top: Self.pullReach, uncoveredTop: Self.pullReach + topInset,
           uncoveredBottom: Self.pullReach + height - detailsHeight)
       }
     } else {

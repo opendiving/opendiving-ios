@@ -4,12 +4,11 @@ import OpenDivingKit
 import SwiftUI
 
 /// A backdrop photo drawn where `place` puts it in the frame, over a heavily blurred copy of
-/// itself filling the frame, its bottom edge — and its top, with `fadesTop` — fading into the copy
-/// over ``PhotoPlacement/fade`` points. The species card's and the species page's.
+/// itself filling the frame, its bottom edge — and its top, where the placement cuts it — fading
+/// into the copy over ``PhotoPlacement/fade`` points. The species card's and the species page's.
 struct PlacedPhotoView: View {
   let data: Data
   let image: UIImage
-  var fadesTop = false
   let place: (_ photo: CGSize, _ frame: CGSize) -> PhotoPlacement?
 
   @State private var blurred: UIImage?
@@ -26,7 +25,7 @@ struct PlacedPhotoView: View {
         Image(uiImage: image)
           .resizable()
           .frame(width: placed.width, height: placed.height)
-          .mask { fadeMask(height: placed.height) }
+          .mask { fadeMask(placed) }
           .position(x: placed.x + placed.width / 2, y: placed.y + placed.height / 2)
       }
     }
@@ -37,15 +36,19 @@ struct PlacedPhotoView: View {
     }
   }
 
-  private func fadeMask(height: Double) -> LinearGradient {
-    let fade = min(PhotoPlacement.fade / max(height, 1), 0.5)
+  private func fadeMask(_ placed: PhotoPlacement) -> LinearGradient {
+    let height = max(placed.height, 1)
+    let fade = min(PhotoPlacement.fade / height, 0.5)
     var stops = [
       Gradient.Stop(color: .black, location: 1 - fade), .init(color: .clear, location: 1),
     ]
-    if fadesTop {
+    if let cutTop = placed.cutTop {
+      let cut = min(max((cutTop - placed.y) / height, 0), 1 - 2 * fade)
       stops.insert(
-        contentsOf: [.init(color: .clear, location: 0), .init(color: .black, location: fade)], at: 0
-      )
+        contentsOf: [
+          .init(color: .clear, location: cut), .init(color: .black, location: cut + fade),
+        ],
+        at: 0)
     }
     return LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom)
   }
