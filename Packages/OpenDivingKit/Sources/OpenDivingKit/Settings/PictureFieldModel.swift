@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 
-/// One of the account's two pictures as a field of the form it is saved with, as the web's
-/// `PictureField` has it: what is stored, the edit the form will send after its fields, and the
-/// originals fetched to adjust or copy a crop. Every call is direct and online only, through
+/// One of the account's two pictures: as a field of the form it is saved with, as the web's
+/// `PictureField` has it, holding the edit the form will send after its fields; or, on *Account*,
+/// sent as soon as it is chosen, by ``save(_:)``. Either way, what is stored, and the originals
+/// fetched to adjust or copy a crop. Every call is direct and online only, through
 /// ``Session/routedClient()``.
 @MainActor
 @Observable
@@ -109,6 +110,10 @@ public final class PictureFieldModel {
     edit?.source != nil || (landedEdit == nil && !isRemoved && storedSha != nil)
   }
 
+  /// Whether the slot holds a picture to adjust or delete: the stored one, or one that landed
+  /// and has not been read back.
+  public var hasPicture: Bool { shown?.source != nil || showsStored }
+
   /// Whether *Use profile picture* has an original to copy.
   public var canCopy: Bool {
     kind == .portrait && landedEdit == nil && session.user?.avatarOriginalSha256 != nil
@@ -203,6 +208,18 @@ public final class PictureFieldModel {
   }
 
   // MARK: - Sending
+
+  /// Sends `edit` at once, for a host with no form to wait for. Nil once the server took it;
+  /// otherwise why not, with the edit dropped, so the slot shows what is stored again.
+  public func save(_ edit: PictureEdit) async -> String? {
+    guard !isSending else { return nil }
+    set(edit)
+    guard let refused = await send() else { return nil }
+    set(nil)
+    return edit == .remove
+      ? "Your \(kind.label) was not deleted. \(refused)"
+      : kind.notSaved(refused, afterFields: false)
+  }
 
   /// Sends the edit, then reads the account, so every screen showing the picture shows the new
   /// one. Nil once the server took it; otherwise why not, with the edit kept for another try.

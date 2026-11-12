@@ -5,6 +5,7 @@
 public enum Icon: String, CaseIterable, Hashable, Sendable {
   case activity
   case arrowDownToLine = "arrow-down-to-line"
+  case atSign = "at-sign"
   case backpack
   case badgeCheck = "badge-check"
   case bedDouble = "bed-double"
