@@ -74,6 +74,7 @@ private struct StorageSection: View {
             .foregroundStyle(.secondary)
           Button("Try again") { Task { await model.load() } }
             .buttonStyle(.borderless)
+            .accentRow()
         }
       } else {
         HStack {
@@ -147,6 +148,7 @@ private struct ExportSection: View {
         Label("Download", systemImage: "arrow.down.circle")
       }
       .buttonStyle(.borderless)
+      .accentRow()
       .disabled(model.isBusy)
       .accessibilityLabel("Download \(format.title)")
     }

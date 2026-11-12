@@ -84,6 +84,7 @@ private struct InviteLinkSection: View {
         ) {
           Label("Share", systemImage: "square.and.arrow.up")
         }
+        .accentRow()
         changeButton(InvitationsModel.resetButton, "arrow.counterclockwise", .reset)
         changeButton(InvitationsModel.removeButton, "trash", .remove)
       } else {
@@ -120,7 +121,12 @@ private struct InviteLinkSection: View {
     return Button(role: role) {
       model.confirmingLink = change
     } label: {
-      Label(title, systemImage: icon)
+      // Removing keeps the destructive role's red.
+      if change == .remove {
+        Label(title, systemImage: icon)
+      } else {
+        Label(title, systemImage: icon).accentRow()
+      }
     }
     .disabled(model.isChangingLink)
     .confirmationDialog(
