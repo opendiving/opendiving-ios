@@ -119,12 +119,24 @@ struct SiteFinderMap: UIViewRepresentable {
       let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
       tap.require(toFail: hold)
       for gesture in map.gestureRecognizers ?? [] {
-        if (gesture as? UITapGestureRecognizer)?.numberOfTapsRequired == 2 {
-          tap.require(toFail: gesture)
+        if let pinch = gesture as? UIPinchGestureRecognizer {
+          mapPinch = pinch
+        } else if let mapTap = gesture as? UITapGestureRecognizer {
+          if mapTap.numberOfTapsRequired == 2 {
+            tap.require(toFail: mapTap)
+            mapDoubleTap = mapTap
+          } else if mapTap.numberOfTouchesRequired == 2 {
+            mapTwoFingerTap = mapTap
+          }
         }
       }
       map.addGestureRecognizer(tap)
     }
+
+    /// MapLibre's own zoom gestures, which a held middle has to correct.
+    private weak var mapPinch: UIPinchGestureRecognizer?
+    private weak var mapDoubleTap: UITapGestureRecognizer?
+    private weak var mapTwoFingerTap: UITapGestureRecognizer?
 
     func show(_ layers: Layers, on map: MLNMapView) {
       wanted = layers
@@ -293,6 +305,21 @@ struct SiteFinderMap: UIViewRepresentable {
       map.isScrollEnabled = !holdsMiddle
       map.isZoomEnabled = !(holdsMiddle && isGliding)
       map.anchorRotateOrZoomGesturesToCenterCoordinate = holdsMiddle
+    }
+
+    /// MapLibre keeps a zoom on the held middle only while two fingers pinch: a pinch left with one
+    /// finger zooms about it and pans with it, and a tap's zoom is about the tap. Those moves are
+    /// refused, and a tap's zoom is made again about the middle.
+    func mapView(_ map: MLNMapView, shouldChangeFrom _: MLNMapCamera, to _: MLNMapCamera) -> Bool {
+      guard holdsMiddle else { return true }
+      if let pinch = mapPinch, pinch.state == .changed, pinch.numberOfTouches < 2 { return false }
+      let step: Double? =
+        mapDoubleTap?.state == .ended ? 1 : mapTwoFingerTap?.state == .ended ? -1 : nil
+      guard let step else { return true }
+      let zoom = min(max(map.zoomLevel.rounded() + step, MapCamera.minZoom), MapCamera.maxZoom)
+      // Once MapLibre's tap handler, which is asking, has returned.
+      DispatchQueue.main.async { [weak map] in map?.setZoomLevel(zoom, animated: true) }
+      return false
     }
 
     func move(_ map: MLNMapView, to camera: MapCamera, glides: Bool) {
