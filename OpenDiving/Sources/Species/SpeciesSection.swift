@@ -1,6 +1,6 @@
 /// What a species' page shows under its head.
 nonisolated enum SpeciesSection: TabSection {
-  case dives, diveSites, taxonomy
+  case taxonomy, diveSites, dives
 
   var title: String {
     switch self {

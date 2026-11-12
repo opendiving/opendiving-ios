@@ -25,7 +25,7 @@ extension SpeciesDetailView {
 private struct SpeciesDetailContent: View {
   @Environment(Session.self) private var session
   @State private var model: SpeciesDetailModel
-  @State private var section = SpeciesSection.dives
+  @State private var section = SpeciesSection.taxonomy
 
   init(model: SpeciesDetailModel) {
     _model = State(initialValue: model)
@@ -68,7 +68,7 @@ private struct SpeciesDetailContent: View {
               case .dives:
                 RecordDivesSection(
                   list: model.dives, content: content.dives, units: session.units,
-                  logDive: .create)
+                  logDive: .create, isCarded: false)
               case .diveSites:
                 SpeciesDiveSites(list: model.sites, units: session.units)
               case .taxonomy:
