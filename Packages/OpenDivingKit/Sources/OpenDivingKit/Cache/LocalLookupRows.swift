@@ -41,7 +41,9 @@ extension PersonCreate {
 
 extension CourseCreate {
   func lookupRow(_ ref: RecordRef) -> CourseLookupItem {
-    CourseLookupItem(ref: ref, name: name, contact: contact, people: people)
+    CourseLookupItem(
+      ref: ref, name: name, agency: agency, agencyOther: agencyOther,
+      instructorNumber: instructorNumber, contact: contact, people: people)
   }
 }
 

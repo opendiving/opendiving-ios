@@ -115,7 +115,7 @@ struct CertificationWritesTests {
     let shop = RecordRef.server(UUID())
     let ref = RecordRef.server(UUID())
     let row = CourseLookupItem(
-      ref: ref, name: "Rescue", contact: shop,
+      ref: ref, name: "Rescue", agency: "ssi", instructorNumber: "S-9", contact: shop,
       people: [
         PersonReference(person: RecordRef.server(UUID()), role: "student"),
         PersonReference(person: kim, role: "instructor"),
@@ -123,7 +123,7 @@ struct CertificationWritesTests {
     let fill = CertificationCourseFill.picked(ref, outbox: world.outbox(), rows: [row])
     #expect(fill == CertificationCourseFill(row))
     #expect(fill?.contact == shop && fill?.instructor == kim)
-    #expect(fill?.agency == nil && fill?.instructorNumber == nil)
+    #expect(fill?.agency == "ssi" && fill?.instructorNumber == "S-9")
     #expect(
       world.server.count("GET course/\(ref.serverUUID!.uuidString.lowercased())", since: mark) == 0)
     #expect(
@@ -146,6 +146,15 @@ struct CertificationWritesTests {
     #expect(fill?.name == "Cave 1" && fill?.agency == "gue")
     #expect(fill?.instructor == kim && fill?.instructorNumber == "G-7")
     await outbox.settled()
+  }
+
+  @Test func aQueuedCoursesLocalRowCarriesWhatAPickFillsFrom() {
+    let ref = RecordRef.server(UUID())
+    let row = CourseCreate(
+      name: "Cave 1", agency: "other", agencyOther: "Swed", instructorNumber: "G-7"
+    ).lookupRow(ref)
+    #expect(row.agency == "other" && row.agencyOther == "Swed" && row.instructorNumber == "G-7")
+    #expect(CertificationCourseFill(row).instructorNumber == "G-7")
   }
 
   // MARK: - Kept card images

@@ -98,9 +98,9 @@ public struct CertificationFormValues: Hashable, Sendable {
       instructor = course.instructor
       autofilled.instructor = course.instructor
     }
-    if let number = course.instructorNumber, instructorNumber == autofilled.instructorNumber {
-      instructorNumber = number
-      autofilled.instructorNumber = number
+    if instructorNumber == autofilled.instructorNumber {
+      instructorNumber = course.instructorNumber
+      autofilled.instructorNumber = course.instructorNumber
     }
   }
 
