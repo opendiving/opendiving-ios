@@ -49,7 +49,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           .modifier(
             RidesPanel(
               drag: drag, panel: panel, pinned: map.hasMap ? nil : .full,
-              foot: geometry.size.height, below: geometry.safeAreaInsets.bottom))
+              foot: geometry.size.height, below: geometry.safeAreaInsets.bottom, hug: hug))
       }
     }
     // The list is scrolled to reach what the keyboard covers, which dismisses it.
@@ -93,6 +93,10 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     }
   }
 
+  /// How far the island closes in on what it holds: the search box alone has no panel around it,
+  /// where an opened site keeps the panel's room about its name and close button.
+  private var hug: Double { model.opened == nil ? PanelIsland.searchHug : 0 }
+
   // MARK: - The map
 
   /// The detent the map makes room for: where the panel is heading, so that a site opened as it
@@ -107,9 +111,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   ) -> some View {
     let below = geometry.safeAreaInsets.bottom
     let resting = panel.height(mapDetent)
-    // How far the panel rises above the home indicator's inset, less what an island drops into it.
-    let rise =
-      resting - PanelIsland.drop(below: below, share: panel.islandShare(shown: resting))
+    // How far the panel's top, or the island's, stands above the home indicator's inset.
+    let share = panel.islandShare(shown: resting)
+    let rise = resting - PanelIsland.drop(below: below, share: share, hug: hug) - hug * share
     let covered = UIEdgeInsets(
       top: geometry.safeAreaInsets.top, left: 0, bottom: below + rise, right: 0)
     let shown = (
@@ -145,7 +149,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       .padding(.horizontal, 12)
       .padding(.bottom, 12)
       .modifier(
-        RidesPanel(drag: drag, panel: panel, below: geometry.safeAreaInsets.bottom, fades: true))
+        RidesPanel(
+          drag: drag, panel: panel, below: geometry.safeAreaInsets.bottom, hug: hug,
+          fades: true))
     }
   }
 
@@ -185,7 +191,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   private func panelView(_ panel: SiteFinderPanel, below: Double) -> some View {
     VStack(spacing: 0) {
       VStack(spacing: 0) {
-        if map.hasMap { handle(panel) }
+        if map.hasMap {
+          handle(panel).modifier(FadesInIsland(drag: drag, panel: panel, hug: hug))
+        }
         Group {
           if let opened = model.opened {
             IslandHead(drag: drag) {
@@ -229,7 +237,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     }
     .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap))
     .frame(maxWidth: .infinity)
-    .modifier(PanelIsland(drag: drag, panel: panel, isOn: map.hasMap, below: below))
+    .modifier(PanelIsland(drag: drag, panel: panel, isOn: map.hasMap, below: below, hug: hug))
   }
 
   /// Drags the panel, and steps it for VoiceOver and a tap.
@@ -536,13 +544,18 @@ private struct RidesPanel: ViewModifier {
   var foot = 0.0
   /// The safe area under the panel, which the island floats into.
   let below: Double
-  /// Fades out above the half the panel opens to, as the controls over the map do.
+  /// How far the island closes in on what it holds.
+  let hug: Double
+  /// Fades out above the half the panel opens to, as the controls over the map do. They ride on
+  /// the island's top rather than the panel's frame.
   var fades = false
 
   func body(content: Content) -> some View {
     let height = pinned.map { panel.height($0) } ?? drag.height(in: panel)
     let opacity = fades ? panel.controlsOpacity(shown: height) : 1
-    let drop = PanelIsland.drop(below: below, share: panel.islandShare(shown: height))
+    let share = panel.islandShare(shown: height)
+    let drop =
+      PanelIsland.drop(below: below, share: share, hug: hug) + (fades ? hug * share : 0)
     content
       // Moves as one: each view's position would otherwise animate on its own, and one put in
       // while the panel slides — a site's tags as its read lands — would stand still at the end.
@@ -565,14 +578,18 @@ private struct PanelIsland: ViewModifier {
   let isOn: Bool
   /// The safe area under the panel, the home indicator's.
   let below: Double
+  /// How far the island closes in from the panel's edges on what it holds.
+  let hug: Double
 
   /// What the island stands clear of the screen's sides and its foot by.
   static let margin = 20.0
+  /// The search box's room inside the panel, which the island closes in by, leaving the box alone.
+  static let searchHug = 16.0
 
   /// How far the panel, and what rides on it, moves down from its laid-out place as an island
-  /// `share` of the way: into the home indicator's inset, or up off a screen's foot that has none.
-  static func drop(below: Double, share: Double) -> Double {
-    (below - margin) * share
+  /// `share` of the way, so that the island's foot stands ``margin`` above the screen's.
+  static func drop(below: Double, share: Double, hug: Double) -> Double {
+    (below - margin + hug) * share
   }
 
   private static var sheetRadius: Double {
@@ -582,12 +599,12 @@ private struct PanelIsland: ViewModifier {
   func body(content: Content) -> some View {
     let shown = isOn ? drag.height(in: panel) : panel.height(.full)
     let share = isOn ? panel.islandShare(shown: shown) : 0
-    let island = SiteFinderPanel.collapsedHeight / 2
+    let island = SiteFinderPanel.collapsedHeight / 2 - hug
     // Runs on under a panel that lands a little short of its height, or a spring that carries its
     // foot above the screen's.
     let runOn = (1 - share) * (below + 40)
     let shape = PanelOutline(
-      height: shown + runOn,
+      height: shown + runOn, inset: hug * share,
       topRadius: Self.sheetRadius + (island - Self.sheetRadius) * share,
       bottomRadius: island * share)
     content
@@ -597,28 +614,48 @@ private struct PanelIsland: ViewModifier {
           .fill(Color.panelFill)
           .shadow(color: .black.opacity(0.15 + 0.05 * share), radius: 8, y: -2 + 4 * share)
       }
-      .padding(.horizontal, Self.margin * share)
+      .padding(.horizontal, (Self.margin - hug) * share)
+  }
+}
+
+/// Fades the handle out as the panel closes in on the search box, which then stands alone.
+private struct FadesInIsland: ViewModifier {
+  let drag: SiteFinderPanelDrag
+  let panel: SiteFinderPanel
+  let hug: Double
+
+  func body(content: Content) -> some View {
+    let share = hug > 0 ? panel.islandShare(shown: drag.height(in: panel)) : 0
+    content
+      .opacity(1 - share)
+      .allowsHitTesting(share < 1)
+      .accessibilityHidden(share == 1)
   }
 }
 
 /// A rectangle `height` tall from the top of its frame, which the panel's frame outruns while it
-/// moves, with its own top and bottom corners.
+/// moves, drawn `inset` in from every side, with its own top and bottom corners.
 private nonisolated struct PanelOutline: Shape {
   var height: Double
+  var inset: Double
   var topRadius: Double
   var bottomRadius: Double
 
-  var animatableData: AnimatablePair<Double, AnimatablePair<Double, Double>> {
-    get { AnimatablePair(height, AnimatablePair(topRadius, bottomRadius)) }
+  var animatableData: AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<Double, Double>>
+  {
+    get { AnimatablePair(AnimatablePair(height, inset), AnimatablePair(topRadius, bottomRadius)) }
     set {
-      height = newValue.first
+      height = newValue.first.first
+      inset = newValue.first.second
       topRadius = newValue.second.first
       bottomRadius = newValue.second.second
     }
   }
 
   func path(in rect: CGRect) -> Path {
-    let outline = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: max(0, height))
+    let outline = CGRect(
+      x: rect.minX + inset, y: rect.minY + inset, width: max(0, rect.width - 2 * inset),
+      height: max(0, height - 2 * inset))
     let most = min(outline.width, outline.height) / 2
     let top = min(topRadius, most)
     let bottom = min(bottomRadius, most)
