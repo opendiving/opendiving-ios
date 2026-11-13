@@ -29,7 +29,7 @@ struct MapBackdropView: View {
   @State private var isOnScreen = false
 
   /// Taller than any bar a list scrolls under.
-  private static let barAllowance: CGFloat = 120
+  nonisolated private static let barAllowance: CGFloat = 120
 
   private var layout: MapBackdropLayout? {
     MapBackdropLayout(
