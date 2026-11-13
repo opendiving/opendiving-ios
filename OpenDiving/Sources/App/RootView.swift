@@ -15,7 +15,8 @@ struct RootView: View {
   @State private var splash = LaunchSplash()
   @State private var appearance = AppearanceModel(defaults: .standard)
 
-  init(session: Session = .device()) {
+  /// `watch` is the app delegate's, which the dive-computer download yields to and moves.
+  init(session: Session = .device(), watch: DiveComputerWatch? = nil) {
     let account = AccountLoader(session: session)
     _session = State(initialValue: session)
     _signIn = State(initialValue: SignInFlow(session: session))
@@ -26,7 +27,7 @@ struct RootView: View {
       initialValue: DiveComputerDownloads {
         DiveComputerModel(
           session: session, inbox: inbox, link: LibDCDiveComputerLink(),
-          generator: DiveComputerView.generator)
+          generator: DiveComputerView.generator, watch: watch)
       })
     // The quiet load: a reconnect that loads the account raises no alert of its own.
     _outbox = State(

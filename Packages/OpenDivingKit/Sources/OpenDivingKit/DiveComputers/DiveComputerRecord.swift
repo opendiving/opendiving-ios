@@ -21,13 +21,17 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   /// For the Nautic family: the sport each logbook entry's summary named when it was last listed,
   /// so a walk reads a summary only for an entry it has not met.
   public var nauticSports: [NauticEntrySport]?
+  /// *Download automatically*: the phone keeps a standing connection request for it
+  /// (``DiveComputerWatch``). The phone's, as the pairing is.
+  public var downloadsAutomatically: Bool
   /// Written while signed in before the account had loaded, into the last account's
   /// directory: removed if the load names another account.
   public var receivedBeforeAccountKnown: Bool
 
   public init(
     identity: DiveComputerIdentity, peripheral: UUID? = nil, fingerprint: Data? = nil,
-    lastDownloaded: Date? = nil, receivedBeforeAccountKnown: Bool = false
+    lastDownloaded: Date? = nil, receivedBeforeAccountKnown: Bool = false,
+    downloadsAutomatically: Bool = true
   ) {
     family = identity.family
     vendor = identity.vendor
@@ -39,6 +43,7 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
     self.fingerprint = fingerprint
     self.lastDownloaded = lastDownloaded
     self.receivedBeforeAccountKnown = receivedBeforeAccountKnown
+    self.downloadsAutomatically = downloadsAutomatically
   }
 
   init(_ computer: PairedComputer, progress: DiveComputerProgress?) {
@@ -50,6 +55,7 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
     hardware = computer.hardware
     peripheral = computer.peripheral
     nauticSports = computer.nauticSports
+    downloadsAutomatically = computer.downloadsAutomatically ?? true
     fingerprint = progress?.fingerprint
     lastDownloaded = progress?.lastDownloaded
     receivedBeforeAccountKnown = progress?.receivedBeforeAccountKnown ?? false

@@ -44,6 +44,36 @@ struct DiveComputerStoreTests {
     #expect(record.serial == "D9772626")
   }
 
+  @Test func aPairingWrittenBeforeTheSwitchDownloadsAutomatically() throws {
+    var computer = DiveComputerRecord(identity: F.perdix)
+    computer.downloadsAutomatically = false
+    let encoded = try JSONEncoder().encode(PairedComputer(computer))
+    var fields = try #require(
+      try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    #expect(fields["downloadsAutomatically"] as? Bool == false)
+    fields["downloadsAutomatically"] = nil
+    let paired = try JSONDecoder().decode(
+      PairedComputer.self, from: JSONSerialization.data(withJSONObject: fields))
+    #expect(DiveComputerRecord(paired, progress: nil).downloadsAutomatically)
+  }
+
+  @Test func thePairingsAreReadWithoutAnAccountAndTheHintMovesAlone() throws {
+    var record = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
+    record.downloadsAutomatically = false
+    try store.save(record)
+    let moved = UUID()
+    try store.follow(record, to: moved)
+
+    let read = try #require(DiveComputerStore.pairings(applicationSupport: root).first)
+    #expect(read.peripheral == moved)
+    #expect(!read.downloadsAutomatically)
+    #expect(read.fingerprint == nil)
+    #expect(store.record(family: .suuntoNautic, serial: F.ocean.serial)?.peripheral == moved)
+    // A computer not paired is not paired by a move.
+    try store.follow(DiveComputerRecord(identity: F.perdix), to: moved)
+    #expect(DiveComputerStore.pairings(applicationSupport: root).count == 1)
+  }
+
   @Test func aComputersPageShowsWhatItReportedAndLeavesOutTheRest() {
     var record = DiveComputerRecord(identity: F.perdix, lastDownloaded: F.moment)
     record.hardware = "0B0B"

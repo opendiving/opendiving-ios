@@ -5,7 +5,7 @@ needs to stay signed in, to show your check-in sheet and the pages of your logbo
 training, people and marine life it has shown without signal, to keep the drafts, the writes
 waiting to sync, the card images waiting to be sent and the files waiting to be read until the
 server has them, and to remember the dive computers it has paired with, beside a log of the last
-download from one, which names no account. A flaw in this code affects everyone who runs the app, and we would much
+download from one and a log of when it looked for them, neither naming an account. A flaw in this code affects everyone who runs the app, and we would much
 rather hear about one privately than read about it in a public issue.
 
 **No running instance is a target for testing, and the one this project operates,

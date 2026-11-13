@@ -39,7 +39,9 @@ public struct ServerStateStore: Sendable {
   }
 
   /// The dive computers paired with the phone, which belong to no server. Not created here.
-  var diveComputersDirectory: URL {
+  var diveComputersDirectory: URL { Self.diveComputersDirectory(root: root) }
+
+  static func diveComputersDirectory(root: URL) -> URL {
     root.appendingPathComponent("DiveComputers", isDirectory: true)
   }
 

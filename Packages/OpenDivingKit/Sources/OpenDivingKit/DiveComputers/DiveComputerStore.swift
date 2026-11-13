@@ -54,6 +54,14 @@ public struct DiveComputerStore: Sendable {
     }
   }
 
+  /// The phone's paired computers, read without an account: what the watch needs at a launch by
+  /// iOS, before any session has loaded. Each record carries no account's progress.
+  public static func pairings(applicationSupport: URL) -> [DiveComputerRecord] {
+    KeptFolder<PairedComputer>(
+      url: ServerStateStore.diveComputersDirectory(root: applicationSupport)
+    ).load().values.map { DiveComputerRecord($0.value, progress: nil) }
+  }
+
   /// Every readable record, by title.
   public func records() -> [DiveComputerRecord] {
     paired.load().values.map { record($0.value, name: $0.name) }.sorted {
@@ -91,6 +99,17 @@ public struct DiveComputerStore: Sendable {
     }
     try paired.write(PairedComputer(record), name: record.id)
     try progress.write(DiveComputerProgress(record), name: record.id)
+  }
+
+  /// Moves the record's Core Bluetooth hint to `peripheral`, writing the pairing alone: where the
+  /// phone saw the computer says nothing about any account's logbook.
+  public func follow(_ record: DiveComputerRecord, to peripheral: UUID) throws {
+    guard paired.contains(record.id) else { return }
+    guard var moved = paired.read(record.id) else {
+      throw DiveComputerStoreError.unreadableRecord
+    }
+    moved.peripheral = peripheral
+    try paired.write(moved, name: record.id)
   }
 
   /// *Forget this dive computer*: removes the pairing and every account's progress with it, and
