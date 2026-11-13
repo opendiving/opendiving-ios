@@ -76,12 +76,11 @@ struct SiteFinderModelTests {
 
   /// A phone over a server answering the search with the fixture's page and empty trips and
   /// dives, its account loaded.
-  private func world(gate: Gate = Gate(), points: String = #"{"points":[]}"#) async throws -> (
-    FormWorld, Searches
-  ) {
+  private func world(
+    gate: Gate = Gate(), points: String = #"{"points":[]}"#, page: String = Self.page
+  ) async throws -> (FormWorld, Searches) {
     let world = try FormWorld()
     let searches = Searches()
-    let page = Self.page
     let empty = #"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":50}"#
     world.server.override { request, _ in
       switch request.route {
@@ -322,6 +321,22 @@ struct SiteFinderModelTests {
     #expect(searches.queries.count == 5)
     #expect(off["my"] == nil)
     #expect(sentBox(off) == box(model.camera))
+  }
+
+  @Test func theWholeListEndsOnAddingASiteOnceItsLastPageIsIn() async throws {
+    let (paged, _) = try await world()
+    let more = await mapped(paged, FakeFinderLocator(.failure(.denied)))
+    #expect(more.list?.hasMore == true)
+    #expect(!more.offersAddingSite)
+
+    let last = Self.page.replacingOccurrences(of: #""has_more": true"#, with: #""has_more": false"#)
+    let (world, _) = try await world(page: last)
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    #expect(model.offersAddingSite)
+    await model.setYours(true)
+    #expect(!model.offersAddingSite)
+    await model.setYours(false)
+    #expect(model.offersAddingSite)
   }
 
   @Test func aTypedSearchLooksEverywhere() async throws {
