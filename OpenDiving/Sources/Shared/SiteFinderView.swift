@@ -3,9 +3,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// The site finder the sites map is and the dive form's site picker opens: the map full screen
-/// under a panel that holds the search and the list, *Your sites* and *Use my location* floating
-/// over the map's corner above the panel, and a spinner under the top bar while the list is asked
-/// for again. With no map on the instance the panel stands alone, at its tallest. On the sites map
+/// under a panel that holds the search and the list, an island at its lowest, *Your sites* and
+/// *Use my location* floating over the map's corner above the panel, and a spinner under the top
+/// bar while the list is asked for again. With no map on the instance the panel stands alone, at its tallest. On the sites map
 /// a site opened from its row or its point takes the panel's search and list, its pin larger at
 /// the middle of the map, which then only zooms about it, and the others faded; on the dive form a
 /// touched point is named under a sheet. What a row does when chosen, what an opened site shows,
@@ -178,14 +178,16 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   /// `below` is the safe area under the panel, the home indicator's, which its fill runs on
   /// through.
   private func panelView(_ panel: SiteFinderPanel, below: Double) -> some View {
-    let shape = UnevenRoundedRectangle(
-      topLeadingRadius: Self.panelRadius, topTrailingRadius: Self.panelRadius)
-    return VStack(spacing: 0) {
+    VStack(spacing: 0) {
       VStack(spacing: 0) {
         if map.hasMap { handle(panel) }
         Group {
           if let opened = model.opened {
-            siteHead(opened)
+            IslandHead(drag: drag) {
+              siteHead(opened)
+            } island: {
+              siteIslandHead(opened)
+            }
           } else {
             HStack(spacing: 8) {
               searchField
@@ -221,19 +223,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     }
     .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap))
     .frame(maxWidth: .infinity)
-    .clipShape(shape)
-    .background {
-      shape
-        .fill(Color.panelFill)
-        .shadow(color: .black.opacity(0.15), radius: 8, y: -2)
-        // Runs on under a panel that lands a little short of its height, or a spring that
-        // carries its foot above the screen's.
-        .padding(.bottom, -below - 40)
-    }
-  }
-
-  private static var panelRadius: Double {
-    if #available(iOS 26, *) { 26 } else { 12 }
+    .modifier(PanelIsland(drag: drag, panel: panel, isOn: map.hasMap, below: below))
   }
 
   /// Drags the panel, and steps it for VoiceOver and a tap.
@@ -368,6 +358,20 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         siteAction(opened)
       }
     }
+  }
+
+  /// The opened site in the island: its name on one line beside the way back to the list, in the
+  /// height the search box takes.
+  private func siteIslandHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
+    HStack(spacing: 8) {
+      Text(opened.name ?? "")
+        .font(.headline)
+        .lineLimit(1)
+        .accessibilityAddTraits(.isHeader)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      closeButton("Close dive site") { model.closeSite() }
+    }
+    .padding(.leading, 6)
   }
 
   private func siteBody(_ opened: SiteFinderModel.OpenedSite, panel: SiteFinderPanel)
@@ -536,6 +540,92 @@ private struct RidesPanel: ViewModifier {
       .opacity(opacity)
       .allowsHitTesting(opacity > 0)
       .accessibilityHidden(opacity == 0)
+  }
+}
+
+/// The panel's outline: a sheet whose fill runs on under the home indicator, or at its lowest an
+/// island floating clear of the screen's edges, rounded all round, as the search box alone. Reads
+/// how far the panel is dragged, so it is drawn again on every frame of a move, as ``RidesPanel``
+/// is; its width changes only within ``SiteFinderPanel/islandSpan`` of the lowest.
+private struct PanelIsland: ViewModifier {
+  let drag: SiteFinderPanelDrag
+  let panel: SiteFinderPanel
+  /// Over a map; the panel with no map stands at its tallest, a sheet.
+  let isOn: Bool
+  /// The safe area under the panel, the home indicator's.
+  let below: Double
+
+  /// What the island stands clear of the screen's sides and its foot by.
+  private static let margin = 20.0
+
+  private static var sheetRadius: Double {
+    if #available(iOS 26, *) { 26 } else { 12 }
+  }
+
+  func body(content: Content) -> some View {
+    let shown = isOn ? drag.height(in: panel) : panel.height(.full)
+    let share = isOn ? panel.islandShare(shown: shown) : 0
+    let island = SiteFinderPanel.collapsedHeight / 2
+    // Runs on under a panel that lands a little short of its height, or a spring that carries its
+    // foot above the screen's.
+    let runOn = (1 - share) * (below + 40)
+    let shape = PanelOutline(
+      height: shown + runOn,
+      topRadius: Self.sheetRadius + (island - Self.sheetRadius) * share,
+      bottomRadius: island * share)
+    content
+      .clipShape(shape)
+      .background {
+        shape
+          .fill(Color.panelFill)
+          .shadow(color: .black.opacity(0.15 + 0.05 * share), radius: 8, y: -2 + 4 * share)
+      }
+      .padding(.horizontal, Self.margin * share)
+      .offset(y: (below - Self.margin) * share)
+  }
+}
+
+/// A rectangle `height` tall from the top of its frame, which the panel's frame outruns while it
+/// moves, with its own top and bottom corners.
+private nonisolated struct PanelOutline: Shape {
+  var height: Double
+  var topRadius: Double
+  var bottomRadius: Double
+
+  var animatableData: AnimatablePair<Double, AnimatablePair<Double, Double>> {
+    get { AnimatablePair(height, AnimatablePair(topRadius, bottomRadius)) }
+    set {
+      height = newValue.first
+      topRadius = newValue.second.first
+      bottomRadius = newValue.second.second
+    }
+  }
+
+  func path(in rect: CGRect) -> Path {
+    let outline = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: max(0, height))
+    let most = min(outline.width, outline.height) / 2
+    let top = min(topRadius, most)
+    let bottom = min(bottomRadius, most)
+    return UnevenRoundedRectangle(
+      topLeadingRadius: top, bottomLeadingRadius: bottom, bottomTrailingRadius: bottom,
+      topTrailingRadius: top, style: .continuous
+    ).path(in: outline)
+  }
+}
+
+/// An opened site's head: in full, or as one line once the panel is heading for the island, which
+/// has room for no more.
+private struct IslandHead<Full: View, Island: View>: View {
+  let drag: SiteFinderPanelDrag
+  @ViewBuilder let full: () -> Full
+  @ViewBuilder let island: () -> Island
+
+  var body: some View {
+    if drag.target == .collapsed {
+      island()
+    } else {
+      full()
+    }
   }
 }
 

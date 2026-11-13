@@ -66,6 +66,15 @@ public struct SiteFinderPanel: Hashable, Sendable {
     return Release(detent: target, velocity: min(limit, max(-limit, share)))
   }
 
+  /// How far above its lowest the panel turns from an island into a sheet.
+  public static let islandSpan = 60.0
+
+  /// How much of an island the panel is when `shown` points tall: wholly one at its lowest, where
+  /// it floats clear of the screen's edges, rounded all round, and a sheet ``islandSpan`` above it.
+  public func islandShare(shown: Double) -> Double {
+    min(1, max(0, 1 - (shown - height(.collapsed)) / Self.islandSpan))
+  }
+
   /// How far above the half the panel opens to the controls riding on its edge fade out over.
   public static let controlsFade = 64.0
 

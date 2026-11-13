@@ -82,3 +82,16 @@ struct SiteFinderPanelControlsTests {
     #expect(panel.controlsOpacity(shown: panel.height(.full)) == 0)
   }
 }
+
+/// The panel floats as an island at its lowest, and turns into a sheet as it is pulled up.
+struct SiteFinderPanelIslandTests {
+  private let panel = SiteFinderPanel(available: 700)
+
+  @Test func itIsAnIslandOnlyNearItsLowest() {
+    let lowest = panel.height(.collapsed)
+    #expect(panel.islandShare(shown: lowest) == 1)
+    #expect(panel.islandShare(shown: lowest + SiteFinderPanel.islandSpan / 2) == 0.5)
+    #expect(panel.islandShare(shown: lowest + SiteFinderPanel.islandSpan) == 0)
+    #expect(panel.islandShare(shown: panel.height(.half)) == 0)
+  }
+}
