@@ -25,6 +25,11 @@ import Observation
 /// computer's entries saves it again however it ends, completed, cancelled or failed, with what
 /// it learned, so the next walk reads no summary this one read.
 ///
+/// **The watch yields and follows**: a download from the screen withdraws the watch's request to
+/// that computer until it ends, and a scan that sees a paired computer under another identifier
+/// moves its record's hint there, the watch's request with it. While the screen scans, the watch
+/// logs what each computer advertises.
+///
 /// **A dive waiting in the import screen is not downloaded again**: the walk is told the dives of
 /// every download archive of its mark, uploaded or not, leaves them out and does not count them
 /// new.
@@ -188,6 +193,7 @@ public final class DiveComputerModel {
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let inbox: InboxModel
   @ObservationIgnored private let link: any DiveComputerLink
+  @ObservationIgnored private let pairedWatch: DiveComputerWatch?
   @ObservationIgnored private let writer: ComputerArchiveWriter
   @ObservationIgnored private let workFolder: URL
   @ObservationIgnored private let now: @Sendable () -> Date
@@ -205,15 +211,18 @@ public final class DiveComputerModel {
   private static let watchZoneHolds: TimeInterval = 24 * 60 * 60
 
   /// `workFolder` is where archives are written before the inbox takes them; `now` and `zone`
-  /// are the clock and the phone's zone, which a test fixes.
+  /// are the clock and the phone's zone, which a test fixes. `watch` is the app's, nil where
+  /// nothing watches the paired computers.
   public init(
     session: Session, inbox: InboxModel, link: any DiveComputerLink,
-    generator: ComputerArchiveWriter.Generator, workFolder: URL? = nil,
+    generator: ComputerArchiveWriter.Generator, watch: DiveComputerWatch? = nil,
+    workFolder: URL? = nil,
     now: @escaping @Sendable () -> Date = { Date() }, zone: TimeZone = .current
   ) {
     self.session = session
     self.inbox = inbox
     self.link = link
+    pairedWatch = watch
     writer = ComputerArchiveWriter(generator: generator)
     self.workFolder =
       workFolder
@@ -253,18 +262,32 @@ public final class DiveComputerModel {
         self?.found(computer)
       }
     }
+    pairedWatch?.scanStarted()
   }
 
   public func stopScanning() {
     scanTask?.cancel()
     scanTask = nil
     if phase == .scanning { phase = .idle }
+    pairedWatch?.scanStopped()
   }
 
   private func found(_ computer: FoundComputer) {
     seen.removeAll { $0.id == computer.id }
     seen.insert(computer, at: 0)
+    follow(computer)
     rebuildRows()
+  }
+
+  /// A paired computer whose name carries its serial, seen under another identifier than its
+  /// record's: the hint moves there.
+  private func follow(_ computer: FoundComputer) {
+    guard let store = computers(), let family = computer.family,
+      let serial = computer.advertisedSerial,
+      let record = store.record(family: family, serial: serial), record.peripheral != computer.id,
+      (try? store.follow(record, to: computer.id)) != nil
+    else { return }
+    pairedWatch?.refresh()
   }
 
   /// The found rows over what the phone remembers, and the paired computers over what the scan
@@ -297,6 +320,7 @@ public final class DiveComputerModel {
   /// of them. A computer the scan still sees goes back among the found ones.
   public func forget(_ record: DiveComputerRecord) {
     computers()?.forget(record)
+    pairedWatch?.refresh()
     rebuildRows()
   }
 
@@ -363,8 +387,10 @@ public final class DiveComputerModel {
     cancelRequested = false
     let store = DiveComputerStore(store: session.store, origin: origin, account: keeping.account)
     let archives = inbox.keptDownloads(marked: keeping.marked).compactMap(inbox.url(for:))
+    pairedWatch?.downloadStarted(computer.id)
     downloadTask = Task {
       await walk(computer, all: all, store: store, waitingIn: archives)
+      pairedWatch?.downloadEnded(computer.id)
       rebuildRows()
       downloadTask = nil
     }

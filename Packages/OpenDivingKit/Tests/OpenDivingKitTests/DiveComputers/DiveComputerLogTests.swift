@@ -54,4 +54,27 @@ struct DiveComputerLogTests {
     #expect(written.count < 10)
     #expect(written.last?.hasSuffix(" limit reached") == true)
   }
+
+  @Test func theWatchLogAppendsAcrossProcesses() throws {
+    let url = file()
+    DiveComputerWatchLog(file: url).write("launch by the user")
+    DiveComputerWatchLog(file: url).write("launch by iOS, restoring watch")
+    let written: [String] = try lines(url)
+    #expect(written.count == 2)
+    #expect(written.last?.hasSuffix(" launch by iOS, restoring watch") == true)
+  }
+
+  @Test func theWatchLogDropsItsOlderHalfAtTheLimit() throws {
+    let url = file()
+    let log = DiveComputerWatchLog(file: url, limit: 400)
+    for index in 0..<40 { log.write("line \(index)") }
+    let written: [String] = try lines(url)
+    let size = try #require(
+      try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
+    #expect(size <= 400)
+    #expect(written.last?.hasSuffix(" line 39") == true)
+    #expect(written.first?.hasSuffix(" line 0") == false)
+    // Every line kept is whole.
+    #expect(written.allSatisfy { $0.contains("Z line ") })
+  }
 }

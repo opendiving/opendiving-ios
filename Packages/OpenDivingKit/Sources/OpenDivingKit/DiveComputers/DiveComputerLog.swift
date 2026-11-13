@@ -46,7 +46,7 @@ public final class DiveComputerLog: Sendable {
     }
   }
 
-  private static func stamp(_ date: Date) -> String {
+  static func stamp(_ date: Date) -> String {
     date.formatted(
       .iso8601.year().month().day().dateTimeSeparator(.standard)
         .time(includingFractionalSeconds: true).timeZone(separator: .omitted))

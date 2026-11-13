@@ -2,9 +2,11 @@ import SwiftUI
 
 @main
 struct OpenDivingApp: App {
+  @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+
   var body: some Scene {
     WindowGroup {
-      RootView()
+      RootView(watch: delegate.watch)
     }
   }
 }

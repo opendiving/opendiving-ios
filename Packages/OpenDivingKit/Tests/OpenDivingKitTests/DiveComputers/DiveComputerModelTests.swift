@@ -34,11 +34,11 @@ struct DiveComputerModelTests {
 
   private func model(
     _ session: Session, _ inbox: InboxModel, _ link: FakeDiveComputerLink,
-    now: Date = DiveComputerFixtures.moment
+    now: Date = DiveComputerFixtures.moment, watch: DiveComputerWatch? = nil
   ) -> DiveComputerModel {
     inbox.sessionChanged()
     return DiveComputerModel(
-      session: session, inbox: inbox, link: link, generator: F.generator,
+      session: session, inbox: inbox, link: link, generator: F.generator, watch: watch,
       workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { now },
       zone: F.helsinki)
   }
@@ -109,6 +109,65 @@ struct DiveComputerModelTests {
     #expect(paired.subtitle == "Serial D9772626 · Last downloaded 25 October")
     #expect(paired.row?.computer == F.perdixFound)
     #expect(model.unpairedRows.isEmpty)
+  }
+
+  /// The watch over this test's phone, launched and Bluetooth on.
+  private func watch(_ watcher: FakeDiveComputerWatcher) -> DiveComputerWatch {
+    let root = root
+    let watch = DiveComputerWatch(
+      log: DiveComputerWatchLog(file: root.appendingPathComponent("dive-computer-watch.log")),
+      pairings: { DiveComputerStore.pairings(applicationSupport: root) },
+      makeWatcher: { watcher }, now: { F.moment })
+    watch.launched(.byUser)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    return watch
+  }
+
+  @Test func aDownloadFromTheScreenWithdrawsTheWatchsRequestUntilItEnds() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    let watcher = FakeDiveComputerWatcher()
+    try computers(session).save(
+      DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id))
+    let watch = watch(watcher)
+    #expect(watcher.take() == [.start, .arm(F.perdixFound.id, after: 0)])
+
+    let model = model(session, inbox, link, watch: watch)
+    let row = try await scanned(model)
+    _ = watcher.take()
+    link.holdBeforeEnd = true
+    model.connect(row)
+    #expect(watcher.take() == [.observe(false), .disarm(F.perdixFound.id)])
+    for _ in 0..<1000 where !link.isHeld { await Task.yield() }
+    #expect(watcher.take().isEmpty)
+    link.release()
+    await model.settled()
+    #expect(watcher.take() == [.arm(F.perdixFound.id, after: DiveComputerWatch.revisitDelay)])
+  }
+
+  @Test func aScanMovesAPairedComputersHintAndTheWatchsRequestWithIt() async throws {
+    let session = try await session(try ImportServer())
+    let inbox = InboxModel(session: session)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let watcher = FakeDiveComputerWatcher()
+    let before = UUID()
+    var record = DiveComputerRecord(
+      identity: F.ocean, peripheral: before, fingerprint: F.fingerprint(1))
+    try computers(session).save(record)
+    let watch = watch(watcher)
+    #expect(watcher.take() == [.start, .arm(before, after: 0)])
+
+    let model = model(session, inbox, link, watch: watch)
+    let row = try await scanned(model)
+    #expect(row.recordID == record.id)
+    record.peripheral = F.oceanFound.id
+    #expect(computers(session).record(family: .suuntoNautic, serial: F.ocean.serial) == record)
+    #expect(watcher.take().contains(.arm(F.oceanFound.id, after: 0)))
+    #expect(!watcher.calls.contains(.arm(before, after: 0)))
   }
 
   @Test func nothingNewOffersDownloadAllWhichSetsNoFingerprint() async throws {
