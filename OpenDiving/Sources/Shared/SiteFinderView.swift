@@ -5,10 +5,10 @@ import SwiftUI
 /// The site finder the sites map is and the dive form's site picker opens: the map full screen
 /// under a panel that holds the search and the list, an island at its lowest, *Your sites* and
 /// *Use my location* floating over the map's corner above the panel, and a spinner under the top
-/// bar while the list is asked for again. With no map on the instance the panel stands alone, at its tallest. On the sites map
-/// a site opened from its row or its point takes the panel's search and list, its pin larger at
-/// the middle of the map, which then only zooms about it, and the others faded; on the dive form a
-/// touched point is named under a sheet. What a row does when chosen, what an opened site shows,
+/// bar while the list is asked for again. With no map on the instance the panel stands alone, at
+/// its tallest. On the sites map a site opened from its row or its point takes the panel's search
+/// and list, its pin larger at the middle of the map, which then only zooms about it, and the
+/// others faded; on the dive form a touched point is named under a sheet. What a row does when chosen, what an opened site shows,
 /// and the top bar's buttons, are the host's; the bar draws no background over the map.
 struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   let model: SiteFinderModel
@@ -581,7 +581,8 @@ private struct PanelIsland: ViewModifier {
           .shadow(color: .black.opacity(0.15 + 0.05 * share), radius: 8, y: -2 + 4 * share)
       }
       .padding(.horizontal, Self.margin * share)
-      .offset(y: (below - Self.margin) * share)
+      // Down into the home indicator's inset, never up into the controls riding on the panel.
+      .offset(y: max(0, below - Self.margin) * share)
   }
 }
 
