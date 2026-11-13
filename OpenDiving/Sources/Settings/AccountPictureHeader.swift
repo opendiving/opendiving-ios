@@ -13,38 +13,24 @@ struct AccountPictureHeader: View {
   @State private var failure: String?
 
   private static let side: CGFloat = 144
+  private static let spacing: CGFloat = 10
 
   private var busy: Bool { picker.preparing || model.opening != nil || model.isSending }
 
   var body: some View {
-    VStack(spacing: 10) {
-      Menu {
-        menuItems
-      } label: {
-        VStack(spacing: 10) {
-          PicturePreview(model: model, width: Self.side, showsPending: false)
-            // The old picture, blurred, while the new one is on its way; the new one, sharp, once
-            // the server has it.
-            .blur(radius: busy ? 8 : 0, opaque: true)
-            .clipShape(Circle())
-            // In the name's colour, as on the diver's own page.
-            .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
-            .overlay {
-              if busy {
-                Circle()
-                  .fill(.black.opacity(0.25))
-                  .overlay { BubbleSpinner(style: .white) }
-                  .transition(.opacity)
-              }
-            }
-            .animation(.easeInOut(duration: 0.35), value: busy)
-          Text(model.hasPicture ? "Edit photo" : "Add photo")
-            .bold()
-            .accentRow()
-        }
-        .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
+    VStack(spacing: Self.spacing) {
+      picture
+      Text(model.hasPicture ? "Edit photo" : "Add photo")
+        .bold()
+        .accentRow()
+    }
+    .accessibilityHidden(true)
+    // The menu opens from the label, below the picture, wherever on the head the tap lands.
+    .overlay {
+      AnchoredMenuButton(
+        items: menuItems, accessibilityLabel: model.hasPicture ? "Edit photo" : "Add photo",
+        menuTop: Self.side + Self.spacing
+      )
       .disabled(busy)
     }
     .frame(maxWidth: .infinity)
@@ -63,19 +49,45 @@ struct AccountPictureHeader: View {
     }
   }
 
-  @ViewBuilder private var menuItems: some View {
-    if CameraPicker.isAvailable {
-      Button("Take photo", systemImage: "camera") { picker.takingPhoto = true }
-    }
-    Button("Choose photo", systemImage: "photo.on.rectangle") { picker.choosingPhoto = true }
-    if model.hasPicture {
-      if model.canAdjust {
-        Button("Adjust", systemImage: "crop") {
-          Task { await picker.open(.adjust, on: model) }
+  private var picture: some View {
+    PicturePreview(model: model, width: Self.side, showsPending: false)
+      // The old picture, blurred, while the new one is on its way; the new one, sharp, once the
+      // server has it.
+      .blur(radius: busy ? 8 : 0, opaque: true)
+      .clipShape(Circle())
+      // In the name's colour, as on the diver's own page.
+      .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
+      .overlay {
+        if busy {
+          Circle()
+            .fill(.black.opacity(0.25))
+            .overlay { BubbleSpinner(style: .white) }
+            .transition(.opacity)
         }
       }
-      Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+      .animation(.easeInOut(duration: 0.35), value: busy)
+  }
+
+  private var menuItems: [AnchoredMenuButton.Item] {
+    var items: [AnchoredMenuButton.Item] = []
+    if CameraPicker.isAvailable {
+      items.append(.init(title: "Take photo", systemImage: "camera") { picker.takingPhoto = true })
     }
+    items.append(
+      .init(title: "Choose photo", systemImage: "photo.on.rectangle") {
+        picker.choosingPhoto = true
+      })
+    if model.hasPicture {
+      if model.canAdjust {
+        items.append(
+          .init(title: "Adjust", systemImage: "crop") {
+            Task { await picker.open(.adjust, on: model) }
+          })
+      }
+      items.append(
+        .init(title: "Delete", systemImage: "trash", destructive: true) { confirmingDelete = true })
+    }
+    return items
   }
 
   private func save(_ edit: PictureEdit) {
