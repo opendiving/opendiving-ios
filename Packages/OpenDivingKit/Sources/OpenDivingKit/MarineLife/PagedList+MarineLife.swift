@@ -11,22 +11,6 @@ extension PagedList where Item == SpeciesLifeListEntry {
   }
 }
 
-extension PagedList where Item == DiveSiteSearchRow {
-  /// More's *Your dive sites*: the finder's search for the account's sites with no text and no
-  /// view, which the server answers with every one of them, pinned or not, most recently dived
-  /// first. It sends no camera, so its rows carry no distance.
-  public static func yourDiveSites(_ session: Session) -> PagedList<DiveSiteSearchRow> {
-    PagedList(
-      session: session, itemsPerPage: APIClient.searchPageSize, cache: .yourDiveSites,
-      routed: true
-    ) { client, page, itemsPerPage in
-      try await client.searchDiveSites(
-        DiveSiteSearchQuery(yours: true), page: page, itemsPerPage: itemsPerPage
-      ).listPage
-    }
-  }
-}
-
 extension PagedList {
   /// Shows the list, or shows it again on a return, then reads again each time a route
   /// appears, until the calling task is cancelled: how a `routed` list that skipped its read

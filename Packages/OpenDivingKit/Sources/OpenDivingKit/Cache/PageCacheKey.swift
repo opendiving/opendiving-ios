@@ -150,10 +150,6 @@ extension PageCacheKey where Item == DiveSiteSearchRow {
     Self(yours ? "site-finder-yours" : "site-finder-nearby", record: { siteRecord($0) })
   }
 
-  /// More's *Your dive sites*: the finder's search for the account's sites with no view, apart
-  /// from the map's *Your sites*, whose kept pages are the sites in view.
-  public static var yourDiveSites: Self { Self("your-dive-sites", record: { siteRecord($0) }) }
-
   /// The dive sites on one species' page, kept and dropped with the species' own copy.
   public static func speciesDiveSites(_ species: UUID) -> Self {
     Self("species-dive-sites-" + species.uuidString.lowercased(), record: { siteRecord($0) })

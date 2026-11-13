@@ -142,10 +142,6 @@ public enum OfflineText {
   public static let lifeListNotShown =
     "Your marine life has not been listed on this phone, so it shows once the server can be"
     + " reached."
-  /// More's *Your dive sites* never listed.
-  public static let yourDiveSitesNotShown =
-    "Your dive sites have not been listed on this phone, so they show once the server can be"
-    + " reached."
   /// A species' *Dive Sites* tab never listed.
   public static let speciesDiveSitesNotShown =
     "The dive sites this species was seen at have not been listed on this phone, so they show"

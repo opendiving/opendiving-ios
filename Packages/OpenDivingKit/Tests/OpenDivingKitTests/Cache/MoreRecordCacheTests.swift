@@ -298,7 +298,6 @@ struct MoreRecordCacheTests {
       PageCacheKey<CourseRead>.courses.name, PageCacheKey<CertificationRead>.certifications.name,
       PageCacheKey<PersonRead>.people.name, PageCacheKey<ContactRead>.contacts.name,
       PageCacheKey<SpeciesLifeListEntry>.lifeList.name,
-      PageCacheKey<DiveSiteSearchRow>.yourDiveSites.name,
       PageCacheKey<DiveSiteSearchRow>.siteFinder(yours: true).name,
       PageCacheKey<DiveSiteSearchRow>.siteFinder(yours: false).name,
       PageCacheKey<DiveListItem>.dives.name, PageCacheKey<TripRead>.trips.name,

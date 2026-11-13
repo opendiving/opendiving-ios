@@ -11,25 +11,15 @@ import UIKit
 struct MoreMenuTests {
   @Test func theRowsFollowTheWebsNavigationRuledOffAsItIs() {
     #expect(
-      MoreRow.sections(isCommonsPrimary: true) == [
-        [.diveSites, .marineLife],
+      MoreRow.sections == [
+        [.marineLife],
         [.gear, .certifications, .courses, .people, .contacts],
-        [.imports, .proposals],
+        [.imports],
       ])
     #expect(
-      MoreRow.sections(isCommonsPrimary: true).flatMap { $0 }.map(\.title) == [
-        "Dive Sites", "Marine Life", "Gear", "Certifications", "Courses", "People", "Contacts",
-        "Import", "Your Proposals",
+      MoreRow.sections.flatMap { $0 }.map(\.title) == [
+        "Marine Life", "Gear", "Certifications", "Courses", "People", "Contacts", "Import",
       ])
-  }
-
-  @Test func theProposalsAreOfferedOnlyWhereTheInstanceTakesThem() {
-    #expect(!MoreRow.sections(isCommonsPrimary: false).flatMap { $0 }.contains(.proposals))
-    #expect(MoreRow.sections(isCommonsPrimary: false).last == [.imports])
-  }
-
-  @Test func everyRowButTheProposalsDrawsOneOfTheAppsSymbols() {
-    #expect(MoreRow.allCases.filter { $0.icon == nil } == [.proposals])
   }
 
   private func host(_ view: some View) -> UIView? {
@@ -43,7 +33,7 @@ struct MoreMenuTests {
   }
 
   @Test func theMenuHosts() {
-    #expect(host(ScrollView { MoreMenu(isCommonsPrimary: true) }) != nil)
+    #expect(host(ScrollView { MoreMenu() }) != nil)
   }
 
   @Test func theListsHost() {
@@ -53,7 +43,6 @@ struct MoreMenuTests {
     #expect(host(PeopleListView()) != nil)
     #expect(host(ContactListView()) != nil)
     #expect(host(MarineLifeListView()) != nil)
-    #expect(host(YourDiveSitesView()) != nil)
   }
 
   @Test func thePagesHostWithAUUID() {
