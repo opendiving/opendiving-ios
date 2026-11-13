@@ -61,7 +61,11 @@ private struct SettingsList: View {
         } label: {
           Label(row: "Appearance", icon: .monitor)
         }
-        LabeledContent("Version", value: Self.appVersion)
+        LabeledContent {
+          Text(Self.appVersion)
+        } label: {
+          Label(row: "Version", icon: .dive)
+        }
       }
     }
     .task { await model.load() }
