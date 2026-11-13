@@ -467,8 +467,12 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         EmptyOrErrorView(
           status: .empty(
             icon: .diveSite,
-            title: SiteFinderText.empty(typed: model.isTyped, yours: model.yours), message: nil))
-        addSitePrompt
+            title: SiteFinderText.empty(typed: model.isTyped, yours: model.yours), message: nil)
+        )
+        // Lowered by what the question under it gives up, so the icon stands as far below the
+        // search as the title stands above the question, and the question stays put.
+        .padding(.top, Self.emptyDrop)
+        addSitePrompt(top: Self.promptMargin - Self.emptyDrop)
       case .loaded:
         if let lastUpdated = model.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
@@ -483,13 +487,16 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         LoadMoreFooter(list: list)
-        addSitePrompt
+        addSitePrompt()
       }
     }
   }
 
+  private static var promptMargin: Double { 24 }
+  private static var emptyDrop: Double { 15 }
+
   /// As a map app ends its results: the question, over the way to add what it lacks.
-  @ViewBuilder private var addSitePrompt: some View {
+  @ViewBuilder private func addSitePrompt(top: Double = promptMargin) -> some View {
     if let onAddSite, model.offersAddingSite {
       VStack(spacing: 4) {
         Text(SiteFinderText.missingQuestion)
@@ -501,7 +508,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
       .font(.subheadline)
       .frame(maxWidth: .infinity)
-      .padding(.vertical, 24)
+      .padding(.top, top)
+      .padding(.bottom, Self.promptMargin)
     }
   }
 
