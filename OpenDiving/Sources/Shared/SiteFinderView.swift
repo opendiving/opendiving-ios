@@ -366,7 +366,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   }
 
   /// The opened site in the island: its name on one line beside the way back to the list, in the
-  /// height the search box takes.
+  /// height the search box takes. A tap opens it again.
   private func siteIslandHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
     HStack(spacing: 8) {
       Text(opened.name ?? "")
@@ -377,6 +377,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       closeButton("Close dive site") { model.closeSite() }
     }
     .padding(.leading, 6)
+    .contentShape(Rectangle())
+    .onTapGesture { move(to: .half) }
+    .accessibilityAction(named: "Show dive site") { move(to: .half) }
   }
 
   private func siteBody(_ opened: SiteFinderModel.OpenedSite, panel: SiteFinderPanel)
