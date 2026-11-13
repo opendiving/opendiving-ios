@@ -6,7 +6,7 @@ import UIKit
 /// pins drawn over them and fitted between the `coveredTop` points a bar covers and the
 /// `coveredBottom` points the details cover, below an `overflowTop` that only a pull-down
 /// shows. Nothing is drawn until every tile is to hand, nor where the tiles cannot be had, so
-/// whatever is behind shows; nothing is asked for while the map is scrolled out of sight.
+/// whatever is behind shows; nothing is asked for while the map is scrolled well out of sight.
 struct MapBackdropView: View {
   let points: [MapPoint]
   let fixes: [MapPoint]
@@ -27,6 +27,9 @@ struct MapBackdropView: View {
   @State private var size = CGSize.zero
   @State private var images: [MapTileAddress: UIImage] = [:]
   @State private var isOnScreen = false
+
+  /// Taller than any bar a list scrolls under.
+  nonisolated private static let barAllowance: CGFloat = 120
 
   private var layout: MapBackdropLayout? {
     MapBackdropLayout(
@@ -52,11 +55,27 @@ struct MapBackdropView: View {
       .animation(.easeOut(duration: 0.3), value: model?.shown != nil)
       .clipped()
       .preference(key: CardCredit.Key.self, value: cardCredit)
-      .onScrollVisibilityChange(threshold: 0.01) { isOnScreen = $0 }
-      .task(id: Shown(layout: layout, isOnScreen: isOnScreen)) {
-        guard isOnScreen else { return }
-        if model == nil { model = MapBackdropModel(session: session) }
-        await model?.show(layout)
+      // SwiftUI's visible part of a scroll view stops at its bars and the home indicator, and
+      // what scrolls under them is in plain sight.
+      .onGeometryChange(for: Bool.self) { proxy in
+        guard let clear = proxy.bounds(of: .scrollView) else { return true }
+        return clear.insetBy(dx: 0, dy: -Self.barAllowance)
+          .intersects(CGRect(origin: .zero, size: proxy.size))
+      } action: {
+        isOnScreen = $0
+      }
+      // A view of its own for each map wanted rather than `task(id:)`, which SwiftUI leaves on
+      // the old id when a change comes too soon after another ("tried to update multiple times
+      // per frame"): a card coming on screen changes it twice, and the window's appearance
+      // reaches a screen just pushed right behind them.
+      .background {
+        Color.clear
+          .task {
+            guard isOnScreen else { return }
+            if model == nil { model = MapBackdropModel(session: session) }
+            await model?.show(layout)
+          }
+          .id(Shown(layout: layout, isOnScreen: isOnScreen))
       }
       .onChange(of: model?.shown, initial: true) { _, shown in
         images = (shown?.images ?? [:]).compactMapValues(UIImage.init(data:))
