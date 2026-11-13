@@ -614,6 +614,8 @@ private struct PanelIsland: ViewModifier {
     let bare = hug > 0 ? share : 0
     content
       .clipShape(shape)
+      // Touches land only where the panel is drawn, so the map takes them around the search box.
+      .contentShape(shape)
       .background {
         shape
           .fill(Color.panelFill.opacity(1 - bare))
