@@ -227,14 +227,17 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
       ZStack(alignment: .top) {
         // Kept under the site rather than built again, so closing it finds the list as it was.
-        list(panel)
+        list(panel, below: below)
           .opacity(model.opened == nil ? 1 : 0)
           .allowsHitTesting(model.opened == nil)
           .accessibilityHidden(model.opened != nil)
         if let opened = model.opened {
-          siteBody(opened, panel: panel)
+          siteBody(opened, panel: panel, below: below)
         }
       }
+      // Runs on under the home indicator, past the panel's foot, which stands at the inset's top
+      // at rest: the panel itself keeps its height, so nothing laid out beside it moves.
+      .padding(.bottom, -below)
     }
     .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap))
     .frame(maxWidth: .infinity)
@@ -392,9 +395,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     .accessibilityAction(named: "Show dive site") { move(to: .half) }
   }
 
-  private func siteBody(_ opened: SiteFinderModel.OpenedSite, panel: SiteFinderPanel)
-    -> some View
-  {
+  private func siteBody(
+    _ opened: SiteFinderModel.OpenedSite, panel: SiteFinderPanel, below: Double
+  ) -> some View {
     ScrollView {
       site(opened)
         .background {
@@ -405,6 +408,10 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           }
         }
     }
+    .contentMargins(.bottom, below, for: .scrollContent)
+    // Its inset is the margin above; the safe area's own would add to it where the panel's frame,
+    // placed before it is moved, happens to reach the screen's foot.
+    .ignoresSafeArea(.container, edges: .bottom)
     // Another site opens at its top, rather than where the last one was scrolled to.
     .id(opened.uuid)
   }
@@ -413,15 +420,15 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
 
   /// Over a map a drag down from the list's top moves the panel, so only the panel with no map,
   /// which stands still, pulls to refresh.
-  @ViewBuilder private func list(_ panel: SiteFinderPanel) -> some View {
+  @ViewBuilder private func list(_ panel: SiteFinderPanel, below: Double) -> some View {
     if map.hasMap {
-      scrolledList(panel)
+      scrolledList(panel, below: below)
     } else {
-      scrolledList(panel).bubbleRefreshable { await model.list?.refresh() }
+      scrolledList(panel, below: below).bubbleRefreshable { await model.list?.refresh() }
     }
   }
 
-  private func scrolledList(_ panel: SiteFinderPanel) -> some View {
+  private func scrolledList(_ panel: SiteFinderPanel, below: Double) -> some View {
     ScrollView {
       LazyVStack(spacing: 12) {
         content
@@ -436,6 +443,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         }
       }
     }
+    .contentMargins(.bottom, below, for: .scrollContent)
+    .ignoresSafeArea(.container, edges: .bottom)
     .scrollDismissesKeyboard(.immediately)
   }
 
