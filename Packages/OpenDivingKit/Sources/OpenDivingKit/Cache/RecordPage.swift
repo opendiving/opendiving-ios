@@ -5,8 +5,8 @@ import Observation
 /// certification, a person or a species. The lists the page shows beside it are
 /// ``PagedList``s under the keys its ``KeptRecordKind`` drops with it.
 ///
-/// A record the phone has shown before shows at once from the account's cache, under
-/// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. With no
+/// A record the phone has shown before shows at once from the account's cache while it is
+/// fetched behind; a fetch that fails leaves it standing, under ``lastUpdated``. With no
 /// route nothing is asked for, and ``followRoute()`` reads again once one appears. A 404 means
 /// the server no longer has the record: the phone forgets it with its lists, and every list on
 /// screen leaves its row out at once. A write that
@@ -18,8 +18,14 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
 
   public let uuid: UUID
   public private(set) var phase: DetailPhase<Record> = .loading
-  /// When the record shown was fetched, while it is the cache's rather than this visit's.
-  public private(set) var lastUpdated: Date?
+  /// When the record shown was fetched, once it is the cache's and no read of this visit's is on
+  /// its way: offline, or after the read behind it failed. A read that lands replaces it with
+  /// nothing to say, so the line saying how old it is would show only to go again.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
+  private(set) var fetchedAt: Date?
+  /// A read is on its way.
+  private var isReading = false
   /// The queue holds a change to this record, which the page shows once it lands.
   public private(set) var hasPendingEdit = false
 
@@ -63,7 +69,7 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
   func reread() async {
     let stale =
       switch phase {
-      case .loaded: lastUpdated != nil
+      case .loaded: fetchedAt != nil
       case .failed: true
       case .loading, .notFound: false
       }
@@ -74,7 +80,7 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
     guard let stores = AccountStores.current(session), let entry = stores.cache.record(kind, uuid)
     else { return }
     if stores.loaded { stores.cache.touchRecord(kind, uuid) }
-    lastUpdated = entry.fetchedAt
+    fetchedAt = entry.fetchedAt
     phase = .loaded(entry.value)
     observeLists()
   }
@@ -83,10 +89,12 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
+    isReading = true
+    defer { isReading = false }
     do {
       let record = try await fetch(session.routedClient(), uuid)
       skippedForRoute = false
-      lastUpdated = nil
+      fetchedAt = nil
       phase = .loaded(record)
       cacheForAnswer(fetchedUnder: stores, session: session)?.writeRecord(
         record, kind, fetchedAt: Date())
@@ -96,7 +104,7 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
       let next = DetailPhase<Record>.failure(error)
       if !wasLoaded || next == .notFound { phase = next }
       if next == .notFound {
-        lastUpdated = nil
+        fetchedAt = nil
         // After the phase, so the lists' signal does not send this page reading again.
         storesForAnswer(fetchedUnder: stores, session: session)?.forgetRecord(kind, uuid)
       }

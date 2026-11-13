@@ -78,7 +78,7 @@ private struct DiveDetailScreen: View {
       if let content = model.content {
         DiveDetailPage(
           content: content, diveUUID: dive.uuid, lastUpdated: model.lastUpdated,
-          hasPendingEdit: model.hasPendingEdit
+          fromCopy: model.fetchedAt != nil, hasPendingEdit: model.hasPendingEdit
         ) { uuid, version in
           await model.speciesPhoto(uuid, version: version)
         }
@@ -115,8 +115,10 @@ private struct DiveDetailScreen: View {
 private struct DiveDetailPage: View {
   let content: DiveDetailContent
   let diveUUID: UUID
-  /// When the copy shown was fetched, while it is the phone's rather than this visit's.
+  /// When the copy shown was fetched, while it is the phone's and no read is on its way.
   let lastUpdated: Date?
+  /// What is shown is the phone's copy rather than this visit's.
+  let fromCopy: Bool
   let hasPendingEdit: Bool
   let speciesPhoto: (UUID, String) async -> Data?
 
@@ -144,7 +146,7 @@ private struct DiveDetailPage: View {
 
   @ViewBuilder private var mainColumn: some View {
     if let profile = content.profile {
-      DiveDetailProfileCard(diveUUID: diveUUID, profile: profile, fromCopy: lastUpdated != nil)
+      DiveDetailProfileCard(diveUUID: diveUUID, profile: profile, fromCopy: fromCopy)
     }
     if let tanks = content.tanks {
       DiveDetailTanksCard(tanks: tanks)

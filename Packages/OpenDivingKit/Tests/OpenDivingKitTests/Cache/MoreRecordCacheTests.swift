@@ -61,7 +61,7 @@ struct MoreRecordCacheTests {
     let following = Task { await offline.followRoute() }
     while !switchable.isFollowed { await Task.yield() }
     switchable.appear()
-    while offline.lastUpdated != nil { await Task.yield() }
+    while offline.fetchedAt != nil { await Task.yield() }
     following.cancel()
     #expect(world.server.count(route, since: mark) == 1)
   }

@@ -5,8 +5,8 @@ import Observation
 /// dive centre and the dives either side — each of which may fail without failing the page,
 /// as the web hides a link it could not resolve.
 ///
-/// A dive the phone has opened before shows at once from the account's cache, under
-/// ``lastUpdated``, while it is fetched behind; a fetch that fails leaves it standing. While
+/// A dive the phone has opened before shows at once from the account's cache while it is
+/// fetched behind; a fetch that fails leaves it standing, under ``lastUpdated``. While
 /// the queue holds an edit of the dive that has not failed, the edit's values are laid over it
 /// and ``hasPendingEdit`` says so, until the flush reads the dive back. A 404 for the dive —
 /// to the fetch or to a queued edit — means the server no longer has it: the page fails with
@@ -31,8 +31,14 @@ public final class DiveDetailModel: AccountStoresObserver {
   public private(set) var neighbors: DiveNeighbors?
   /// A step of the pager is on its way; the dive being left stays on screen until it lands.
   public private(set) var isStepping = false
+  /// When the dive shown was fetched, once it is the cache's and no read of this visit's is on
+  /// its way: offline, or after the read behind it failed. A read that lands replaces it with
+  /// nothing to say, so the line saying how old it is would show only to go again.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
   /// When the dive shown was fetched, while it is the cache's rather than this visit's.
-  public private(set) var lastUpdated: Date?
+  public private(set) var fetchedAt: Date?
+  /// A read of the dive is on its way.
+  private var isReading = false
   /// Why the fetch behind a cached dive failed; the cached dive stays on screen.
   public private(set) var refreshError: APIError?
   /// The queue holds an edit of this dive, which the dive shown already carries.
@@ -92,7 +98,13 @@ public final class DiveDetailModel: AccountStoresObserver {
     if !fromCache {
       if case .loaded = phase { isStepping = true } else { phase = .loading }
     }
-    defer { if generation == self.generation { isStepping = false } }
+    isReading = true
+    defer {
+      if generation == self.generation {
+        isStepping = false
+        isReading = false
+      }
+    }
 
     let stores = AccountStores.current(session)
     let client: APIClient
@@ -118,7 +130,8 @@ public final class DiveDetailModel: AccountStoresObserver {
     guard generation == self.generation else { return }
     skippedForRoute = false
     if !fromCache { (trip, course, contact) = (nil, nil, nil) }
-    lastUpdated = nil
+    fetchedAt = nil
+    isReading = false
     let answeredAt = Date()
     show(dive, at: answeredAt)
     isStepping = false
@@ -150,7 +163,7 @@ public final class DiveDetailModel: AccountStoresObserver {
 
   func reread() async {
     switch phase {
-    case .loaded: if lastUpdated != nil { await load(diveUUID) }
+    case .loaded: if fetchedAt != nil { await load(diveUUID) }
     case .failed(.unreachable): await load(diveUUID)
     case .loading, .failed: break
     }
@@ -161,12 +174,12 @@ public final class DiveDetailModel: AccountStoresObserver {
     guard let stores = AccountStores.current(session),
       let entry = stores.cache.dive(uuid)
     else {
-      lastUpdated = nil
+      fetchedAt = nil
       return false
     }
     if stores.loaded { stores.cache.touchDive(uuid) }
     (trip, course, contact) = (entry.value.trip, entry.value.course, entry.value.contact)
-    lastUpdated = entry.fetchedAt
+    fetchedAt = entry.fetchedAt
     show(entry.value.dive, at: entry.fetchedAt)
     return true
   }
@@ -203,7 +216,7 @@ public final class DiveDetailModel: AccountStoresObserver {
   /// The dive is gone from the server: the page says so, over any copy it was showing.
   private func gone(_ error: APIError) {
     hasPendingEdit = false
-    lastUpdated = nil
+    fetchedAt = nil
     refreshError = nil
     phase = .failed(error)
   }

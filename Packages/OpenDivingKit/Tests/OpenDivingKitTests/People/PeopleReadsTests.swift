@@ -69,7 +69,7 @@ struct PeopleReadsTests {
     #expect(people.people.lastUpdated != nil)
     #expect(world.server.count("GET people", since: mark) == 0)
     route.appear()
-    while people.people.lastUpdated != nil { await Task.yield() }
+    while people.people.fetchedAt != nil { await Task.yield() }
     showing.cancel()
     #expect(world.server.count("GET people", since: mark) == 1)
 

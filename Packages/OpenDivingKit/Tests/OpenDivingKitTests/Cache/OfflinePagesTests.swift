@@ -114,7 +114,7 @@ struct OfflinePagesTests {
 
     try await world.session.loadAccount()
     await followUntilRead(route, offline.followRoute) {
-      offline.lastUpdated == nil && offline.dives.lastUpdated == nil
+      offline.lastUpdated == nil && offline.dives.fetchedAt == nil
     }
     #expect(
       world.server.count("GET dive-site/\(siteUUID.uuidString.lowercased())", since: mark) == 1)
@@ -202,6 +202,32 @@ struct OfflinePagesTests {
     #expect(offline.contacts == online.contacts)
     #expect(offline.dives.items.map(\.id) == online.dives.items.map(\.id))
     #expect(world.server.sent.count == mark)
+  }
+
+  @Test func aKeptTripsAgeShowsOnlyOnceItsReadFails() async throws {
+    let first = try world()
+    try await first.load()
+    await TripDetailModel(session: first.session, tripUUID: tripUUID).load()
+    let world = try first.relaunched()
+    try await world.session.loadAccount()
+    let gate = SiteFinderModelTests.Gate()
+    gate.isHeld = true
+    let asked = Mutex(false)
+    world.server.override { request, _ in
+      guard request.route.hasPrefix("GET trip/") else { return nil }
+      asked.withLock { $0 = true }
+      try await gate.pass()
+      throw URLError(.notConnectedToInternet)
+    }
+    let model = TripDetailModel(session: world.session, tripUUID: tripUUID)
+    let loading = Task { await model.load() }
+    while !asked.withLock({ $0 }) { await Task.yield() }
+    #expect(model.phase.isLoaded)
+    #expect(model.lastUpdated == nil)
+    gate.isHeld = false
+    await loading.value
+    #expect(model.phase.isLoaded)
+    #expect(model.lastUpdated != nil)
   }
 
   @Test func aTripNeverOpenedFailsAtOnceAndLoadsWhenARouteAppears() async throws {
@@ -299,7 +325,7 @@ struct OfflinePagesTests {
     #expect(model.lastUpdated != nil)
     #expect(model.dives.lastUpdated != nil)
     await followUntilRead(route, model.followRoute) {
-      model.lastUpdated == nil && model.dives.lastUpdated == nil
+      model.fetchedAt == nil && model.dives.fetchedAt == nil
     }
   }
 

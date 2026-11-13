@@ -5,16 +5,22 @@ import Observation
 /// information card names — each part's accommodation and the trip's dive centres.
 ///
 /// A trip the phone has opened before shows at once from the account's cache, its dives and
-/// contacts with it, under ``lastUpdated``, while it is fetched behind; a fetch that fails leaves
-/// it standing. With no route nothing is asked for, and ``followRoute()`` reads again once one
+/// contacts with it, while it is fetched behind; a fetch that fails leaves it standing, under
+/// ``lastUpdated``. With no route nothing is asked for, and ``followRoute()`` reads again once one
 /// appears. A 404 for the trip means the server no longer has it, and the phone forgets it.
 @MainActor
 @Observable
 public final class TripDetailModel: AccountStoresObserver, AccountListsObserver {
   public let tripUUID: UUID
   public private(set) var phase: DetailPhase<TripRead> = .loading
-  /// When the trip shown was fetched, while it is the cache's rather than this visit's.
-  public private(set) var lastUpdated: Date?
+  /// When the trip shown was fetched, once it is the cache's and no read of this visit's is on
+  /// its way: offline, or after the read behind it failed. A read that lands replaces it with
+  /// nothing to say, so the line saying how old it is would show only to go again.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
+  private(set) var fetchedAt: Date?
+  /// A read is on its way.
+  private var isReading = false
   /// The contacts read so far, by uuid. One that failed to read is left out, and the card
   /// draws the part or the line without it.
   public private(set) var contacts: [UUID: ContactRead] = [:]
@@ -73,7 +79,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
   func reread() async {
     let stale =
       switch phase {
-      case .loaded: lastUpdated != nil
+      case .loaded: fetchedAt != nil
       case .failed: true
       case .loading, .notFound: false
       }
@@ -88,7 +94,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     guard let stores = AccountStores.current(session), let entry = stores.cache.trip(tripUUID)
     else { return }
     if stores.loaded { stores.cache.touchTrip(tripUUID) }
-    lastUpdated = entry.fetchedAt
+    fetchedAt = entry.fetchedAt
     phase = .loaded(entry.value.trip)
     contacts = Dictionary(entry.value.contacts.map { ($0.uuid, $0) }) { _, last in last }
     watchStores()
@@ -98,10 +104,12 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
+    isReading = true
+    defer { isReading = false }
     do {
       let trip = try await session.routedClient().trip(tripUUID)
       skippedForRoute = false
-      lastUpdated = nil
+      fetchedAt = nil
       phase = .loaded(trip)
       keep(trip, fetchedUnder: stores)
       watchStores()
@@ -110,7 +118,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
       let next = DetailPhase<TripRead>.failure(error)
       if next == .notFound {
         cacheForAnswer(fetchedUnder: stores, session: session)?.removeTrip(tripUUID)
-        lastUpdated = nil
+        fetchedAt = nil
       }
       if !wasLoaded || next == .notFound { phase = next }
     }
@@ -165,6 +173,6 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     }
     // Merged, so a refresh that cannot reach one keeps the name already shown.
     contacts.merge(read) { _, new in new }
-    if case .loaded(let shown) = phase, lastUpdated == nil { keep(shown, fetchedUnder: stores) }
+    if case .loaded(let shown) = phase, fetchedAt == nil { keep(shown, fetchedUnder: stores) }
   }
 }

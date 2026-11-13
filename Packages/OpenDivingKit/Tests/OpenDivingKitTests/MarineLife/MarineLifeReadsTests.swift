@@ -79,7 +79,7 @@ struct MarineLifeReadsTests {
     #expect(world.server.count("GET user/species", since: mark) == 0)
 
     route.appear()
-    while list.lastUpdated != nil { await Task.yield() }
+    while list.fetchedAt != nil { await Task.yield() }
     showing.cancel()
     #expect(world.server.count("GET user/species", since: mark) == 1)
   }

@@ -65,7 +65,7 @@ struct CourseReadsTests {
     #expect(world.server.count("GET courses", since: mark) == 0)
 
     route.appear()
-    while offline.courses.lastUpdated != nil { await Task.yield() }
+    while offline.courses.fetchedAt != nil { await Task.yield() }
     showing.cancel()
     #expect(world.server.count("GET courses", since: mark) == 1)
   }
