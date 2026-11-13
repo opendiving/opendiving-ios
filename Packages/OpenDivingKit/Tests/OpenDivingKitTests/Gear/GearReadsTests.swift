@@ -78,7 +78,7 @@ struct GearReadsTests {
     #expect(world.server.count("GET gear-items", since: mark) == 0)
 
     route.appear()
-    while offline.items.lastUpdated != nil || offline.sets.lastUpdated != nil {
+    while offline.items.fetchedAt != nil || offline.sets.fetchedAt != nil {
       await Task.yield()
     }
     showing.cancel()

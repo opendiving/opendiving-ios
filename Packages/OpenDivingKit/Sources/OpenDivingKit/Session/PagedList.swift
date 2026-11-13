@@ -6,8 +6,8 @@ import Observation
 /// account and the people table before page 1 — every list a screen draws names people.
 ///
 /// Given a cache key, the pages it loads are kept for the account, and on appear the kept
-/// pages show at once under ``lastUpdated`` while page 1 is fetched behind them; a fetch that
-/// fails leaves them standing. Nothing waits for a request to fail before showing what the
+/// pages show at once while page 1 is fetched behind them; a fetch that fails leaves them
+/// standing, under ``lastUpdated``. Nothing waits for a request to fail before showing what the
 /// phone has, since a request waits a minute for a route. A page is written only once the
 /// account has loaded in this process, so another account's answer never lands in the
 /// previous one's cache.
@@ -48,8 +48,14 @@ public final class PagedList<Item: Codable & Sendable> {
   public private(set) var isLoadingMore = false
   /// A later page, or a refresh, failed while earlier items stay on screen.
   public private(set) var pageError: APIError? = nil
+  /// When the kept pages shown were fetched, once no read a route may answer is on its way:
+  /// offline, or after the read behind them failed. A read that lands replaces them with nothing
+  /// to say, so the line saying how old they are would show only to go again.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
   /// When the items shown were fetched, while they are the cache's rather than this visit's.
-  public private(set) var lastUpdated: Date? = nil
+  private(set) var fetchedAt: Date? = nil
+  /// A read of every page is on its way, begun while the phone believed it had a route.
+  private var isReading = false
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let itemsPerPage: Int
@@ -144,7 +150,13 @@ public final class PagedList<Item: Codable & Sendable> {
     generation += 1
     let generation = generation
     isReloadingPages = true
-    defer { if generation == self.generation { isReloadingPages = false } }
+    isReading = session.connectivity.isRouteAvailable
+    defer {
+      if generation == self.generation {
+        isReloadingPages = false
+        isReading = false
+      }
+    }
     if fetched.isEmpty { phase = .loading }
     let stores = AccountStores.current(session)
     observeAccount()
@@ -165,7 +177,7 @@ public final class PagedList<Item: Codable & Sendable> {
       hasMore = more
       nextPage = page
       pageError = nil
-      lastUpdated = nil
+      fetchedAt = nil
       phase = .loaded
       keep(fetchedUnder: stores, firstPage: true)
     } catch {
@@ -189,7 +201,7 @@ public final class PagedList<Item: Codable & Sendable> {
     case .loading: return
     case .idle: return await load()
     case .failed: break
-    case .loaded: guard lastUpdated != nil || pageError != nil else { return }
+    case .loaded: guard fetchedAt != nil || pageError != nil else { return }
     }
     await loadPages(through: max(nextPage - 1, 1))
   }
@@ -232,7 +244,7 @@ public final class PagedList<Item: Codable & Sendable> {
     fetched = entry.value.items
     showFetched()
     hasMore = false
-    lastUpdated = entry.fetchedAt
+    fetchedAt = entry.fetchedAt
     phase = .loaded
   }
 

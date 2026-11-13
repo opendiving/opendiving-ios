@@ -69,10 +69,11 @@ struct OfflineScreensTests {
   }
 
   /// Loads `make`'s list online under account A, then opens it again under a session whose
-  /// every request hangs, and reads what it shows before the stub is released.
+  /// every request hangs, and reads what it shows before the stub is released and after.
   private func showsItsCopy<Item: Codable & Sendable>(
-    page route: String, _ answer: StubTransport.Response, _ make: (Session) -> PagedList<Item>
-  ) async throws -> (shown: Int, lastUpdated: Date?, afterRelease: Int) {
+    page route: String, _ answer: StubTransport.Response, routeAvailable: Bool = true,
+    _ make: (Session) -> PagedList<Item>
+  ) async throws -> (shown: Int, lastUpdated: Date?, afterRelease: Int, lastUpdatedAfter: Date?) {
     let directory = F.directory()
     let online = F.signedIn(
       directory,
@@ -84,7 +85,8 @@ struct OfflineScreensTests {
     await make(online).load()
 
     let held = HeldTransport()
-    let offline = F.signedIn(directory, transport: held)
+    let offline = F.signedIn(
+      directory, transport: held, connectivity: FakePath(isRouteAvailable: routeAvailable))
     let list = make(offline)
     let load = Task { await list.load() }
     // The copy goes up before the fetch leaves, and the fetch crosses the client's actor before
@@ -94,7 +96,7 @@ struct OfflineScreensTests {
     let lastUpdated = list.lastUpdated
     held.release()
     await load.value
-    return (count, lastUpdated, list.items.count)
+    return (count, lastUpdated, list.items.count, list.lastUpdated)
   }
 
   @Test func theDivesListShowsWhatItLastLoadedBeforeTheFetchAnswers() async throws {
@@ -102,15 +104,26 @@ struct OfflineScreensTests {
       ProfileDives.list($0)
     }
     #expect(result.shown == 1)
-    #expect(result.lastUpdated != nil)
+    #expect(result.lastUpdated == nil)
     #expect(result.afterRelease == 1)
+    #expect(result.lastUpdatedAfter != nil)
+  }
+
+  /// With no route, the copy says how old it is while its fetch waits for one.
+  @Test func theDivesListSaysHowOldItsCopyIsWhileOffline() async throws {
+    let result = try await showsItsCopy(
+      page: "GET dives", .json(DivePreviewData.page), routeAvailable: false
+    ) { ProfileDives.list($0) }
+    #expect(result.shown == 1)
+    #expect(result.lastUpdated != nil)
   }
 
   @Test func theTripsListShowsWhatItLastLoadedBeforeTheFetchAnswers() async throws {
     let result = try await showsItsCopy(page: "GET trips", F.page(F.trip)) { ProfileTrips.list($0) }
     #expect(result.shown == 1)
-    #expect(result.lastUpdated != nil)
+    #expect(result.lastUpdated == nil)
     #expect(result.afterRelease == 1)
+    #expect(result.lastUpdatedAfter != nil)
   }
 
   @Test func theDivePageOpensFromTheCopyBeforeTheFetchAnswers() async throws {
@@ -131,10 +144,11 @@ struct OfflineScreensTests {
       session: F.signedIn(directory, transport: held), diveUUID: DivePreviewData.diveUUID)
     let load = Task { await model.load() }
     #expect(await F.eventually { model.dive != nil })
-    #expect(model.lastUpdated != nil)
+    #expect(model.lastUpdated == nil)
     held.release()
     await load.value
     #expect(model.dive?.uuid == DivePreviewData.diveUUID)
     #expect(model.refreshError != nil)
+    #expect(model.lastUpdated != nil)
   }
 }

@@ -136,7 +136,11 @@ final class Counter: Sendable {
 nonisolated final class FakePath: Connectivity {
   private let subscribers = Mutex<[UUID: AsyncStream<ConnectivityMoment>.Continuation]>([:])
 
-  var isRouteAvailable: Bool { true }
+  let isRouteAvailable: Bool
+
+  init(isRouteAvailable: Bool = true) {
+    self.isRouteAvailable = isRouteAvailable
+  }
 
   var routeAppearances: Int { 0 }
 

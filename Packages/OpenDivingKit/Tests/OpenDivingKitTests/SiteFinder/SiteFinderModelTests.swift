@@ -248,7 +248,7 @@ struct SiteFinderModelTests {
     while searches.queries.count < 2 { await Task.yield() }
     #expect(model.isSearching)
     #expect(model.list !== opened)
-    #expect(model.list?.lastUpdated != nil)
+    #expect(model.list?.fetchedAt != nil)
     #expect(model.lastUpdated == nil)
     #expect(model.rows.count == 3)
     let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)

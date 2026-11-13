@@ -432,7 +432,7 @@ public final class SiteFinderModel {
       box: narrowed ? shownBox : nil, until: form?.values.startTime, yours: yours)
     self.query = query
     if let last = answered[query.yours], last.query.items == query.items,
-      last.list.phase == .loaded, last.list.lastUpdated == nil
+      last.list.phase == .loaded, last.list.fetchedAt == nil
     {
       searching = nil
       isSearching = false
