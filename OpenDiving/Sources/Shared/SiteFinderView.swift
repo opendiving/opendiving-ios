@@ -146,7 +146,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           locateButton.mapRoundButton()
         }
       }
-      .padding(.horizontal, 12)
+      // On the panel's content edge, where the islands stand too.
+      .padding(.horizontal, PanelIsland.margin)
       .padding(.bottom, 12)
       .modifier(
         RidesPanel(
@@ -581,8 +582,9 @@ private struct PanelIsland: ViewModifier {
   /// How far the island closes in from the panel's edges on what it holds.
   let hug: Double
 
-  /// What the island stands clear of the screen's sides and its foot by.
-  static let margin = 20.0
+  /// What the island stands clear of the screen's sides and its foot by: the panel's content
+  /// inset, so the search box alone stands where it stood on the panel.
+  static let margin = 16.0
   /// The search box's room inside the panel, which the island closes in by, leaving the box alone.
   static let searchHug = 16.0
 
@@ -629,11 +631,20 @@ private struct SearchFieldFill: ViewModifier {
   let drag: SiteFinderPanelDrag
   let isOn: Bool
 
+  // One view whichever fill it takes: built again, the field would lose the focus a tap on the
+  // island gives it as the panel opens.
   func body(content: Content) -> some View {
-    if isOn && drag.target == .collapsed {
-      content.pickerControl(in: Capsule())
+    let glass = isOn && drag.target == .collapsed
+    if #available(iOS 26, *) {
+      content
+        .background(Color(.secondarySystemGroupedBackground).opacity(glass ? 0 : 1), in: Capsule())
+        .glassEffect(glass ? .regular.interactive() : .identity, in: Capsule())
     } else {
-      content.background(Color(.secondarySystemGroupedBackground), in: Capsule())
+      content.background(
+        glass
+          ? AnyShapeStyle(.regularMaterial)
+          : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+        in: Capsule())
     }
   }
 }
