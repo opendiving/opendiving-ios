@@ -19,6 +19,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   var onSite: (DiveSiteLookupItem) -> Void = { _ in }
   /// A long press on the map, where a site is added.
   var onLongPress: ((DeviceLocation) -> Void)?
+  /// *Add a missing dive site* at the whole list's foot, which opens a new site with no pin.
+  var onAddSite: (() -> Void)?
   /// What the dive form lists while the search cannot reach the server: the phone's lookup rows.
   var offlineRows: ((String) -> [FormPickerRow])?
   var onOfflineRow: (FormPickerRow) -> Void = { _ in }
@@ -462,7 +464,15 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           note(SiteFinderText.failure(error))
         }
       case .loaded where model.rows.isEmpty:
-        note(SiteFinderText.empty(typed: model.isTyped, yours: model.yours))
+        EmptyOrErrorView(
+          status: .empty(
+            icon: .diveSite,
+            title: SiteFinderText.empty(typed: model.isTyped, yours: model.yours), message: nil)
+        )
+        // Lowered by what the question under it gives up, so the icon stands as far below the
+        // search as the title stands above the question, and the question stays put.
+        .padding(.top, Self.emptyDrop)
+        addSitePrompt(top: Self.promptMargin - Self.emptyDrop)
       case .loaded:
         if let lastUpdated = model.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
@@ -477,7 +487,30 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         LoadMoreFooter(list: list)
+        addSitePrompt()
       }
+    }
+  }
+
+  private static var promptMargin: Double { 24 }
+  private static var emptyDrop: Double { 15 }
+
+  /// As a map app ends its results: the question, over the way to add what it lacks.
+  @ViewBuilder private func addSitePrompt(top: Double = promptMargin) -> some View {
+    if let onAddSite, model.offersAddingSite {
+      VStack(spacing: 4) {
+        Text(SiteFinderText.missingQuestion)
+          .foregroundStyle(.secondary)
+        Button(SiteFinderText.addMissing) {
+          typing = false
+          onAddSite()
+        }
+        .accentRow()
+      }
+      .font(.subheadline)
+      .frame(maxWidth: .infinity)
+      .padding(.top, top)
+      .padding(.bottom, Self.promptMargin)
     }
   }
 
@@ -532,13 +565,15 @@ extension SiteFinderView where Site == EmptyView, SiteAction == EmptyView {
     model: SiteFinderModel, map: MapStyleModel, units: UnitSystem,
     onSite: @escaping (DiveSiteLookupItem) -> Void = { _ in },
     onLongPress: ((DeviceLocation) -> Void)? = nil,
+    onAddSite: (() -> Void)? = nil,
     offlineRows: ((String) -> [FormPickerRow])? = nil,
     onOfflineRow: @escaping (FormPickerRow) -> Void = { _ in },
     @ToolbarContentBuilder bar: @escaping () -> Bar
   ) {
     self.init(
       model: model, map: map, units: units, onSite: onSite, onLongPress: onLongPress,
-      offlineRows: offlineRows, onOfflineRow: onOfflineRow, site: { _ in EmptyView() },
+      onAddSite: onAddSite, offlineRows: offlineRows, onOfflineRow: onOfflineRow,
+      site: { _ in EmptyView() },
       siteAction: { _ in EmptyView() }, bar: bar)
   }
 }

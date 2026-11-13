@@ -28,6 +28,7 @@ struct SiteFinderSheet: View {
           dismiss()
         },
         onLongPress: { adding = AddingSite(pin: $0) },
+        onAddSite: { adding = AddingSite(pin: nil) },
         offlineRows: { form.rows(.diveSites, matching: $0) },
         onOfflineRow: { row in
           form.remember(row)

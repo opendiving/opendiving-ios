@@ -4,8 +4,9 @@ import SwiftUI
 /// What the app opens on signed in: the site finder over the diver's sites and the Commons, full
 /// screen under a top bar with no background, each site opening in the panel, the weather at the
 /// open site or else, zoomed in, at the site nearest the middle, the diver's picture that opens
-/// their profile, and a long press on the map that adds a site where it was pressed. Under *Your
-/// sites* it is the diver's list, the most recently dived first.
+/// their profile, and a long press on the map that adds a site where it was pressed, as the list's
+/// foot adds one anywhere. Under *Your sites* it is the diver's list, the most recently dived
+/// first.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -44,8 +45,8 @@ private struct SitesFinder: View {
   /// The map is pushed opened on a site rather than being the app's root, so it has no way to the
   /// profile or the proposals of its own.
   private let isPushed: Bool
-  /// Where a long press asked for a new site.
-  @State private var adding: PinnedNewSite?
+  /// A new site asked for, from the list's foot or where the map was pressed.
+  @State private var adding: NewSite?
   /// How far the weather bar is grown into its card.
   @State private var weatherMorph = MapWeatherMorph()
   /// Where the weather bar is drawn, for its card to grow from.
@@ -63,7 +64,8 @@ private struct SitesFinder: View {
   var body: some View {
     SiteFinderView(
       model: model, map: map, units: session.units,
-      onLongPress: { adding = PinnedNewSite(pin: $0) },
+      onLongPress: { adding = NewSite(pin: $0) },
+      onAddSite: { adding = NewSite(pin: nil) },
       site: { site in
         SitePanelView(
           siteUUID: site.uuid, onRead: { model.read($0) }, onOpen: { model.open(uuid: $0) })
@@ -178,10 +180,10 @@ private struct WeatherAsk: Hashable {
   let cell: MapWeatherModel.Cell
 }
 
-/// A new site asked for at a point of the map, which the form opens pinned to.
-private struct PinnedNewSite: Hashable, Identifiable {
+/// A new site asked for, which the form opens pinned to where the map was pressed, if it was.
+private struct NewSite: Hashable, Identifiable {
   let id = UUID()
-  let pin: DeviceLocation
+  let pin: DeviceLocation?
 }
 
 #Preview {

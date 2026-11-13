@@ -151,6 +151,14 @@ public final class SiteFinderModel {
     }
   }
 
+  /// The list ends on the way to add a site the diver found missing: the whole list rather than
+  /// only *Your sites*, which a site of the diver's own would be missing from by being left out,
+  /// and once its last page is in, so that it stands at the end.
+  public var offersAddingSite: Bool {
+    guard !yours, let list, list.phase == .loaded else { return false }
+    return !list.hasMore
+  }
+
   // MARK: - Opening
 
   /// Runs the host's opening rule once, moves the camera once, and sends the first request with

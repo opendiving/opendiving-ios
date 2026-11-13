@@ -19,12 +19,16 @@ public enum SiteFinderText {
       ? "The server could not be reached, so nothing could be searched." : error.message
   }
 
-  /// The line in place of an empty list.
+  /// The title in place of an empty list, under the dive site's icon.
   public static func empty(typed: Bool, yours: Bool) -> String {
     switch (typed, yours) {
-    case (true, _): "No dive sites or places match."
-    case (false, true): "None of your dive sites are here."
-    case (false, false): "No dive sites here yet."
+    case (true, _): "No dive sites or places match"
+    case (false, true): "None of your dive sites are here"
+    case (false, false): "No dive sites here yet"
     }
   }
+
+  /// What stands at the list's foot, or under its empty title, over the way to add a site.
+  public static let missingQuestion = "Something missing?"
+  public static let addMissing = "Add a missing dive site"
 }
