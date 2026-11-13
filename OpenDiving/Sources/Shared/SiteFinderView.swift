@@ -227,16 +227,16 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
       ZStack(alignment: .top) {
         // Kept under the site rather than built again, so closing it finds the list as it was.
-        list(panel)
+        list(panel, below: below)
           .opacity(model.opened == nil ? 1 : 0)
           .allowsHitTesting(model.opened == nil)
           .accessibilityHidden(model.opened != nil)
         if let opened = model.opened {
-          siteBody(opened, panel: panel)
+          siteBody(opened, panel: panel, below: below)
         }
       }
     }
-    .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap))
+    .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap, below: below))
     .frame(maxWidth: .infinity)
     .modifier(PanelIsland(drag: drag, panel: panel, isOn: map.hasMap, below: below, hug: hug))
   }
@@ -392,9 +392,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     .accessibilityAction(named: "Show dive site") { move(to: .half) }
   }
 
-  private func siteBody(_ opened: SiteFinderModel.OpenedSite, panel: SiteFinderPanel)
-    -> some View
-  {
+  private func siteBody(
+    _ opened: SiteFinderModel.OpenedSite, panel: SiteFinderPanel, below: Double
+  ) -> some View {
     ScrollView {
       site(opened)
         .background {
@@ -405,6 +405,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           }
         }
     }
+    .contentMargins(.bottom, below, for: .scrollContent)
     // Another site opens at its top, rather than where the last one was scrolled to.
     .id(opened.uuid)
   }
@@ -413,15 +414,15 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
 
   /// Over a map a drag down from the list's top moves the panel, so only the panel with no map,
   /// which stands still, pulls to refresh.
-  @ViewBuilder private func list(_ panel: SiteFinderPanel) -> some View {
+  @ViewBuilder private func list(_ panel: SiteFinderPanel, below: Double) -> some View {
     if map.hasMap {
-      scrolledList(panel)
+      scrolledList(panel, below: below)
     } else {
-      scrolledList(panel).bubbleRefreshable { await model.list?.refresh() }
+      scrolledList(panel, below: below).bubbleRefreshable { await model.list?.refresh() }
     }
   }
 
-  private func scrolledList(_ panel: SiteFinderPanel) -> some View {
+  private func scrolledList(_ panel: SiteFinderPanel, below: Double) -> some View {
     ScrollView {
       LazyVStack(spacing: 12) {
         content
@@ -436,6 +437,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         }
       }
     }
+    .contentMargins(.bottom, below, for: .scrollContent)
     .scrollDismissesKeyboard(.immediately)
   }
 
@@ -715,16 +717,18 @@ private struct IslandHead<Full: View, Island: View>: View {
   }
 }
 
-/// The panel's height: its detent's at rest, its tallest while it moves. Read here rather than in
-/// the finder, which a finger's first pull would otherwise draw again.
+/// The panel's height: its detent's at rest, its tallest while it moves, run on through the home
+/// indicator's inset so the list scrolls under it rather than stopping short of the screen's foot.
+/// Read here rather than in the finder, which a finger's first pull would otherwise draw again.
 private struct PanelFrame: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
   let hasMap: Bool
+  let below: Double
 
   func body(content: Content) -> some View {
     content.frame(
-      height: hasMap && !drag.isMoving ? panel.height(drag.detent) : panel.height(.full),
+      height: (hasMap && !drag.isMoving ? panel.height(drag.detent) : panel.height(.full)) + below,
       alignment: .top)
   }
 }
