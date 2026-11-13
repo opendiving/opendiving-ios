@@ -53,10 +53,18 @@ struct MapBackdropView: View {
       .clipped()
       .preference(key: CardCredit.Key.self, value: cardCredit)
       .onScrollVisibilityChange(threshold: 0.01) { isOnScreen = $0 }
-      .task(id: Shown(layout: layout, isOnScreen: isOnScreen)) {
-        guard isOnScreen else { return }
-        if model == nil { model = MapBackdropModel(session: session) }
-        await model?.show(layout)
+      // A view of its own for each map wanted rather than `task(id:)`, which SwiftUI leaves on
+      // the old id when a change comes too soon after another ("tried to update multiple times
+      // per frame"): a card coming on screen changes it twice, and the window's appearance
+      // reaches a screen just pushed right behind them.
+      .background {
+        Color.clear
+          .task {
+            guard isOnScreen else { return }
+            if model == nil { model = MapBackdropModel(session: session) }
+            await model?.show(layout)
+          }
+          .id(Shown(layout: layout, isOnScreen: isOnScreen))
       }
       .onChange(of: model?.shown, initial: true) { _, shown in
         images = (shown?.images ?? [:]).compactMapValues(UIImage.init(data:))
