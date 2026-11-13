@@ -305,7 +305,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     }
     .padding(.horizontal, 14)
     .frame(height: 44)
-    .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+    .modifier(SearchFieldFill(drag: drag, isOn: map.hasMap))
   }
 
   /// Clears the search and sends the panel back to where it opens.
@@ -607,14 +607,34 @@ private struct PanelIsland: ViewModifier {
       height: shown + runOn, inset: hug * share,
       topRadius: Self.sheetRadius + (island - Self.sheetRadius) * share,
       bottomRadius: island * share)
+    // An island that holds the search box alone leaves the box's glass on the map, no panel
+    // under it.
+    let bare = hug > 0 ? share : 0
     content
       .clipShape(shape)
       .background {
         shape
-          .fill(Color.panelFill)
-          .shadow(color: .black.opacity(0.15 + 0.05 * share), radius: 8, y: -2 + 4 * share)
+          .fill(Color.panelFill.opacity(1 - bare))
+          .shadow(
+            color: .black.opacity((0.15 + 0.05 * share) * (1 - bare)), radius: 8,
+            y: -2 + 4 * share)
       }
       .padding(.horizontal, (Self.margin - hug) * share)
+  }
+}
+
+/// The search box's fill: on the panel, the fill a field takes on it; once the panel heads for the
+/// island, where the box stands alone on the map, the glass of the map's other controls.
+private struct SearchFieldFill: ViewModifier {
+  let drag: SiteFinderPanelDrag
+  let isOn: Bool
+
+  func body(content: Content) -> some View {
+    if isOn && drag.target == .collapsed {
+      content.pickerControl(in: Capsule())
+    } else {
+      content.background(Color(.secondarySystemGroupedBackground), in: Capsule())
+    }
   }
 }
 
