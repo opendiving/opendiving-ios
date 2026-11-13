@@ -120,6 +120,8 @@ private struct ExportSection: View {
           }
         }
         .padding(.vertical, 4)
+        // The Download label would otherwise pull the separator in to its title.
+        .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
       }
     } header: {
       Text("Data export")
