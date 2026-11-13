@@ -193,7 +193,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     VStack(spacing: 0) {
       VStack(spacing: 0) {
         if map.hasMap {
-          handle(panel).modifier(FadesInIsland(drag: drag, panel: panel, hug: hug))
+          handle(panel)
         }
         Group {
           if let opened = model.opened {
@@ -246,6 +246,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     Capsule()
       .fill(.tertiary)
       .frame(width: 36, height: 5)
+      .modifier(FadesInIsland(drag: drag, panel: panel, hug: hug))
       .frame(maxWidth: .infinity, minHeight: 16, maxHeight: 16)
       .contentShape(Rectangle())
       .onTapGesture {
@@ -651,7 +652,9 @@ private struct SearchFieldFill: ViewModifier {
   }
 }
 
-/// Fades the handle out as the panel closes in on the search box, which then stands alone.
+/// Fades the handle's capsule out as the panel closes in on the search box, which then stands
+/// alone. Only what is drawn: the handle stays for VoiceOver to step the panel from, and the
+/// panel's outline already keeps a finger off it.
 private struct FadesInIsland: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
@@ -659,10 +662,7 @@ private struct FadesInIsland: ViewModifier {
 
   func body(content: Content) -> some View {
     let share = hug > 0 ? panel.islandShare(shown: drag.height(in: panel)) : 0
-    content
-      .opacity(1 - share)
-      .allowsHitTesting(share < 1)
-      .accessibilityHidden(share == 1)
+    content.opacity(1 - share)
   }
 }
 
