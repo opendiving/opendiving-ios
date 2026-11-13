@@ -116,6 +116,23 @@ struct MapCameraTests {
     }
   }
 
+  /// Half the map's height of world stays above and below the camera's point.
+  @Test func aHeldLatitudeZoomsOutOnlyWhileTheWorldCoversHalfTheMapEachSide() {
+    #expect(MapCamera.zoomHolding(latitude: 0, height: 512) == 0)
+    #expect(abs(MapCamera.zoomHolding(latitude: 0, height: 1024) - 1) < 1e-9)
+    // Away from the equator the nearer pole decides, north or south alike: the furthest zoom out
+    // shows the world's edge at the map's.
+    let north = MapCamera.zoomHolding(latitude: 28.5, height: 874)
+    #expect(north > MapCamera.zoomHolding(latitude: 0, height: 874))
+    #expect(abs(north - MapCamera.zoomHolding(latitude: -28.5, height: 874)) < 1e-9)
+    let shown = MapCamera(latitude: 28.5, longitude: 0, zoom: north).bounds(width: 390, height: 874)
+    #expect(abs(shown.north - 85.0511287798066) < 1e-6)
+    #expect(shown.south > -85)
+    // A map shorter than a world at the furthest zoom, and the pole, are clamped.
+    #expect(MapCamera.zoomHolding(latitude: 0, height: 20) == MapCamera.minZoom)
+    #expect(MapCamera.zoomHolding(latitude: 90, height: 800) == MapCamera.maxZoom)
+  }
+
   @Test func theWorldsBoundsStopWhereMercatorIsCut() {
     let bounds = MapCamera.world.bounds(width: 390, height: 2000)
     #expect(abs(bounds.north - 85.0511287798066) < 1e-9)

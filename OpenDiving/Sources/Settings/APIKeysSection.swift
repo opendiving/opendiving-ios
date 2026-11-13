@@ -30,6 +30,7 @@ struct APIKeysSection: View {
           } label: {
             Label(APIKeysModel.createButton, systemImage: "plus")
           }
+          .accentRow()
         }
       } header: {
         Text("API keys")
@@ -121,6 +122,7 @@ private struct APIKeyForm: View {
     }
     HStack {
       Button("Cancel") { model.cancelCreating() }
+        .accentRow()
         .disabled(model.isSubmitting)
       Spacer()
       if model.isSubmitting {

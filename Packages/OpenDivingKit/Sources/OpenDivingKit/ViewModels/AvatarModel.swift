@@ -13,13 +13,13 @@ public final class AvatarModel {
 
   @ObservationIgnored private let session: Session
   /// The version ``data`` holds, so a load that finds it shown reads nothing.
-  @ObservationIgnored private var shownVersion: String?
+  public private(set) var version: String?
 
   public init(session: Session) {
     self.session = session
     if session.user?.avatarSha256 != nil, let kept = AccountStores.current(session)?.cache.avatar {
       data = kept.data
-      shownVersion = kept.version
+      version = kept.version
     }
   }
 
@@ -34,11 +34,11 @@ public final class AvatarModel {
     let stores = AccountStores.current(session)
     guard let version = user.avatarSha256 else {
       data = nil
-      shownVersion = nil
+      self.version = nil
       stores?.writableCache?.removeAvatar()
       return
     }
-    if version == shownVersion { return }
+    if version == self.version { return }
     if let kept = stores?.cache.avatar, kept.version == version {
       show(kept.data, version: version)
       return
@@ -56,6 +56,6 @@ public final class AvatarModel {
 
   private func show(_ data: Data, version: String) {
     self.data = data
-    shownVersion = version
+    self.version = version
   }
 }

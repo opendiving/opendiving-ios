@@ -193,7 +193,8 @@ struct DiveComputerDownloadsTests {
     #expect(lengths(0.65) == [1, 1, 0])
     #expect(lengths(1.0) == [1, 1, 1])
     #expect(DiveComputerBars.frame(at: 1.2).allSatisfy { $0.opacity == 1 })
-    #expect(DiveComputerBars.frame(at: DiveComputerBars.loop - 0.01).allSatisfy { $0.opacity == 0 })
+    // No empty icon between loops: the bars are still fading as the loop ends.
+    #expect(DiveComputerBars.frame(at: DiveComputerBars.loop - 0.01).allSatisfy { $0.opacity > 0 })
     #expect(
       DiveComputerBars.frame(at: DiveComputerBars.loop + 0.3) == DiveComputerBars.frame(at: 0.3))
   }

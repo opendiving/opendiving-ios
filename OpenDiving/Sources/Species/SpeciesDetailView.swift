@@ -26,6 +26,9 @@ private struct SpeciesDetailContent: View {
   @Environment(Session.self) private var session
   @State private var model: SpeciesDetailModel
   @State private var section = SpeciesSection.taxonomy
+  @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
 
   init(model: SpeciesDetailModel) {
     _model = State(initialValue: model)
@@ -62,7 +65,11 @@ private struct SpeciesDetailContent: View {
               }
             }
             .padding(.horizontal)
-            SectionTabs(selection: $section)
+            SectionTabs(
+              selection: $section,
+              onReselect: { withAnimation { scroll.scroll(to: reselect) } }
+            )
+            .readsTabsTop($tabsTop)
             Group {
               switch section {
               case .dives:
@@ -77,8 +84,11 @@ private struct SpeciesDetailContent: View {
             }
             .padding(.horizontal)
           }
+          .coordinateSpace(.pageContent)
           .padding(.bottom)
         }
+        .scrollPosition($scroll)
+        .tabsReselect($reselect, tabsTop: tabsTop)
         .heroUnderTopBar { await model.refresh() }
         .task(id: page.species.photoSha256) { await model.loadPhoto() }
       }

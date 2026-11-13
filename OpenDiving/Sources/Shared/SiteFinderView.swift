@@ -7,9 +7,9 @@ import SwiftUI
 /// over the map's corner above the panel, and a spinner under the top bar while the list is asked
 /// for again. With no map on the instance the panel stands alone, at its tallest. On the sites map
 /// a site opened from its row or its point takes the panel's search and list, its pin larger at
-/// the middle of the map and the others faded; on the dive form a touched point is named under a
-/// sheet. What a row does when chosen, what an opened site shows, and the top bar's buttons, are
-/// the host's; the bar draws no background over the map.
+/// the middle of the map, which then only zooms about it, and the others faded; on the dive form a
+/// touched point is named under a sheet. What a row does when chosen, what an opened site shows,
+/// and the top bar's buttons, are the host's; the bar draws no background over the map.
 struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   let model: SiteFinderModel
   let map: MapStyleModel
@@ -95,10 +95,11 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
 
   // MARK: - The map
 
-  /// The detent the map makes room for: at its tallest the panel hides the map, which keeps the
-  /// half it had.
+  /// The detent the map makes room for: where the panel is heading, so that a site opened as it
+  /// moves glides once, straight to where it will show. At its tallest the panel hides the map,
+  /// which keeps the half it had.
   private var mapDetent: SiteFinderPanel.Detent {
-    drag.detent == .full ? .half : drag.detent
+    drag.target == .full ? .half : drag.target
   }
 
   private func mapArea(
@@ -115,7 +116,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       SiteFinderMap(
         styleJSON: style.styleJSON, camera: model.camera, glides: model.glides, covered: covered,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
-        selected: model.highlighted,
+        selected: model.highlighted, holdsMiddle: model.holdsOpenedSite,
         onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
         onPoint: { model.select($0) },
         onMapTap: { model.closeSite() },
@@ -270,8 +271,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   }
 
   /// Moves the panel to `target`, laid out at its tallest until it lands rather than resized on
-  /// every frame of the way. The finder takes the new detent once it lands, so the spring moves
-  /// the panel and nothing else.
+  /// every frame of the way. The map makes room for `target` as the spring sets off and the list
+  /// takes it once it lands, so the finder is drawn again at either end of the move and not on
+  /// the way.
   private func move(to target: SiteFinderPanel.Detent, on animation: Animation = .snappy) {
     if target != .full { typing = false }
     let number = drag.begin()
@@ -512,8 +514,8 @@ extension SiteFinderView where Site == EmptyView, SiteAction == EmptyView {
 
 /// Moves what it modifies with the panel's top edge, which is `foot` less the panel's height
 /// from where it sits: the panel is placed from the top of the finder, the controls riding on
-/// it from the bottom. Only this reads how far the panel is dragged and where it is heading, so a
-/// move draws nothing else again.
+/// it from the bottom. Only this reads how far the panel is dragged and how tall it stands on the
+/// way, so a frame of the move draws nothing else again.
 private struct RidesPanel: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
@@ -538,7 +540,7 @@ private struct RidesPanel: ViewModifier {
 }
 
 /// The panel's height: its detent's at rest, its tallest while it moves. Read here rather than in
-/// the finder, so a move starting lays out the panel without drawing the finder again.
+/// the finder, which a finger's first pull would otherwise draw again.
 private struct PanelFrame: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
@@ -552,7 +554,7 @@ private struct PanelFrame: ViewModifier {
 }
 
 /// What VoiceOver says the handle is at: where the panel is heading, so a step reads back at
-/// once. Read here rather than in the finder, which a move starting would draw again.
+/// once.
 private struct HandleValue: ViewModifier {
   let drag: SiteFinderPanelDrag
 

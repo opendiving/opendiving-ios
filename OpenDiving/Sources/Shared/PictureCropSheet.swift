@@ -4,10 +4,12 @@ import UIKit
 
 /// The web's *Adjust Your Photo*: the whole upright picture under a frame of the picture's shape
 /// — a circle for the profile picture, 7:9 for the portrait — dragged to move and pinched or slid
-/// to zoom. Nothing is sent from here: the rectangle chosen becomes the form's pending edit.
+/// to zoom. Nothing is sent from here: the rectangle chosen goes to the host, under `confirm`,
+/// which says what the host does with it.
 struct PictureCropSheet: View {
   let kind: PictureKind
   let cropping: PictureCropping
+  let confirm: String
   let onCropped: (CropFrame.Area) -> Void
 
   @Environment(\.dismiss) private var dismiss
@@ -17,10 +19,13 @@ struct PictureCropSheet: View {
   @State private var frameWidth: CGFloat = 1
   private let image: UIImage?
 
-  init(kind: PictureKind, cropping: PictureCropping, onCropped: @escaping (CropFrame.Area) -> Void)
-  {
+  init(
+    kind: PictureKind, cropping: PictureCropping, confirm: String,
+    onCropped: @escaping (CropFrame.Area) -> Void
+  ) {
     self.kind = kind
     self.cropping = cropping
+    self.confirm = confirm
     self.onCropped = onCropped
     image = UIImage(data: cropping.source.data)
     let (width, height) = (Double(cropping.source.width), Double(cropping.source.height))
@@ -57,7 +62,7 @@ struct PictureCropSheet: View {
           Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-          ToolbarConfirmButton(title: PictureKind.cropConfirm) {
+          ToolbarConfirmButton(title: confirm) {
             onCropped(frame.area)
             dismiss()
           }
@@ -132,6 +137,7 @@ struct PictureCropSheet: View {
     cropping: PictureCropping(
       purpose: .adjust,
       source: PictureSource(
-        data: UIImage(systemName: "person.fill")?.pngData() ?? Data(), width: 20, height: 19))
+        data: UIImage(systemName: "person.fill")?.pngData() ?? Data(), width: 20, height: 19)),
+    confirm: PictureKind.cropSave
   ) { _ in }
 }

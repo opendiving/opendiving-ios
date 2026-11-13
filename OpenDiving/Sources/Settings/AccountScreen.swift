@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Settings* → *Account*: the profile picture, the name and the username, saved together; the
-/// email, changed through a confirmation link; and deleting the account.
+/// *Settings* → *Account*, also opened by the profile's picture: the profile picture with
+/// *Edit photo*; the name, the username and the email, a row each opening its own screen; and
+/// deleting the account.
 struct AccountScreen: View {
   @Environment(Session.self) private var session
 
@@ -14,19 +15,35 @@ struct AccountScreen: View {
 }
 
 private struct AccountList: View {
-  @State private var form: AccountFormModel
+  let session: Session
+  @State private var write: AccountWrite
+  @State private var picture: PictureFieldModel
   @State private var email: EmailChangeModel
 
   init(session: Session) {
-    _form = State(initialValue: AccountFormModel(session: session))
+    self.session = session
+    _write = State(initialValue: AccountWrite(session: session))
+    _picture = State(initialValue: PictureFieldModel(kind: .avatar, session: session))
     _email = State(initialValue: EmailChangeModel(session: session))
   }
 
   var body: some View {
     List {
-      if form.isLoaded {
-        AccountProfileSection(model: form)
-        AccountEmailSection(model: email)
+      if session.user != nil {
+        Section {
+          AccountPictureHeader(model: picture)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 5, trailing: 0))
+        }
+        .listRowBackground(Color.clear)
+        Section {
+          fieldRow(.name, icon: .user)
+          fieldRow(.username, icon: .atSign)
+          NavigationLink {
+            EmailChangeScreen(model: email)
+          } label: {
+            row("Email", value: email.currentEmail ?? "", icon: .mail)
+          }
+        }
         Section {
           NavigationLink {
             DeleteAccountScreen()
@@ -47,105 +64,25 @@ private struct AccountList: View {
         .foregroundStyle(.secondary)
       }
     }
+    .contentMargins(.top, 30, for: .scrollContent)
   }
-}
 
-/// The profile picture, the name and the username, and the one *Save* that sends whichever
-/// changed.
-private struct AccountProfileSection: View {
-  let model: AccountFormModel
-
-  var body: some View {
-    Section {
-      PictureFieldView(model: model.picture)
-      VStack(alignment: .leading, spacing: 4) {
-        LabeledContent("Name") {
-          TextField("Name", text: Binding(get: { model.name }, set: { model.setName($0) }))
-            .textContentType(.name)
-            .multilineTextAlignment(.trailing)
-        }
-        if let problem = model.nameProblem {
-          FieldMessage(problem)
-        }
-      }
-      VStack(alignment: .leading, spacing: 4) {
-        LabeledContent("Username") {
-          TextField(
-            "Username", text: Binding(get: { model.username }, set: { model.setUsername($0) })
-          )
-          .textContentType(.username)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .multilineTextAlignment(.trailing)
-        }
-        if let problem = model.usernameProblem {
-          FieldMessage(problem)
-        }
-      }
-      if model.isSaving {
-        HStack {
-          BubbleSpinner()
-          Text("Saving…")
-        }
-        .foregroundStyle(.secondary)
-      } else {
-        Button("Save") { Task { await model.save() } }
-          .accentRow()
-          .disabled(!model.canSave)
-      }
-    } header: {
-      Text("Profile")
-    } footer: {
-      if let failure = model.failure {
-        FieldMessage(failure)
-      } else if model.saved {
-        Text(AccountFormModel.savedMessage)
-      }
+  private func fieldRow(_ field: AccountFieldModel.Field, icon: Icon) -> some View {
+    NavigationLink {
+      AccountFieldScreen(field: field, write: write)
+    } label: {
+      row(
+        field.label, value: AccountFieldModel.shown(field, write: write, session: session),
+        icon: icon)
     }
-    .disabled(model.isSaving)
   }
-}
 
-/// The current address, and a new one sent a confirmation link.
-private struct AccountEmailSection: View {
-  let model: EmailChangeModel
-
-  var body: some View {
-    Section {
-      LabeledContent("Current email", value: model.currentEmail ?? "")
-      TextField(
-        "New email", text: Binding(get: { model.newEmail }, set: { model.setNewEmail($0) })
-      )
-      .keyboardType(.emailAddress)
-      .textContentType(.emailAddress)
-      .textInputAutocapitalization(.never)
-      .autocorrectionDisabled()
-      .onSubmit { Task { await model.send() } }
-      if model.isSending {
-        HStack {
-          BubbleSpinner()
-          Text("Sending…")
-        }
-        .foregroundStyle(.secondary)
-      } else {
-        Button("Send confirmation link") { Task { await model.send() } }
-          .accentRow()
-          .disabled(!model.canSend)
-      }
-    } header: {
-      Text("Email address")
-    } footer: {
-      VStack(alignment: .leading, spacing: 8) {
-        if let failure = model.failure {
-          FieldMessage(failure)
-        }
-        if let sent = model.sentMessage {
-          Text(sent)
-        }
-        Text("Changing your email requires confirming the new address first.")
-      }
-    }
-    .disabled(model.isSending)
+  /// The value beside its symbol, which stands in for the label on screen and not to VoiceOver.
+  private func row(_ label: String, value: String, icon: Icon) -> some View {
+    Label(row: value, icon: icon)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(label)
+      .accessibilityValue(value)
   }
 }
 
