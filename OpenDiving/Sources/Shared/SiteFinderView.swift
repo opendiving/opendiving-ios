@@ -505,6 +505,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           typing = false
           onAddSite()
         }
+        .accentRow()
       }
       .font(.subheadline)
       .frame(maxWidth: .infinity)
