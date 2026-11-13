@@ -84,7 +84,7 @@ private struct MoreRowLabel: View {
       Image(row.icon)
         .foregroundStyle(.secondary)
         .frame(width: 24)
-      .accessibilityHidden(true)
+        .accessibilityHidden(true)
       Text(row.title)
       Spacer()
       Image(systemName: "chevron.right")
