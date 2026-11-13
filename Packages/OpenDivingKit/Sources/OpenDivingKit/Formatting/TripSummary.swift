@@ -29,11 +29,11 @@ public enum TripSummary {
   }
 
   /// The trip's page's head: the card the width of the screen, every figure, and a map of
-  /// the places its parts went.
+  /// the places its parts went, or of the world before it has any, as its card draws.
   public static func hero(_ trip: TripRead, units: UnitSystem) -> HeroContent {
     HeroContent(
       title: trip.name, facts: facts(trip), figures: figures(trip, units: units),
-      points: points(trip))
+      points: points(trip), mapsTheWorldWhenEmpty: true)
   }
 
   /// The trip's own fields in the trip form's order, a section per part. A part's accommodation

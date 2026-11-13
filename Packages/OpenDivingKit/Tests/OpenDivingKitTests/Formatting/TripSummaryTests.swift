@@ -69,11 +69,14 @@ struct TripSummaryTests {
       ])
   }
 
-  @Test func theCardMapsThePlacesOrTheWorld() throws {
+  @Test func theCardAndTheHeroMapThePlacesOrTheWorld() throws {
     let trip = try Self.trip()
     let card = TripSummary.card(trip, units: .metric)
     #expect(card.points == TripSummary.points(trip))
     #expect(card.mapsTheWorldWhenEmpty)
+    let hero = TripSummary.hero(trip, units: .metric)
+    #expect(hero.points == TripSummary.points(trip))
+    #expect(hero.mapsTheWorldWhenEmpty)
   }
 
   @Test func noSpeciesShowsTheDepthAndAnUndatedPlacelessTripHasNoFacts() throws {
@@ -87,7 +90,9 @@ struct TripSummaryTests {
         Figure(label: "Dives", value: "0"), Figure(label: "Dive sites", value: "0"),
         Figure(label: "Max depth", value: "33 ft"),
       ])
-    #expect(TripSummary.hero(trip, units: .metric).points.isEmpty)
+    let hero = TripSummary.hero(trip, units: .metric)
+    #expect(hero.points.isEmpty)
+    #expect(hero.mapsTheWorldWhenEmpty)
   }
 
   @Test func partHeadingsAreThePlaceOverTheDatesOrTheDatesAlone() throws {
