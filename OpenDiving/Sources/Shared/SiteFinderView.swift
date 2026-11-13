@@ -200,9 +200,10 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
             }
           }
         }
+        // The handle stands in the top 16, so the search box is as far from every edge.
         .padding(.horizontal, 16)
         .padding(.top, map.hasMap ? 0 : 16)
-        .padding(.bottom, 12)
+        .padding(.bottom, 16)
       }
       .contentShape(Rectangle())
       .gesture(
@@ -236,8 +237,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     Capsule()
       .fill(.tertiary)
       .frame(width: 36, height: 5)
-      .padding(.vertical, 8)
-      .frame(maxWidth: .infinity)
+      .frame(maxWidth: .infinity, minHeight: 16, maxHeight: 16)
       .contentShape(Rectangle())
       .onTapGesture {
         move(to: drag.target == .half ? .full : .half)

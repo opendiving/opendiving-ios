@@ -7,8 +7,8 @@ public struct SiteFinderPanel: Hashable, Sendable {
     case collapsed, half, full
   }
 
-  /// The search box and the handle over it.
-  public static let collapsedHeight = 77.0
+  /// The search box, 44 tall, with 16 around it, the handle standing in the 16 over it.
+  public static let collapsedHeight = 76.0
   /// The strip of map the panel at its tallest leaves under the top bar.
   public static let topClearance = 8.0
 
