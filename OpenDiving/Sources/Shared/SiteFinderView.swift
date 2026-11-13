@@ -235,8 +235,11 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           siteBody(opened, panel: panel, below: below)
         }
       }
+      // Runs on under the home indicator, past the panel's foot, which stands at the inset's top
+      // at rest: the panel itself keeps its height, so nothing laid out beside it moves.
+      .padding(.bottom, -below)
     }
-    .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap, below: below))
+    .modifier(PanelFrame(drag: drag, panel: panel, hasMap: map.hasMap))
     .frame(maxWidth: .infinity)
     .modifier(PanelIsland(drag: drag, panel: panel, isOn: map.hasMap, below: below, hug: hug))
   }
@@ -406,6 +409,9 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         }
     }
     .contentMargins(.bottom, below, for: .scrollContent)
+    // Its inset is the margin above; the safe area's own would add to it where the panel's frame,
+    // placed before it is moved, happens to reach the screen's foot.
+    .ignoresSafeArea(.container, edges: .bottom)
     // Another site opens at its top, rather than where the last one was scrolled to.
     .id(opened.uuid)
   }
@@ -438,6 +444,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
     }
     .contentMargins(.bottom, below, for: .scrollContent)
+    .ignoresSafeArea(.container, edges: .bottom)
     .scrollDismissesKeyboard(.immediately)
   }
 
@@ -717,18 +724,16 @@ private struct IslandHead<Full: View, Island: View>: View {
   }
 }
 
-/// The panel's height: its detent's at rest, its tallest while it moves, run on through the home
-/// indicator's inset so the list scrolls under it rather than stopping short of the screen's foot.
-/// Read here rather than in the finder, which a finger's first pull would otherwise draw again.
+/// The panel's height: its detent's at rest, its tallest while it moves. Read here rather than in
+/// the finder, which a finger's first pull would otherwise draw again.
 private struct PanelFrame: ViewModifier {
   let drag: SiteFinderPanelDrag
   let panel: SiteFinderPanel
   let hasMap: Bool
-  let below: Double
 
   func body(content: Content) -> some View {
     content.frame(
-      height: (hasMap && !drag.isMoving ? panel.height(drag.detent) : panel.height(.full)) + below,
+      height: hasMap && !drag.isMoving ? panel.height(drag.detent) : panel.height(.full),
       alignment: .top)
   }
 }
