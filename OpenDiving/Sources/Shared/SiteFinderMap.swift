@@ -498,9 +498,10 @@ struct SiteFinderMap: UIViewRepresentable {
       return feature
     }
 
-    /// How far in from the edge of what shows an opened group's outermost sites land, which
-    /// leaves a pin's head room over its tip.
-    private static let groupPadding = 32.0
+    /// How far in from the edges of what shows an opened group's outermost sites land: their pins
+    /// clear the top bar's buttons over the map, the round buttons down the right and the credit
+    /// along the foot, with the left as wide as the right so the group sits in the middle.
+    private static let groupPadding = MapPadding(top: 80, left: 80, bottom: 40, right: 80)
 
     private static let uuidKey = "uuid"
     /// A point's ``DiveSiteMark`` raw value, and on a cluster the highest of its points'.
