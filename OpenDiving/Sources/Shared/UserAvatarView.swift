@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 /// The diver's picture in a circle `side` across, or their initials where there is none — a
-/// person where the name gives fewer than two letters — drawn over nothing of its own, so the
-/// host lays the circle on its own ground.
+/// person where there is no name to take them from — drawn over nothing of its own, so the host
+/// lays the circle on its own ground.
 struct UserAvatarView: View {
   let initials: String?
   let picture: Data?
@@ -43,6 +43,7 @@ struct UserAvatarView: View {
 #Preview {
   HStack(spacing: 16) {
     UserAvatarView(initials: "TD", picture: nil, side: 44)
+    UserAvatarView(initials: "A", picture: nil, side: 44)
     UserAvatarView(initials: nil, picture: nil, side: 44)
     UserAvatarView(initials: "TD", picture: nil, side: 56)
   }

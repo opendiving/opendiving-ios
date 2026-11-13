@@ -116,10 +116,10 @@ struct ProfileSummaryTests {
       hero(try Self.stats(["first_dive_on": NSNull(), "last_dive_on": NSNull()])).facts == [])
   }
 
-  /// `getUserInitials`, and the person `UserAvatar` draws under two letters.
+  /// A one-word name is one letter; only a name with none draws the person.
   @Test(
     arguments: [
-      ("Test Diver", "TD"), ("anne marie smith", "AM"), ("Aleksei", nil), ("", nil),
+      ("Test Diver", "TD"), ("anne marie smith", "AM"), ("Aleksei", "A"), ("", nil), ("   ", nil),
       ("  Ana  Lopez ", "AL"),
     ] as [(String, String?)])
   func initials(name: String, expected: String?) {
