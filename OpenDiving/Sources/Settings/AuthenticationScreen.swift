@@ -62,6 +62,7 @@ struct OptionalListStatus<Value: Sendable>: View {
           .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
           .buttonStyle(.borderless)
+          .accentRow()
       }
     } else if list.value == nil {
       HStack {

@@ -58,6 +58,7 @@ private struct InviteLinkSection: View {
               .foregroundStyle(.secondary)
             Button("Try again") { Task { await model.loadLink() } }
               .buttonStyle(.borderless)
+              .accentRow()
           }
         } else {
           HStack {
@@ -84,6 +85,7 @@ private struct InviteLinkSection: View {
         ) {
           Label("Share", systemImage: "square.and.arrow.up")
         }
+        .accentRow()
         changeButton(InvitationsModel.resetButton, "arrow.counterclockwise", .reset)
         changeButton(InvitationsModel.removeButton, "trash", .remove)
       } else {
@@ -96,6 +98,7 @@ private struct InviteLinkSection: View {
           } label: {
             Label(InvitationsModel.linkCreate, systemImage: "link")
           }
+          .accentRow()
           .disabled(model.isChangingLink)
           if model.isChangingLink {
             Spacer()
@@ -119,7 +122,12 @@ private struct InviteLinkSection: View {
     return Button(role: role) {
       model.confirmingLink = change
     } label: {
-      Label(title, systemImage: icon)
+      // Removing keeps the destructive role's red.
+      if change == .remove {
+        Label(title, systemImage: icon)
+      } else {
+        Label(title, systemImage: icon).accentRow()
+      }
     }
     .disabled(model.isChangingLink)
     .confirmationDialog(
@@ -161,6 +169,7 @@ private struct SendInvitationSection: View {
         } label: {
           Label(InvitationsModel.sendButton, systemImage: "paperplane")
         }
+        .accentRow()
         .disabled(model.isSending)
         if model.isSending {
           Spacer()
@@ -203,6 +212,7 @@ private struct SentInvitationsSection: View {
             .frame(maxWidth: .infinity)
         } else {
           Button(InvitationsModel.showOlder) { Task { await model.loadMore() } }
+            .accentRow()
             .frame(maxWidth: .infinity)
         }
       }

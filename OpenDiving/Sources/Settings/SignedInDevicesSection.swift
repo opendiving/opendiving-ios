@@ -33,6 +33,7 @@ struct SignedInDevicesSection: View {
               }
             }
           }
+          .accentRow()
           .disabled(model.isBusy)
           .confirmationDialog(
             SignedInDevicesModel.signOutOthersButton,

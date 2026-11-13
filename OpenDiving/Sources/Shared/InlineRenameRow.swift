@@ -27,12 +27,14 @@ struct InlineRenameRow: View {
         Button(action: save) {
           Image(systemName: "checkmark")
         }
+        .accentRow()
         .disabled(!canSave)
         .accessibilityLabel("Save the new name for \u{201C}\(original)\u{201D}")
       }
       Button(action: stop) {
         Image(systemName: "xmark")
       }
+      .accentRow()
       .disabled(isSaving)
       .accessibilityLabel("Stop renaming \u{201C}\(original)\u{201D}")
     }

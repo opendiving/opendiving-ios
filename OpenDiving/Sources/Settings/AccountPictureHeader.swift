@@ -40,7 +40,7 @@ struct AccountPictureHeader: View {
             .animation(.easeInOut(duration: 0.35), value: busy)
           Text(model.hasPicture ? "Edit photo" : "Add photo")
             .bold()
-            .foregroundStyle(Color.accentColor)
+            .accentRow()
         }
         .contentShape(Rectangle())
       }

@@ -61,6 +61,7 @@ struct PasskeysSection: View {
         } label: {
           Image(systemName: "pencil")
         }
+        .accentRow()
         .accessibilityLabel("Rename \u{201C}\(passkey.name)\u{201D}")
         Button(role: .destructive) {
           model.confirmingRemove = passkey
