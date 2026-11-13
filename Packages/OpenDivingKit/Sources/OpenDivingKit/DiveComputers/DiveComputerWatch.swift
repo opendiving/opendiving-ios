@@ -192,18 +192,17 @@ public final class DiveComputerWatch {
     case .state(let state, let detail):
       log.write("bluetooth \(detail)")
       availability = state
-      switch state {
-      case .on:
+      if state == .on {
         let restored = restoredConnected
         restoredConnected = []
         for peripheral in restored { completed(peripheral) }
         arm()
-      case .off, .refused:
-        // iOS drops every request and connection with Bluetooth.
+      } else {
+        // Off, refused or resetting, iOS drops every request and connection with Bluetooth, and
+        // the watcher the peripherals it held.
         armed = [:]
         closing = []
-      case .unknown:
-        break
+        restoredConnected = []
       }
     case .restored(let peripheral, let request):
       log.write("restored \(label(peripheral)), request \(request.rawValue)")

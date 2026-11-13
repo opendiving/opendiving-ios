@@ -238,9 +238,9 @@ connection, which rests on the Perdix surviving libdivecomputer's shutdown write
 For each paired computer with *Download automatically* on, the app holds a Core Bluetooth
 connection request, which never times out, on a central it creates at launch with a restore
 identifier, so iOS wakes or relaunches it when the computer connects. libdc-swift's central is its
-own delegate, forwards nothing and holds one device, so it cannot carry the requests. With nothing
-paired no central is made, and none while Bluetooth is undecided, so the prompt still comes at
-pairing. A completed request is asked again after 15 minutes, libdc-swift's own revisit interval for
+own delegate, forwards nothing and holds one device, so it cannot carry the requests. A central is
+made only for a computer to watch, the Dive Computers screen's scan or a request iOS restored, and
+never while Bluetooth is undecided, so the prompt still comes at pairing. A completed request is asked again after 15 minutes, libdc-swift's own revisit interval for
 a watch. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises
 none; a library change that forwards the delegate, under a pin that must stay exact.
 

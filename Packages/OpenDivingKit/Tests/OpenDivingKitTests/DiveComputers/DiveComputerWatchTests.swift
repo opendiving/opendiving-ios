@@ -127,6 +127,21 @@ final class DiveComputerWatchTests {
       ])
   }
 
+  @Test func aResetDropsWhatWasArmedOrClosingAndArmsBothAgain() {
+    records = [record(F.perdix, perdix), record(F.ocean, ocean)]
+    let watch = watch()
+    watch.launched(.byUser)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    watcher.send(.connected(ocean))
+    _ = watcher.take()
+    watcher.send(.state(.unknown, detail: "resetting"))
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(
+      Set(watcher.take()) == [
+        .arm(perdix, after: 0), .arm(ocean, after: DiveComputerWatch.revisitDelay),
+      ])
+  }
+
   @Test func aFailedRequestIsArmedAgainAfterTheRevisitDelay() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
