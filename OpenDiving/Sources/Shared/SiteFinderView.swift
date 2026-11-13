@@ -49,7 +49,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
           .modifier(
             RidesPanel(
               drag: drag, panel: panel, pinned: map.hasMap ? nil : .full,
-              foot: geometry.size.height))
+              foot: geometry.size.height, below: geometry.safeAreaInsets.bottom))
       }
     }
     // The list is scrolled to reach what the keyboard covers, which dismisses it.
@@ -140,7 +140,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       }
       .padding(.horizontal, 12)
       .padding(.bottom, 12)
-      .modifier(RidesPanel(drag: drag, panel: panel, fades: true))
+      .modifier(
+        RidesPanel(drag: drag, panel: panel, below: geometry.safeAreaInsets.bottom, fades: true))
     }
   }
 
@@ -526,17 +527,20 @@ private struct RidesPanel: ViewModifier {
   /// The detent a panel that does not move stands at.
   var pinned: SiteFinderPanel.Detent?
   var foot = 0.0
+  /// The safe area under the panel, which the island floats into.
+  let below: Double
   /// Fades out above the half the panel opens to, as the controls over the map do.
   var fades = false
 
   func body(content: Content) -> some View {
     let height = pinned.map { panel.height($0) } ?? drag.height(in: panel)
     let opacity = fades ? panel.controlsOpacity(shown: height) : 1
+    let drop = PanelIsland.drop(below: below, share: panel.islandShare(shown: height))
     content
       // Moves as one: each view's position would otherwise animate on its own, and one put in
       // while the panel slides — a site's tags as its read lands — would stand still at the end.
       .geometryGroup()
-      .offset(y: foot - height)
+      .offset(y: foot - height + drop)
       .opacity(opacity)
       .allowsHitTesting(opacity > 0)
       .accessibilityHidden(opacity == 0)
@@ -556,7 +560,13 @@ private struct PanelIsland: ViewModifier {
   let below: Double
 
   /// What the island stands clear of the screen's sides and its foot by.
-  private static let margin = 20.0
+  static let margin = 20.0
+
+  /// How far the panel, and what rides on it, moves down from its laid-out place as an island
+  /// `share` of the way: into the home indicator's inset, or up off a screen's foot that has none.
+  static func drop(below: Double, share: Double) -> Double {
+    (below - margin) * share
+  }
 
   private static var sheetRadius: Double {
     if #available(iOS 26, *) { 26 } else { 12 }
@@ -581,8 +591,6 @@ private struct PanelIsland: ViewModifier {
           .shadow(color: .black.opacity(0.15 + 0.05 * share), radius: 8, y: -2 + 4 * share)
       }
       .padding(.horizontal, Self.margin * share)
-      // Down into the home indicator's inset, never up into the controls riding on the panel.
-      .offset(y: max(0, below - Self.margin) * share)
   }
 }
 
