@@ -7,8 +7,8 @@ public struct SiteFinderPanel: Hashable, Sendable {
     case collapsed, half, full
   }
 
-  /// The search box and the handle over it.
-  public static let collapsedHeight = 77.0
+  /// The search box, 44 tall, with 16 around it, the handle standing in the 16 over it.
+  public static let collapsedHeight = 76.0
   /// The strip of map the panel at its tallest leaves under the top bar.
   public static let topClearance = 8.0
 
@@ -64,6 +64,15 @@ public struct SiteFinderPanel: Hashable, Sendable {
     let share = abs(left) < 1 ? 0 : velocity / left
     let limit = Self.maxReleaseVelocity
     return Release(detent: target, velocity: min(limit, max(-limit, share)))
+  }
+
+  /// How far above its lowest the panel turns from an island into a sheet.
+  public static let islandSpan = 60.0
+
+  /// How much of an island the panel is when `shown` points tall: wholly one at its lowest, where
+  /// it floats clear of the screen's edges, rounded all round, and a sheet ``islandSpan`` above it.
+  public func islandShare(shown: Double) -> Double {
+    min(1, max(0, 1 - (shown - height(.collapsed)) / Self.islandSpan))
   }
 
   /// How far above the half the panel opens to the controls riding on its edge fade out over.
