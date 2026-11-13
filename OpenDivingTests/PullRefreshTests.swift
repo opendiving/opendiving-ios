@@ -26,7 +26,6 @@ struct PullRefreshTests {
     try await pull(CourseListView())
     try await pull(PeopleListView())
     try await pull(ContactListView())
-    try await pull(YourDiveSitesView())
   }
 
   @Test func aPullOnAPageReadsItThrough() async throws {

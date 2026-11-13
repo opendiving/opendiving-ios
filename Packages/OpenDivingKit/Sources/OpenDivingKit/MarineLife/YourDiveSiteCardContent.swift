@@ -1,9 +1,9 @@
 import Foundation
 
-/// One card of More's *Your dive sites*, as a trip's card on its list: a map of the site's pin,
-/// its name, where it is, in what water, how deep, how high and how divers get in, and what the
-/// diver's dives there add up to; then whether a proposal on it waits, and for a Commons record
-/// its mark and the credit its source asks for. No distance: the list sends no camera.
+/// One of the diver's sites on a species' page, as a trip's card on its list: a map of the site's
+/// pin, its name, where it is, in what water, how deep, how high and how divers get in, and what
+/// the diver's dives there add up to; then whether a proposal on it waits, and for a Commons
+/// record its mark and the credit its source asks for. No distance: the page sends no camera.
 public struct YourDiveSiteCardContent: Hashable, Sendable, Identifiable {
   public let id: String
   /// The site the card opens on the map.

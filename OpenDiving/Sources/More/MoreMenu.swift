@@ -2,17 +2,12 @@ import OpenDivingKit
 import SwiftUI
 
 /// The profile's *More*: the rest of the logbook, a row each in the web's navigation order less
-/// what the other tabs hold, ruled off where the web's menu rules them, then the import and,
-/// where the instance takes them, the diver's proposals for OpenDiving Commons. Each row pushes
-/// its own screen, and the menu reads nothing of its own.
+/// what the other tabs and the sites map hold, ruled off where the web's menu rules them, then the
+/// import. Each row pushes its own screen, and the menu reads nothing of its own.
 struct MoreMenu: View {
-  let isCommonsPrimary: Bool
-
   var body: some View {
     VStack(spacing: 16) {
-      ForEach(
-        Array(MoreRow.sections(isCommonsPrimary: isCommonsPrimary).enumerated()), id: \.offset
-      ) { _, rows in
+      ForEach(Array(MoreRow.sections.enumerated()), id: \.offset) { _, rows in
         VStack(spacing: 0) {
           ForEach(Array(rows.enumerated()), id: \.element) { index, row in
             if index > 0 {
@@ -34,22 +29,18 @@ struct MoreMenu: View {
 
 /// One of the menu's rows.
 enum MoreRow: Hashable, CaseIterable {
-  case diveSites, marineLife, gear, certifications, courses, people, contacts, imports, proposals
+  case marineLife, gear, certifications, courses, people, contacts, imports
 
-  /// The rows in their groups: the web's first rule falls before Gear, and the import and the
-  /// proposals follow, ruled off. The proposals' routes answer only on an instance that edits
-  /// the Commons.
-  static func sections(isCommonsPrimary: Bool) -> [[MoreRow]] {
-    [
-      [.diveSites, .marineLife],
-      [.gear, .certifications, .courses, .people, .contacts],
-      isCommonsPrimary ? [.imports, .proposals] : [.imports],
-    ]
-  }
+  /// The rows in their groups: the web's first rule falls before Gear, and the import follows,
+  /// ruled off.
+  static let sections: [[MoreRow]] = [
+    [.marineLife],
+    [.gear, .certifications, .courses, .people, .contacts],
+    [.imports],
+  ]
 
   var title: String {
     switch self {
-    case .diveSites: "Dive Sites"
     case .marineLife: "Marine Life"
     case .gear: "Gear"
     case .certifications: "Certifications"
@@ -57,14 +48,11 @@ enum MoreRow: Hashable, CaseIterable {
     case .people: "People"
     case .contacts: "Contacts"
     case .imports: "Import"
-    case .proposals: YourProposalsView.title
     }
   }
 
-  /// The row's symbol; nil for the proposals, which draw the Commons' own mark.
-  var icon: OpenDivingKit.Icon? {
+  var icon: OpenDivingKit.Icon {
     switch self {
-    case .diveSites: .diveSite
     case .marineLife: .fish
     case .gear: .backpack
     case .certifications: .badgeCheck
@@ -72,13 +60,11 @@ enum MoreRow: Hashable, CaseIterable {
     case .people: .users
     case .contacts: .bookUser
     case .imports: .upload
-    case .proposals: nil
     }
   }
 
   @ViewBuilder var destination: some View {
     switch self {
-    case .diveSites: YourDiveSitesView()
     case .marineLife: MarineLifeListView()
     case .gear: GearListView()
     case .certifications: CertificationListView()
@@ -86,7 +72,6 @@ enum MoreRow: Hashable, CaseIterable {
     case .people: PeopleListView()
     case .contacts: ContactListView()
     case .imports: ImportView()
-    case .proposals: YourProposalsView()
     }
   }
 }
@@ -96,15 +81,9 @@ private struct MoreRowLabel: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Group {
-        if let icon = row.icon {
-          Image(icon)
-            .foregroundStyle(.secondary)
-        } else {
-          CommonsMark(side: 18, relativeTo: .body)
-        }
-      }
-      .frame(width: 24)
+      Image(row.icon)
+        .foregroundStyle(.secondary)
+        .frame(width: 24)
       .accessibilityHidden(true)
       Text(row.title)
       Spacer()
@@ -122,7 +101,7 @@ private struct MoreRowLabel: View {
 #Preview {
   NavigationStack {
     ScrollView {
-      MoreMenu(isCommonsPrimary: true)
+      MoreMenu()
         .padding()
     }
   }

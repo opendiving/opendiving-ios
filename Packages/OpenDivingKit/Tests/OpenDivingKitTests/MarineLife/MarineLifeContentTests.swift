@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// More's *Marine Life* card, a species' page and a *Your dive sites* row say what the web's
+/// More's *Marine Life* card, a species' page and one of its dive sites say what the web's
 /// say, field for field.
 struct MarineLifeContentTests {
   private func species(_ edit: (inout [String: Any]) -> Void = { _ in }) throws -> SpeciesRead {

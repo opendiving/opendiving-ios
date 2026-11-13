@@ -8,7 +8,7 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// The life list, a species' page and *Your dive sites* ask what the web asks, keep what they
+/// The life list and a species' page ask what the web asks, keep what they
 /// showed, and with no route ask nothing until one appears.
 @MainActor
 struct MarineLifeReadsTests {
@@ -50,18 +50,6 @@ struct MarineLifeReadsTests {
     #expect(Self.value("items_per_page", in: sent) == "24")
   }
 
-  @Test func yourDiveSitesAsksForTheAccountsSitesWithNoViewAndNoCamera() async throws {
-    let (world, queries) = try world()
-    try await world.load()
-    let list = PagedList.yourDiveSites(world.session)
-    await list.load()
-    #expect(!list.items.isEmpty)
-    let sent = try #require(queries["GET dive-sites/search"])
-    #expect(Self.value("my", in: sent) == "true")
-    let names = Set(sent.map(\.name))
-    #expect(names.isDisjoint(with: ["q", "latitude", "longitude", "south", "north", "sort"]))
-  }
-
   @Test func aListShownBeforeShowsOfflineAndReadsAgainWhenARouteAppears() async throws {
     let (first, _) = try world()
     try await first.load()
@@ -88,10 +76,10 @@ struct MarineLifeReadsTests {
     let (world, _) = try world(connectivity: RouteSwitch())
     try await world.load()
     let mark = world.server.mark
-    let list = PagedList.yourDiveSites(world.session)
+    let list = PagedList.lifeList(world.session)
     await list.rereadIfStale()
     #expect(list.phase == .failed(.noRoute))
-    #expect(world.server.count("GET dive-sites/search", since: mark) == 0)
+    #expect(world.server.count("GET user/species", since: mark) == 0)
   }
 
   @Test func aSpeciesPageReadsTheSpeciesItsHistoryItsDivesAndTheirSites() async throws {
