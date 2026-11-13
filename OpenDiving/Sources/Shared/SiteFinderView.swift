@@ -105,12 +105,16 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
   private func mapArea(
     _ style: MapStyleModel.Shown, geometry: GeometryProxy, panel: SiteFinderPanel
   ) -> some View {
+    let below = geometry.safeAreaInsets.bottom
+    let resting = panel.height(mapDetent)
+    // How far the panel rises above the home indicator's inset, less what an island drops into it.
+    let rise =
+      resting - PanelIsland.drop(below: below, share: panel.islandShare(shown: resting))
     let covered = UIEdgeInsets(
-      top: geometry.safeAreaInsets.top, left: 0,
-      bottom: geometry.safeAreaInsets.bottom + panel.height(mapDetent), right: 0)
+      top: geometry.safeAreaInsets.top, left: 0, bottom: below + rise, right: 0)
     let shown = (
       width: Double(geometry.size.width),
-      height: max(0, geometry.size.height - panel.height(mapDetent))
+      height: max(0, geometry.size.height - rise)
     )
     return ZStack(alignment: .bottom) {
       SiteFinderMap(
