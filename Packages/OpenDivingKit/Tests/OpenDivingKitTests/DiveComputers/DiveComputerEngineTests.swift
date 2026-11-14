@@ -415,6 +415,26 @@ struct DiveComputerEngineTests {
     #expect(downloads(session).archives().isEmpty)
   }
 
+  @Test func heldDivesThatNeverReachedTheDiskLeaveTheFingerprintWhereItWas() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
+    // A file where the walks' folder goes: nothing a walk keeps can be written.
+    let walks = downloads(session).root.appendingPathComponent("Walks")
+    try FileManager.default.createDirectory(
+      at: walks.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data().write(to: walks)
+    let engine = engine(session)
+    watcher.send(.connected(F.oceanFound.id))
+    await engine.settled()
+
+    #expect(engine.held.isEmpty)
+    #expect(
+      computers(session).record(family: .suuntoNautic, serial: F.ocean.serial)?.fingerprint
+        == nil)
+  }
+
   @Test func theDivesUnderADayOldGoOnWithTheWatchsZoneAndTheOlderWait() async throws {
     let session = try await session()
     route.isRouteAvailable = false

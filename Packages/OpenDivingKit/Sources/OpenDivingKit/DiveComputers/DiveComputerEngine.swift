@@ -497,13 +497,17 @@ public final class DiveComputerEngine {
       walk.watched || needsZone.isEmpty
       ? nil : hold(kept, keeping: Set(needsZone.map(\.fingerprint)), in: downloads)
     if heldWalk == nil, archived { downloads.remove(walk: kept.id) }
+    // Dives held for a zone are kept only where every one of them reached the disk: the
+    // fingerprint passes none the phone holds nowhere.
+    let heldAll =
+      walk.watched || needsZone.isEmpty || heldWalk?.dives.count == needsZone.count
 
     let refused = dives.count(where: { $0.dive == nil })
     let parsed = dives.count - refused
     if archived {
       var saved = remembered(
         record, identity: identity, computer: walk.computer, sports: sports, marked: marked)
-      if advances, let newest {
+      if advances, heldAll, let newest {
         saved.fingerprint = newest
         saved.lastDownloaded = now()
         downloads.clearDelivered(saved.id)
