@@ -78,9 +78,6 @@ public enum DiveComputerText {
   public static let firmwareLabel = "Firmware version"
   public static let lastDownloadedLabel = "Last downloaded"
 
-  /// *About Shearwater Perdix 3*: what the button that opens it says to VoiceOver.
-  public static func about(_ title: String) -> String { "About \(title)" }
-
   // MARK: - Waiting
 
   /// Asked before a download waiting to be imported is removed from the phone.

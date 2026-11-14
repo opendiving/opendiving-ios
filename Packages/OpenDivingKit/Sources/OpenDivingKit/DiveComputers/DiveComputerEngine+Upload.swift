@@ -64,6 +64,7 @@ extension DiveComputerEngine {
     }
     guard session.accountLoaded, let user = session.user else { return }
     settleMarks()
+    await settleOrderQuestions(origin: origin, account: user.uuid)
     let downloads = DownloadStore(store: session.store, origin: origin, account: user.uuid)
     defer { reload() }
     for archive in sendable(downloads, origin) {

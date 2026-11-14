@@ -583,7 +583,8 @@ public final class DiveComputerEngine {
   /// Saves the record of the computer just identified, so it is paired while the walk runs.
   /// A computer paired beside exactly one other the account knows, on the phone or on the
   /// server, awaits *Which computer comes first?*: its dives' default is set by the order as it
-  /// stands when they are written, so they wait for the answer.
+  /// stands when they are written, so they wait for the answer. Where the phone knows none and
+  /// the order is unread, the server may know the one: it waits until a read settles it.
   private func pair(
     _ identity: DiveComputerIdentity, computer: FoundComputer, store: DiveComputerStore,
     marked: Bool
@@ -591,7 +592,8 @@ public final class DiveComputerEngine {
     let record = store.record(family: identity.family, serial: identity.serial)
     var saved = remembered(
       record, identity: identity, computer: computer, sports: nil, marked: marked)
-    if record == nil, otherComputers(than: identity.serial, store: store).count == 1 {
+    let others = otherComputers(than: identity.serial, store: store).count
+    if record == nil, others == 1 || (others == 0 && order == nil && !orderRouteMissing) {
       saved.awaitsOrder = true
     }
     try? store.save(saved)

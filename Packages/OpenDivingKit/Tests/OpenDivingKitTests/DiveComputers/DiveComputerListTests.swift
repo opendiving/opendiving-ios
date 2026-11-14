@@ -147,6 +147,65 @@ struct DiveComputerListTests {
     #expect(server.atOnce.isEmpty)
   }
 
+  @Test func pairedWithNoRouteBesideAComputerOnlyTheServerKnowsTheDivesWait() async throws {
+    let session = try await session()
+    server.keepComputers([ocean])
+    route.isRouteAvailable = false
+    let (engine, model) = model(session)
+    try await pairPerdix(model)
+    #expect(model.orderQuestion == nil)
+
+    // The first upload with a route reads the order before anything goes.
+    route.isRouteAvailable = true
+    engine.upload()
+    await engine.settled()
+    #expect(server.atOnce.isEmpty)
+    await model.appeared()
+    #expect(model.orderQuestion?.other == "Suunto Ocean")
+    await model.answerOrder(newFirst: false)
+    await model.settled()
+    #expect(server.orders == [["253810000400", "D9772626"]])
+    #expect(server.atOnce.count == 1)
+  }
+
+  @Test func aFirstComputerPairedWithNoRouteGoesUpOnceTheOrderIsRead() async throws {
+    let session = try await session()
+    server.keepComputers([])
+    route.isRouteAvailable = false
+    let (engine, model) = model(session)
+    try await pairPerdix(model)
+
+    route.isRouteAvailable = true
+    engine.upload()
+    await engine.settled()
+    #expect(server.orders.isEmpty)
+    #expect(server.atOnce.count == 1)
+    #expect(computers(session).records().allSatisfy { !$0.awaitsOrder })
+  }
+
+  @Test func anAnswerReadsAnOrderNotReadYetAndSendsItWhole() async throws {
+    let session = try await session()
+    try computers(session).save(DiveComputerRecord(identity: F.ocean))
+    route.isRouteAvailable = false
+    let (_, model) = model(session)
+    try await pairPerdix(model)
+    #expect(model.orderQuestion?.other == "Suunto Ocean")
+
+    // Meanwhile the server learnt a third computer: the question no longer stands.
+    server.keepComputers([
+      ocean,
+      DiveComputerRead(serial: "A1B2", brand: "Shearwater", model: "Teric", name: nil, position: 1),
+    ])
+    route.isRouteAvailable = true
+    await model.answerOrder(newFirst: true)
+    await model.settled()
+    #expect(server.orders.isEmpty)
+    #expect(model.orderQuestion == nil)
+    // Released from the question, the dives go up.
+    await until { server.atOnce.count == 1 }
+    #expect(server.atOnce.count == 1)
+  }
+
   @Test func aServerWithNoOrderTakesTheAnswerAsSent() async throws {
     let session = try await session()
     try computers(session).save(DiveComputerRecord(identity: F.ocean))

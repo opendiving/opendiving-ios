@@ -324,9 +324,10 @@ only one pending import per account ever needed.
 
 The recording a dive shows by default is chosen when the dive is written, from the account's order
 as it then stands, and a new computer's first download takes every dive it holds. So a computer
-paired while exactly one other is known, on the phone or in `GET /dive-computers`, is marked on its
-progress, and its archives are neither sent nor announced, nor a wake left, until *Which computer
-comes first?* is answered; a server with no order route takes the answer as sent. With more known
+paired while exactly one other is known, on the phone or in `GET /dive-computers` — or none on the
+phone with the order unread, until a read says — is marked on its progress, and its archives are
+neither sent nor announced, nor a wake left, until *Which computer comes first?* is answered; a
+server with no order route takes the answer as sent. With more known
 the new one goes last unasked, and the list moves it. Rejected: asking after the download, when the
 answer can no longer reach the dives it was asked for.
 

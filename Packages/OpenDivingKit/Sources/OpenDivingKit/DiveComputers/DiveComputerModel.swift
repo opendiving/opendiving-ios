@@ -349,6 +349,8 @@ public final class DiveComputerModel {
     rebuildRows()
     await engine.readOrder()
     rebuildRows()
+    // The read may settle what a computer waited for.
+    engine.upload()
     notificationsAsked = await engine.notifier?.hasAsked()
   }
 
@@ -393,14 +395,20 @@ public final class DiveComputerModel {
   /// The answer to *Which computer comes first?*: sent as the order, and then the new
   /// computer's dives go up. Unsent, the question stands.
   public func answerOrder(newFirst: Bool) async {
-    guard let question = orderQuestion, !answeringOrder else { return }
+    guard orderQuestion != nil, !answeringOrder else { return }
     answeringOrder = true
+    defer { answeringOrder = false }
+    // The two serials are the whole order only once the order is read: sent unread, they
+    // would replace one nobody has seen.
+    if engine.order == nil, !engine.orderRouteMissing { await engine.readOrder() }
+    guard engine.order != nil || engine.orderRouteMissing else { return }
+    rebuildRows()
+    guard let question = orderQuestion else { return }
     let serials =
       newFirst
       ? [question.record.serial, question.otherSerial]
       : [question.otherSerial, question.record.serial]
     await engine.answerOrder(serials, for: question.record)
-    answeringOrder = false
     rebuildRows()
   }
 

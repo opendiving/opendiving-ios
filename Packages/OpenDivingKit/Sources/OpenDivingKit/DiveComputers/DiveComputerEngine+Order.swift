@@ -52,6 +52,21 @@ extension DiveComputerEngine {
     return true
   }
 
+  /// Before an upload: a computer that awaits the question while the order is unread has it
+  /// read, and one that no longer stands beside exactly one other no longer waits — with none
+  /// there is nothing to order, and with several it goes last, where the list moves it.
+  func settleOrderQuestions(origin: ServerOrigin, account: UUID) async {
+    let store = DiveComputerStore(store: session.store, origin: origin, account: account)
+    guard store.records().contains(where: \.awaitsOrder) else { return }
+    if order == nil, !orderRouteMissing { await readOrder() }
+    guard order != nil || orderRouteMissing else { return }
+    for var record in store.records() where record.awaitsOrder {
+      guard otherComputers(than: record.serial, store: store).count != 1 else { continue }
+      record.awaitsOrder = false
+      try? store.save(record)
+    }
+  }
+
   /// The records of `account` whose dives wait for the order's question.
   func awaitingOrder(origin: ServerOrigin, account: UUID) -> Set<String> {
     Set(
