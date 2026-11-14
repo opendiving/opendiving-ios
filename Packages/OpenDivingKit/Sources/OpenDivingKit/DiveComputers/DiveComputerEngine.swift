@@ -450,13 +450,15 @@ public final class DiveComputerEngine {
       guard walk.listing != nil else { return }
       try? store.save(
         remembered(
-          record, identity: identity, computer: walk.computer, sports: sports, marked: marked))
+          record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
+          in: store))
     }
     guard let identity, !dives.isEmpty else {
       downloads.remove(walk: kept.id)
       if let identity, (advances && newest != nil) || walk.listing != nil {
         var saved = remembered(
-          record, identity: identity, computer: walk.computer, sports: sports, marked: marked)
+          record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
+          in: store)
         if advances, let newest {
           saved.fingerprint = newest
           downloads.clearDelivered(saved.id)
@@ -516,7 +518,8 @@ public final class DiveComputerEngine {
     let parsed = dives.count - refused
     if archived {
       var saved = remembered(
-        record, identity: identity, computer: walk.computer, sports: sports, marked: marked)
+        record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
+        in: store)
       if advances, heldAll, let newest {
         saved.fingerprint = newest
         saved.lastDownloaded = now()
@@ -591,7 +594,7 @@ public final class DiveComputerEngine {
   ) {
     let record = store.record(family: identity.family, serial: identity.serial)
     var saved = remembered(
-      record, identity: identity, computer: computer, sports: nil, marked: marked)
+      record, identity: identity, computer: computer, sports: nil, marked: marked, in: store)
     let others = otherComputers(than: identity.serial, store: store).count
     if record == nil, others == 1 || (others == 0 && order == nil && !orderRouteMissing) {
       saved.awaitsOrder = true
@@ -629,11 +632,18 @@ public final class DiveComputerEngine {
 
   /// The record as this walk leaves it, before the fingerprint moves: the identity as the
   /// computer gave it, where the phone saw it, the entries' sports.
+  ///
+  /// What the diver sets while the walk runs — *Download automatically*, the order's answer —
+  /// is read from the store as it stands, so the walk's save does not undo it.
   private func remembered(
     _ record: DiveComputerRecord?, identity: DiveComputerIdentity, computer: FoundComputer,
-    sports: [NauticEntrySport]?, marked: Bool
+    sports: [NauticEntrySport]?, marked: Bool, in store: DiveComputerStore
   ) -> DiveComputerRecord {
     var kept = record ?? DiveComputerRecord(identity: identity)
+    if let current = store.record(family: identity.family, serial: identity.serial) {
+      kept.downloadsAutomatically = current.downloadsAutomatically
+      kept.awaitsOrder = current.awaitsOrder
+    }
     kept.vendor = identity.vendor
     kept.product = identity.product
     kept.firmware = identity.firmware ?? kept.firmware

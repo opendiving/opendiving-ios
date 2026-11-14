@@ -206,6 +206,35 @@ struct DiveComputerListTests {
     #expect(server.atOnce.count == 1)
   }
 
+  @Test func whatTheDiverSetsDuringTheTimeZoneQuestionOutlivesTheWalk() async throws {
+    let session = try await session()
+    server.keepComputers([])
+    try computers(session).save(DiveComputerRecord(identity: F.perdix))
+    let (_, model) = model(session)
+    await model.appeared()
+    link.found = [F.oceanFound]
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
+    model.pair()
+    await model.watch()
+    await until { !model.unpairedRows.isEmpty }
+    model.connect(try #require(model.unpairedRows.first))
+    await until { model.phase == .askingTimeZone }
+    let ocean = try #require(model.orderQuestion?.record)
+    #expect(ocean.title == "Suunto Ocean")
+
+    await model.answerOrder(newFirst: false)
+    model.setDownloadsAutomatically(false, for: ocean)
+    model.answerTimeZone(try #require(TimeZone(identifier: "Asia/Tokyo")))
+    await model.settled()
+
+    let saved = try #require(computers(session).record(family: .suuntoNautic, serial: ocean.serial))
+    #expect(!saved.awaitsOrder)
+    #expect(!saved.downloadsAutomatically)
+    #expect(server.orders == [["D9772626", "253810000400"]])
+    #expect(server.atOnce.count == 1)
+    #expect(model.orderQuestion == nil)
+  }
+
   @Test func aServerWithNoOrderTakesTheAnswerAsSent() async throws {
     let session = try await session()
     try computers(session).save(DiveComputerRecord(identity: F.ocean))
