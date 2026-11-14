@@ -28,7 +28,7 @@ struct CreditText: View {
 #Preview {
   CreditText(
     credit: PhotoCreditContent(runs: [
-      .init("Photo by Jane Doe"), .init(" · "),
+      .init("Photo by Jane Doe"), .init("\n"),
       .init("CC BY-SA 4.0", url: URL(string: "https://creativecommons.org/licenses/by-sa/4.0")),
     ])
   )

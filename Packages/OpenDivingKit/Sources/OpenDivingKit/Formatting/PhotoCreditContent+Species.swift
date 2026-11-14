@@ -11,14 +11,18 @@ extension PhotoCreditContent {
     let source = present(species.photoSourceUrl)
     guard author != nil || license != nil || source != nil else { return nil }
 
-    var runs = [Run("Photo" + (author.map { " by \($0)" } ?? ""))]
+    // The author's line stands alone; the licence and the source share the line under it.
+    var terms: [Run] = []
     if let license {
-      runs += [
-        Run(" · "), Run(license, url: present(species.photoLicenseUrl).flatMap { URL(string: $0) }),
-      ]
+      terms.append(
+        Run(license, url: present(species.photoLicenseUrl).flatMap { URL(string: $0) }))
     }
     if let source {
-      runs += [Run(" · "), Run("Wikimedia Commons", url: URL(string: source))]
+      terms.append(Run("Wikimedia Commons", url: URL(string: source)))
+    }
+    var runs = [Run("Photo" + (author.map { " by \($0)" } ?? ""))]
+    for (index, term) in terms.enumerated() {
+      runs += [Run(index == 0 ? "\n" : " · "), term]
     }
     return PhotoCreditContent(runs: runs)
   }
