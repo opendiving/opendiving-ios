@@ -235,10 +235,11 @@ public final class InboxModel {
     // Uploading from here on, the read first: the diver's *Upload* waits for it.
     phase = .uploading
     workTask = Task {
-      await readAndSettle(store, client)
+      let read = await readAndSettle(store, client)
       phase = .idle
       workTask = nil
-      guard pending == nil, canUpload else { return }
+      // Unread, a pending import may still be there: the files wait for the next occasion.
+      guard read, pending == nil, canUpload else { return }
       upload()
     }
   }
@@ -329,31 +330,34 @@ public final class InboxModel {
     readTask = nil
   }
 
-  private func readAndSettle(_ store: InboxStore, _ client: APIClient) async {
+  /// Whether the pending import was read, whatever settling the recorded imports met after.
+  @discardableResult
+  private func readAndSettle(_ store: InboxStore, _ client: APIClient) async -> Bool {
     let held: LogbookImportRead?
     do {
       held = try await client.pendingImport()
     } catch APIError.http(404, _) {
       held = nil
     } catch {
-      return
+      return false
     }
-    guard !Task.isCancelled else { return }
+    guard !Task.isCancelled else { return false }
     pending = held
     var recorded = Set(store.load().files.compactMap(\.uploadedInto))
     if let held { recorded.remove(held.uuid) }
     for uuid in recorded {
       do {
         let found = try await client.logbookImport(uuid)
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return true }
         if found.isApplied { seenApplied(found, store) }
       } catch APIError.http(404, _) {
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return true }
         returnToWaiting(uuid, store)
       } catch {
-        return
+        return true
       }
     }
+    return true
   }
 
   /// An applied import's files leave the inbox, whichever device applied it, another copy of a

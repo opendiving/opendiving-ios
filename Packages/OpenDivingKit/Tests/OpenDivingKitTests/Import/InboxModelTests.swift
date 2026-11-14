@@ -109,6 +109,21 @@ struct InboxModelTests {
     #expect(server.uploads == [["a.fit"]])
   }
 
+  @Test func aPendingReadThatFailsSendsNothingAndTheNextOccasionTriesAgain() async throws {
+    let server = try ImportServer()
+    server.beforePendingRead { throw URLError(.notConnectedToInternet) }
+    let model = try await loaded(server)
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(server.uploads.isEmpty)
+    #expect(model.files.map(model.stage(of:)) == [.waiting])
+
+    server.beforePendingRead {}
+    model.uploadArrivals()
+    await model.settled()
+    #expect(server.uploads == [["a.fit"]])
+  }
+
   @Test func aFileThatCouldNotGoWaitsForTheTap() async throws {
     let server = try ImportServer()
     server.answerUploads { _ in .json(#"{"detail":"Too many imports."}"#, status: 429) }
