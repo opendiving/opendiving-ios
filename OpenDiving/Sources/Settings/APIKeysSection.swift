@@ -27,6 +27,7 @@ struct APIKeysSection: View {
             Label(APIKeysModel.createButton, systemImage: "plus")
           }
           .accentRow()
+          .needsServer()
         }
       } header: {
         Text("API keys")

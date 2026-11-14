@@ -2,10 +2,11 @@ import Foundation
 
 /// What one account's server answered and the phone has shown, kept under `Cache/` in the
 /// account's directory so it shows at once, and offline: the lists' pages, the dives, sites,
-/// trips and More's records opened, the species photos and card images drawn, the dive drafts, the pickers'
-/// lookups, the highest dive number seen, the profile's figures, places and picture, and what
-/// Settings' storage, tags and invitations showed. Nothing is fetched to fill it. A file this build cannot
-/// read is dropped and fetched again.
+/// trips and More's records opened, the species photos and card images drawn, the dive drafts,
+/// the pickers' lookups, the highest dive number seen, the profile's figures, places and
+/// picture, and what Settings' storage, tags, invitations, passkeys, signed-in devices and API
+/// keys showed. Nothing is fetched to fill it. A file this build cannot read is dropped and
+/// fetched again.
 public struct AccountCache: Sendable {
   /// A cached value and when the server answered it.
   public struct Entry<Value: Codable & Sendable>: Codable, Sendable {
@@ -499,8 +500,10 @@ struct KeptInviteLink: Codable, Hashable, Sendable {
 
 /// The settings reads the cache keeps, each one file.
 public enum KeptSetting: String, Sendable {
-  case storage, tags, invitations
+  case storage, tags, invitations, passkeys
   case inviteLink = "invite-link"
+  case signedInDevices = "signed-in-devices"
+  case apiKeys = "api-keys"
 }
 
 /// The pickers' tables the lookups cache keeps.

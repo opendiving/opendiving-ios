@@ -3,7 +3,8 @@ import Observation
 
 /// *Authentication*'s API keys, for a diver's own tools: each listed with what it may do and
 /// when it was made, last used and expires, created from a form with the web's fields and
-/// defaults, and revoked after a confirmation. Direct calls, online only.
+/// defaults, and revoked after a confirmation. Direct calls, online only; the list is kept for
+/// the next visit, its rows alone.
 ///
 /// A key is made as the web makes one, with the permissions picked from the server's own list.
 /// A legacy *Read only* or *Read and write* key is still listed and revoked here, and no longer
@@ -55,7 +56,7 @@ public final class APIKeysModel {
   public init(session: Session, now: Date = Date()) {
     self.session = session
     self.now = now
-    list = OptionalList(session: session) { try await $0.apiKeys() }
+    list = OptionalList(session: session, kept: .apiKeys) { try await $0.apiKeys() }
     permissions = OptionalList(session: session) { try await $0.apiKeyPermissions() }
   }
 

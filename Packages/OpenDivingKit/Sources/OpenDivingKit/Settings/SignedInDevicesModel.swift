@@ -4,7 +4,7 @@ import Observation
 /// *Authentication*'s signed-in devices: this phone's session first, marked and with no
 /// control — ending it is what *Sign out* does — then every other in the server's
 /// most-recently-used order, each signed out after a confirmation, and all of them at once.
-/// Direct calls, online only.
+/// Direct calls, online only; the list is kept for the next visit.
 @MainActor
 @Observable
 public final class SignedInDevicesModel {
@@ -23,7 +23,7 @@ public final class SignedInDevicesModel {
 
   public init(session: Session) {
     self.session = session
-    list = OptionalList(session: session) { try await $0.userSessions() }
+    list = OptionalList(session: session, kept: .signedInDevices) { try await $0.userSessions() }
   }
 
   /// This phone's session first; the rest keep the server's order.

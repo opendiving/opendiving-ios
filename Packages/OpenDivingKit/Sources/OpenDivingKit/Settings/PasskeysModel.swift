@@ -4,7 +4,7 @@ import Observation
 /// *Authentication*'s passkeys: each listed with whether it is synced and when it was added and
 /// last used, renamed in its row and removed after a confirmation. The phone cannot create a
 /// passkey, so there is no add, and with none on the account the block is left out. Direct
-/// calls, online only.
+/// calls, online only; the list is kept for the next visit.
 @MainActor
 @Observable
 public final class PasskeysModel {
@@ -23,7 +23,7 @@ public final class PasskeysModel {
 
   public init(session: Session) {
     self.session = session
-    list = OptionalList(session: session) { try await $0.passkeys() }
+    list = OptionalList(session: session, kept: .passkeys) { try await $0.passkeys() }
   }
 
   /// False while the server has no passkeys, or the account has none.

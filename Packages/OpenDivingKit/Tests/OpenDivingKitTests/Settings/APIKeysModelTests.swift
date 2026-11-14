@@ -233,4 +233,28 @@ struct APIKeysModelTests {
         == "\u{201C}laptop\u{201D} stops working on its very next request, and can't be brought"
         + " back - whatever uses it will need a new key.")
   }
+
+  @Test func theRowsAreKeptAndShownOfflineAtTheNextVisitUnderWhenTheyWereRead() async throws {
+    let harness = try await CredentialsHarness()
+    let first = await model(harness)
+    #expect(first.list.lastUpdated == nil)
+    first.name = "tide sync"
+    await first.create()
+
+    harness.connectivity.isRouteAvailable = false
+    let model = APIKeysModel(session: harness.session)
+    await model.list.load()
+    #expect(
+      model.list.value?.map(\.name) == [
+        "laptop", "backup script", "logbook assistant", "tide sync",
+      ])
+    #expect(model.list.lastUpdated != nil)
+    // The row is kept; its secret, shown once, is not.
+    #expect(model.list.value?.allSatisfy { model.secret(for: $0) == nil } == true)
+
+    harness.connectivity.isRouteAvailable = true
+    harness.server.fail("GET user/api-keys", with: .json(#"{"detail":"Not Found"}"#, status: 404))
+    await model.list.load()
+    #expect(APIKeysModel(session: harness.session).list.value == nil)
+  }
 }

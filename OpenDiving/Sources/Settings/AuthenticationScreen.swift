@@ -48,7 +48,8 @@ private struct AuthenticationList: View {
   }
 }
 
-/// A block's list while it is not there to show: loading, or why it could not be read.
+/// A block's list while it is not there to show — loading, or why it could not be read — and
+/// when it is the phone's copy, when that was fetched.
 struct OptionalListStatus<Value: Sendable>: View {
   let list: OptionalList<Value>
   /// The web's sentence for a list that could not be read.
@@ -56,6 +57,9 @@ struct OptionalListStatus<Value: Sendable>: View {
   let loading: String
 
   var body: some View {
+    if let lastUpdated = list.lastUpdated {
+      LastUpdatedLine(date: lastUpdated)
+    }
     if let failure = list.failure, list.value == nil {
       VStack(alignment: .leading, spacing: 8) {
         Text(failed + " " + failure)

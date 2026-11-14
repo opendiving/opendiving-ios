@@ -103,4 +103,27 @@ struct PasskeysModelTests {
     #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("DELETE") })
     #expect(model.list.value?.count == 2)
   }
+
+  @Test func theListIsKeptAndShownOfflineAtTheNextVisitUnderWhenItWasRead() async throws {
+    let harness = try await CredentialsHarness()
+    let first = PasskeysModel(session: harness.session)
+    await first.list.load()
+    #expect(first.list.lastUpdated == nil)
+    first.rename.begin(iPhone, name: "iPhone")
+    first.rename.draft = "Work phone"
+    await first.saveRename()
+
+    harness.connectivity.isRouteAvailable = false
+    let model = PasskeysModel(session: harness.session)
+    #expect(model.list.value?.map(\.name) == ["Work phone", "YubiKey"])
+    await model.list.load()
+    #expect(model.list.value?.map(\.name) == ["Work phone", "YubiKey"])
+    #expect(model.list.lastUpdated != nil)
+    #expect(model.isShown)
+
+    harness.connectivity.isRouteAvailable = true
+    harness.server.fail("GET user/passkeys", with: .json(#"{"detail":"Not Found"}"#, status: 404))
+    await model.list.load()
+    #expect(PasskeysModel(session: harness.session).list.value == nil)
+  }
 }
