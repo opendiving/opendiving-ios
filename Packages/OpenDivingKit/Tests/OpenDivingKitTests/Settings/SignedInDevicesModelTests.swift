@@ -80,4 +80,24 @@ struct SignedInDevicesModelTests {
     #expect(model.outcome == nil)
     #expect(model.rows.count == 3)
   }
+
+  @Test func theListIsKeptAndShownOfflineAtTheNextVisitUnderWhenItWasRead() async throws {
+    let harness = try await CredentialsHarness()
+    let first = SignedInDevicesModel(session: harness.session)
+    await first.list.load()
+    #expect(first.list.lastUpdated == nil)
+
+    harness.connectivity.isRouteAvailable = false
+    let model = SignedInDevicesModel(session: harness.session)
+    #expect(model.rows.first?.uuid == phone)
+    await model.list.load()
+    #expect(model.rows.count == 3)
+    #expect(model.rows.first?.current == true)
+    #expect(model.list.lastUpdated != nil)
+
+    harness.connectivity.isRouteAvailable = true
+    harness.server.fail("GET user/sessions", with: .json(#"{"detail":"Not Found"}"#, status: 404))
+    await model.list.load()
+    #expect(SignedInDevicesModel(session: harness.session).list.value == nil)
+  }
 }
