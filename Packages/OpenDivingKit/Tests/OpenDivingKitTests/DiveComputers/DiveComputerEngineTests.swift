@@ -485,6 +485,16 @@ struct DiveComputerEngineTests {
     #expect(loads == 0)
   }
 
+  @Test func aServerThatDoesNotAnswerOverARouteLeavesNoWake() async throws {
+    let session = try await session()
+    server.answerAtOnce { _ in throw URLError(.cannotConnectToHost) }
+    let engine = try await walked(session)
+    #expect(engine.archives.count == 1)
+    #expect(engine.archives.first?.refusal == nil)
+    #expect(notifier.posted.isEmpty)
+    #expect(wake.left.isEmpty)
+  }
+
   @Test func withNothingWaitingNoWakeIsLeft() async throws {
     let session = try await session()
     route.isRouteAvailable = false

@@ -561,7 +561,7 @@ public final class DiveComputerEngine {
     guard !held.dives.isEmpty, (try? downloads.save(held)) != nil else { return nil }
     let folder = downloads.folder(of: walk.id)
     for dive in walk.dives where !held.dives.contains(dive) {
-      try? FileManager.default.removeItem(at: folder.appendingPathComponent(dive.file))
+      dive.remove(from: folder)
     }
     return held
   }

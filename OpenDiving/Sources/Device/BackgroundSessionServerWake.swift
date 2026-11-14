@@ -46,6 +46,9 @@ extension BackgroundSessionServerWake: URLSessionDownloadDelegate {
   nonisolated func urlSession(
     _ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?
   ) {
+    // Only an answer says the server is there; a failure waits for the next occasion rather than
+    // waking the app into the same failure.
+    guard error == nil else { return }
     MainActor.assumeIsolated {
       let previous = waking
       waking = Task { [onWake] in

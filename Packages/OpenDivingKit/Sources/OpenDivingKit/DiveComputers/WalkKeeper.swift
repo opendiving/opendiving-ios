@@ -17,17 +17,17 @@ final class WalkKeeper: Sendable {
     self.walk = Mutex(walk)
   }
 
-  /// Writes the dive's bytes, then the record naming them. A dive that cannot be written is not
+  /// Writes the dive's files, then the record naming them. A dive that cannot be written is not
   /// kept, as an archive that cannot be written is not.
   func keep(_ dive: DownloadedDive) {
     walk.withLock { walk in
-      let file = "\(walk.dives.count).bin"
+      let kept = KeptDive(dive, file: "\(walk.dives.count).bin")
       let folder = store.folder(of: walk.id)
       do {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try dive.bytes.write(to: folder.appendingPathComponent(file), options: .atomic)
+        try kept.write(dive, into: folder)
         var next = walk
-        next.dives.append(KeptDive(dive, file: file))
+        next.dives.append(kept)
         try store.save(next)
         walk = next
       } catch {}

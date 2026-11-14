@@ -127,9 +127,13 @@ extension DiveComputerEngine {
   }
 
   /// No route: each archive not yet announced says its dives wait, and, where any waits, iOS is
-  /// left the request that wakes the app once there is one.
+  /// left the request that wakes the app once there is one. With a route the server itself did
+  /// not answer, which is neither *No internet* nor anything a wake would mend: the next
+  /// occasion tries again.
   private func waitForRoute(_ downloads: DownloadStore, _ origin: ServerOrigin) {
-    guard downloads.archives().contains(where: { $0.refusal == nil }) else { return }
+    guard !session.connectivity.isRouteAvailable,
+      downloads.archives().contains(where: { $0.refusal == nil })
+    else { return }
     announce(downloads) { archive, computer in
       .noInternet(dives: archive.summary.dives, from: computer, id: archive.id)
     }
