@@ -274,6 +274,7 @@ struct SiteFinderMap: UIViewRepresentable {
     /// small for it waited for, the camera then in the middle of what shows.
     func laidOut(_ map: MLNMapView) {
       guard !map.bounds.isEmpty else { return }
+      grip(map)
       var covered: UIEdgeInsets?
       if let pending = pendingCover, map.bounds.inset(by: pending).height > 0 {
         covered = pending
@@ -301,15 +302,16 @@ struct SiteFinderMap: UIViewRepresentable {
     /// is still on its way there, which a pinch would stop short of it.
     /// Nor does it zoom out past where MapLibre would move the camera off it to keep the world
     /// over the map — a floor set once the glide lands, since raising it above the zoom the map
-    /// is at jumps there and stops the glide where it started.
+    /// is at jumps there and stops the glide where it started. No map zooms out past the world's
+    /// height, which follows the map's own.
     func grip(_ map: MLNMapView) {
       map.isScrollEnabled = !holdsMiddle
       map.isZoomEnabled = !(holdsMiddle && isGliding)
       map.anchorRotateOrZoomGesturesToCenterCoordinate = holdsMiddle
-      var furthest = MapCamera.minZoom
+      let height = Double(map.bounds.height)
+      var furthest = MapCamera.furthestZoom(height: height)
       if holdsMiddle, !isGliding, let camera {
-        furthest = MapCamera.zoomHolding(
-          latitude: camera.latitude, height: Double(map.bounds.height))
+        furthest = max(furthest, MapCamera.zoomHolding(latitude: camera.latitude, height: height))
       }
       if map.minimumZoomLevel != furthest { map.minimumZoomLevel = furthest }
     }
@@ -607,16 +609,6 @@ struct SiteFinderMap: UIViewRepresentable {
       let elapsed = min(1, (link.timestamp - start) / duration)
       if elapsed >= 1 { invalidate() }
       step(1 - pow(1 - elapsed, 3))
-    }
-  }
-
-  /// A map that says when it is laid out, the first time being when it has a size to cover.
-  final class LaidOutMapView: MLNMapView {
-    var onLayout: (() -> Void)?
-
-    override func layoutSubviews() {
-      super.layoutSubviews()
-      onLayout?()
     }
   }
 
