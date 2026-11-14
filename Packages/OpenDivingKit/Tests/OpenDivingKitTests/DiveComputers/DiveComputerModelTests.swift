@@ -324,7 +324,70 @@ struct DiveComputerModelTests {
     #expect(
       model.outcome?.sentence
         == "The dive computer did not answer. Wake it and turn on its Bluetooth, then connect"
-        + " again.")
+        + " again. If you forgot it in the Settings app's Bluetooth list, start a new pairing"
+        + " from the dive computer's own Bluetooth menu first.")
+  }
+
+  /// A Perdix 3 forgotten in the Settings app advertises under a new identifier, and the old one
+  /// reaches nothing.
+  private static let perdixRepaired = FoundComputer(
+    id: UUID(uuidString: "81ca6ae8-0bde-2b4b-64e4-36a550ab47c6")!, name: "Perdix 3",
+    family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", modelNumber: 14)
+
+  @Test func aScanListsOnlyWhatItFinds() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let model = model(session, InboxModel(session: session), link)
+    _ = try await scanned(model)
+
+    link.found = [F.oceanFound]
+    model.stopScanning()
+    model.startScanning()
+    #expect(model.rows.isEmpty)
+    await until { !model.rows.isEmpty }
+    #expect(model.rows.map(\.computer) == [F.oceanFound])
+  }
+
+  @Test func comingBackToTheForegroundStartsTheScanOver() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let model = model(session, InboxModel(session: session), link)
+    _ = try await scanned(model)
+
+    link.found = [Self.perdixRepaired]
+    model.appBecameActive()
+    await until { model.rows.first?.computer == Self.perdixRepaired }
+    #expect(model.phase == .scanning)
+    #expect(model.rows.map(\.computer) == [Self.perdixRepaired])
+  }
+
+  @Test func comingBackToTheForegroundKeepsAnOutcome() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [[.finished(.init(.unreachable))]]
+    let model = model(session, InboxModel(session: session), link)
+    model.connect(try await scanned(model))
+    await model.settled()
+
+    model.appBecameActive()
+    #expect(model.phase == .finished)
+    #expect(model.outcome?.kind == .failed)
+  }
+
+  @Test func aSerialSeenUnderAnotherIdentifierReplacesItsRow() async throws {
+    let session = try await session(try ImportServer())
+    let moved = FoundComputer(
+      id: UUID(), name: F.oceanFound.name, family: .suuntoNautic, vendor: "Suunto",
+      product: "Ocean", modelNumber: 1)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound, F.perdixFound, moved]
+    let model = model(session, InboxModel(session: session), link)
+    _ = try await scanned(model)
+    await until { model.rows.count == 2 && model.rows.first?.computer == moved }
+    #expect(model.rows.map(\.computer) == [moved, F.perdixFound])
   }
 
   @Test func instantsWithNoZoneAskAfterTheWalkOutsideTheBackgroundAssertion() async throws {
