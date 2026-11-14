@@ -1,9 +1,9 @@
 import Foundation
 
-/// Reads a zip's central directory, and the bytes of a stored member: enough to tell whether a
-/// waiting zip is a full-export archive, and to take a download archive's members into a union.
-/// A compressed member is listed but not read, since the only archives read whole are the ones
-/// ``ZipWriter`` wrote.
+@testable import OpenDivingKit
+
+/// Reads a zip's central directory, and the bytes of a stored member: enough for a test to read
+/// back an archive ``ZipWriter`` wrote. A compressed member is listed but not read.
 struct ZipReader {
   struct Entry: Hashable, Sendable {
     let name: String
@@ -55,12 +55,6 @@ struct ZipReader {
       at += 46 + nameLength + extraLength + commentLength
     }
     self.entries = entries
-  }
-
-  /// Whether `url` is a zip holding `logbook.divejson` at its root: a full-export archive, of
-  /// which one import restores one.
-  static func isFullExport(_ url: URL) -> Bool {
-    ((try? ZipReader(url))?.entries ?? []).contains { $0.name == "logbook.divejson" }
   }
 
   /// A stored member's bytes, checked against its CRC-32.

@@ -9,7 +9,6 @@ struct ImportFileRow: View {
 
   @Environment(InboxModel.self) private var inbox
 
-
   var body: some View {
     let members = inbox.members(of: file)
     HStack(alignment: .top, spacing: 12) {
@@ -17,8 +16,8 @@ struct ImportFileRow: View {
         Text(file.filename)
           .font(.subheadline.weight(.medium))
         Text(DiveDetailText.fileSize(file.byteSize))
-        .font(.caption)
-        .foregroundStyle(.secondary)
+          .font(.caption)
+          .foregroundStyle(.secondary)
         if let own = members.own {
           let status = ImportText.memberStatus(own)
           StatusLine(text: status.text, refused: status.refused)
@@ -38,10 +37,10 @@ struct ImportFileRow: View {
       Spacer(minLength: 0)
       if file.uploadedInto == nil {
         Button("Remove \(file.filename)", systemImage: "trash") { inbox.remove(file) }
-        .labelStyle(.iconOnly)
-        .dangerRow()
-        .buttonStyle(.borderless)
-        .disabled(inbox.phase != .idle)
+          .labelStyle(.iconOnly)
+          .dangerRow()
+          .buttonStyle(.borderless)
+          .disabled(inbox.phase != .idle)
       }
     }
   }

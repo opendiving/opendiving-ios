@@ -147,9 +147,9 @@ struct NauticLogbookTests {
     #expect(NauticSelection.fingerprint(0x6AE5_5893) == Data([0x93, 0x58, 0xE5, 0x6A]))
   }
 
-  /// A new entry whose dive already waits in the import screen is walked, not downloaded, and
+  /// A new entry whose dive is one the phone need not take again is walked, not downloaded, and
   /// not counted new; a run stays a run whatever the test says.
-  @Test func anEntryWaitingInTheImportScreenIsWalkedButNotCountedNew() {
+  @Test func anEntryThePhoneNeedNotTakeAgainIsWalkedButNotCountedNew() {
     let waits: Set<UInt32> = [ids[0], run, ids[6]]
     let selection = NauticSelection(
       ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: nil,

@@ -48,6 +48,8 @@ public final class DiveComputerWalk: Identifiable {
   public let watched: Bool
   /// *Download all dives*: no fingerprint is set.
   public let all: Bool
+  /// The paired record a connection started it for; nil for the diver's.
+  let record: String?
 
   public internal(set) var phase = Phase.connecting
   /// The computer being downloaded, once it identified itself.
@@ -72,10 +74,13 @@ public final class DiveComputerWalk: Identifiable {
   /// else the phone's.
   public internal(set) var suggestedZone: TimeZone
 
-  init(computer: FoundComputer, watched: Bool, all: Bool, zone: TimeZone) {
+  init(
+    computer: FoundComputer, watched: Bool, all: Bool, record: String? = nil, zone: TimeZone
+  ) {
     self.computer = computer
     self.watched = watched
     self.all = all
+    self.record = record
     suggestedZone = zone
   }
 

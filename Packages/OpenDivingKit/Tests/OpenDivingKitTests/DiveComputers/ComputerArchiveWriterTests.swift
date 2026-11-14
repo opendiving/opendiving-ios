@@ -77,7 +77,9 @@ struct ComputerArchiveWriterTests {
     #expect(
       written.dives
         == F.perdixDownload.compactMap { dive in
-          dive.dive.map { _ in DiveComputerArchive.diveUUID(dive.identity, fingerprint: dive.fingerprint) }
+          dive.dive.map { _ in
+            DiveComputerArchive.diveUUID(dive.identity, fingerprint: dive.fingerprint)
+          }
         })
 
     let reader = try ZipReader(written.url)

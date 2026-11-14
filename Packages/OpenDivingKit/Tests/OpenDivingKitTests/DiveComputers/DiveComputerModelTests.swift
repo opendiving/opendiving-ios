@@ -75,7 +75,7 @@ struct DiveComputerModelTests {
     DiveComputerStore(store: session.store, origin: ImportServer.origin, account: account)
   }
 
-  @Test func aCompletedDownloadIsOneArchiveInTheInboxAndAdvancesTheRecord() async throws {
+  @Test func aCompletedDownloadIsOneArchiveOnThePhoneAndAdvancesTheRecord() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
@@ -386,7 +386,9 @@ struct DiveComputerModelTests {
     #expect(older.suggestedZone == dubai)
     older.answerTimeZone(tokyo)
     await older.settled()
-    #expect(try startedAt(session, try #require(archives(session).first)) == ["2026-10-24T19:00:00+09:00"])
+    #expect(
+      try startedAt(session, try #require(archives(session).first)) == ["2026-10-24T19:00:00+09:00"]
+    )
 
     let nextLink = FakeDiveComputerLink()
     nextLink.found = [F.oceanFound]
@@ -397,7 +399,8 @@ struct DiveComputerModelTests {
     try await download(recent)
     #expect(recent.outcome?.kind == .kept)
     #expect(
-      try startedAt(session, try #require(archives(session).first)).contains("2026-10-26T14:00:00+04:00"))
+      try startedAt(session, try #require(archives(session).first)).contains(
+        "2026-10-26T14:00:00+04:00"))
   }
 
   /// `dive` with the head a Nautic's bytes open with: the wall clock under `hours`, then the
@@ -423,7 +426,8 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(model.outcome?.kind == .kept)
     #expect(
-      try startedAt(session, try #require(archives(session).first)) == ["2026-10-26T13:00:00+03:00"])
+      try startedAt(session, try #require(archives(session).first)) == ["2026-10-26T13:00:00+03:00"]
+    )
   }
 
   @Test func theQuestionIsLeftOnlyTheDivesThatLoggedNoOffset() async throws {

@@ -79,7 +79,8 @@ struct DiveComputerEngineTests {
   }
 
   private func computers(_ session: Session) -> DiveComputerStore {
-    DiveComputerStore(store: session.store, origin: ImportServer.origin, account: ImportServer.accountA)
+    DiveComputerStore(
+      store: session.store, origin: ImportServer.origin, account: ImportServer.accountA)
   }
 
   private func downloads(_ session: Session) -> DownloadStore {
@@ -119,7 +120,8 @@ struct DiveComputerEngineTests {
     #expect(downloads(session).archives().isEmpty)
     #expect(engine.archives.isEmpty)
     #expect(downloads(session).walks().isEmpty)
-    let record = try #require(computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))
+    let record = try #require(
+      computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))
     #expect(record.fingerprint == F.fingerprint(3))
     // Answered for, the dives are remembered until the fingerprint next moves.
     #expect(downloads(session).delivered(record.id).count == 2)
@@ -193,9 +195,12 @@ struct DiveComputerEngineTests {
     #expect(link.opened.map(\.computer.id) == [F.perdixFound.id, F.oceanFound.id])
     #expect(link.opened.map(\.pairedOnly) == [true, false])
     #expect(tapped.outcome?.kind == .kept)
-    #expect(Set(downloads(session).archives().map(\.record)) == Set([F.perdix, F.ocean].map {
-      DiveComputerRecord(identity: $0).id
-    }))
+    #expect(
+      Set(downloads(session).archives().map(\.record))
+        == Set(
+          [F.perdix, F.ocean].map {
+            DiveComputerRecord(identity: $0).id
+          }))
     // The Perdix's walk did not complete, so its fingerprint stays where it was.
     #expect(
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint == nil)
@@ -404,9 +409,13 @@ struct DiveComputerEngineTests {
 
   @Test func aRefusalIsKeptWithItsSentenceAndNotSentAgainByItself() async throws {
     let session = try await session()
-    server.answerAtOnce { _ in .json(#"{"detail":"This archive is not one OpenDiving reads."}"#, status: 422) }
+    server.answerAtOnce { _ in
+      .json(#"{"detail":"This archive is not one OpenDiving reads."}"#, status: 422)
+    }
     let engine = try await walked(session)
-    #expect(engine.archives.first?.refusal == .server(message: "This archive is not one OpenDiving reads."))
+    #expect(
+      engine.archives.first?.refusal
+        == .server(message: "This archive is not one OpenDiving reads."))
     engine.upload()
     await engine.settled()
     #expect(server.atOnce.count == 1)

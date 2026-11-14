@@ -82,11 +82,12 @@ inbox. SwiftUI's `onOpenURL` is what delivers it — a document as well as a lin
 
 ## The inbox uploads on a tap alone
 
-An upload creates a pending import the server seals and that blocks every other device, so the
-app never uploads on its own: files arriving from the share sheet, the picker and a download wait
-in the inbox for *Upload*, and an account load or a route appearing sends nothing. A refusal, a
-429 and a 5xx show their sentence and the files wait. Rejected: uploading on arrival, which turns
-a second computer's download into a 409.
+An upload creates a pending import the server seals and that blocks every other device, so the app
+never uploads a file on its own: files arriving from the share sheet and the picker wait in the
+inbox for *Upload*, and an account load or a route appearing sends nothing. A refusal, a 429 and a
+5xx show their sentence and the files wait. A download never enters the inbox: it is imported at
+once, holding no pending import. Rejected: uploading a file on arrival, which turns a review open on
+another device into a 409.
 
 ## What the app starts on its own waits for a route
 
@@ -152,15 +153,15 @@ dive; showing the cache only once a fetch has failed, a minute of spinner offlin
 
 ## A computer's pairing is the phone's, its fingerprint the account's, and it moves only once the archive is kept
 
-A computer's identity is one file in `DiveComputers/` under Application Support, found by family
-and serial, never by Core Bluetooth's identifier, which iOS rotates. The fingerprint says what one
+A computer's identity is one file in `DiveComputers/` under Application Support, found by family and
+serial, never by Core Bluetooth's identifier, which iOS rotates. The fingerprint says what one
 account's logbook holds, so each account keeps its own; shared, a second server's first download
 would stop at dives it never saw. It advances only after a completed walk with no empty read, once
-the inbox has kept the archive for the account the walk began from — or, for a walk that skipped
+the walk's dives are kept on the phone for the account it began for — or, for a walk that skipped
 entries and delivered none, at its end; anything else leaves it, and the import's gates make dives
 walked again links. Progress written before the load is removed, not moved, when the load names
 another account. Rejected: libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at
-import, which needs the inbox to report back across a sign-out.
+import, which needs the upload to report back across a sign-out.
 
 ## A computer that logs instants gets its zone per download
 
@@ -168,10 +169,11 @@ libdivecomputer gives a Suunto Nautic's start as an instant and drops the offset
 bytes keep it, in the `local64` timeline base, and the watch sets its zone from GPS. A dive is
 written in that offset. A dive whose bytes give none takes the watch's current zone where it is
 under a day old, since a diver waits about that long to fly; otherwise the screen asks after the
-walk. Nothing is remembered: a kept answer would misplace the next trip's dives. Rejected: `Z`,
-which puts UTC on every dive's page; the phone's zone written silently, an offset the source never
-carried; a zone per computer in Settings; asking at every download, which stops one on the boat;
-reverse-geocoding the dive's GPS fix, which needs a network and answers a nautical band at sea.
+walk, and a walk nobody watches holds those dives until the screen asks. Nothing is remembered: a
+kept answer would misplace the next trip's dives. Rejected: `Z`, which puts UTC on every dive's
+page; the phone's zone written silently, an offset the source never carried; a zone per computer in
+Settings; asking at every download, which stops one on the boat; reverse-geocoding the dive's GPS
+fix, which needs a network and answers a nautical band at sea.
 
 ## The Ocean's logbook holds every sport, and a download skips what is not a dive
 
@@ -217,7 +219,7 @@ stream `DC_STATUS_PROTOCOL`, after which the fork drops the bytes it kept. The b
 free, so neither the busy read nor resume covers it. A summary, the descriptors or a download during
 which libdivecomputer logged an unasked-for hello reply, or that 404, is waited out ten seconds and
 tried again on the same connection, counting toward no retry or reopen, until it goes through or the
-diver cancels; the waiting line says closing other apps lets it go on. Rejected: naming the Suunto
+walk is stopped; the waiting line says closing other apps lets it go on. Rejected: naming the Suunto
 app, which the link does not show; patching the pinned fork.
 
 ## The app walks the Perdix and the Ocean itself
@@ -235,38 +237,37 @@ connection, which rests on the Perdix surviving libdivecomputer's shutdown write
 
 ## Paired computers are watched by a central of the app's own
 
-For each paired computer with *Download automatically* on, the app holds a Core Bluetooth
-connection request, which never times out, on a central it creates at launch with a restore
-identifier, so iOS wakes or relaunches it when the computer connects. libdc-swift's central is its
-own delegate, forwards nothing and holds one device, so it cannot carry the requests. A central is
-made only for a computer to watch, the Dive Computers screen's scan or a request iOS restored, and
-never while Bluetooth is undecided, so the prompt still comes at pairing. A completed request is asked again after 15 minutes, libdc-swift's own revisit interval for
-a watch. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises
+For each paired computer with *Download automatically* on, the app holds a Core Bluetooth connection
+request, which never times out, on a central it creates at launch with a restore identifier, so iOS
+wakes or relaunches it when the computer connects. libdc-swift's central is its own delegate,
+forwards nothing and holds one device, so it cannot carry the requests. A central is made only for a
+computer to watch, the Dive Computers screen's scan or a request iOS restored, and never while
+Bluetooth is undecided, so the prompt still comes at pairing. A completed request starts a walk, and
+the computer is asked again 15 minutes after it ends, libdc-swift's own revisit interval for a
+watch. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises
 none; a library change that forwards the delegate, under a pin that must stay exact.
 
 ## A request's start delay is whole seconds, and a failed request waits for an event
 
 iOS fails a connection request at once, *One or more parameters were invalid*, when its
-`CBConnectPeripheralOptionStartDelayKey` is a floating-point `NSNumber` of any value above zero,
-and accepts and honours an integer one of 1 to 86,400 seconds. Measured on iOS 26.7.2: the same
-with the app in front and behind, and whether the request is sent from a quiet moment or from
-inside a failure or disconnection callback. So `DiveComputerWatcher.arm` takes whole seconds. A
-request that fails is not asked again in its turn, since a refused request fails the same way
-again. Instead, the next launch, Bluetooth coming back on, a moved hint, a scan or a download
-from the screen arms it once. Rejected: re-arming after the revisit delay, which spins on a
-refusal, and a timer, which an app iOS has suspended never fires.
+`CBConnectPeripheralOptionStartDelayKey` is a floating-point `NSNumber` of any value above zero, and
+accepts and honours an integer one of 1 to 86,400 seconds. Measured on iOS 26.7.2: the same with the
+app in front and behind, and whether the request is sent from a quiet moment or from inside a
+failure or disconnection callback. So `DiveComputerWatcher.arm` takes whole seconds. A request that
+fails is not asked again in its turn, since a refused request fails the same way again. Instead, the
+next launch, Bluetooth coming back on, a moved hint, a scan or a walk of the computer arms it once.
+Rejected: re-arming after the revisit delay, which spins on a refusal, and a timer, which an app iOS
+has suspended never fires.
 
-## A download's dives carry derived uuids, and downloads waiting to upload are one union
+## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
-A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint,
-so a re-download is a dive the account already holds and links. One import restores one
-full-export archive, so a download arriving beside downloads of the same mark not yet uploaded
-replaces them with their union — each dive once by uuid, each unnamed member once by digest —
-in one inbox save, while the inbox is idle. An uploaded archive is never swapped out from under
-its import, and one returned to waiting waits beside a newer download, uniting being the download
-code's alone. A walk leaves out a new entry whose uuid is among the dives kept under its mark,
-uploaded or not, counting it neither new nor downloaded. Rejected: a random uuid, which leaves
-every dedupe to the recording gates; downloading a waiting dive again.
+A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a
+re-download is a dive the account already holds and links. A walk of new dives leaves out an entry
+whose uuid the phone keeps under the walk's mark, in an archive or a walk, or the server has
+answered for since the fingerprint last moved, counting it neither new nor downloaded; *Download all
+dives* leaves out only what the phone keeps. So a dive the diver deleted is, to the phone, one
+already delivered. Rejected: a random uuid, which leaves every dedupe to the recording gates;
+downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 
@@ -305,17 +306,17 @@ the reader moves, is the lossless record, and a reader release writes a member o
 takes it over. Rejected: writing them under the recording's `extensions.opendiving`, which the api
 never read and which would be an app-side mapping beside the reader's.
 
-## The import keeps a refused download, and a union never crosses a mark
+## A download is imported at once, under its own key, and kept until the server answers
 
-A download archive is the only copy of its dives until imported, and the computer's fingerprint
-has moved past them, while a pending import can be discarded anywhere or expire. So an uploaded
-file stays on the phone, recording its import, and leaves when that import is seen applied, from
-whichever device applied it; a 404 returns it to waiting. A pending 404 proves neither, so the
-recorded import is read itself. The import refuses a second full-export archive as a row, so a
-download whose own row was refused returns to waiting to go up alone; a refused shared file goes,
-another copy existing. A download unites only with downloads of its own mark, so the load settles
-a marked one as it settles any marked file. Rejected: deleting a sent file at the upload; refusing
-a shared archive while a download waits.
+Each walk keeps every dive on disk before the next transfer starts, and its dives become one
+archive, the only copy of them once the fingerprint moves. It goes up with
+`POST /imports?apply=true` under an `Idempotency-Key` kept with it, so a retry after a lost answer
+reads the first import rather than making a second. An applied answer removes it; a 410 removes it
+silently; a 409, a 429, a 5xx or no answer waits for the next occasion; any other 4xx, and a pending
+answer from a server that cannot apply in one request, keep it unsent. Only a loaded account
+uploads. With no route, iOS gets a request for the server's health, naming no account. Rejected:
+handing iOS the upload, whose token expires in 30 minutes; uniting the archives that wait, which
+only one pending import per account ever needed.
 
 ## The app's tests assert what a screen is given, not the text it draws
 

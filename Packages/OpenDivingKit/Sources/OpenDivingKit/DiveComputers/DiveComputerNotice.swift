@@ -21,8 +21,12 @@ public struct DiveComputerNotice: Hashable, Sendable {
     public init?(userInfo: [AnyHashable: Any]) {
       let uuid = (userInfo["uuid"] as? String).flatMap(UUID.init(uuidString:))
       switch userInfo["open"] as? String {
-      case "dive": guard let uuid else { return nil }; self = .dive(uuid)
-      case "import": guard let uuid else { return nil }; self = .importPage(uuid)
+      case "dive":
+        guard let uuid else { return nil }
+        self = .dive(uuid)
+      case "import":
+        guard let uuid else { return nil }
+        self = .importPage(uuid)
       case "dive-computers": self = .diveComputers
       default: return nil
       }
@@ -61,7 +65,9 @@ public struct DiveComputerNotice: Hashable, Sendable {
         ? "\(computer) also recorded your dive of \(when(added[0]) ?? "")."
         : "\(computer) also recorded \(added.count) dives already in your logbook."
       return DiveComputerNotice(
-        id: id, title: added.count == 1 ? "Recording added to 1 dive" : "Recordings added to \(added.count) dives",
+        id: id,
+        title: added.count == 1
+          ? "Recording added to 1 dive" : "Recordings added to \(added.count) dives",
         body: body, target: .importPage(answer.uuid), passive: true)
     }
     let title = new.count == 1 ? "1 new dive imported" : "\(new.count) new dives imported"
@@ -119,7 +125,9 @@ public struct DiveComputerNotice: Hashable, Sendable {
   private static func facts(_ row: LogbookImportDive, units: UnitSystem) -> String? {
     guard let when = when(row) else { return nil }
     var parts = [when]
-    if let depth = row.dive?.dive.maxDepth { parts.append(UnitFormat.depth(depth, units, decimals: 1)) }
+    if let depth = row.dive?.dive.maxDepth {
+      parts.append(UnitFormat.depth(depth, units, decimals: 1))
+    }
     if let seconds = row.dive?.dive.submergedTime, seconds > 0 {
       parts.append("\(Int((Double(seconds) / 60).rounded())) min")
     }

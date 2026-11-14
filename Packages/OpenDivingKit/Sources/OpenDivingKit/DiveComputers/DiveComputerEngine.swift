@@ -188,7 +188,7 @@ public final class DiveComputerEngine {
     }
     let walk = DiveComputerWalk(
       computer: link.computer(for: record, at: peripheral), watched: false, all: false,
-      zone: phoneZone)
+      record: record.id, zone: phoneZone)
     queue.append(Queued(walk: walk, peripheral: peripheral))
     next()
     return true
@@ -292,6 +292,11 @@ public final class DiveComputerEngine {
   // MARK: - A walk
 
   private func run(_ walk: DiveComputerWalk) async {
+    // However it ends, even before the computer answered.
+    defer {
+      let ended = walk.record ?? walk.identity.map { DiveComputerRecord(identity: $0).id }
+      if let ended { walkEnds.ended(ended, at: now()) }
+    }
     guard let (account, marked) = keeping(), let origin = session.state.origin else {
       finish(walk, .init(kind: .notKept, sentence: DiveComputerText.accountLoading))
       return
@@ -338,7 +343,8 @@ public final class DiveComputerEngine {
         if walk.watched || store.record(family: found.family, serial: found.serial) != nil {
           pair(found, computer: walk.computer, store: store, marked: marked)
         }
-        keeper.identified(record: store.record(family: found.family, serial: found.serial)?.id, zone: nil)
+        keeper.identified(
+          record: store.record(family: found.family, serial: found.serial)?.id, zone: nil)
       case .watchZone(let zone):
         watchZone = zone
         keeper.identified(record: nil, zone: zone)
@@ -407,13 +413,13 @@ public final class DiveComputerEngine {
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
     let advances = end.kind == .complete && end.emptyReads == 0
     let sports = walk.listing?.sports
-    defer { if let record { walkEnds.ended(record.id, at: now()) } }
     // Where the dives are not kept — the time-zone question cancelled, the archive not written —
     // a walk that listed still saves the record, its fingerprint unmoved.
     func rememberListed(_ identity: DiveComputerIdentity) {
       guard walk.listing != nil else { return }
       try? store.save(
-        remembered(record, identity: identity, computer: walk.computer, sports: sports, marked: marked))
+        remembered(
+          record, identity: identity, computer: walk.computer, sports: sports, marked: marked))
     }
     guard let identity, !dives.isEmpty else {
       downloads.remove(walk: kept.id)

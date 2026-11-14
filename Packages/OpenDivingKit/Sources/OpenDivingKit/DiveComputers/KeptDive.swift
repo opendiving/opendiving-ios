@@ -22,7 +22,8 @@ struct KeptDive: Codable, Hashable, Sendable {
     self.file = file
     switch dive.reading {
     case .dive(let read):
-      reading = .dive(json: String(decoding: read.json, as: UTF8.self), fallbackStart: read.fallbackStart)
+      reading = .dive(
+        json: String(decoding: read.json, as: UTF8.self), fallbackStart: read.fallbackStart)
     case .refused(let start):
       reading = .refused(start: start.map(KeptStart.init))
     }

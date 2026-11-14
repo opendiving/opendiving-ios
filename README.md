@@ -15,8 +15,10 @@ to your email, and shows your logbook: dives with their profile charts, trips an
 the units your account uses. Your dive computer's files can be shared to the app from any other
 app or picked from Files, and it imports them the way the web does, showing what each file
 becomes before anything is written. Or the app downloads them from the computer itself over
-Bluetooth: it is built for the Shearwater Perdix 3 and the Suunto Ocean, whose support is
-experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited
+Bluetooth: once a computer is paired, its new dives are downloaded each time it connects, even
+with the phone locked, imported into your logbook without a review, and announced by a
+notification the phone makes. It is built for the Shearwater Perdix 3 and the Suunto Ocean, whose
+support is experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited
 on the phone, on the web's own form; a dive begun on the phone is a draft the web can finish, and
 a gear set opens as a checklist to tick at the water's edge. The profile's *More* holds the rest
 of the logbook: your marine life to browse, and gear, certifications, courses, people and contacts
@@ -51,9 +53,10 @@ DiveJSON exactly as the server reads the same original. It
 talks to the [opendiving-api](https://github.com/opendiving/opendiving-api) REST API
 with the same passwordless sign-in as the web app, by email code.
 
-It needs a server released after v0.6.0 that has dive drafts: the app asks at sign-in for a
-session that lasts while the phone is offline, which an older server refuses, and keeps a dive
-begun on the phone as a draft on the server, which one without drafts cannot hold.
+It needs a server released after v0.7.0, one that applies an import in one request: the app asks
+at sign-in for a session that lasts while the phone is offline, which an older server refuses,
+keeps a dive begun on the phone as a draft on the server, and imports a download from a dive
+computer without a review, which a server from v0.7.0 or before holds for one instead.
 
 ## Related repositories
 
