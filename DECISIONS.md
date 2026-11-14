@@ -246,7 +246,7 @@ forwards nothing and holds one device, so it cannot carry the requests. A centra
 computer to watch or the Dive Computers screen's scan, and never while
 Bluetooth is undecided, so the prompt still comes at pairing. A completed request starts a walk, and
 the computer is asked again 15 minutes after it ends, libdc-swift's own revisit interval for a
-watch. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises
+watch, or sooner after one that broke off. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises
 none; a library change that forwards the delegate, under a pin that must stay exact.
 
 ## A request's start delay is whole seconds, and a failed request waits for an event
@@ -260,6 +260,17 @@ fails is not asked again in its turn, since a refused request fails the same way
 next launch, Bluetooth coming back on, a moved hint, a scan or a walk of the computer arms it once.
 Rejected: re-arming after the revisit delay, which spins on a refusal, and a timer, which an app iOS
 has suspended never fires.
+
+## A walk that breaks off is tried again after a minute, doubling to the revisit delay
+
+An automatic walk whose link ends unreachable or failed, or that never opened its computer, lets
+the next one start after 1 minute, and each such end in a row doubles the wait up to 15 minutes; any
+other end restores the 15 minutes. One figure, read from the walk ends on disk, sets the delay the
+request is armed with, the engine's refusal of a connection too soon, and the close of a refused
+one, so a later process honours it. A download also waits up to 10 seconds for libdc-swift's
+central to report powered on: made with the link at a process's first walk, it refuses a connection
+until then. Rejected: 15 minutes after every walk, which makes a computer switched off mid-download
+cost a quarter of an hour; an immediate retry, which spins on a computer still off.
 
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 

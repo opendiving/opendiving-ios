@@ -10,7 +10,8 @@ import Foundation
 ///
 /// **A request that completes starts a walk** (``onConnected``), the watch yielding the computer
 /// to it until it ends; one no walk takes is closed. Either way the next request to it is asked
-/// after ``revisitDelay``, measured from the connection, or from the walk's end.
+/// after the computer's wait (``revisitWait``), measured from the connection, or from the walk's
+/// end: ``revisitDelay``, or less after a walk that broke off.
 ///
 /// **A request that fails is not asked again in its own turn**, since iOS fails some at once and
 /// would fail the same request again: the computer is left unarmed until the next launch,
@@ -29,7 +30,19 @@ public final class DiveComputerWatch {
   /// After a computer connected, how many seconds until the next request to it may complete:
   /// about four looks an hour at a computer that stays connectable. libdc-swift's own revisit
   /// interval for a watch it does not stay connected to.
-  public static let revisitDelay = 15 * 60
+  public nonisolated static let revisitDelay = 15 * 60
+
+  /// The wait after an automatic walk that broke off: a computer switched off mid-download is
+  /// tried again a minute later, not a quarter of an hour.
+  public nonisolated static let firstRetry = 60
+
+  /// Seconds until a computer's next walk after `breakOffs` automatic walks in a row ended in
+  /// failure: ``revisitDelay`` after none, ``firstRetry`` after one, doubling with each further
+  /// one up to ``revisitDelay``.
+  public nonisolated static func revisitWait(afterBreakOffs breakOffs: Int) -> Int {
+    guard breakOffs > 0 else { return revisitDelay }
+    return min(revisitDelay, firstRetry << min(breakOffs - 1, 8))
+  }
 
   private let log: DiveComputerWatchLog
   private let pairings: () -> [DiveComputerRecord]
@@ -62,6 +75,9 @@ public final class DiveComputerWatch {
   private var advertised: Set<DiveComputerAdvertisement> = []
   /// A paired computer connected: whether a walk takes the connection. Set by the engine.
   var onConnected: ((UUID, DiveComputerRecord) -> Bool)?
+  /// Seconds after a visit until the next request to a record's computer may complete. Set by the
+  /// engine, which keeps each computer's walk ends; ``revisitDelay`` without one.
+  var revisitWait: ((String) -> Int)?
 
   /// `pairings` reads the phone's paired computers; `makeWatcher` makes the watcher, or nil while
   /// the app may not use Bluetooth.
@@ -101,8 +117,11 @@ public final class DiveComputerWatch {
     refresh()
   }
 
-  /// The walk ended, whatever its outcome: the request is armed again after the revisit delay.
-  public func downloadEnded(_ peripheral: UUID) {
+  /// The walk ended — as the link reports it, or nil where it left before opening the computer:
+  /// the request is armed again after the computer's wait.
+  public func downloadEnded(_ peripheral: UUID, _ end: DiveComputerDownloadEnd.Kind?) {
+    log.write(
+      "walk ended \(label(peripheral)): " + (end.map { "\($0)" } ?? "before opening the computer"))
     yielded.remove(peripheral)
     failed.remove(peripheral)
     reload()
@@ -179,8 +198,12 @@ public final class DiveComputerWatch {
   /// Rounded up, so that no request completes before the revisit delay has passed.
   private func remaining(_ id: String) -> Int {
     guard let visit = visited[id] else { return 0 }
-    let left = Double(Self.revisitDelay) - now().timeIntervalSince(visit)
+    let left = Double(wait(id)) - now().timeIntervalSince(visit)
     return max(0, Int(left.rounded(.up)))
+  }
+
+  private func wait(_ id: String) -> Int {
+    revisitWait?(id) ?? Self.revisitDelay
   }
 
   private func visit(_ peripheral: UUID) {
@@ -248,7 +271,7 @@ public final class DiveComputerWatch {
   }
 
   /// A connection starts a walk where the engine takes it, the request withdrawn until the walk
-  /// ends; otherwise it is closed at once and the request asked again after the revisit delay,
+  /// ends; otherwise it is closed at once and the request asked again after the computer's wait,
   /// from its disconnection.
   private func completed(_ peripheral: UUID) {
     guard !closing.contains(peripheral), !yielded.contains(peripheral) else { return }
@@ -263,7 +286,8 @@ public final class DiveComputerWatch {
     }
     closing.insert(peripheral)
     visit(peripheral)
-    log.write("closing \(label(peripheral)), the next request after \(Self.revisitDelay) s")
+    let next = recordByPeripheral[peripheral].map(wait) ?? Self.revisitDelay
+    log.write("closing \(label(peripheral)), the next request after \(next) s")
     watcher?.disarm(peripheral)
   }
 

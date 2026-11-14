@@ -27,9 +27,10 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     Self.routeLibraryLog()
   }
 
-  /// Opens the computer, walks it, and closes it, logging each step to a log started afresh.
+  /// Opens the computer, walks it, and closes it, logging each step to a log started afresh, and
+  /// how long the walk waited for Bluetooth where it did.
   func download(
-    _ computer: FoundComputer, pairedOnly: Bool, cancel: CancelFlag,
+    _ computer: FoundComputer, pairedOnly: Bool, cancel: CancelFlag, waitedForBluetooth: Int?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     keep: @escaping @Sendable (DownloadedDive) -> Void,
@@ -39,6 +40,7 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     defer { events.finish() }
     log.start()
     log.write("download \(computer.name)")
+    if let waitedForBluetooth { log.write("bluetooth waited \(waitedForBluetooth) ms") }
     let (status, opened) = open(computer)
     guard let device = opened else {
       clearPackageDefaults()

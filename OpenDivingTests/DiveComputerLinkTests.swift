@@ -32,6 +32,22 @@ struct DiveComputerLinkTests {
     #expect(seen == [.unknown, .on, .off, .refused])
   }
 
+  @Test func aDownloadWaitsForTheCentralToBePoweredOn() async {
+    let link = link()
+    let waiting = Task { await link.bluetoothReady(within: .seconds(5)) }
+    await Task.yield()
+    link.receive(.poweredOn, authorization: .allowedAlways)
+    let waited = await waiting.value
+    #expect((waited ?? 0) < 5000)
+    // Once on, nothing waits.
+    #expect(await link.bluetoothReady(within: .seconds(5)) == nil)
+  }
+
+  @Test func aCentralThatStaysOffIsWaitedForNoLongerThanTheLimit() async {
+    let waited = await link().bluetoothReady(within: .milliseconds(50))
+    #expect(waited.map { $0 >= 50 && $0 < 5000 } == true)
+  }
+
   @Test func aRefusedAuthorizationIsRefusedWhateverTheState() {
     #expect(LibDCDiveComputerLink.availability(.poweredOn, .denied) == .refused)
     #expect(LibDCDiveComputerLink.availability(.poweredOn, .restricted) == .refused)

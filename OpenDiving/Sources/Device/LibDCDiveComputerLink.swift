@@ -19,6 +19,10 @@ final class LibDCDiveComputerLink: DiveComputerLink {
   /// one started in the meantime.
   private var scans = 0
 
+  /// How long a download waits for libdc-swift's central to be powered on before opening anyway:
+  /// as long as the open itself waits for the link.
+  static let bluetoothWait = Duration.seconds(10)
+
   /// The device's: libdc-swift's manager and the standard defaults it writes to.
   convenience init() {
     self.init(manager: .sharedManager, defaults: .standard)
@@ -128,12 +132,35 @@ final class LibDCDiveComputerLink: DiveComputerLink {
     let cancel = CancelFlag()
     self.cancel = cancel
     let session = session
-    session.queue.async {
-      session.download(
-        computer, pairedOnly: pairedOnly, cancel: cancel, lookup: lookup, waiting: waiting,
-        keep: keep, into: continuation)
+    let waits = manager != nil
+    Task {
+      let waited = waits ? await bluetoothReady(within: Self.bluetoothWait) : nil
+      session.queue.async {
+        session.download(
+          computer, pairedOnly: pairedOnly, cancel: cancel, waitedForBluetooth: waited,
+          lookup: lookup, waiting: waiting, keep: keep, into: continuation)
+      }
     }
     return stream
+  }
+
+  /// libdc-swift's central refuses a connection at once until it reports powered on, and is made
+  /// with the link, by the first walk of a process — a walk that a launch starts would otherwise
+  /// end before its computer could open. Waits for it up to `limit`: the milliseconds waited, nil
+  /// where it was on already.
+  func bluetoothReady(within limit: Duration) async -> Int? {
+    guard current != .on else { return nil }
+    let began = ContinuousClock.now
+    let states = availability()
+    await withTaskGroup(of: Void.self) { group in
+      group.addTask {
+        for await state in states where state == .on { return }
+      }
+      group.addTask { try? await Task.sleep(for: limit) }
+      await group.next()
+      group.cancelAll()
+    }
+    return Int(((ContinuousClock.now - began) / .milliseconds(1)).rounded())
   }
 
   func cancelDownload() {
