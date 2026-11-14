@@ -2,9 +2,9 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The *Dive Computers* screen: the phone's paired computers, the others found nearby, and a
-/// download from the one the diver picks, which ends on its outcome while its dives are imported
-/// and announced as any walk's are. Reached from the profile's dive-computer button and from a
+/// The *Dive Computers* screen: the phone's paired computers, the search for one to pair, and a
+/// download the diver starts, which ends on its outcome while its dives are imported and
+/// announced as any walk's are. Reached from the profile's dive-computer button and from a
 /// download's notification.
 struct DiveComputerView: View {
   @Environment(DiveComputerDownloads.self) private var downloads
@@ -20,8 +20,10 @@ struct DiveComputerView: View {
   }
 }
 
-/// The screen over the app's download model, which a preview or a test gives a fake link.
-/// Leaving it mid-download leaves the download running.
+/// The screen over the app's download model, which a preview or a test gives a fake link:
+/// the paired computers in the account's order, each with its line, *Which computer comes
+/// first?* while a computer just paired waits for it, *Allow notifications*, the download the
+/// diver started, and *Pair a dive computer*. Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
   @State private var showing: DiveComputerRecord?
@@ -31,8 +33,19 @@ struct DiveComputerScreen: View {
 
   var body: some View {
     List {
-      if model.phase == .idle || model.phase == .scanning || model.phase == .finished {
-        paired
+      if let question = model.orderQuestion {
+        OrderQuestionSection(model: model, question: question)
+      }
+      paired
+      if model.offersNotifications {
+        Section {
+          Button(DiveComputerText.allowNotifications) {
+            Task { await model.allowNotifications() }
+          }
+          .accentRow()
+        } footer: {
+          Text(DiveComputerText.notificationsSentence)
+        }
       }
       if let blocker = model.blocker {
         Section {
@@ -47,21 +60,27 @@ struct DiveComputerScreen: View {
           }
         }
       }
-      phase
+      DiveComputerWalkSections(model: model)
       if model.phase == .idle || model.phase == .scanning || model.phase == .finished {
-        found
+        pairing
       }
     }
     .navigationTitle(DiveComputerText.screenTitle)
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      if model.canReorder {
+        ToolbarItem(placement: .primaryAction) { EditButton() }
+      }
+    }
     .task(id: ObjectIdentifier(model)) { await model.watch() }
+    .task(id: ObjectIdentifier(model)) { await model.appeared() }
     .onAppear { downloads.screenAppeared() }
     .onDisappear { downloads.screenDisappeared() }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.appBecameActive() }
     }
     .navigationDestination(item: $showing) { record in
-      DiveComputerPage(record: record) {
+      DiveComputerPage(model: model, record: record) {
         model.forget(record)
         showing = nil
       }
@@ -71,18 +90,87 @@ struct DiveComputerScreen: View {
     }
   }
 
-  @ViewBuilder private var phase: some View {
-    switch model.phase {
-    case .idle, .scanning:
+  /// Each paired computer with its line, opening its page; reordered in edit mode where the
+  /// account's order can be set.
+  @ViewBuilder private var paired: some View {
+    if !model.paired.isEmpty {
+      Section {
+        ForEach(model.paired) { paired in
+          Button {
+            showing = paired.record
+          } label: {
+            HStack {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(paired.title).foregroundStyle(.primary)
+                Text(model.status(paired.record)).font(.caption).foregroundStyle(.secondary)
+              }
+              Spacer(minLength: 0)
+              Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(PairedRowButtonStyle())
+        }
+        .onMove(
+          perform: model.canReorder
+            ? { source, destination in model.move(from: Array(source), to: destination) } : nil)
+      } header: {
+        Text(DiveComputerText.pairedHeading)
+      } footer: {
+        if model.paired.count > 1 {
+          Text(DiveComputerText.orderFooter)
+        }
+      }
+    }
+  }
+
+  /// *Pair a dive computer*, then the search it starts and the computers it finds.
+  @ViewBuilder private var pairing: some View {
+    if model.searching {
       Section {
         Text(DiveComputerText.scanningInstruction)
           .foregroundStyle(.secondary)
+        ForEach(model.unpairedRows) { row in
+          Button {
+            model.connect(row)
+          } label: {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(row.title)
+                .foregroundStyle(model.blocker == nil ? .primary : .secondary)
+              if let subtitle = row.subtitle {
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+              }
+            }
+          }
+          .disabled(model.blocker != nil)
+        }
       } header: {
         HStack(spacing: 8) {
           Text(DiveComputerText.scanningHeading)
           if model.phase == .scanning { BubbleSpinner() }
         }
       }
+    } else {
+      Section {
+        Button(DiveComputerText.pair) { model.pair() }
+          .accentRow()
+      }
+    }
+  }
+}
+
+/// The download the diver started, as it stands: connecting, downloading, the time-zone
+/// question, then its outcome. The list and the computer's page both draw it.
+struct DiveComputerWalkSections: View {
+  let model: DiveComputerModel
+
+  var body: some View {
+    switch model.phase {
+    case .idle, .scanning:
+      EmptyView()
     case .connecting:
       Section {
         if let identity = model.identity {
@@ -133,69 +221,30 @@ struct DiveComputerScreen: View {
       }
     }
   }
+}
 
-  /// Each paired computer, which connects while the scan sees it and opens its page from the
-  /// info button whether it does or not.
-  @ViewBuilder private var paired: some View {
-    if !model.paired.isEmpty {
-      Section(DiveComputerText.pairedHeading) {
-        ForEach(model.paired) { paired in
-          let connects = paired.row != nil && model.blocker == nil
-          HStack {
-            Button {
-              if let row = paired.row { model.connect(row) }
-            } label: {
-              label(paired.title, paired.subtitle, connects: connects)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            // Two buttons in one row: a style other than the default gives each its own taps
-            // rather than the row's.
-            .buttonStyle(PairedRowButtonStyle())
-            .disabled(!connects)
-            Button {
-              showing = paired.record
-            } label: {
-              Image(systemName: "info.circle")
-            }
-            .accentRow()
-            .buttonStyle(.borderless)
-            .accessibilityLabel(DiveComputerText.about(paired.title))
-          }
-        }
-      }
-    }
-  }
+/// *Which computer comes first?*, one button per computer, the new one first.
+private struct OrderQuestionSection: View {
+  let model: DiveComputerModel
+  let question: DiveComputerModel.OrderQuestion
 
-  @ViewBuilder private var found: some View {
-    if !model.unpairedRows.isEmpty {
-      Section {
-        ForEach(model.unpairedRows) { row in
-          Button {
-            model.connect(row)
-          } label: {
-            label(row.title, row.subtitle, connects: model.blocker == nil)
-          }
-          .disabled(model.blocker != nil)
-        }
-      }
+  var body: some View {
+    Section {
+      Button(question.record.title) { Task { await model.answerOrder(newFirst: true) } }
+        .accentRow()
+      Button(question.other) { Task { await model.answerOrder(newFirst: false) } }
+        .accentRow()
+    } header: {
+      Text(DiveComputerText.orderQuestion)
+    } footer: {
+      Text(DiveComputerText.orderQuestionDetail)
     }
-  }
-
-  /// A computer's row, its title dimmed where it does not connect — a paired computer the scan
-  /// does not see.
-  private func label(_ title: String, _ subtitle: String?, connects: Bool) -> some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text(title).foregroundStyle(connects ? .primary : .secondary)
-      if let subtitle {
-        Text(subtitle).font(.caption).foregroundStyle(.secondary)
-      }
-    }
+    .disabled(model.answeringOrder)
   }
 }
 
-/// A paired computer's row, which dims on a press and otherwise keeps the label's own colours:
-/// `.plain` would dim a computer out of reach a second time over its secondary text.
+/// A paired computer's row, which dims on a press and otherwise keeps the label's own colours,
+/// where the default style would tint its title as a button's.
 private struct PairedRowButtonStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.label.opacity(configuration.isPressed ? 0.5 : 1)

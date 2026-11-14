@@ -301,7 +301,8 @@ public enum PendingText {
 
 /// The rows above the Dives list, each omitted when it would count nothing: the drafts, the
 /// writes waiting, the failures, each done-but-unreadable notice until dismissed, the items
-/// this build cannot read, and the files waiting to import.
+/// this build cannot read, the files waiting to import, and the downloaded dives waiting to
+/// upload.
 public struct PendingSummary: Hashable, Sendable {
   public enum Row: Hashable, Sendable, Identifiable {
     case drafts(String)
@@ -310,6 +311,7 @@ public struct PendingSummary: Hashable, Sendable {
     case notice(id: UUID, String)
     case unreadable(String)
     case files(String)
+    case downloads(String)
 
     public var id: String {
       switch self {
@@ -319,13 +321,14 @@ public struct PendingSummary: Hashable, Sendable {
       case .notice(let id, _): "notice-\(id)"
       case .unreadable: "unreadable"
       case .files: "files"
+      case .downloads: "downloads"
       }
     }
 
     public var text: String {
       switch self {
       case .drafts(let text), .waiting(let text), .failed(let text), .notice(_, let text),
-        .unreadable(let text), .files(let text):
+        .unreadable(let text), .files(let text), .downloads(let text):
         text
       }
     }
@@ -335,7 +338,7 @@ public struct PendingSummary: Hashable, Sendable {
 
   public init(
     drafts: [DiveDraftEntry], items: [OutboxItem], notices: [OutboxNotice], unreadable: Int,
-    files: Int
+    files: Int, downloads: Int = 0
   ) {
     var rows: [Row] = []
     if !drafts.isEmpty { rows.append(.drafts(PendingText.drafts(drafts.count))) }
@@ -345,6 +348,7 @@ public struct PendingSummary: Hashable, Sendable {
     rows += notices.map { .notice(id: $0.id, $0.sentence) }
     if unreadable > 0 { rows.append(.unreadable(PendingText.unreadable(unreadable))) }
     if files > 0 { rows.append(.files(PendingText.filesWaiting(files))) }
+    if downloads > 0 { rows.append(.downloads(DiveComputerText.waitingToUpload(downloads))) }
     self.rows = rows
   }
 

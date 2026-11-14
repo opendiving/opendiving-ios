@@ -4,9 +4,11 @@ import Observation
 /// The import screen's model over the inbox of the account the session names and the import the
 /// server holds for it: files in, the upload, the apply and the discard.
 ///
-/// **An upload is a tap.** It creates a pending import, sealed against more files and blocking
-/// every other device, so nothing uploads on an arrival, on the account loading or on a
-/// connectivity moment; the tap tries with or without a route.
+/// **A file goes up as it arrives.** Files shared to the app or picked in it are uploaded as
+/// soon as the account has loaded, there is a route and no import is pending, so the review
+/// opens with nothing to tap; until then they wait, and each of those moments tries them.
+/// Whatever could not go — refused, or left over from before — waits for *Upload*, which tries
+/// with or without a route.
 ///
 /// **The phone keeps what it sent until the import is seen applied**, since a pending import can
 /// be discarded on any device or expire. A pending read that does not name the import a file recorded says nothing about it, since
@@ -49,6 +51,8 @@ public final class InboxModel {
 
   /// The files the upload in flight sent.
   private var sending: Set<UUID> = []
+  /// Files that arrived in this process and have not been sent: they go up by themselves.
+  @ObservationIgnored private var arrivals: Set<UUID> = []
   @ObservationIgnored private let session: Session
   /// The upload, the apply or the discard in flight.
   @ObservationIgnored private var workTask: Task<Void, Never>?
@@ -160,7 +164,9 @@ public final class InboxModel {
       store.discard(added)
       return .notKept("The file could not be kept on this phone: \(error).")
     }
+    arrivals.formUnion(added.map(\.id))
     reload()
+    uploadArrivals()
     let signedIn = if case .signedIn = session.state { true } else { false }
     return .kept(account: store.account, signedIn: signedIn)
   }
@@ -211,6 +217,30 @@ public final class InboxModel {
       }
     }
     reload()
+    uploadArrivals()
+  }
+
+  /// An occasion for what arrived to go up: its arrival, the account loading, a route
+  /// appearing, an import leaving the way. The pending import is read first, and the files go
+  /// only where there is none.
+  public func uploadArrivals() {
+    guard !arrivals.isEmpty, phase == .idle, workTask == nil, session.accountLoaded,
+      session.connectivity.isRouteAvailable,
+      files.contains(where: { arrivals.contains($0.id) && $0.uploadedInto == nil })
+    else { return }
+    guard let store = destination?.store, let client = try? session.requireClient() else {
+      return
+    }
+    stopReading()
+    // Uploading from here on, the read first: the diver's *Upload* waits for it.
+    phase = .uploading
+    workTask = Task {
+      await readAndSettle(store, client)
+      phase = .idle
+      workTask = nil
+      guard pending == nil, canUpload else { return }
+      upload()
+    }
   }
 
   /// Waits for the upload, the apply or the discard in flight, and the pending read after it.
@@ -229,6 +259,8 @@ public final class InboxModel {
     guard canUpload, let store = destination?.store, let client = try? session.requireClient()
     else { return }
     let sent = store.load().files.filter { $0.uploadedInto == nil && refusal(for: $0) == nil }
+    // Tried once by itself: what does not go waits for *Upload*.
+    arrivals.subtract(sent.map(\.id))
     stopReading()
     phase = .uploading
     sending = Set(sent.map(\.id))
@@ -427,6 +459,7 @@ public final class InboxModel {
     phase = .idle
     workTask = nil
     if reread { startReading() }
+    uploadArrivals()
   }
 
   /// Back from the result to the inbox.

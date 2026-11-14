@@ -86,4 +86,32 @@ public final class DiveComputerWalk: Identifiable {
 
   /// A walk is in flight: from connecting to the time-zone question's answer.
   public var isBusy: Bool { phase != .finished }
+
+  /// *Downloading 2 of 3 new dives* after a listing, *Downloading dive 3* without one.
+  public var downloadingText: String {
+    guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
+    return DiveComputerText.downloading(
+      min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
+  }
+
+  /// The computer's line in the list while the walk is in flight: *Waiting until this computer
+  /// is free* while it is busy, else where the walk stands. Nil at the time-zone question and
+  /// once finished.
+  public var statusLine: String? {
+    switch phase {
+    case .connecting, .downloading:
+      if computerBusy || otherAppHandshaking { return DiveComputerText.waitingUntilFree }
+      return phase == .connecting ? DiveComputerText.connecting : downloadingText
+    case .askingTimeZone, .finished:
+      return nil
+    }
+  }
+
+  /// Whether this walk is of `record`'s computer: by its identity once it gave one, else by the
+  /// record a connection started it for or the Core Bluetooth identifier it opens.
+  public func isOf(_ record: DiveComputerRecord) -> Bool {
+    if let identity { return DiveComputerRecord(identity: identity).id == record.id }
+    if let started = self.record { return started == record.id }
+    return computer.id == record.peripheral
+  }
 }

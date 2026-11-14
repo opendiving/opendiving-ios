@@ -57,11 +57,32 @@ struct DiveComputerScreensTests {
     #expect(window != nil)
   }
 
-  @Test func aComputersPageDraws() {
+  @Test func aComputersPageDraws() async throws {
+    let session = try await loaded()
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+      generator: DiveComputerView.generator)
     let window = F.window(
       NavigationStack {
-        DiveComputerPage(record: DiveComputerRecord(identity: perdix, lastDownloaded: Date())) {}
-      })
+        DiveComputerPage(
+          model: DiveComputerModel(engine: engine),
+          record: DiveComputerRecord(identity: perdix, lastDownloaded: Date())
+        ) {}
+      }
+      .environment(session))
+    defer { window?.isHidden = true }
+    #expect(window != nil)
+  }
+
+  @Test func waitingToSyncDrawsADownloadThatWaits() async throws {
+    let session = try await loaded()
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+      generator: DiveComputerView.generator)
+    let window = F.window(
+      NavigationStack { PendingScreen() }
+        .environment(session).environment(OutboxModel(session: session))
+        .environment(InboxModel(session: session)).environment(engine))
     defer { window?.isHidden = true }
     #expect(window != nil)
   }

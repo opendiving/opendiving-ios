@@ -27,6 +27,12 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   /// Written while signed in before the account had loaded, into the last account's
   /// directory: removed if the load names another account.
   public var receivedBeforeAccountKnown: Bool
+  /// The account's last walk of it broke off — the computer gone or a transfer refused — or its
+  /// dives could not be kept: *The last download did not finish*.
+  public var lastDownloadUnfinished = false
+  /// Paired beside exactly one other computer the account knows, and *Which computer comes
+  /// first?* not yet answered: its dives wait on the phone, unsent, until it is.
+  public var awaitsOrder = false
 
   public init(
     identity: DiveComputerIdentity, peripheral: UUID? = nil, fingerprint: Data? = nil,
@@ -59,6 +65,8 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
     fingerprint = progress?.fingerprint
     lastDownloaded = progress?.lastDownloaded
     receivedBeforeAccountKnown = progress?.receivedBeforeAccountKnown ?? false
+    lastDownloadUnfinished = progress?.lastDownloadUnfinished ?? false
+    awaitsOrder = progress?.awaitsOrder ?? false
   }
 
   /// The file it is kept in: the family and the serial, case-folded, so a lookup by a serial

@@ -16,6 +16,9 @@ import Foundation
 ///   them; with no route, iOS is left a request to the server whose completion wakes the app.
 /// - Signed out, the session's 401 among it: the archive waits for a sign-in to its account.
 ///
+/// - The computer awaits *Which computer comes first?*: the archive stays, unsent and unsaid, with
+///   no wake, until the answer has been sent.
+///
 /// The diver is told at most once that an archive's dives were downloaded and wait, and at most
 /// once that they were imported: a repeat under the key answers the import the first attempt
 /// made.
@@ -63,7 +66,7 @@ extension DiveComputerEngine {
     settleMarks()
     let downloads = DownloadStore(store: session.store, origin: origin, account: user.uuid)
     defer { reload() }
-    for archive in downloads.archives() where archive.refusal == nil {
+    for archive in sendable(downloads, origin) {
       guard session.connectivity.isRouteAvailable else {
         waitForRoute(downloads, origin)
         return
@@ -131,10 +134,10 @@ extension DiveComputerEngine {
   /// not answer, which is neither *No internet* nor anything a wake would mend: the next
   /// occasion tries again.
   private func waitForRoute(_ downloads: DownloadStore, _ origin: ServerOrigin) {
-    guard !session.connectivity.isRouteAvailable,
-      downloads.archives().contains(where: { $0.refusal == nil })
-    else { return }
-    announce(downloads) { archive, computer in
+    guard !session.connectivity.isRouteAvailable, !sendable(downloads, origin).isEmpty else {
+      return
+    }
+    announce(downloads, origin) { archive, computer in
       .noInternet(dives: archive.summary.dives, from: computer, id: archive.id)
     }
     wake?.leave(for: origin)
@@ -145,20 +148,54 @@ extension DiveComputerEngine {
   private func announceSignedOut() {
     guard let (account, _) = keeping(), let origin = session.state.origin else { return }
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
-    announce(downloads) { archive, computer in
+    announce(downloads, origin) { archive, computer in
       .signedOut(dives: archive.summary.dives, from: computer, id: archive.id)
     }
   }
 
   private func announce(
-    _ downloads: DownloadStore,
+    _ downloads: DownloadStore, _ origin: ServerOrigin,
     _ notice: (DownloadArchive, String) -> DiveComputerNotice
   ) {
-    for archive in downloads.archives() where !archive.announced && archive.refusal == nil {
+    for archive in sendable(downloads, origin) where !archive.announced {
       var announced = archive
       announced.announced = true
       guard (try? downloads.save(announced)) != nil else { continue }
       notifier?.post(notice(archive, archive.summary.computers.first?.title ?? ""))
     }
+  }
+
+  /// The archives that go up by themselves, oldest first: not refused, and not of a computer that
+  /// awaits the order's question.
+  private func sendable(_ downloads: DownloadStore, _ origin: ServerOrigin) -> [DownloadArchive] {
+    let awaiting = awaitingOrder(origin: origin, account: downloads.account)
+    return downloads.archives().filter { $0.refusal == nil && !awaiting.contains($0.record) }
+  }
+
+  /// *Upload* on *Waiting to Sync*: a refused archive is sent again, and goes with the next
+  /// occasion from now on.
+  public func sendAgain(_ archive: DownloadArchive) {
+    guard let downloads = keptDownloads(),
+      var again = downloads.archives().first(where: {
+        $0.id == archive.id
+      })
+    else { return }
+    again.refusal = nil
+    try? downloads.save(again)
+    reload()
+    upload()
+  }
+
+  /// Removes a download that waits from the phone, after the diver confirmed
+  /// ``DiveComputerText/removeDownloadWarning``.
+  public func remove(_ archive: DownloadArchive) {
+    guard let downloads = keptDownloads() else { return }
+    downloads.remove(archive)
+    reload()
+  }
+
+  private func keptDownloads() -> DownloadStore? {
+    guard let origin = session.state.origin, let (account, _) = keeping() else { return nil }
+    return DownloadStore(store: session.store, origin: origin, account: account)
   }
 }

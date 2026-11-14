@@ -34,6 +34,7 @@ struct DiveComputerDownloadsTests {
   /// Starts a download the link holds before its end, until ``FakeDiveComputerLink/release()``,
   /// and waits until the model has taken in every dive before the hold.
   private func start(_ model: DiveComputerModel, _ link: FakeDiveComputerLink) async throws {
+    model.pair()
     await model.watch()
     await until { !model.rows.isEmpty }
     model.connect(try #require(model.rows.first))
@@ -69,6 +70,7 @@ struct DiveComputerDownloadsTests {
     let (downloads, _) = try await downloads(link)
     let model = downloads.model
     downloads.screenAppeared()
+    model.pair()
     await model.watch()
     await until { !model.rows.isEmpty }
     model.connect(try #require(model.rows.first))

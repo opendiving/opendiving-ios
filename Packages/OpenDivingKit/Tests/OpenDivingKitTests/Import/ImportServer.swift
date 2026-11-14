@@ -54,6 +54,10 @@ final class ImportServer: HTTPTransport {
     var apply: @Sendable () -> StubTransport.Response? = { nil }
     var discard: @Sendable () -> StubTransport.Response? = { nil }
     var pendingRead: @Sendable () async throws -> Void = {}
+    /// The account's dive computers in order; nil for a server with no such routes, a 404.
+    var computers: [DiveComputerRead]? = nil
+    /// The serials of each `PUT /dive-computers/order`.
+    var orders: [[String]] = []
   }
 
   private let state = Mutex(State())
@@ -143,6 +147,13 @@ final class ImportServer: HTTPTransport {
   var discards: [String] { state.withLock { $0.discards } }
   var routes: [String] { state.withLock { $0.routes } }
   var pendingUUID: UUID? { state.withLock { Self.pending($0) } }
+  /// The serials of each order set.
+  var orders: [[String]] { state.withLock { $0.orders } }
+
+  /// Keeps an order of dive computers, which `GET /dive-computers` answers from now on.
+  func keepComputers(_ computers: [DiveComputerRead]) {
+    state.withLock { $0.computers = computers }
+  }
 
   func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
     var request = request
@@ -176,6 +187,31 @@ final class ImportServer: HTTPTransport {
       return .json(dives)
     case "GET dives/numbering":
       return .json(numbering)
+    case "GET dive-computers":
+      return try state.withLock { state in
+        guard let computers = state.computers else {
+          return .json(#"{"detail":"Not Found"}"#, status: 404)
+        }
+        return .json(String(decoding: try JSONEncoder().encode(computers), as: UTF8.self))
+      }
+    case "PUT dive-computers/order":
+      struct Order: Decodable { let serials: [String] }
+      let serials = try JSONDecoder().decode(Order.self, from: request.httpBody ?? Data()).serials
+      return try state.withLock { state in
+        state.orders.append(serials)
+        guard let known = state.computers else {
+          return .json(#"{"detail":"Not Found"}"#, status: 404)
+        }
+        let ordered = serials.enumerated().map { index, serial in
+          let row = known.first {
+            DiveComputerRead.fold($0.serial) == DiveComputerRead.fold(serial)
+          }
+          return DiveComputerRead(
+            serial: serial, brand: row?.brand, model: row?.model, name: row?.name, position: index)
+        }
+        state.computers = ordered
+        return .json(String(decoding: try JSONEncoder().encode(ordered), as: UTF8.self))
+      }
     case "POST imports":
       let names = try ReceivedPart.parts(of: request).compactMap(\.filename)
       let ignores = state.withLock { $0.ignoresApply }

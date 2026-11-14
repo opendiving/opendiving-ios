@@ -3,6 +3,8 @@ import Foundation
 /// The words of the *Dive Computers* screen, a computer's page and a download's notifications.
 public enum DiveComputerText {
   public static let connect = "Connect a dive computer"
+  /// Starts the search for a computer to pair.
+  public static let pair = "Pair a dive computer"
   public static let screenTitle = "Dive Computers"
   public static let pairedHeading = "Paired Computers"
   public static let scanningHeading = "Looking for Dive Computers"
@@ -22,6 +24,41 @@ public enum DiveComputerText {
   public static let connecting = "Connecting"
   /// Once the computer is identified, until the download starts.
   public static let reading = "Reading"
+
+  // MARK: - The list
+
+  /// *Last downloaded 12 October*: a computer's line once a download of it was kept.
+  public static func lastDownloaded(_ day: Date, in zone: TimeZone = .current) -> String {
+    "Last downloaded \(Self.day(day, in: zone))"
+  }
+
+  public static let noDivesYet = "No dives downloaded yet"
+  public static let automaticOff = "Automatic download is off"
+  public static let lastUnfinished = "The last download did not finish"
+  public static let waitingUntilFree = "Waiting until this computer is free"
+
+  /// Under the list once more than one computer is paired.
+  public static let orderFooter =
+    "When more than one computer recorded a dive, the recording from the highest one in this list"
+    + " is shown by default. Dives already in your logbook keep the recording they show."
+
+  public static let orderQuestion = "Which computer comes first?"
+  public static let orderQuestionDetail =
+    "When both record the same dive, the recording from the first computer is shown by default."
+
+  public static let allowNotifications = "Allow notifications"
+  public static let notificationsSentence =
+    "A notification tells you when new dives are in your logbook."
+
+  // MARK: - A computer's downloads
+
+  public static let downloadAutomatically = "Download automatically"
+  public static let downloadAutomaticallyFooter =
+    "The phone downloads new dives each time this computer connects, even when the phone is"
+    + " locked. The dives are imported into your logbook without a review. This stops if you"
+    + " swipe the app away, and it can stop after you turn Bluetooth off or use flight mode."
+    + " Open the app to start it again."
+  public static let downloadNew = "Download new dives"
 
   // MARK: - Forgetting
 
@@ -55,6 +92,18 @@ public enum DiveComputerText {
   public static func waitingToUpload(_ dives: Int) -> String {
     "\(count(dives)) waiting to upload"
   }
+
+  /// *3 dives from Shearwater Perdix 3*: a download's row on *Waiting to Sync*.
+  public static func fromComputer(_ dives: Int, _ computer: String) -> String {
+    "\(count(dives)) from \(computer)"
+  }
+
+  /// A download's stage on *Waiting to Sync* while it waits to go up.
+  public static let waitingToUploadStage = "Waiting to upload"
+
+  /// A download kept because the server answered with an import to review.
+  public static let needsNewerServer =
+    "The app needs a server released after v0.7.0, one that applies an import in one request."
 
   /// *Choose a time zone to import 3 dives*.
   public static func chooseTimeZone(_ dives: Int) -> String {

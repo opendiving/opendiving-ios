@@ -2,8 +2,13 @@ import Foundation
 import Observation
 
 /// The *Dive Computers* screen's model, over the engine, its link and the phone's paired
-/// computers: idle → scanning → the walk the diver starts, through its phases to finished, with
-/// an outcome.
+/// computers: idle → scanning, once the diver asks to pair one → the walk the diver starts,
+/// through its phases to finished, with an outcome.
+///
+/// **The paired computers are listed in the account's order**, each with the line its state
+/// gives (``status(_:)``), and reordered on the server where it keeps one and there is a route.
+/// A computer paired beside exactly one other asks *Which computer comes first?*, and its dives
+/// wait for the answer.
 ///
 /// **No route is needed**: a download on a boat is the point. What is needed is Bluetooth and an
 /// account to keep the dives for.
@@ -44,11 +49,19 @@ public final class DiveComputerModel {
   public struct Paired: Hashable, Sendable, Identifiable {
     public let record: DiveComputerRecord
     public let title: String
-    public let subtitle: String?
-    /// The scan's row while the computer is advertising, which connects to it.
+    /// The scan's row while the computer is advertising.
     public let row: Row?
 
     public var id: String { record.id }
+  }
+
+  /// *Which computer comes first?*, for a computer paired beside exactly one other.
+  public struct OrderQuestion: Hashable, Sendable {
+    /// The computer just paired.
+    public let record: DiveComputerRecord
+    /// *Shearwater Perdix 3*.
+    public let other: String
+    public let otherSerial: String
   }
 
   public private(set) var availability = DiveComputerAvailability.unknown
@@ -57,8 +70,17 @@ public final class DiveComputerModel {
   public private(set) var walk: DiveComputerWalk?
   /// The computers the latest scan found, newest-seen first.
   public private(set) var rows: [Row] = []
-  /// The phone's paired computers, by title, with this account's downloads.
+  /// The phone's paired computers in the account's order, those it has not placed after by
+  /// title, with this account's downloads.
   public private(set) var paired: [Paired] = []
+  /// The diver asked to pair a computer: the screen looks for one while Bluetooth is on.
+  public private(set) var searching = false
+  /// The question a computer just paired waits for, until it is answered.
+  public private(set) var orderQuestion: OrderQuestion?
+  /// An answer to ``orderQuestion`` is on its way.
+  public private(set) var answeringOrder = false
+  /// Whether iOS has asked the diver about notifications; nil until known.
+  private var notificationsAsked: Bool?
   /// Why nothing may start, other than Bluetooth: no account to keep the dives for yet.
   public private(set) var refusal: String?
   /// The diver put the question about held dives aside for this visit.
@@ -125,9 +147,7 @@ public final class DiveComputerModel {
   /// without one.
   public var downloadingText: String? {
     guard phase == .downloading else { return nil }
-    guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
-    return DiveComputerText.downloading(
-      min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
+    return walk?.downloadingText
   }
 
   /// *3 new dives out of 11 on this computer*, or *11 dives on this computer* where the download
@@ -205,9 +225,17 @@ public final class DiveComputerModel {
     }
   }
 
-  /// Starts a scan, unless something refuses one.
+  /// *Pair a dive computer*: looks for computers nearby from now on, as long as the screen lasts.
+  public func pair() {
+    searching = true
+    startScanning()
+  }
+
+  /// Starts a scan once the diver asked to pair, unless something refuses one.
   public func startScanning() {
-    guard availability == .on, !isBusy, !askingHeld, scanTask == nil, admits() else { return }
+    guard searching, availability == .on, !isBusy, !askingHeld, scanTask == nil, admits() else {
+      return
+    }
     scanPhase = .scanning
     walk = nil
     // A row is a computer this scan saw: one an earlier scan saw may since have gone, or been
@@ -227,6 +255,7 @@ public final class DiveComputerModel {
   /// did meanwhile, such as forgetting a computer in the Settings app, can leave a row whose
   /// identifier no longer reaches the computer.
   public func appBecameActive() {
+    rebuildRows()
     guard phase == .scanning else { return }
     stopScanning()
     startScanning()
@@ -280,21 +309,159 @@ public final class DiveComputerModel {
           lastDownloaded: record?.lastDownloaded, in: phoneZone),
         recordID: record?.id)
     }
-    paired = (store?.records() ?? []).map { record in
-      Paired(
-        record: record, title: record.title,
-        subtitle: DiveComputerText.subtitle(
-          serial: record.serial, lastDownloaded: record.lastDownloaded, in: phoneZone),
-        row: rows.first { $0.recordID == record.id })
+    let ordered = Self.ordered(store?.records() ?? [], by: engine.order ?? [])
+    paired = ordered.map { record in
+      Paired(record: record, title: record.title, row: rows.first { $0.recordID == record.id })
+    }
+    askOrder(store)
+  }
+
+  /// `records` by their place in the account's `order`, the ones it does not hold after, as they
+  /// came.
+  static func ordered(_ records: [DiveComputerRecord], by order: [DiveComputerRead])
+    -> [DiveComputerRecord]
+  {
+    let places = Dictionary(
+      order.map { (DiveComputerRead.fold($0.serial), $0.position) },
+      uniquingKeysWith: { first, _ in first })
+    return records.enumerated().sorted { a, b in
+      let left = places[DiveComputerRead.fold(a.element.serial)] ?? Int.max
+      let right = places[DiveComputerRead.fold(b.element.serial)] ?? Int.max
+      return (left, a.offset) < (right, b.offset)
+    }.map(\.element)
+  }
+
+  // MARK: - What the list shows
+
+  /// `record`'s one line: the walk in flight of it, the dives it waits on, else its last
+  /// download and its switch.
+  public func status(_ record: DiveComputerRecord) -> String {
+    DiveComputerStatus.line(
+      record, walk: engine.walk, archives: engine.archives, held: engine.held, in: phoneZone)
+  }
+
+  /// *Allow notifications* is shown: a computer is paired, and iOS has not asked yet.
+  public var offersNotifications: Bool { notificationsAsked == false && !paired.isEmpty }
+
+  /// The screen came into view: the account's order is read, the question a computer waits for
+  /// asked again, and whether iOS has asked about notifications found out.
+  public func appeared() async {
+    rebuildRows()
+    await engine.readOrder()
+    rebuildRows()
+    notificationsAsked = await engine.notifier?.hasAsked()
+  }
+
+  /// *Allow notifications*: iOS's own question.
+  public func allowNotifications() async {
+    guard let notifier = engine.notifier else { return }
+    await notifier.ask()
+    notificationsAsked = true
+  }
+
+  // MARK: - The order
+
+  /// The list can be reordered: more than one computer, the account's order read from a server
+  /// that keeps one, and a route to send it over.
+  public var canReorder: Bool {
+    paired.count > 1 && engine.order != nil && session.connectivity.isRouteAvailable
+  }
+
+  /// The diver moved the computers at `source` to before `destination`, as a list's move gives
+  /// them: the whole order goes to the server, with every serial it knows that the phone does
+  /// not keeping its place.
+  public func move(from source: [Int], to destination: Int) {
+    guard canReorder, let order = engine.order else { return }
+    var moved = paired
+    let taken = source.sorted().map { moved[$0] }
+    for index in source.sorted(by: >) { moved.remove(at: index) }
+    moved.insert(contentsOf: taken, at: destination - source.count(where: { $0 < destination }))
+    paired = moved
+    let records = moved.map(\.record)
+    let onPhone = Set(records.map { DiveComputerRead.fold($0.serial) })
+    var known = order.map(\.serial)
+    let held = Set(known.map(DiveComputerRead.fold))
+    known += records.filter { !held.contains(DiveComputerRead.fold($0.serial)) }.map(\.serial)
+    let slots = known.indices.filter { onPhone.contains(DiveComputerRead.fold(known[$0])) }
+    for (slot, record) in zip(slots, records) { known[slot] = record.serial }
+    Task {
+      await engine.setOrder(known)
+      rebuildRows()
+    }
+  }
+
+  /// The answer to *Which computer comes first?*: sent as the order, and then the new
+  /// computer's dives go up. Unsent, the question stands.
+  public func answerOrder(newFirst: Bool) async {
+    guard let question = orderQuestion, !answeringOrder else { return }
+    answeringOrder = true
+    let serials =
+      newFirst
+      ? [question.record.serial, question.otherSerial]
+      : [question.otherSerial, question.record.serial]
+    await engine.answerOrder(serials, for: question.record)
+    answeringOrder = false
+    rebuildRows()
+  }
+
+  /// The question the first computer that awaits it asks, while exactly one other is known.
+  /// Where none or several are now, it no longer stands: with none there is nothing to order,
+  /// and with several the new one goes last, where the list can move it.
+  private func askOrder(_ store: DiveComputerStore?) {
+    guard let store, let waiting = store.records().first(where: \.awaitsOrder) else {
+      orderQuestion = nil
+      return
+    }
+    let others = engine.otherComputers(than: waiting.serial, store: store)
+    guard others.count == 1, let other = others.first else {
+      orderQuestion = nil
+      Task { await engine.answerOrder(nil, for: waiting) }
+      return
+    }
+    if let record = store.records().first(where: { DiveComputerRead.fold($0.serial) == other }) {
+      orderQuestion = OrderQuestion(
+        record: waiting, other: record.title, otherSerial: record.serial)
+    } else if let read = engine.order?.first(where: {
+      DiveComputerRead.fold($0.serial) == other
+    }) {
+      orderQuestion = OrderQuestion(record: waiting, other: read.title, otherSerial: read.serial)
     }
   }
 
   /// *Forget this dive computer*, from its page: removes it for every server, and nothing on any
   /// of them. A computer the scan still sees goes back among the found ones.
+  ///
+  /// A computer no recording names leaves the account's order too, where the server holds its
+  /// serial alone.
   public func forget(_ record: DiveComputerRecord) {
     computers()?.forget(record)
     pairedWatch?.refresh()
     rebuildRows()
+    let serial = DiveComputerRead.fold(record.serial)
+    guard let order = engine.order,
+      order.contains(where: { DiveComputerRead.fold($0.serial) == serial && $0.isUnlabelled })
+    else { return }
+    let rest = order.filter { DiveComputerRead.fold($0.serial) != serial }.map(\.serial)
+    Task {
+      await engine.setOrder(rest)
+      rebuildRows()
+    }
+  }
+
+  /// *Download automatically*, on `record`'s page: the watch holds a request for it, or not.
+  public func setDownloadsAutomatically(_ on: Bool, for record: DiveComputerRecord) {
+    guard let store = computers(),
+      var saved = store.record(family: record.family, serial: record.serial)
+    else { return }
+    saved.downloadsAutomatically = on
+    try? store.save(saved)
+    pairedWatch?.refresh()
+    rebuildRows()
+  }
+
+  /// The paired computer of this record id as the phone now remembers it.
+  public func record(_ id: String) -> DiveComputerRecord? {
+    paired.first { $0.id == id }?.record
   }
 
   // MARK: - Downloading
@@ -302,6 +469,20 @@ public final class DiveComputerModel {
   /// Connects to the computer a row shows and downloads what is new on it.
   public func connect(_ row: Row) {
     start(row.computer, all: false)
+  }
+
+  /// *Download new dives* or *Download all dives*, on a paired computer's page: opened under the
+  /// identifier the phone last saw it under.
+  public func download(_ record: DiveComputerRecord, all: Bool) {
+    guard canDownload(record) else { return }
+    if let peripheral = record.peripheral {
+      start(link.computer(for: record, at: peripheral), all: all)
+    }
+  }
+
+  /// Whether a paired computer's page can start a download of it now.
+  public func canDownload(_ record: DiveComputerRecord) -> Bool {
+    record.peripheral != nil && !isBusy && blocker == nil && availability == .on
   }
 
   /// *Download all dives*, after *No new dives*: the same computer again, with no fingerprint.
