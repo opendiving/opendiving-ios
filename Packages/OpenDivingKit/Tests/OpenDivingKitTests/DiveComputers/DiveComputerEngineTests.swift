@@ -309,7 +309,6 @@ struct DiveComputerEngineTests {
     #expect(model.phase == .askingTimeZone)
     #expect(model.suggestedZone == F.helsinki)
     model.answerTimeZone(try #require(TimeZone(identifier: "Asia/Tokyo")))
-    await until { !engine.held.isEmpty == false && !engine.archives.isEmpty }
     await engine.settled()
     #expect(engine.held.isEmpty)
     let archive = try #require(downloads(session).archives().first)
@@ -321,6 +320,35 @@ struct DiveComputerEngineTests {
         "2026-10-26T19:00:00+09:00", "2026-10-24T19:00:00+09:00",
       ])
     #expect(model.phase != .askingTimeZone)
+  }
+
+  @Test func heldDivesAreAnsweredOnceAndKeptWhereTheirArchiveCannotBe() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
+    let engine = engine(session)
+    watcher.send(.connected(F.oceanFound.id))
+    await engine.settled()
+    let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
+
+    // An archive that cannot be kept leaves the held dives, their only copy, where they were.
+    let archives = downloads(session).root.appendingPathComponent("Archives")
+    try Data().write(to: archives)
+    engine.answerHeld(tokyo)
+    #expect(engine.held.isEmpty)
+    await engine.settled()
+    #expect(engine.held.map(\.dives) == [2])
+    #expect(downloads(session).walks().map(\.dives.count) == [2])
+
+    // Answered twice before the first is written, one archive is.
+    try FileManager.default.removeItem(at: archives)
+    engine.answerHeld(tokyo)
+    engine.answerHeld(tokyo)
+    await engine.settled()
+    #expect(downloads(session).archives().count == 1)
+    #expect(downloads(session).walks().isEmpty)
+    #expect(engine.held.isEmpty)
   }
 
   @Test func theDivesUnderADayOldGoOnWithTheWatchsZoneAndTheOlderWait() async throws {

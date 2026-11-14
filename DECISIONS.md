@@ -241,7 +241,7 @@ For each paired computer with *Download automatically* on, the app holds a Core 
 request, which never times out, on a central it creates at launch with a restore identifier, so iOS
 wakes or relaunches it when the computer connects. libdc-swift's central is its own delegate,
 forwards nothing and holds one device, so it cannot carry the requests. A central is made only for a
-computer to watch, the Dive Computers screen's scan or a request iOS restored, and never while
+computer to watch or the Dive Computers screen's scan, and never while
 Bluetooth is undecided, so the prompt still comes at pairing. A completed request starts a walk, and
 the computer is asked again 15 minutes after it ends, libdc-swift's own revisit interval for a
 watch. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises

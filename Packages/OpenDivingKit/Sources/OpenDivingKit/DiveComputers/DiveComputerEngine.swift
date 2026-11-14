@@ -84,6 +84,9 @@ public final class DiveComputerEngine {
   @ObservationIgnored private var running: Task<Void, Never>?
   @ObservationIgnored private var runningPeripheral: UUID?
   @ObservationIgnored private var zoneAnswer: CheckedContinuation<TimeZone?, Never>?
+  /// Held walks whose answer is being written into an archive, and the writing.
+  @ObservationIgnored private var answering: Set<UUID> = []
+  @ObservationIgnored private var keepingAnswer: Task<Void, Never>?
   @ObservationIgnored var uploading: Task<Void, Never>?
   @ObservationIgnored var uploadAgain = false
   @ObservationIgnored private var moments: Task<Void, Never>?
@@ -167,9 +170,10 @@ public final class DiveComputerEngine {
     upload()
   }
 
-  /// Waits for the walks in flight and queued, and the upload after them.
+  /// Waits for the walks in flight and queued, a time-zone answer being kept, and the upload
+  /// after them.
   public func settled() async {
-    while let task = running ?? uploading { await task.value }
+    while let task = running ?? keepingAnswer ?? uploading { await task.value }
   }
 
   // MARK: - Starting walks
@@ -241,23 +245,32 @@ public final class DiveComputerEngine {
   }
 
   /// The diver's answer for the oldest dives held for a zone: they become an archive and go up.
+  /// They leave ``held`` at once, so the question is not answered twice; the walk holding them,
+  /// their only copy, goes only once the archive is kept, and comes back to ``held`` otherwise.
   public func answerHeld(_ zone: TimeZone) {
     guard let (account, _) = keeping(), let origin = session.state.origin,
-      let first = held.first
+      let first = held.first, !answering.contains(first.id)
     else { return }
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
     guard let kept = downloads.walk(first.id), kept.heldForZone else { return }
     let dives = downloads.dives(of: kept)
-    Task {
+    answering.insert(kept.id)
+    held.removeAll { $0.id == kept.id }
+    let previous = keepingAnswer
+    keepingAnswer = Task {
+      await previous?.value
       let token = await session.background.begin(name: "Keeping the dives just downloaded")
-      if let identity = dives.first?.identity, let record = kept.record {
-        _ = await archive(
+      if let identity = dives.first?.identity, let record = kept.record,
+        await archive(
           dives, identity: identity, record: record, instantZone: zone,
-          marked: kept.receivedBeforeAccountKnown, into: downloads)
+          marked: kept.receivedBeforeAccountKnown, into: downloads) == nil
+      {
+        downloads.remove(walk: kept.id)
       }
-      downloads.remove(walk: kept.id)
+      answering.remove(kept.id)
       reload()
       await session.background.end(token)
+      if answering.isEmpty { keepingAnswer = nil }
       upload()
     }
   }
@@ -746,7 +759,8 @@ public final class DiveComputerEngine {
     }
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
     archives = downloads.archives()
-    held = downloads.walks().filter(\.heldForZone).compactMap { walk in
+    held = downloads.walks().filter { $0.heldForZone && !answering.contains($0.id) }.compactMap {
+      walk in
       guard let identity = walk.dives.first?.identity else { return nil }
       return HeldDives(
         id: walk.id, dives: walk.dives.count, computer: identity.title, watchZone: walk.zone)

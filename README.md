@@ -16,8 +16,7 @@ the units your account uses. Your dive computer's files can be shared to the app
 app or picked from Files, and it imports them the way the web does, showing what each file
 becomes before anything is written. Or the app downloads them from the computer itself over
 Bluetooth: once a computer is paired, its new dives are downloaded each time it connects, even
-with the phone locked, imported into your logbook without a review, and announced by a
-notification the phone makes. It is built for the Shearwater Perdix 3 and the Suunto Ocean, whose
+with the phone locked, and imported into your logbook without a review. It is built for the Shearwater Perdix 3 and the Suunto Ocean, whose
 support is experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited
 on the phone, on the web's own form; a dive begun on the phone is a draft the web can finish, and
 a gear set opens as a checklist to tick at the water's edge. The profile's *More* holds the rest

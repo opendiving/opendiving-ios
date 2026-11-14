@@ -2,7 +2,7 @@ import OpenDivingKit
 import UserNotifications
 
 /// The Kit's ``DiveComputerNotifier`` over the notification centre. It posts only where the diver
-/// has allowed notifications and never asks: the question is the Dive Computers screen's.
+/// has allowed notifications, and never asks for them.
 final class UserNotificationsDiveComputerNotifier: DiveComputerNotifier {
   func post(_ notice: DiveComputerNotice) {
     Task {
