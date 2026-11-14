@@ -37,3 +37,13 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
     self.notDownloaded = notDownloaded
   }
 }
+
+extension DiveComputerDownloadEnd.Kind {
+  /// The walk ended in failure rather than by the computer's end, a cancel or an unpaired answer.
+  var breaksOff: Bool {
+    switch self {
+    case .failed, .unreachable: true
+    case .complete, .cancelled, .unpaired: false
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 
 @testable import OpenDivingKit
@@ -16,6 +17,17 @@ final class FakeNotifier: DiveComputerNotifier {
   func post(_ notice: DiveComputerNotice) { posted.append(notice) }
   func hasAsked() async -> Bool { asked > 0 }
   func ask() async { asked += 1 }
+}
+
+/// A clock a test moves on.
+private final class MovingClock: Sendable {
+  private let moment: Mutex<Date>
+
+  init(_ start: Date) { moment = Mutex(start) }
+
+  var now: Date { moment.withLock { $0 } }
+
+  func pass(_ seconds: TimeInterval) { moment.withLock { $0 += seconds } }
 }
 
 /// A wake that counts the requests left with it.
@@ -58,27 +70,39 @@ struct DiveComputerEngineTests {
     return session
   }
 
-  /// The engine over the phone's watch, launched with Bluetooth on.
+  /// The engine over the phone's watch, launched with Bluetooth on; `clock`, where given, is the
+  /// time instead of `now`.
   private func engine(
     _ session: Session, now: Date = DiveComputerFixtures.moment,
+    clock: MovingClock? = nil,
     waitLimit: Duration = DiveComputerEngine.automaticWaitLimit,
     loadAccount: @escaping () async -> Void = {}
   ) -> DiveComputerEngine {
     let root = root
+    let time: @Sendable () -> Date
+    if let clock { time = { clock.now } } else { time = { now } }
     let watch = DiveComputerWatch(
-      log: DiveComputerWatchLog(file: root.appendingPathComponent("dive-computer-watch.log")),
+      log: DiveComputerWatchLog(file: watchLog),
       pairings: { DiveComputerStore.pairings(applicationSupport: root) },
-      makeWatcher: { [watcher] in watcher }, now: { now })
+      makeWatcher: { [watcher] in watcher }, now: time)
     let link = link
     let engine = DiveComputerEngine(
       session: session, makeLink: { link }, generator: F.generator, watch: watch,
       notifier: notifier, wake: wake, loadAccount: loadAccount,
-      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { now },
+      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: time,
       zone: F.helsinki, waitLimit: waitLimit)
     watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     engine.launched()
     return engine
+  }
+
+  private var watchLog: URL { root.appendingPathComponent("dive-computer-watch.log") }
+
+  /// The watch log's lines, without their times.
+  private func watchLines() -> [String] {
+    let text = (try? String(contentsOf: watchLog, encoding: .utf8)) ?? ""
+    return text.split(separator: "\n").map { String($0.split(separator: " ", maxSplits: 1)[1]) }
   }
 
   private func computers(_ session: Session) -> DiveComputerStore {
@@ -172,6 +196,112 @@ struct DiveComputerEngineTests {
     watcher.send(.connected(F.perdixFound.id))
     await past.settled()
     #expect(link.downloads == 2)
+  }
+
+  @Test func aWalkThatBreaksOffIsTriedAgainSoonerEachTimeLongerUntilOneCompletes() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let unreachable: [DiveComputerDownloadEvent] = [.finished(.init(.unreachable))]
+    link.scripts = [
+      unreachable,
+      FakeDiveComputerLink.script(F.perdix, [], end: .init(.failed(status: "DC_STATUS_NODEVICE"))),
+      FakeDiveComputerLink.script(F.perdix, []),
+      unreachable,
+    ]
+    let clock = MovingClock(F.moment)
+    let engine = engine(session, clock: clock)
+    func pass(_ seconds: TimeInterval) { clock.pass(seconds) }
+    // A walk takes the connection from the watch, which asks again once it ends.
+    func walked() async -> [FakeDiveComputerWatcher.Call] {
+      _ = watcher.take()
+      watcher.send(.connected(F.perdixFound.id))
+      await engine.settled()
+      return watcher.take()
+    }
+    func armed(after seconds: Int) -> [FakeDiveComputerWatcher.Call] {
+      [.disarm(F.perdixFound.id), .arm(F.perdixFound.id, after: seconds)]
+    }
+    let perdix = "Shearwater Perdix 3 \(F.perdixFound.id.uuidString)"
+
+    #expect(await walked() == armed(after: 60))
+    #expect(link.downloads == 1)
+    #expect(
+      watchLines().suffix(2) == ["walk ended \(perdix): unreachable", "armed \(perdix) after 60 s"])
+
+    // Inside the minute, a connection is closed and asked again after the same wait.
+    pass(30)
+    #expect(await walked() == [.disarm(F.perdixFound.id)])
+    #expect(link.downloads == 1)
+    #expect(watchLines().last == "closing \(perdix), the next request after 60 s")
+    watcher.send(.disconnected(F.perdixFound.id, reason: nil))
+    #expect(watcher.take() == [.arm(F.perdixFound.id, after: 60)])
+
+    // A minute later it is walked, and breaking off again doubles the wait.
+    pass(60)
+    #expect(await walked() == armed(after: 120))
+    #expect(link.downloads == 2)
+
+    // A walk that completes restores the revisit delay.
+    pass(120)
+    #expect(await walked() == armed(after: DiveComputerWatch.revisitDelay))
+    #expect(link.downloads == 3)
+
+    // And the next break-off starts at a minute again.
+    pass(Double(DiveComputerWatch.revisitDelay))
+    #expect(await walked() == armed(after: 60))
+    #expect(link.downloads == 4)
+  }
+
+  @Test func aWalkTheDiverStartedThatFailsKeepsTheRevisitDelay() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [[.finished(.init(.unreachable))]]
+    let engine = engine(session)
+    _ = watcher.take()
+    engine.start(F.perdixFound, all: false)
+    await engine.settled()
+    #expect(watcher.take().last == .arm(F.perdixFound.id, after: DiveComputerWatch.revisitDelay))
+  }
+
+  @Test func theRowOfBreakOffsIsKeptForTheNextProcess() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [[.finished(.init(.unreachable))], FakeDiveComputerLink.script(F.perdix, [])]
+    let first = engine(session)
+    watcher.send(.connected(F.perdixFound.id))
+    await first.settled()
+    #expect(link.downloads == 1)
+
+    // A process half a minute later refuses; one a minute after the break-off walks.
+    let soon = engine(session, now: F.moment.addingTimeInterval(30))
+    _ = watcher.take()
+    watcher.send(.connected(F.perdixFound.id))
+    await soon.settled()
+    #expect(link.downloads == 1)
+    #expect(watcher.take() == [.disarm(F.perdixFound.id)])
+    let later = engine(session, now: F.moment.addingTimeInterval(61))
+    watcher.send(.connected(F.perdixFound.id))
+    await later.settled()
+    #expect(link.downloads == 2)
+  }
+
+  @Test func aWalkEndAnEarlierBuildWroteWaitsTheRevisitDelay() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, [])]
+    let file = root.appendingPathComponent("dive-computer-walks.json")
+    let id = DiveComputerRecord(identity: F.perdix).id
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    try JSONEncoder().encode([id: F.moment]).write(to: file)
+
+    let inside = engine(session, now: F.moment.addingTimeInterval(600))
+    watcher.send(.connected(F.perdixFound.id))
+    await inside.settled()
+    #expect(link.downloads == 0)
+    let past = engine(session, now: F.moment.addingTimeInterval(1000))
+    watcher.send(.connected(F.perdixFound.id))
+    await past.settled()
+    #expect(link.downloads == 1)
   }
 
   @Test func oneWalkAtATimeAndATapEndsTheWalkNobodyStarted() async throws {

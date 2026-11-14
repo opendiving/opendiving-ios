@@ -10,8 +10,10 @@ import Observation
 /// diver's tap is not a connection that waits: a walk nobody started ends with what it kept and
 /// the tapped computer's starts, the latest action winning. A change of session ends a walk.
 ///
-/// **A connection inside the revisit delay of a walk's end starts none**, in this process or an
-/// earlier one: each walk's end is kept on disk (``WalkEnds``).
+/// **A connection inside the wait after a walk's end starts none**, in this process or an earlier
+/// one: each walk's end is kept on disk (``WalkEnds``). The wait is the revisit delay, or less
+/// after an automatic walk that broke off — the link unreachable or failed, or the computer never
+/// opened — from ``DiveComputerWatch/firstRetry``, doubling with each break-off in a row.
 ///
 /// **Only a paired computer is read** by a walk nobody started: one that opens as a family and
 /// serial with no pairing is closed unread.
@@ -140,6 +142,9 @@ public final class DiveComputerEngine {
     watch?.onConnected = { [weak self] peripheral, record in
       self?.connected(peripheral, record: record) ?? false
     }
+    watch?.revisitWait = { [walkEnds] id in
+      walkEnds.read()[id]?.wait ?? DiveComputerWatch.revisitDelay
+    }
   }
 
   /// The Bluetooth link, made on first use.
@@ -195,7 +200,7 @@ public final class DiveComputerEngine {
   /// connection — now, or once the walk in flight ends — rather than the watch closing it.
   func connected(_ peripheral: UUID, record: DiveComputerRecord) -> Bool {
     if let ended = walkEnds.read()[record.id],
-      now().timeIntervalSince(ended) < Double(DiveComputerWatch.revisitDelay)
+      now().timeIntervalSince(ended.at) < Double(ended.wait)
     {
       return false
     }
@@ -236,7 +241,7 @@ public final class DiveComputerEngine {
       let queued = queue.remove(at: index)
       walk.outcome = .init(kind: .cancelled, sentence: DiveComputerText.cancelled)
       walk.phase = .finished
-      watch?.downloadEnded(queued.peripheral)
+      watch?.downloadEnded(queued.peripheral, .cancelled)
       return
     }
     guard walk === self.walk else { return }
@@ -297,8 +302,8 @@ public final class DiveComputerEngine {
     runningPeripheral = queued.peripheral
     walkStarting?(queued.walk)
     running = Task {
-      await run(queued.walk)
-      watch?.downloadEnded(queued.peripheral)
+      let end = await run(queued.walk)
+      watch?.downloadEnded(queued.peripheral, end)
       running = nil
       runningPeripheral = nil
       if walk === queued.walk { walk = nil }
@@ -313,7 +318,7 @@ public final class DiveComputerEngine {
     for queued in queue {
       queued.walk.outcome = .init(kind: .cancelled, sentence: DiveComputerText.cancelled)
       queued.walk.phase = .finished
-      watch?.downloadEnded(queued.peripheral)
+      watch?.downloadEnded(queued.peripheral, .cancelled)
     }
     queue = []
     if let walk { cancel(walk) }
@@ -321,12 +326,22 @@ public final class DiveComputerEngine {
 
   // MARK: - A walk
 
-  private func run(_ walk: DiveComputerWalk) async {
-    // However it ends, even before the computer answered.
-    defer {
-      let ended = walk.record ?? walk.identity.map { DiveComputerRecord(identity: $0).id }
-      if let ended { walkEnds.ended(ended, at: now()) }
-    }
+  /// Walks the computer and keeps its end, however it ends, even before the computer answered:
+  /// the link's end, nil where the walk left before opening the computer.
+  private func run(_ walk: DiveComputerWalk) async -> DiveComputerDownloadEnd.Kind? {
+    var end: DiveComputerDownloadEnd.Kind?
+    await walkComputer(walk, linkEnd: &end)
+    let ended = walk.record ?? walk.identity.map { DiveComputerRecord(identity: $0).id }
+    // A walk that never opened its computer breaks off too, so it never waits less than one that
+    // did.
+    let brokeOff = !walk.watched && (end?.breaksOff ?? true)
+    if let ended { walkEnds.ended(ended, at: now(), brokeOff: brokeOff) }
+    return end
+  }
+
+  private func walkComputer(
+    _ walk: DiveComputerWalk, linkEnd: inout DiveComputerDownloadEnd.Kind?
+  ) async {
     guard let (account, marked) = keeping(), let origin = session.state.origin else {
       finish(walk, .init(kind: .notKept, sentence: DiveComputerText.accountLoading))
       return
@@ -428,6 +443,7 @@ public final class DiveComputerEngine {
         walkedOne()
       case .finished(let finished):
         end = finished
+        linkEnd = finished.kind
         if let listing = walk.listing, !reportsProgress, listing.newDives > 0 {
           walk.walkProgress = 1
         }
@@ -619,12 +635,8 @@ public final class DiveComputerEngine {
     guard let kind = walk.outcome?.kind, kind != .unpaired else { return }
     let id = walk.identity.map { DiveComputerRecord(identity: $0).id } ?? walk.record
     guard var record = store.records().first(where: { $0.id == id }) else { return }
-    let brokeOff =
-      switch end.kind {
-      case .failed, .unreachable: true
-      case .complete, .cancelled, .unpaired: false
-      }
-    let unfinished = kind == .failed || kind == .notKept || (kind == .kept && brokeOff)
+    let unfinished =
+      kind == .failed || kind == .notKept || (kind == .kept && end.kind.breaksOff)
     guard record.lastDownloadUnfinished != unfinished else { return }
     record.lastDownloadUnfinished = unfinished
     try? store.save(record)

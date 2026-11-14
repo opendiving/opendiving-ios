@@ -47,6 +47,31 @@ final class DiveComputerWatchTests {
       String.init)
   }
 
+  @Test func theWaitAfterABreakOffDoublesUpToTheRevisitDelay() {
+    #expect(
+      (0...6).map { DiveComputerWatch.revisitWait(afterBreakOffs: $0) } == [
+        900, 60, 120, 240, 480, 900, 900,
+      ])
+    #expect(DiveComputerWatch.revisitWait(afterBreakOffs: 1000) == 900)
+  }
+
+  @Test func aWalkEndIsLoggedAndArmsAfterTheComputersWait() {
+    records = [record(F.perdix, perdix)]
+    let watch = watch()
+    watch.revisitWait = { _ in 60 }
+    watch.launched()
+    watcher.send(.state(.on, detail: "poweredOn"))
+    watch.downloadStarted(perdix)
+    _ = watcher.take()
+    watch.downloadEnded(perdix, nil)
+    #expect(watcher.take() == [.arm(perdix, after: 60)])
+    #expect(
+      lines().suffix(2) == [
+        "walk ended Shearwater Perdix 3 \(perdix.uuidString): before opening the computer",
+        "armed Shearwater Perdix 3 \(perdix.uuidString) after 60 s",
+      ])
+  }
+
   @Test func aPhoneWithNothingPairedMakesNoWatcher() {
     records = [record(F.perdix, perdix, automatically: false), record(F.ocean, nil)]
     let watch = watch()
@@ -148,7 +173,7 @@ final class DiveComputerWatchTests {
     watch.refresh()
     #expect(watcher.take().isEmpty)
     clock += 120
-    watch.downloadEnded(perdix)
+    watch.downloadEnded(perdix, .complete)
     #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
 
     // A connection no walk takes is closed, and asked again after the delay from it.
@@ -218,7 +243,7 @@ final class DiveComputerWatchTests {
     // A download from the screen, which is a visit.
     watch.downloadStarted(perdix)
     #expect(watcher.take().isEmpty)
-    watch.downloadEnded(perdix)
+    watch.downloadEnded(perdix, .complete)
     #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
     watch.refresh()
     #expect(watcher.take().isEmpty)
@@ -290,7 +315,7 @@ final class DiveComputerWatchTests {
     #expect(watcher.take() == [.disarm(perdix)])
     watch.refresh()
     #expect(watcher.take().isEmpty)
-    watch.downloadEnded(perdix)
+    watch.downloadEnded(perdix, .complete)
     #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
     #expect(
       lines().contains(
