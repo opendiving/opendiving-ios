@@ -13,10 +13,12 @@ A client of *your* OpenDiving server — the one you run, or [opendiving.app](ht
 — with no cloud of its own. The first version asks where the server is, signs in with a code sent
 to your email, and shows your logbook: dives with their profile charts, trips and dive sites, in
 the units your account uses. Your dive computer's files can be shared to the app from any other
-app or picked from Files, and it imports them the way the web does, showing what each file
-becomes before anything is written. Or the app downloads them from the computer itself over
+app or picked from Files, and it uploads each as it arrives and shows what it becomes before
+anything is written, as the web does. Or the app downloads them from the computer itself over
 Bluetooth: once a computer is paired, its new dives are downloaded each time it connects, even
-with the phone locked, and imported into your logbook without a review. It is built for the Shearwater Perdix 3 and the Suunto Ocean, whose
+with the phone locked, and imported into your logbook without a review, and a notification tells
+you when they are there. With two computers on one dive, the order you give your computers says
+whose recording it shows. It is built for the Shearwater Perdix 3 and the Suunto Ocean, whose
 support is experimental, and every other computer libdc-swift opens is untried. Dives are logged and edited
 on the phone, on the web's own form; a dive begun on the phone is a draft the web can finish, and
 a gear set opens as a checklist to tick at the water's edge. The profile's *More* holds the rest

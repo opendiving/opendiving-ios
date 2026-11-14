@@ -2,15 +2,16 @@ import OpenDivingKit
 import SwiftUI
 
 /// What the phone holds that the server does not have yet, above the Dives list: the drafts,
-/// the writes waiting, what could not be saved, what is done but said once, and the files
-/// waiting to import — each row omitted when it counts nothing, and the whole section when
+/// the writes waiting, what could not be saved, what is done but said once, the files waiting
+/// to import and the downloaded dives waiting to upload — each row omitted when it counts nothing, and the whole section when
 /// they all do. Tapping it opens the pending screen.
 struct PendingSection: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
+  @Environment(DiveComputerEngine.self) private var engine: DiveComputerEngine?
 
   var body: some View {
-    let summary = Self.summary(outbox, inbox)
+    let summary = Self.summary(outbox, inbox, engine)
     if !summary.isEmpty {
       NavigationLink {
         PendingScreen()
@@ -24,10 +25,15 @@ struct PendingSection: View {
 
 extension PendingSection {
   /// The rows the section draws over the account's stores.
-  static func summary(_ outbox: OutboxModel, _ inbox: InboxModel) -> PendingSummary {
-    PendingSummary(
+  static func summary(
+    _ outbox: OutboxModel, _ inbox: InboxModel, _ engine: DiveComputerEngine? = nil
+  ) -> PendingSummary {
+    let downloads =
+      (engine?.archives ?? []).reduce(0) { $0 + $1.summary.dives }
+      + (engine?.held ?? []).reduce(0) { $0 + $1.dives }
+    return PendingSummary(
       drafts: outbox.drafts, items: outbox.items, notices: outbox.notices,
-      unreadable: outbox.unreadable.count, files: inbox.files.count)
+      unreadable: outbox.unreadable.count, files: inbox.files.count, downloads: downloads)
   }
 }
 
@@ -64,6 +70,7 @@ struct PendingSummaryCard: View {
     case .notice: "info.circle"
     case .unreadable: "questionmark.folder"
     case .files: "tray.and.arrow.down"
+    case .downloads: "arrow.down.circle"
     }
   }
 

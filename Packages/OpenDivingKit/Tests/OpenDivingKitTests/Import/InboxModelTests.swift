@@ -53,24 +53,144 @@ struct InboxModelTests {
     await model.settled()
   }
 
+  /// A route that is off until the test switches it on.
+  private func offline() -> SwitchedRoute {
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    return route
+  }
+
   private func imports(_ server: ImportServer) -> [String] {
     server.routes.filter { $0.contains("import") }
   }
 
-  // MARK: - Nothing goes up on its own
+  // MARK: - What goes up on its own
 
-  @Test func noArrivalAccountLoadOrRouteMomentSendsARequest() async throws {
+  @Test func whatArrivesGoesUpAsOneImportOnceThePendingReadFindsNone() async throws {
     let server = try ImportServer()
-    let session = try await signedIn(server)
+    let model = try await loaded(server)
+    try arrive(model, "a.fit")
+    try arrive(model, "b.zip")
+    await model.settled()
+
+    #expect(server.uploads == [["a.fit", "b.zip"]])
+    #expect(imports(server).first == "GET imports/pending")
+    #expect(model.pending?.uuid == server.pendingUUID)
+  }
+
+  @Test func whatArrivesWithNoRouteGoesUpWhenOneAppears() async throws {
+    let server = try ImportServer()
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(server, connectivity: route)
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(imports(server).isEmpty)
+    #expect(model.files.map(model.stage(of:)) == [.waiting])
+
+    route.isRouteAvailable = true
+    model.uploadArrivals()
+    await model.settled()
+    #expect(server.uploads == [["a.fit"]])
+  }
+
+  @Test func whatArrivesBehindAPendingImportWaitsUntilItIsSettled() async throws {
+    let server = try ImportServer()
+    let model = try await loaded(server)
+    let elsewhere = server.holdElsewhere()
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(server.uploads.isEmpty)
+    #expect(model.pending?.uuid == elsewhere)
+    #expect(model.uploadHold == ImportText.pendingBlocksUpload)
+
+    model.discard()
+    await model.settled()
+    #expect(server.uploads == [["a.fit"]])
+  }
+
+  @Test func aPendingReadThatFailsSendsNothingAndTheNextOccasionTriesAgain() async throws {
+    let server = try ImportServer()
+    server.beforePendingRead { throw URLError(.notConnectedToInternet) }
+    let model = try await loaded(server)
+    try arrive(model, "a.fit")
+    await model.settled()
+    #expect(server.uploads.isEmpty)
+    #expect(model.files.map(model.stage(of:)) == [.waiting])
+
+    server.beforePendingRead {}
+    model.uploadArrivals()
+    await model.settled()
+    #expect(server.uploads == [["a.fit"]])
+  }
+
+  @Test func aNewArrivalGoesUpAloneLeavingWhatWasRefusedBefore() async throws {
+    let server = try ImportServer()
+    server.answerUploads { index in
+      index == 0 ? .json(#"{"detail":"This file cannot be read."}"#, status: 422) : nil
+    }
+    let model = try await loaded(server)
+    try arrive(model, "bad.fit")
+    await model.settled()
+    try arrive(model, "good.fit")
+    await model.settled()
+
+    #expect(server.uploads == [["bad.fit"], ["good.fit"]])
+    #expect(model.waiting.map(\.filename) == ["bad.fit"])
+  }
+
+  @Test func anArrivalGoesUpAloneThoughWhatWaitsBesideItBreaksTheBounds() async throws {
+    let server = try ImportServer()
+    let route = offline()
+    let session = try await signedIn(server, connectivity: route)
+    let zips = try ["a.zip", "b.zip"].map { name in
+      let url = try shared.make(name)
+      let handle = try FileHandle(forWritingTo: url)
+      try handle.truncate(atOffset: UInt64(ImportBounds.maxArchiveSize / 2 + 1))
+      try handle.close()
+      return url
+    }
+    // Kept by an earlier process, with no route: they wait for *Upload*.
+    InboxModel(session: session).receive(zips, moving: true)
     let model = InboxModel(session: session)
     model.sessionChanged()
+
+    route.isRouteAvailable = true
+    try arrive(model, "small.fit")
+    await model.settled()
+    #expect(server.uploads == [["small.fit"]])
+    #expect(model.selectionRefusal != nil)
+  }
+
+  @Test func aFileThatCouldNotGoWaitsForTheTap() async throws {
+    let server = try ImportServer()
+    server.answerUploads { _ in .json(#"{"detail":"Too many imports."}"#, status: 429) }
+    let model = try await loaded(server)
     try arrive(model, "a.fit")
-    model.receive([try shared.make("b.zip")], moving: true)
+    await model.settled()
+    model.uploadArrivals()
     model.sessionChanged()
     await model.settled()
 
-    #expect(imports(server).isEmpty)
-    #expect(model.files.map(model.stage(of:)) == [.waiting, .waiting])
+    #expect(server.uploads == [["a.fit"]])
+    #expect(model.uploadError == "Too many imports.")
+    #expect(model.canUpload)
+  }
+
+  @Test func whatAnEarlierProcessKeptDoesNotGoUpByItself() async throws {
+    let server = try ImportServer()
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let session = try await signedIn(server, connectivity: route)
+    InboxModel(session: session).receive([try shared.make("old.fit")], moving: true)
+
+    route.isRouteAvailable = true
+    let model = InboxModel(session: session)
+    model.sessionChanged()
+    model.uploadArrivals()
+    await model.settled()
+    #expect(server.uploads.isEmpty)
+    #expect(model.waiting.map(\.filename) == ["old.fit"])
   }
 
   @Test func nothingUploadsBeforeTheAccountLoads() async throws {
@@ -104,7 +224,8 @@ struct InboxModelTests {
     #expect(model.files.map(\.uploadedInto) == [held, held])
     #expect(model.files.map(model.stage(of:)) == [.uploaded, .uploaded])
     #expect(model.waiting.isEmpty)
-    #expect(!imports(server).contains("GET imports/pending"))
+    // Read once, before the file went up, and not after.
+    #expect(imports(server).filter { $0 == "GET imports/pending" }.count == 1)
 
     // What the phone recorded outlives the model.
     let again = InboxModel(session: try await signedIn(server))
@@ -153,7 +274,10 @@ struct InboxModelTests {
       await gate.pass()
       return nil
     }
-    let model = try await loaded(server)
+    // No route, so only the tap sends: the tap uploads without one.
+    let route = SwitchedRoute()
+    route.isRouteAvailable = false
+    let model = try await loaded(server, connectivity: route)
     try arrive(model, "a.fit")
     model.upload()
     await gate.untilArrived()
@@ -181,7 +305,8 @@ struct InboxModelTests {
 
   @Test func aConflictKeepsTheFilesWaitingShowsTheSentenceAndReadsThePendingImport() async throws {
     let server = try ImportServer()
-    let model = try await loaded(server)
+    // No route at the arrival, which would read the pending import first: the tap meets it.
+    let model = try await loaded(server, connectivity: offline())
     let elsewhere = server.holdElsewhere()
     try await uploaded(model, "a.fit")
 
@@ -204,7 +329,8 @@ struct InboxModelTests {
     #expect(model.uploadError == "Too many imports. Try again in an hour.")
     #expect(model.waiting.count == 1)
     #expect(model.canUpload)
-    #expect(!imports(server).contains("GET imports/pending"))
+    // Read once, before the file went up, and not after.
+    #expect(imports(server).filter { $0 == "GET imports/pending" }.count == 1)
   }
 
   @Test func a5xxShowsTheAppsSentence() async throws {
@@ -250,7 +376,7 @@ struct InboxModelTests {
 
   @Test func aFileAnImportHoldsCannotBeRemoved() async throws {
     let server = try ImportServer()
-    let model = try await loaded(server)
+    let model = try await loaded(server, connectivity: offline())
     try await uploaded(model, "a.fit")
     try arrive(model, "b.fit")
 
@@ -340,9 +466,9 @@ struct InboxModelTests {
 
   @Test func thePendingImportIsReadOnAppearingWhicheverDeviceUploadedIt() async throws {
     let server = try ImportServer()
+    let elsewhere = server.holdElsewhere()
     let model = try await loaded(server)
     try arrive(model, "a.fit")
-    let elsewhere = server.holdElsewhere()
 
     await appeared(model)
 
@@ -365,8 +491,10 @@ struct InboxModelTests {
     let server = try ImportServer()
     let gate = Gate()
     server.beforePendingRead { await gate.pass() }
-    let model = try await loaded(server)
+    let route = offline()
+    let model = try await loaded(server, connectivity: route)
     try arrive(model, "a.fit")
+    route.isRouteAvailable = true
     model.readPending()
     await gate.untilArrived()
 
@@ -444,7 +572,8 @@ struct InboxModelTests {
     #expect(model.pending != nil)
     #expect(model.files.count == 1)
     #expect(model.result == nil)
-    #expect(!imports(server).contains("GET imports/pending"))
+    // Read once, before the file went up, and not after.
+    #expect(imports(server).filter { $0 == "GET imports/pending" }.count == 1)
   }
 
   @Test func anApplyAnotherDeviceBeatRereadsAndTheFilesLeave() async throws {

@@ -59,6 +59,7 @@ struct DiveComputerModelTests {
   }
 
   private func scanned(_ model: DiveComputerModel) async throws -> DiveComputerModel.Row {
+    model.pair()
     await model.watch()
     for _ in 0..<1000 where model.rows.isEmpty { await Task.yield() }
     return try #require(model.rows.first)
@@ -118,7 +119,8 @@ struct DiveComputerModelTests {
     let paired = try #require(model.paired.first)
     #expect(model.paired.count == 1)
     #expect(paired.title == "Shearwater Perdix 3")
-    #expect(paired.subtitle == "Serial D9772626 · Last downloaded 25 October")
+    // No route here: the archive waits.
+    #expect(model.status(paired.record) == "2 dives waiting to upload")
     #expect(paired.row?.computer == F.perdixFound)
     #expect(model.unpairedRows.isEmpty)
   }
@@ -527,6 +529,7 @@ struct DiveComputerModelTests {
       background: NoBackgroundExecution(), applicationSupport: other,
       userAgent: ClientHarness.userAgent, accessToken: "live")
     let loading = model(fresh, link)
+    loading.pair()
     await loading.watch()
     #expect(loading.blocker == DiveComputerText.accountLoading)
     #expect(link.downloads == 0)
@@ -617,7 +620,7 @@ struct DiveComputerModelTests {
     let model = model(next, link)
     await model.watch()
     #expect(model.paired.map(\.title) == ["Shearwater Perdix 3"])
-    #expect(model.paired.first?.subtitle == "Serial D9772626")
+    #expect(model.paired.first.map { model.status($0.record) } == "No dives downloaded yet")
 
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
     try await download(model)

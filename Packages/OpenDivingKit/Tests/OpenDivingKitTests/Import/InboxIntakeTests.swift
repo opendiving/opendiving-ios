@@ -44,7 +44,7 @@ struct InboxIntakeTests {
     #expect(
       try files.map { String(decoding: try Data(contentsOf: store.url(for: $0)), as: UTF8.self) }
         == ["one", "two"])
-    #expect(server.uploads.isEmpty)
+    #expect(server.uploads == [["dive.fit", "dive.fit"]])
   }
 
   @Test func aFileBeforeTheLoadIsMarkedAndMovesToTheAccountTheLoadNames() async throws {

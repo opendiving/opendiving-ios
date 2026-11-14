@@ -7,12 +7,15 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// A notifier that keeps what it was given to post.
+/// A notifier that keeps what it was given to post, and counts the times it asked.
 @MainActor
 final class FakeNotifier: DiveComputerNotifier {
   private(set) var posted: [DiveComputerNotice] = []
+  private(set) var asked = 0
 
   func post(_ notice: DiveComputerNotice) { posted.append(notice) }
+  func hasAsked() async -> Bool { asked > 0 }
+  func ask() async { asked += 1 }
 }
 
 /// A wake that counts the requests left with it.
@@ -333,6 +336,7 @@ struct DiveComputerEngineTests {
     await engine.settled()
 
     let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    model.pair()
     await model.watch()
     #expect(model.phase == .askingTimeZone)
     model.answerTimeZone(try #require(TimeZone(identifier: "Asia/Tokyo")))
@@ -533,6 +537,7 @@ struct DiveComputerEngineTests {
     link.holdBeforeEnd = true
     let engine = engine(session)
     let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    model.pair()
     await model.watch()
     #expect(model.phase == .scanning)
 
@@ -557,6 +562,7 @@ struct DiveComputerEngineTests {
     link.holdBeforeEnd = true
     let engine = engine(session)
     let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    model.pair()
     await model.watch()
     #expect(link.scans == 1)
 

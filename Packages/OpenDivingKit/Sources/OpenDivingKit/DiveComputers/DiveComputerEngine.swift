@@ -40,6 +40,11 @@ public final class DiveComputerEngine {
   public private(set) var archives: [DownloadArchive] = []
   /// That account's dives waiting for the diver's time zone, a walk's at a time, oldest first.
   public private(set) var held: [HeldDives] = []
+  /// The account's dive computers in its order, as `GET /dive-computers` last answered in this
+  /// process; nil before a read, or where the server keeps no order.
+  public internal(set) var order: [DiveComputerRead]?
+  /// The server answered the order's routes with a 404: it keeps no order.
+  public internal(set) var orderRouteMissing = false
 
   /// Dives one walk kept apart until the diver says which zone they were in.
   public struct HeldDives: Hashable, Sendable, Identifiable {
@@ -47,6 +52,8 @@ public final class DiveComputerEngine {
     public let dives: Int
     /// *Shearwater Perdix 3*.
     public let computer: String
+    /// The computer's record, ``DiveComputerRecord/id``.
+    public let record: String?
     /// The zone the watch reported, which the question offers first.
     public let watchZone: TimeZone?
   }
@@ -161,6 +168,8 @@ public final class DiveComputerEngine {
   /// The session changed — signed in or out, or another server: the walk in flight and those
   /// waiting their turn end, and the marks settle as the inbox's do.
   public func sessionChanged() {
+    order = nil
+    orderRouteMissing = false
     endWalks()
     settleMarks()
     reload()
@@ -347,6 +356,7 @@ public final class DiveComputerEngine {
     var skippedWaiting = 0
     var end = DiveComputerDownloadEnd(.failed(status: "DC_STATUS_IO"))
     var reportsProgress = false
+    defer { noteEnd(walk, end, in: store) }
     var bound = walk.watched ? nil : bounded()
     // Nothing reads *Downloading* before anything downloads: the phase moves at the listing, or
     // without one at the first progress, dive or skip.
@@ -440,13 +450,15 @@ public final class DiveComputerEngine {
       guard walk.listing != nil else { return }
       try? store.save(
         remembered(
-          record, identity: identity, computer: walk.computer, sports: sports, marked: marked))
+          record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
+          in: store))
     }
     guard let identity, !dives.isEmpty else {
       downloads.remove(walk: kept.id)
       if let identity, (advances && newest != nil) || walk.listing != nil {
         var saved = remembered(
-          record, identity: identity, computer: walk.computer, sports: sports, marked: marked)
+          record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
+          in: store)
         if advances, let newest {
           saved.fingerprint = newest
           downloads.clearDelivered(saved.id)
@@ -506,7 +518,8 @@ public final class DiveComputerEngine {
     let parsed = dives.count - refused
     if archived {
       var saved = remembered(
-        record, identity: identity, computer: walk.computer, sports: sports, marked: marked)
+        record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
+        in: store)
       if advances, heldAll, let newest {
         saved.fingerprint = newest
         saved.lastDownloaded = now()
@@ -571,23 +584,66 @@ public final class DiveComputerEngine {
   }
 
   /// Saves the record of the computer just identified, so it is paired while the walk runs.
+  /// A computer paired beside exactly one other the account knows, on the phone or on the
+  /// server, awaits *Which computer comes first?*: its dives' default is set by the order as it
+  /// stands when they are written, so they wait for the answer. Where the phone knows none and
+  /// the order is unread, the server may know the one: it waits until a read settles it.
   private func pair(
     _ identity: DiveComputerIdentity, computer: FoundComputer, store: DiveComputerStore,
     marked: Bool
   ) {
     let record = store.record(family: identity.family, serial: identity.serial)
-    try? store.save(
-      remembered(record, identity: identity, computer: computer, sports: nil, marked: marked))
+    var saved = remembered(
+      record, identity: identity, computer: computer, sports: nil, marked: marked, in: store)
+    let others = otherComputers(than: identity.serial, store: store).count
+    if record == nil, others == 1 || (others == 0 && order == nil && !orderRouteMissing) {
+      saved.awaitsOrder = true
+    }
+    try? store.save(saved)
     pairingsChanged?()
+  }
+
+  /// The serials, folded, of every computer the phone or the account's order knows but this one.
+  func otherComputers(than serial: String, store: DiveComputerStore) -> Set<String> {
+    var others = Set(store.records().map { DiveComputerRead.fold($0.serial) })
+    others.formUnion((order ?? []).map { DiveComputerRead.fold($0.serial) })
+    others.remove(DiveComputerRead.fold(serial))
+    return others
+  }
+
+  /// Whether the walk's computer is left with *The last download did not finish*: a walk that
+  /// broke off, kept dives or not, or whose dives could not be kept. Any other end clears it.
+  private func noteEnd(
+    _ walk: DiveComputerWalk, _ end: DiveComputerDownloadEnd, in store: DiveComputerStore
+  ) {
+    guard let kind = walk.outcome?.kind, kind != .unpaired else { return }
+    let id = walk.identity.map { DiveComputerRecord(identity: $0).id } ?? walk.record
+    guard var record = store.records().first(where: { $0.id == id }) else { return }
+    let brokeOff =
+      switch end.kind {
+      case .failed, .unreachable: true
+      case .complete, .cancelled, .unpaired: false
+      }
+    let unfinished = kind == .failed || kind == .notKept || (kind == .kept && brokeOff)
+    guard record.lastDownloadUnfinished != unfinished else { return }
+    record.lastDownloadUnfinished = unfinished
+    try? store.save(record)
   }
 
   /// The record as this walk leaves it, before the fingerprint moves: the identity as the
   /// computer gave it, where the phone saw it, the entries' sports.
+  ///
+  /// What the diver sets while the walk runs — *Download automatically*, the order's answer —
+  /// is read from the store as it stands, so the walk's save does not undo it.
   private func remembered(
     _ record: DiveComputerRecord?, identity: DiveComputerIdentity, computer: FoundComputer,
-    sports: [NauticEntrySport]?, marked: Bool
+    sports: [NauticEntrySport]?, marked: Bool, in store: DiveComputerStore
   ) -> DiveComputerRecord {
     var kept = record ?? DiveComputerRecord(identity: identity)
+    if let current = store.record(family: identity.family, serial: identity.serial) {
+      kept.downloadsAutomatically = current.downloadsAutomatically
+      kept.awaitsOrder = current.awaitsOrder
+    }
     kept.vendor = identity.vendor
     kept.product = identity.product
     kept.firmware = identity.firmware ?? kept.firmware
@@ -781,7 +837,8 @@ public final class DiveComputerEngine {
       walk in
       guard let identity = walk.dives.first?.identity else { return nil }
       return HeldDives(
-        id: walk.id, dives: walk.dives.count, computer: identity.title, watchZone: walk.zone)
+        id: walk.id, dives: walk.dives.count, computer: identity.title, record: walk.record,
+        watchZone: walk.zone)
     }
   }
 }

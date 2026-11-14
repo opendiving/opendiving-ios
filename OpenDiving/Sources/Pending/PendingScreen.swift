@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Everything the phone holds that the server does not have yet, item by item, with what the
 /// server last said about each and the way out of each: the drafts, the writes waiting, what
-/// this build cannot read, what is done but said once, and the files waiting to import, each
-/// with where it stands.
+/// this build cannot read, what is done but said once, the files waiting to import and the
+/// downloads waiting to upload, each with where it stands.
 ///
 /// Signed in it ends in *Sync now*, which leaves the files to *Upload* on the Import screen. Signed
 /// out — a sheet off the email screen, over the stores of the account last loaded here — it says
@@ -13,11 +13,13 @@ struct PendingScreen: View {
   @Environment(Session.self) private var session
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
+  @Environment(DiveComputerEngine.self) private var engine: DiveComputerEngine?
 
   @State private var route: PendingRoute?
   @State private var sheet: PendingSheet?
   @State private var discarding: OutboxItem?
   @State private var discardingUnreadable: String?
+  @State private var removingDownload: WaitingDownload?
 
   private var signedIn: Bool {
     if case .signedIn = session.state { true } else { false }
@@ -25,7 +27,11 @@ struct PendingScreen: View {
 
   private var isEmpty: Bool {
     outbox.drafts.isEmpty && outbox.items.isEmpty && outbox.unreadable.isEmpty
-      && outbox.notices.isEmpty && inbox.files.isEmpty
+      && outbox.notices.isEmpty && inbox.files.isEmpty && downloadRows.isEmpty
+  }
+
+  private var downloadRows: [WaitingDownload] {
+    engine.map { WaitingDownload.rows(archives: $0.archives, held: $0.held) } ?? []
   }
 
   private var isSyncing: Bool { outbox.isFlushing }
@@ -52,6 +58,7 @@ struct PendingScreen: View {
       unreadable
       notices
       files
+      downloads
       if signedIn {
         Section {
           Button {
@@ -208,6 +215,48 @@ struct PendingScreen: View {
         if let footer = Self.filesFooter(inbox) {
           Text(footer)
         }
+      }
+    }
+  }
+
+  /// Each download that waits, with *Upload* where the server refused it and *Remove* for any
+  /// archive, after the warning that its dives are not taken again by themselves.
+  @ViewBuilder private var downloads: some View {
+    if !downloadRows.isEmpty {
+      Section {
+        ForEach(downloadRows) { row in
+          VStack(alignment: .leading, spacing: 6) {
+            Label(row.title, icon: .diveComputer)
+            Text(row.stage)
+              .font(.caption)
+              .foregroundStyle(row.refused ? Color.danger : Color.secondary)
+            if let archive = row.archive {
+              HStack(spacing: 16) {
+                if archive.refusal != nil, signedIn {
+                  Button("Upload") { engine?.sendAgain(archive) }
+                    .accentRow()
+                }
+                Button("Remove", role: .destructive) { removingDownload = row }
+                  .dangerRow()
+              }
+              .buttonStyle(.borderless)
+            }
+          }
+        }
+      } header: {
+        Text(DiveComputerText.screenTitle)
+      }
+      .confirmationDialog(
+        "Remove \(removingDownload?.title ?? "")?",
+        isPresented: Binding(
+          get: { removingDownload != nil }, set: { if !$0 { removingDownload = nil } }),
+        titleVisibility: .visible, presenting: removingDownload
+      ) { row in
+        Button("Remove", role: .destructive) {
+          if let archive = row.archive { engine?.remove(archive) }
+        }
+      } message: { _ in
+        Text(DiveComputerText.removeDownloadWarning)
       }
     }
   }

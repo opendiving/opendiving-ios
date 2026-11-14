@@ -80,14 +80,16 @@ exporting one would outrank its owner's declaration. `LSSupportsOpeningDocuments
 so iOS copies the file into `Documents/Inbox` and the app moves that copy into the account's
 inbox. SwiftUI's `onOpenURL` is what delivers it — a document as well as a link. Rejected: a share extension, which needs a second bundle id.
 
-## The inbox uploads on a tap alone
+## A shared file goes up on arrival, after the pending read
 
-An upload creates a pending import the server seals and that blocks every other device, so the app
-never uploads a file on its own: files arriving from the share sheet and the picker wait in the
-inbox for *Upload*, and an account load or a route appearing sends nothing. A refusal, a 429 and a
-5xx show their sentence and the files wait. A download never enters the inbox: it is imported at
-once, holding no pending import. Rejected: uploading a file on arrival, which turns a review open on
-another device into a 409.
+A file shared to the app or picked in it is uploaded as soon as the account has loaded, there is a
+route and `GET /imports/pending` finds no import, so its review opens with nothing to tap; the
+arrival, the load, a route and an import leaving the way each try it. The read comes first because
+an upload behind another device's pending import is a 409, not a review. A file that went once and
+was refused, and one an earlier process kept, waits for *Upload*: sent again by itself it meets the
+same refusal. A download never enters the inbox: it is imported at once, holding no pending
+import. Rejected: uploading on a tap alone, a step between sharing and the review that decides
+nothing.
 
 ## What the app starts on its own waits for a route
 
@@ -317,6 +319,17 @@ answer from a server that cannot apply in one request, keep it unsent. Only a lo
 uploads. With no route, iOS gets a request for the server's health, naming no account. Rejected:
 handing iOS the upload, whose token expires in 30 minutes; uniting the archives that wait, which
 only one pending import per account ever needed.
+
+## A computer paired beside one other waits for the order before its dives go up
+
+The recording a dive shows by default is chosen when the dive is written, from the account's order
+as it then stands, and a new computer's first download takes every dive it holds. So a computer
+paired while exactly one other is known, on the phone or in `GET /dive-computers` — or none on the
+phone with the order unread, until a read says — is marked on its progress, and its archives are
+neither sent nor announced, nor a wake left, until *Which computer comes first?* is answered; a
+server with no order route takes the answer as sent. With more known
+the new one goes last unasked, and the list moves it. Rejected: asking after the download, when the
+answer can no longer reach the dives it was asked for.
 
 ## The app's tests assert what a screen is given, not the text it draws
 

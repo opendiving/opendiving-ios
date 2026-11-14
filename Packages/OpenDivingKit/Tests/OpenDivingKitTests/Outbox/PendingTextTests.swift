@@ -48,12 +48,12 @@ struct PendingTextTests {
       ref: .local(UUID()), write: DiveDraftWrite(), changedAt: Date(), hasPendingChange: true)
     let summary = PendingSummary(
       drafts: [draft, draft], items: [Self.dive, Self.site, Self.person, failed],
-      notices: [notice], unreadable: 1, files: 2)
+      notices: [notice], unreadable: 1, files: 2, downloads: 3)
     #expect(
       summary.rows.map(\.text) == [
         "2 drafts", "A dive, a site and a person waiting to sync", "1 could not be saved",
         "Saved, but this version could not read the server's answer.",
-        "Saved by another version of the app", "2 files waiting",
+        "Saved by another version of the app", "2 files waiting", "3 dives waiting to upload",
       ])
   }
 

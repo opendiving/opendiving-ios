@@ -67,7 +67,7 @@ struct PendingTests {
     #expect(window != nil)
   }
 
-  @Test func aFileWaitsToUploadThenShowsAsUploadedAndSyncNowSendsNothingOfTheInbox() async throws {
+  @Test func aFileGoesUpAsItArrivesAndSyncNowSendsNothingOfTheInbox() async throws {
     let uploads = Counter()
     let session = F.signedIn(
       F.directory(),
@@ -96,19 +96,15 @@ struct PendingTests {
     _ = inbox.receive([file], moving: false)
     await inbox.settled()
 
-    #expect(inbox.files.map(inbox.stage(of:)).map(PendingText.fileStage) == ["Waiting to upload"])
-    #expect(PendingScreen.filesFooter(inbox) == nil)
-    outbox.syncNow()
-    await outbox.settled()
-    #expect(uploads.next() == 0)
-
-    inbox.upload()
-    await inbox.settled()
+    // It went up as it arrived, the pending read finding none.
     #expect(
       inbox.files.map(inbox.stage(of:)).map(PendingText.fileStage) == [
         "Uploaded, waiting for the import to be finished"
       ])
-    #expect(uploads.next() == 2)
+    #expect(PendingScreen.filesFooter(inbox) == nil)
+    outbox.syncNow()
+    await outbox.settled()
+    #expect(uploads.next() == 1)
 
     let window = F.window(
       NavigationStack { PendingScreen() }
