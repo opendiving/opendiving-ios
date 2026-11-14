@@ -88,7 +88,7 @@ public final class APIKeysModel {
     scopesError = nil
   }
 
-  /// `3 of 44 selected`.
+  /// `3 of 45 selected`.
   public var grantedCount: String {
     let offered = permissions.value ?? []
     return "\(offered.filter(scopes.contains).count) of \(offered.count) selected"
@@ -187,7 +187,9 @@ public final class APIKeysModel {
   public static let permissionsAbsent =
     "This API needs an update to support detailed permissions."
   public static let permissionsNote =
-    "Create & edit allows changes to your content. Delete allows permanent removal."
+    "Create & edit allows changes to your content. Delete allows permanent removal. Species —"
+    + " Create & edit also lets a tool propose photos, which the operator sees with your name, and"
+    + " add species to the catalog every account shares."
   public static let noPermission = "Select at least one permission."
   public static let legacyAccess =
     "This key uses legacy access. Create a new key to choose individual permissions."

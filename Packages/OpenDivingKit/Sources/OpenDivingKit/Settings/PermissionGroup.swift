@@ -61,7 +61,7 @@ public struct PermissionGroup: Hashable, Sendable, Identifiable {
     "courses": "Courses", "dives": "Dives", "drafts": "Drafts", "export": "Exports",
     "files": "Files", "gear": "Gear", "import": "Imports", "people": "People",
     "preferences": "Preferences", "presets": "Presets", "profile": "Profile",
-    "sites": "Dive sites", "tags": "Tags", "trips": "Trips",
+    "sites": "Dive sites", "species": "Species", "tags": "Tags", "trips": "Trips",
   ]
 
   private static let actionLabels = [

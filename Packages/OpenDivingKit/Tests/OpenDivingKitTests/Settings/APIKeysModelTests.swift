@@ -35,7 +35,7 @@ struct APIKeysModelTests {
     #expect(!harness.server.credentialRoutes.contains("POST user/api-keys"))
     await model.permissions.load()
     #expect(model.canSubmit)
-    #expect(model.grantedCount == "1 of 44 selected")
+    #expect(model.grantedCount == "1 of 45 selected")
   }
 
   @Test func theListShowsEveryKindOfKey() async throws {
@@ -49,7 +49,7 @@ struct APIKeysModelTests {
     let harness = try await CredentialsHarness()
     let model = await model(harness)
     model.grantAll()
-    #expect(model.grantedCount == "44 of 44 selected")
+    #expect(model.grantedCount == "45 of 45 selected")
     model.grantReadsOnly()
     #expect(model.isGranted("gear:read") && !model.isGranted("gear:write"))
     #expect(!model.isGranted("checkin:read"))
