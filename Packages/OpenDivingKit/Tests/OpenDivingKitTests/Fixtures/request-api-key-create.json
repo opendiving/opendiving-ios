@@ -1,5 +1,9 @@
 {
   "name": "tide sync",
-  "scope": "read",
+  "scope": "scoped",
+  "scopes": [
+    "dives:read",
+    "sites:read"
+  ],
   "lifetime": "30d"
 }

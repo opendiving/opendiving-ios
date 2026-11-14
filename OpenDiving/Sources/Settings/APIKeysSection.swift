@@ -61,6 +61,13 @@ struct APIKeysSection: View {
         Text(APIKeysModel.details(key, now: model.now))
           .font(.caption)
           .foregroundStyle(.secondary)
+        if key.scope == .scoped, let scopes = key.scopes {
+          KeyPermissions(scopes: scopes)
+        } else {
+          Text(APIKeysModel.legacyAccess)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       if model.revoking == key.uuid {
@@ -105,18 +112,25 @@ private struct APIKeyForm: View {
       }
     }
     .disabled(model.isSubmitting)
-    Picker("Access", selection: $model.scope) {
-      ForEach(APIKeyScope.allCases, id: \.self) { scope in
-        Text(APIKeysModel.label(scope)).tag(scope)
-      }
-    }
-    .disabled(model.isSubmitting)
     Picker("Expires after", selection: $model.lifetime) {
       ForEach(APIKeyLifetime.allCases, id: \.self) { lifetime in
         Text(APIKeysModel.label(lifetime)).tag(lifetime)
       }
     }
     .disabled(model.isSubmitting)
+    if model.permissions.isAbsent {
+      Text(APIKeysModel.permissionsAbsent)
+        .foregroundStyle(.secondary)
+    } else if model.permissions.value == nil {
+      OptionalListStatus(
+        list: model.permissions, failed: APIKeysModel.permissionsLoadFailed,
+        loading: "Loading permissions…")
+    } else {
+      PermissionPicker(model: model)
+    }
+    if let error = model.scopesError {
+      FieldMessage(error)
+    }
     if let failure = model.createFailure {
       FieldMessage(failure)
     }
@@ -130,9 +144,77 @@ private struct APIKeyForm: View {
       }
       Button("Create key") { Task { await model.create() } }
         .buttonStyle(.borderedProminent)
-        .disabled(model.isSubmitting)
+        .disabled(!model.canSubmit)
     }
     .buttonStyle(.borderless)
+    .task { await model.permissions.load() }
+  }
+}
+
+/// The permissions a new key is given, a row per kind of content with a button per action.
+private struct PermissionPicker: View {
+  let model: APIKeysModel
+
+  var body: some View {
+    let groups = PermissionGroup.groups(model.permissions.value ?? [])
+    HStack {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(APIKeysModel.permissionsTitle)
+          .font(.headline)
+        Text(model.grantedCount)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      Spacer()
+      Button("Read only") { model.grantReadsOnly() }
+      Button("Select all") { model.grantAll() }
+        .buttonStyle(.bordered)
+    }
+    .buttonStyle(.borderless)
+    .disabled(model.isSubmitting)
+    ForEach(groups) { group in
+      VStack(alignment: .leading, spacing: 6) {
+        Text(group.label)
+        FlowLayout(spacing: 6) {
+          ForEach(group.permissions) { permission in
+            Toggle(
+              permission.label,
+              isOn: Binding(
+                get: { model.isGranted(permission.scope) },
+                set: { model.grant(permission.scope, $0) })
+            )
+            .toggleStyle(.button)
+            .buttonStyle(.bordered)
+            .font(.subheadline)
+            .accessibilityLabel(group.spoken(permission))
+          }
+        }
+      }
+      .disabled(model.isSubmitting)
+    }
+    Text(APIKeysModel.permissionsNote)
+      .font(.footnote)
+      .foregroundStyle(.secondary)
+  }
+}
+
+/// What a scoped key may do, folded away until asked for.
+private struct KeyPermissions: View {
+  let scopes: [String]
+
+  var body: some View {
+    DisclosureGroup {
+      VStack(alignment: .leading, spacing: 6) {
+        ForEach(PermissionGroup.groups(scopes)) { group in
+          LabeledContent(group.label, value: group.actions)
+            .font(.caption)
+        }
+      }
+      .padding(.top, 4)
+    } label: {
+      Text("Permissions \u{00B7} \(scopes.count)")
+        .font(.caption)
+    }
   }
 }
 

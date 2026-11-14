@@ -5,6 +5,10 @@ import Observation
 /// when it was made, last used and expires, created from a form with the web's fields and
 /// defaults, and revoked after a confirmation. Direct calls, online only.
 ///
+/// A key is made as the web makes one, with the permissions picked from the server's own list.
+/// A legacy *Read only* or *Read and write* key is still listed and revoked here, and no longer
+/// made.
+///
 /// A new key's secret is held here and nowhere else — no file, no log, no description of this
 /// model or of the answer that carried it — and is gone at ``done()``, which the screen also
 /// calls as the diver leaves it. The server keeps only a fingerprint, so nothing shows it again.
@@ -15,16 +19,20 @@ public final class APIKeysModel {
   nonisolated public static let nameMaxLength = PasskeysModel.nameMaxLength
 
   public let list: OptionalList<[APIKeyRead]>
+  /// Every permission a new key can be given, read as the form opens.
+  public let permissions: OptionalList<[String]>
 
   /// The create form is open.
   public private(set) var isCreating = false
   public var name = ""
-  /// Read only by default, so writing is a choice somebody made.
-  public var scope = APIKeyScope.read
+  /// Dive reads alone by default, so anything more is a choice somebody made.
+  public private(set) var scopes = defaultScopes
   /// A year by default, so *Never* is a choice somebody made.
   public var lifetime = APIKeyLifetime.oneYear
   /// What is wrong with ``name``, once a create has been tried with it.
   public private(set) var nameError: String?
+  /// Set once a create has been tried with no permission picked.
+  public private(set) var scopesError: String?
   public private(set) var isSubmitting = false
   /// Why the last create made no key: the API's sentence, the cap's and the rate limit's
   /// included.
@@ -48,6 +56,7 @@ public final class APIKeysModel {
     self.session = session
     self.now = now
     list = OptionalList(session: session) { try await $0.apiKeys() }
+    permissions = OptionalList(session: session) { try await $0.apiKeyPermissions() }
   }
 
   /// A key can be made once the list has been read, so the new row has a list to join.
@@ -58,28 +67,59 @@ public final class APIKeysModel {
     isCreating = true
   }
 
+  /// A key is sent once the server has said which permissions it can carry.
+  public var canSubmit: Bool { permissions.value != nil && !isSubmitting }
+
+  public func isGranted(_ scope: String) -> Bool { scopes.contains(scope) }
+
+  public func grant(_ scope: String, _ granted: Bool) {
+    if granted { scopes.insert(scope) } else { scopes.remove(scope) }
+    scopesError = nil
+  }
+
+  /// Every read the server offers but check-in's.
+  public func grantReadsOnly() {
+    scopes = Set(PermissionGroup.reads(permissions.value ?? []))
+    scopesError = nil
+  }
+
+  public func grantAll() {
+    scopes = Set(permissions.value ?? [])
+    scopesError = nil
+  }
+
+  /// `3 of 44 selected`.
+  public var grantedCount: String {
+    let offered = permissions.value ?? []
+    return "\(offered.filter(scopes.contains).count) of \(offered.count) selected"
+  }
+
   /// Closes the form, back to its defaults.
   public func cancelCreating() {
     guard !isSubmitting else { return }
     isCreating = false
     name = ""
-    scope = .read
+    scopes = Self.defaultScopes
     lifetime = .oneYear
     nameError = nil
+    scopesError = nil
     createFailure = nil
   }
 
   public func create() async {
-    guard isCreating, !isSubmitting else { return }
+    guard isCreating, let offered = permissions.value, !isSubmitting else { return }
     let name = name.trimmedOfWhitespace
+    // Sent in the server's order, and only what it offers.
+    let granted = offered.filter(scopes.contains)
     nameError = Self.nameProblem(name)
+    scopesError = granted.isEmpty ? Self.noPermission : nil
     createFailure = nil
-    guard nameError == nil else { return }
+    guard nameError == nil, scopesError == nil else { return }
     isSubmitting = true
     let made: APIKeyCreated
     do {
       made = try await session.routedClient().createAPIKey(
-        APIKeyCreate(name: name, scope: scope, lifetime: lifetime))
+        APIKeyCreate(name: name, scope: .scoped, scopes: granted, lifetime: lifetime))
     } catch {
       isSubmitting = false
       createFailure = APIError(error).message
@@ -127,6 +167,8 @@ public final class APIKeysModel {
     return nil
   }
 
+  nonisolated public static let defaultScopes: Set<String> = ["dives:read"]
+
   // MARK: - What the block says
 
   public static let description =
@@ -140,6 +182,15 @@ public final class APIKeysModel {
   public static let createButton = "Create API key"
   public static let namePlaceholder = "laptop"
   public static let expired = "Expired"
+  public static let permissionsTitle = "Key permissions"
+  public static let permissionsLoadFailed = "Couldn't load supported permissions."
+  public static let permissionsAbsent =
+    "This API needs an update to support detailed permissions."
+  public static let permissionsNote =
+    "Create & edit allows changes to your content. Delete allows permanent removal."
+  public static let noPermission = "Select at least one permission."
+  public static let legacyAccess =
+    "This key uses legacy access. Create a new key to choose individual permissions."
   public static let secretLabel = "New API key"
   public static let secretCopied = "API key copied"
   public static let secretNote =
@@ -157,6 +208,7 @@ public final class APIKeysModel {
     switch scope {
     case .read: "Read only"
     case .write: "Read and write"
+    case .scoped: "Custom permissions"
     }
   }
 

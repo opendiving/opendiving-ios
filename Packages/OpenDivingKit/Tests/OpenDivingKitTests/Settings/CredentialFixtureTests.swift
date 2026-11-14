@@ -34,15 +34,41 @@ struct CredentialFixtureTests {
 
   @Test func apiKeys() throws {
     let keys = try KitFixture.roundTrip([APIKeyRead].self, "api-keys")
-    #expect(keys.map(\.scope) == [.read, .write])
-    #expect(keys.map { APIKeysModel.label($0.scope) } == ["Read only", "Read and write"])
+    #expect(keys.map(\.scope) == [.read, .write, .scoped])
+    #expect(
+      keys.map { APIKeysModel.label($0.scope) } == [
+        "Read only", "Read and write", "Custom permissions",
+      ])
+    #expect(keys.map(\.scopes) == [nil, nil, ["dives:read", "dives:write", "sites:read"]])
     let now = try #require(DiveTimestamp(wireValue: "2026-11-10T12:00:00Z")?.instant)
-    #expect(keys.map { $0.isExpired(at: now) } == [true, false])
+    #expect(keys.map { $0.isExpired(at: now) } == [true, false, false])
     #expect(
       keys.map { APIKeysModel.details($0, now: now, in: utc) } == [
         "Created Sep 1, 2026 · Last used Nov 8, 2026 · Expired Oct 1, 2026",
         "Created Oct 20, 2026 · Never used · No expiry",
+        "Created Nov 12, 2026 · Never used · Expires Nov 12, 2027",
       ])
+  }
+
+  @Test func permissionsGroupByContentWithTheirActionsInOrder() throws {
+    let offered = try KitFixture.decode([String].self, "api-key-permissions")
+    let groups = PermissionGroup.groups(offered)
+    #expect(groups.count == 17)
+    let dives = try #require(groups.first { $0.resource == "dives" })
+    #expect(dives.label == "Dives")
+    #expect(dives.permissions.map(\.scope) == ["dives:read", "dives:write", "dives:delete"])
+    #expect(dives.actions == "Read, Create & edit, Delete")
+    #expect(dives.spoken(dives.permissions[1]) == "Create & edit dives")
+    #expect(groups.first { $0.resource == "sites" }?.label == "Dive sites")
+    #expect(groups.first { $0.resource == "import" }?.actions == "Create & edit")
+
+    let reads = PermissionGroup.reads(offered)
+    #expect(reads.allSatisfy { $0.hasSuffix(":read") })
+    #expect(reads.contains("dives:read") && !reads.contains("checkin:read"))
+
+    let unknown = PermissionGroup.groups(["dive-logs:share", "dives:read"])
+    #expect(unknown.map(\.label) == ["dive logs", "Dives"])
+    #expect(unknown[0].actions == "share")
   }
 
   @Test func aCreatedKeyCarriesItsSecretAndIsNeverDescribedWithIt() throws {
@@ -72,6 +98,13 @@ struct CredentialFixtureTests {
   @Test func apiKeyCreate() throws {
     let create = try sendsItsFixture(APIKeyCreate.self, "request-api-key-create")
     #expect(create.lifetime == .thirtyDays)
+    #expect(create.scope == .scoped && create.scopes == ["dives:read", "sites:read"])
+    let legacy = try JSONValue.parse(
+      APICoding.requestEncoder().encode(
+        APIKeyCreate(name: "old", scope: .read, lifetime: .never)))
+    #expect(
+      legacy
+        == (try JSONValue.parse(Data(#"{"name":"old","scope":"read","lifetime":"never"}"#.utf8))))
   }
 
   private func sendsItsFixture<Body: Codable>(_ type: Body.Type, _ name: String) throws -> Body {
