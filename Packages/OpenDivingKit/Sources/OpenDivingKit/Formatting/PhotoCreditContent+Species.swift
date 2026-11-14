@@ -1,9 +1,9 @@
 import Foundation
 
 extension PhotoCreditContent {
-  /// The credit composed from the parts the API stores, as the web composes it. Nil with no
-  /// photo, and when nothing at all was recorded beside one: a line reading *Photo* with
-  /// nothing after it is worse than no line.
+  /// The credit composed from the parts the API stores, the web's parts. Nil with no photo, and
+  /// when nothing at all was recorded beside one: a line reading *Photo* with nothing after it
+  /// is worse than no line.
   public static func species(_ species: SpeciesRead) -> PhotoCreditContent? {
     guard species.photoSha256 != nil else { return nil }
     let author = present(species.photoAuthor)
