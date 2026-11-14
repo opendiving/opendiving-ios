@@ -37,6 +37,7 @@
   "sites:delete",
   "sites:read",
   "sites:write",
+  "species:write",
   "tags:delete",
   "tags:read",
   "tags:write",

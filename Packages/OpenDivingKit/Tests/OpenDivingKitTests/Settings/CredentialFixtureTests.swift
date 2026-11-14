@@ -53,7 +53,7 @@ struct CredentialFixtureTests {
   @Test func permissionsGroupByContentWithTheirActionsInOrder() throws {
     let offered = try KitFixture.decode([String].self, "api-key-permissions")
     let groups = PermissionGroup.groups(offered)
-    #expect(groups.count == 17)
+    #expect(groups.count == 18)
     let dives = try #require(groups.first { $0.resource == "dives" })
     #expect(dives.label == "Dives")
     #expect(dives.permissions.map(\.scope) == ["dives:read", "dives:write", "dives:delete"])
@@ -61,6 +61,9 @@ struct CredentialFixtureTests {
     #expect(dives.spoken(dives.permissions[1]) == "Create & edit dives")
     #expect(groups.first { $0.resource == "sites" }?.label == "Dive sites")
     #expect(groups.first { $0.resource == "import" }?.actions == "Create & edit")
+    let species = try #require(groups.first { $0.resource == "species" })
+    #expect(species.label == "Species")
+    #expect(species.actions == "Create & edit")
 
     let reads = PermissionGroup.reads(offered)
     #expect(reads.allSatisfy { $0.hasSuffix(":read") })
