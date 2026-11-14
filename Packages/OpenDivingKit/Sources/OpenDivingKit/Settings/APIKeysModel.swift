@@ -175,9 +175,6 @@ public final class APIKeysModel {
     "Let a script or a tool of your own use your account through the API. A key's secret is"
     + " shown once, when you create it. Signing other devices out leaves keys working \u{2014}"
     + " each one is revoked here, on its own."
-  public static let empty =
-    "No API keys yet. Your browser and the OpenDiving app need none; a key is for a tool of your"
-    + " own."
   public static let loadFailed = "Couldn't load your API keys."
   public static let createButton = "Create API key"
   public static let namePlaceholder = "laptop"
