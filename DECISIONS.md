@@ -5,12 +5,14 @@ Choices the code cannot explain by itself. Each says what was chosen, what was r
 
 ## Credentials live in the Keychain, never `UserDefaults`
 
-Anything credential-shaped the app keeps across launches is a Keychain item, keyed by server
-origin. `UserDefaults` is a plist on disk, unencrypted at rest and included in backups. The refresh
-token does not live in `HTTPCookieStorage` either, although the API sends it as a cookie: the app
-reads it off `Set-Cookie`, stores it itself and sends it back on the routes that read it and no other, so
-that it can be keyed, wiped and protected per server. The Kit declares the store as a protocol and
-the app target conforms it over the Keychain, which keeps `Security` out of the Kit.
+Anything credential-shaped the app keeps across launches is a Keychain item, keyed by server origin,
+and by account uuid too where it is one account's: the invite link's token, apart from the rest of
+the link the cache keeps, and removed when the session ends. `UserDefaults` is a plist on disk,
+unencrypted at rest and included in backups. The refresh token does not live in `HTTPCookieStorage`
+either, although the API sends it as a cookie: the app reads it off `Set-Cookie`, stores it itself
+and sends it back on the routes that read it and no other, so that it can be keyed, wiped and
+protected per server. The Kit declares the store as a protocol and the app target conforms it over
+the Keychain, which keeps `Security` out of the Kit.
 
 ## The first launch of an install clears the Keychain
 
@@ -97,11 +99,11 @@ Every request waits for connectivity, so a local-network server's first request 
 Network prompt; offline, that is a minute's spinner, then a failure. So an outbox flush the app
 starts itself waits for the path to report a route; the Import screen's read of the pending import
 waits for its next appearance. *Sync now* and *Upload* still try: the diver asked. A settings
-control, online only, says at once there is no connection. A create sent with no route that fails
-unreachable with none appearing since waited on the phone, so it stays unattempted — editable, and a
-form's draft create still withdrawn when the dive is logged; one that saw a route come and go may
-have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a request
-made during the prompt; a shorter timeout, which still spins and counts the create as sent.
+control, online only, is disabled while the path reports no route. A create sent with no route that
+fails unreachable with none appearing since waited on the phone, so it stays unattempted — editable,
+and a form's draft create still withdrawn when the dive is logged; one that saw a route come and go
+may have committed, and counts as sent. Rejected: dropping `waitsForConnectivity`, which fails a
+request made during the prompt; a shorter timeout, which still spins and counts the create as sent.
 
 ## A record page reads nothing without a route
 
@@ -147,11 +149,12 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives, sites, trips, More's records, species photos and drafts are written when a screen
-loads them, never fetched to fill the cache, and each kind of detail is bounded to the two hundred
-most recently opened, a species photo to the five hundred most recently drawn. It exists so a screen
-shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
-dive; showing the cache only once a fetch has failed, a minute of spinner offline.
+Pages, dives, sites, trips, More's records, Settings' storage, tags and invitations, species photos
+and drafts are written when a screen loads them, never fetched to fill the cache, and each kind of
+detail is bounded to the two hundred most recently opened, a species photo to the five hundred most
+recently drawn. It exists so a screen shows at once and offline, not as a copy of the logbook.
+Rejected: a sync that pulls every dive; showing the cache only once a fetch has failed, a minute of
+spinner offline.
 
 ## A computer's pairing is the phone's, its fingerprint the account's, and it moves only once the archive is kept
 

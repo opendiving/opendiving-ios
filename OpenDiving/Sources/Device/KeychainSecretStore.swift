@@ -2,7 +2,7 @@ import Foundation
 import OpenDivingKit
 import Security
 
-/// The Kit's ``SecretStore`` over the Keychain: one generic-password item per server origin,
+/// The Kit's ``SecretStore`` over the Keychain: one generic-password item per name the Kit gives,
 /// readable after the phone's first unlock so that a refresh in the background still finds it.
 nonisolated struct KeychainSecretStore: SecretStore {
   /// A Keychain call that answered anything but success or "no such item".

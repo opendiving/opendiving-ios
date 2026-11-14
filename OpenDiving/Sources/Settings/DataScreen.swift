@@ -38,6 +38,9 @@ private struct StorageSection: View {
   var body: some View {
     Section {
       if let usage = model.usage {
+        if let lastUpdated = model.lastUpdated {
+          LastUpdatedLine(date: lastUpdated)
+        }
         VStack(alignment: .leading, spacing: 8) {
           Text(StorageText.used(usage))
             .font(.subheadline.weight(.medium))
@@ -73,6 +76,7 @@ private struct StorageSection: View {
           Text(StorageText.loadFailed + " " + failure)
             .foregroundStyle(.secondary)
           Button("Try again") { Task { await model.load() } }
+            .needsServer()
             .buttonStyle(.borderless)
             .accentRow()
         }
@@ -152,6 +156,7 @@ private struct ExportSection: View {
       .buttonStyle(.borderless)
       .accentRow()
       .disabled(model.isBusy)
+      .needsServer()
       .accessibilityLabel("Download \(format.title)")
     }
   }

@@ -13,14 +13,15 @@ struct TagsModelTests {
   private let night = "01a0b7c2-4f1e-7a3b-9c2d-1e5f6a7b8c90"
 
   private func model(
-    _ server: SettingsServer, connectivity: SettingsConnectivity = SettingsConnectivity()
+    _ server: SettingsServer, connectivity: SettingsConnectivity = SettingsConnectivity(),
+    in directory: URL = FileManager.default.temporaryDirectory
+      .appendingPathComponent("TagsModelTests-\(UUID().uuidString)", isDirectory: true)
   ) async throws -> TagsModel {
     let session = Session(
       transport: server, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
       activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
       connectivity: connectivity,
-      applicationSupport: FileManager.default.temporaryDirectory
-        .appendingPathComponent("TagsModelTests-\(UUID().uuidString)", isDirectory: true),
+      applicationSupport: directory,
       userAgent: ClientHarness.userAgent)
     try await session.loadAccount()
     return TagsModel(session: session)
@@ -55,6 +56,23 @@ struct TagsModelTests {
     following.cancel()
     await following.value
     #expect(model.loadFailure == nil)
+  }
+
+  @Test func theTagsAreKeptAndShownAtTheNextVisitWhenTheReadFails() async throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("TagsModelTests-\(UUID().uuidString)", isDirectory: true)
+    let first = try await model(try SettingsServer(), in: directory)
+    await first.load()
+    #expect(first.lastUpdated == nil)
+
+    let server = try SettingsServer()
+    server.fail("GET tags", with: .json(#"{"detail":"Not today"}"#, status: 503))
+    let model = try await model(server, in: directory)
+    #expect(model.tags?.map(\.name) == ["night", "wall"])
+    await model.load()
+    #expect(model.tags?.map(\.name) == ["night", "wall"])
+    #expect(model.loadFailure == "Not today")
+    #expect(model.lastUpdated != nil)
   }
 
   @Test func aRenameSendsTheTrimmedNameAndTheListReadsAgain() async throws {

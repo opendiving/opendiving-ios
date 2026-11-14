@@ -26,6 +26,7 @@ struct CheckinGroupSection<Fields: View>: View {
       .tint(.brandTeal)
       .controlSize(.large)
       .disabled(saving)
+      .needsServer()
       .listRowInsets(EdgeInsets())
       .listRowBackground(Color.clear)
     } header: {
@@ -45,12 +46,11 @@ struct CheckinGroupSection<Fields: View>: View {
 }
 
 #Preview {
+  let session = Session.stub(transport: StubTransport(routes: [:]))
   Form {
-    CheckinGroupSection(
-      model: CheckinDetailsModel(session: Session.stub(transport: StubTransport(routes: [:]))),
-      group: .about
-    ) {
+    CheckinGroupSection(model: CheckinDetailsModel(session: session), group: .about) {
       Text("Fields")
     }
   }
+  .environment(session)
 }

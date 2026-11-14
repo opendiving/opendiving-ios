@@ -28,6 +28,7 @@ struct EmailChangeScreen: View {
           Button("Send confirmation link") { Task { await model.send() } }
             .accentRow()
             .disabled(!model.canSend)
+            .needsServer()
         }
       } footer: {
         VStack(alignment: .leading, spacing: 8) {
@@ -52,4 +53,5 @@ struct EmailChangeScreen: View {
   NavigationStack {
     EmailChangeScreen(model: EmailChangeModel(session: session))
   }
+  .environment(session)
 }

@@ -17,6 +17,7 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
     var path: Path?
     var appearances = 0
     var subscribers: [UUID: AsyncStream<ConnectivityMoment>.Continuation] = [:]
+    var routeSubscribers: [UUID: AsyncStream<Bool>.Continuation] = [:]
   }
 
   private let state = Mutex(State())
@@ -71,15 +72,30 @@ nonisolated final class PathMonitorConnectivity: Connectivity {
     return stream
   }
 
-  /// A path update: a satisfied path that differs from the last one is a route appearing.
+  func routeChanges() -> AsyncStream<Bool> {
+    let (stream, continuation) = AsyncStream<Bool>.makeStream()
+    let id = UUID()
+    state.withLock { $0.routeSubscribers[id] = continuation }
+    continuation.onTermination = { [weak self] _ in
+      _ = self?.state.withLock { $0.routeSubscribers.removeValue(forKey: id) }
+    }
+    return stream
+  }
+
+  /// A path update: a satisfied path that differs from the last one is a route appearing, and
+  /// one whose satisfaction differs from the last one's a route change.
   func receive(_ path: Path) {
-    let subscribers = state.withLock { state -> [AsyncStream<ConnectivityMoment>.Continuation] in
+    let (subscribers, routeSubscribers) = state.withLock {
+      state -> ([AsyncStream<ConnectivityMoment>.Continuation], [AsyncStream<Bool>.Continuation]) in
       let previous = state.path
       state.path = path
-      guard path.satisfied, path != previous else { return [] }
+      let changed = path.satisfied != (previous?.satisfied ?? true)
+      let routeSubscribers = changed ? Array(state.routeSubscribers.values) : []
+      guard path.satisfied, path != previous else { return ([], routeSubscribers) }
       state.appearances += 1
-      return Array(state.subscribers.values)
+      return (Array(state.subscribers.values), routeSubscribers)
     }
+    for subscriber in routeSubscribers { subscriber.yield(path.satisfied) }
     for subscriber in subscribers { subscriber.yield(.routeAppeared) }
   }
 

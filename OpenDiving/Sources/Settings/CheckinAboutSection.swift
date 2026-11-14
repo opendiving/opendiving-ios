@@ -36,8 +36,9 @@ struct CheckinAboutSection: View {
 }
 
 #Preview {
+  let session = Session.stub(transport: StubTransport(routes: [:]))
   Form {
-    CheckinAboutSection(
-      model: CheckinDetailsModel(session: Session.stub(transport: StubTransport(routes: [:]))))
+    CheckinAboutSection(model: CheckinDetailsModel(session: session))
   }
+  .environment(session)
 }

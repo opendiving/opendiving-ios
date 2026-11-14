@@ -44,6 +44,9 @@ public final class Session {
   /// the account's directory may still be the previous account's, and nothing that writes to
   /// the server on an account's behalf should run.
   public private(set) var accountLoaded = false
+  /// Whether a route is believed to exist, as what the screens offer draws it: kept current by
+  /// ``followRouteChanges()``.
+  public private(set) var hasRoute: Bool
   /// The account, as last read from the server or remembered from the last time it was.
   public private(set) var user: UserRead? = nil
   /// Everyone a dive, a trip, a course or a card can name, by uuid.
@@ -121,6 +124,7 @@ public final class Session {
     self.activeOrigin = activeOrigin
     self.background = background
     self.connectivity = connectivity
+    hasRoute = connectivity.isRouteAvailable
     self.userAgent = userAgent
     self.now = now
     store = ServerStateStore(root: applicationSupport, secrets: secrets, activeOrigin: activeOrigin)
@@ -133,6 +137,14 @@ public final class Session {
       try? store.markUsed(origin, at: now())
     }
     savedServers = store.savedServers()
+  }
+
+  /// Keeps ``hasRoute`` current, until the calling task is cancelled.
+  public func followRouteChanges() async {
+    // Subscribed before the route is read, so no change falls between the two.
+    let changes = connectivity.routeChanges()
+    hasRoute = connectivity.isRouteAvailable
+    for await available in changes { hasRoute = available }
   }
 
   // MARK: - Servers
@@ -440,8 +452,9 @@ public final class Session {
   /// ``requireClient()`` for a read a screen starts on its own, which fails at once with
   /// ``APIError/noRoute`` while the phone believes it has no route rather than waiting a
   /// minute for one; the screen reads again when ``Connectivity/moments()`` says one appeared.
-  /// Every settings call goes through it too, the writes the diver asks for included: a
-  /// settings control says at once that there is no connection, and saves nothing.
+  /// Every settings call goes through it too, the writes the diver asks for included, so one
+  /// that starts with no route saves nothing; the controls are disabled while ``hasRoute`` is
+  /// false.
   public func routedClient() throws -> APIClient {
     let client = try requireClient()
     guard connectivity.isRouteAvailable else { throw APIError.noRoute }

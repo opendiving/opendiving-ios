@@ -78,6 +78,7 @@ struct APIKeysSection: View {
         .accessibilityLabel("Revoke \u{201C}\(key.name)\u{201D}")
         .buttonStyle(.borderless)
         .disabled(model.revoking != nil)
+        .needsServer()
         .rowConfirmation(
           APIKeysModel.revokeTitle, for: key, confirming: Bindable(model).confirmingRevoke
         ) { key in
@@ -141,6 +142,7 @@ private struct APIKeyForm: View {
       Button("Create key") { Task { await model.create() } }
         .buttonStyle(.borderedProminent)
         .disabled(!model.canSubmit)
+        .needsServer()
     }
     .buttonStyle(.borderless)
     .task { await model.permissions.load() }
@@ -243,4 +245,5 @@ private struct NewSecretRow: View {
     APIKeysSection(model: model)
   }
   .task { await model.list.load() }
+  .environment(AuthenticationPreviewData.session)
 }

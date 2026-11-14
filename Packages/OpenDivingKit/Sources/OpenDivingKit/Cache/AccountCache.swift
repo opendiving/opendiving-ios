@@ -3,7 +3,8 @@ import Foundation
 /// What one account's server answered and the phone has shown, kept under `Cache/` in the
 /// account's directory so it shows at once, and offline: the lists' pages, the dives, sites,
 /// trips and More's records opened, the species photos and card images drawn, the dive drafts, the pickers'
-/// lookups, the highest dive number seen, and the profile's figures, places and picture. Nothing is fetched to fill it. A file this build cannot
+/// lookups, the highest dive number seen, the profile's figures, places and picture, and what
+/// Settings' storage, tags and invitations showed. Nothing is fetched to fill it. A file this build cannot
 /// read is dropped and fetched again.
 public struct AccountCache: Sendable {
   /// A cached value and when the server answered it.
@@ -330,6 +331,29 @@ public struct AccountCache: Sendable {
     write(Entry(value: points, fetchedAt: fetchedAt), "dive-site-points.json")
   }
 
+  // MARK: - Settings
+
+  /// A settings screen's read as last answered.
+  public func kept<Value: Codable & Sendable>(_ setting: KeptSetting, of type: Value.Type)
+    -> Entry<Value>?
+  {
+    read(Entry<Value>.self, Self.settingPath(setting))
+  }
+
+  func writeKept<Value: Codable & Sendable>(
+    _ value: Value, _ setting: KeptSetting, fetchedAt: Date = Date()
+  ) {
+    write(Entry(value: value, fetchedAt: fetchedAt), Self.settingPath(setting))
+  }
+
+  func removeKept(_ setting: KeptSetting) {
+    remove(Self.settingPath(setting))
+  }
+
+  private static func settingPath(_ setting: KeptSetting) -> String {
+    "settings/\(setting.rawValue).json"
+  }
+
   // MARK: - The profile
 
   /// `GET /user/dive-stats` as last read.
@@ -465,6 +489,18 @@ public struct AccountCache: Sendable {
       }
     }
   }
+}
+
+/// The invite link as the cache keeps it: that there is one and when it was made. Its token is
+/// a secret, kept beside the session's (``ServerStateStore``).
+struct KeptInviteLink: Codable, Hashable, Sendable {
+  let createdAt: DiveTimestamp
+}
+
+/// The settings reads the cache keeps, each one file.
+public enum KeptSetting: String, Sendable {
+  case storage, tags, invitations
+  case inviteLink = "invite-link"
 }
 
 /// The pickers' tables the lookups cache keeps.

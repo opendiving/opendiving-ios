@@ -32,6 +32,7 @@ struct AccountPictureHeader: View {
         menuTop: Self.side + Self.spacing
       )
       .disabled(busy)
+      .needsServer()
     }
     .frame(maxWidth: .infinity)
     .picturePicker(picker, confirm: PictureKind.cropSave) { save($0) }
@@ -101,4 +102,5 @@ struct AccountPictureHeader: View {
     AccountPictureHeader(model: PictureFieldModel(kind: .avatar, session: session))
       .listRowBackground(Color.clear)
   }
+  .environment(session)
 }

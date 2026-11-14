@@ -33,6 +33,7 @@ private struct NotificationsList: View {
           }
         }
         .disabled(model.write.isSaving)
+        .needsServer()
       } header: {
         Text("Choose what we email you about.")
       } footer: {

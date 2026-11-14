@@ -83,6 +83,7 @@ struct PasskeysSection: View {
     }
     .buttonStyle(.borderless)
     .disabled(model.isBusy || model.rename.editing != nil)
+    .needsServer()
   }
 }
 
@@ -92,4 +93,5 @@ struct PasskeysSection: View {
     PasskeysSection(model: model)
   }
   .task { await model.list.load() }
+  .environment(AuthenticationPreviewData.session)
 }

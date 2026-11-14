@@ -4,7 +4,7 @@
 /// Every request waits for connectivity, a minute at most, so what the app starts on its own —
 /// a queue's flush — does not start while no route is believed to exist, and a moment is what
 /// starts it, and an account load, once one appears. What the diver asks for tries regardless,
-/// but for a settings control, which says at once that there is no connection.
+/// but for a settings control, which is disabled while ``routeChanges()`` says there is none.
 public protocol Connectivity: Sendable {
   /// Whether a route is believed to exist now. A belief, not a promise: a request may still
   /// fail with one, and succeed without.
@@ -17,6 +17,10 @@ public protocol Connectivity: Sendable {
   /// A route appearing and the app returning to the foreground, as one stream. Each call is a
   /// subscription of its own, ending when the task iterating it is cancelled.
   func moments() -> AsyncStream<ConnectivityMoment>
+
+  /// ``isRouteAvailable`` each time it changes, a route lost as well as one appearing, for what
+  /// a screen offers. Kept apart from ``moments()``, whose every moment says to try again.
+  func routeChanges() -> AsyncStream<Bool>
 }
 
 /// A moment worth trying again.
@@ -26,6 +30,11 @@ public enum ConnectivityMoment: Hashable, Sendable {
 }
 
 extension Connectivity {
+  /// A route that never changes, for a conformance that cannot lose one.
+  public func routeChanges() -> AsyncStream<Bool> {
+    AsyncStream { $0.finish() }
+  }
+
   /// Runs `body` each time a route appears, until the calling task is cancelled: how a screen
   /// that skipped its read for want of one reads again.
   @MainActor

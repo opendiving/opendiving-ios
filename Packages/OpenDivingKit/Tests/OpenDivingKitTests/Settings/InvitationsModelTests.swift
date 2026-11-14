@@ -3,7 +3,8 @@ import OpenDivingKit
 import Testing
 
 /// *Invitations*: the list paged by twenty with no invitation twice, sends and revocations, and
-/// the invite link read only once the list has answered and kept in no file.
+/// the invite link read only once the list has answered, and both kept for the next visit, the
+/// link's token as a secret alone.
 @MainActor
 struct InvitationsModelTests {
   private func model(_ harness: InvitationsHarness) async -> InvitationsModel {
@@ -211,7 +212,27 @@ struct InvitationsModelTests {
     #expect(!harness.server.invitationRoutes.contains("DELETE user/invite-link"))
   }
 
-  @Test func theTokenReachesNoFileAndNoKeychainItem() async throws {
+  @Test func theListAndTheLinkAreShownOfflineAtTheNextVisitUnderWhenTheyWereRead() async throws {
+    let harness = try await InvitationsHarness(linked: true)
+    let first = await model(harness)
+    #expect(first.lastUpdated == nil)
+
+    harness.connectivity.isRouteAvailable = false
+    let model = InvitationsModel(session: harness.session)
+    #expect(model.list.value?.invitations.count == 3)
+    #expect(model.link?.token == InvitationsServer.token(0))
+    #expect(model.isLinkRead)
+    await model.load()
+    #expect(model.list.value?.invitations.count == 3)
+    #expect(model.link?.token == InvitationsServer.token(0))
+    #expect(model.lastUpdated != nil)
+
+    harness.connectivity.isRouteAvailable = true
+    await model.load()
+    #expect(model.lastUpdated == nil)
+  }
+
+  @Test func theTokenReachesNoFileOnlyTheKeychain() async throws {
     let harness = try await InvitationsHarness(linked: true)
     let model = await model(harness)
     await model.createLink()
@@ -229,7 +250,29 @@ struct InvitationsModelTests {
       #expect(contents.range(of: secret) == nil, "\(file.lastPathComponent) holds the token")
     }
     #expect(read > 0)
-    #expect(!harness.keychain.all.contains { $0.contains(token) })
+    #expect(harness.keychain.all.contains("write \(token)"))
+  }
+
+  @Test func aSignOutTakesTheTokenAndTheNextVisitKeepsNoLink() async throws {
+    let harness = try await InvitationsHarness(linked: true)
+    _ = await model(harness)
+    try await harness.session.signOut()
+
+    // The cache still names the link; only its token, gone, could show it.
+    let model = InvitationsModel(session: harness.session)
+    #expect(!model.isLinkRead)
+    #expect(model.link == nil)
+  }
+
+  @Test func aRemovedLinkIsKeptAsNone() async throws {
+    let harness = try await InvitationsHarness(linked: true)
+    let first = await model(harness)
+    await first.confirmLinkChange(.remove)
+
+    harness.connectivity.isRouteAvailable = false
+    let model = InvitationsModel(session: harness.session)
+    #expect(model.isLinkRead)
+    #expect(model.link == nil)
   }
 
   @Test func offlineTheListAndTheLinkAreReadWhenARouteAppears() async throws {

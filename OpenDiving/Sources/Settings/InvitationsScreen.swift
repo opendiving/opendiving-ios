@@ -30,6 +30,9 @@ private struct InvitationsList: View {
         }
       } else {
         List {
+          if let lastUpdated = model.lastUpdated {
+            LastUpdatedLine(date: lastUpdated)
+          }
           if model.list.value != nil {
             InviteLinkSection(model: model)
           }
@@ -57,6 +60,7 @@ private struct InviteLinkSection: View {
             Text(InvitationsModel.linkLoadFailed + " " + failure)
               .foregroundStyle(.secondary)
             Button("Try again") { Task { await model.loadLink() } }
+              .needsServer()
               .buttonStyle(.borderless)
               .accentRow()
           }
@@ -100,6 +104,7 @@ private struct InviteLinkSection: View {
           }
           .accentRow()
           .disabled(model.isChangingLink)
+          .needsServer()
           if model.isChangingLink {
             Spacer()
             BubbleSpinner()
@@ -130,6 +135,7 @@ private struct InviteLinkSection: View {
       }
     }
     .disabled(model.isChangingLink)
+    .needsServer()
     .confirmationDialog(
       change == .reset ? InvitationsModel.resetTitle : InvitationsModel.removeTitle,
       isPresented: Binding(
@@ -171,6 +177,7 @@ private struct SendInvitationSection: View {
         }
         .accentRow()
         .disabled(model.isSending)
+        .needsServer()
         if model.isSending {
           Spacer()
           BubbleSpinner()
@@ -212,6 +219,7 @@ private struct SentInvitationsSection: View {
             .frame(maxWidth: .infinity)
         } else {
           Button(InvitationsModel.showOlder) { Task { await model.loadMore() } }
+            .needsServer()
             .accentRow()
             .frame(maxWidth: .infinity)
         }
@@ -251,6 +259,7 @@ private struct SentInvitationsSection: View {
         .accessibilityLabel("Revoke the invitation to \(invitation.email ?? "")")
         .buttonStyle(.borderless)
         .disabled(model.revoking != nil)
+        .needsServer()
         .rowConfirmation(
           InvitationsModel.revokeTitle, for: invitation,
           confirming: Bindable(model).confirmingRevoke
