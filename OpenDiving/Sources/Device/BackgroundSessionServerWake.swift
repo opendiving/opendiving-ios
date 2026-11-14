@@ -18,6 +18,10 @@ final class BackgroundSessionServerWake: NSObject, ServerWake {
     super.init()
     let configuration = URLSessionConfiguration.background(withIdentifier: Self.identifier)
     configuration.sessionSendsLaunchEvents = true
+    // Nothing of the diver's rides along: no cookie, and nothing kept of the answer.
+    configuration.httpShouldSetCookies = false
+    configuration.httpCookieStorage = nil
+    configuration.urlCache = nil
     session = URLSession(configuration: configuration, delegate: self, delegateQueue: .main)
   }
 
