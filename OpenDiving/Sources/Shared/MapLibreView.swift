@@ -22,7 +22,13 @@ struct MapLibreView: UIViewRepresentable {
   var onPinDrop: ((CLLocationCoordinate2D) -> Void)?
 
   func makeUIView(context: Context) -> MLNMapView {
-    let map = MLNMapView(frame: .zero, styleJSON: styleJSON)
+    let map = LaidOutMapView(frame: .zero, styleJSON: styleJSON)
+    // Its height is what keeps the world over the map, however far out it zooms.
+    map.onLayout = { [weak map] in
+      guard let map else { return }
+      let furthest = MapCamera.furthestZoom(height: Double(map.bounds.height))
+      if map.minimumZoomLevel != furthest { map.minimumZoomLevel = furthest }
+    }
     map.delegate = context.coordinator
     map.isRotateEnabled = false
     map.isPitchEnabled = false

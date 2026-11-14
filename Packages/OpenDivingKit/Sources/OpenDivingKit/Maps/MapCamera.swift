@@ -39,6 +39,17 @@ public struct MapCamera: Hashable, Sendable {
       longitude: WebMercator.wrap(longitude: (box.west + box.east) / 2), zoom: zoom)
   }
 
+  /// How much taller than the map the world stays at the furthest zoom out, in zoom levels: a
+  /// world only as tall as the map would pan north and south no further.
+  public static let verticalSlack = 0.5
+
+  /// The furthest out a map `height` points tall zooms, where the world is ``verticalSlack`` zoom
+  /// levels taller than the map: further out, the renderer draws grey past the poles.
+  public static func furthestZoom(height: Double) -> Double {
+    guard height > 0 else { return minZoom }
+    return min(maxZoom, max(minZoom, log2(height / WebMercator.tileSize) + verticalSlack))
+  }
+
   /// The furthest out a map `height` points tall can zoom with its camera on `latitude`: the
   /// renderer keeps half the map's height of world above and below the camera's point, wherever
   /// an inset puts that point on the screen, and further out moves the camera off the latitude.

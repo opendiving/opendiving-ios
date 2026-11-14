@@ -116,6 +116,17 @@ struct MapCameraTests {
     }
   }
 
+  /// The world stays taller than the map, so a map zoomed all the way out still pans vertically.
+  @Test func theFurthestZoomKeepsTheWorldTallerThanTheMap() {
+    let zoom = MapCamera.furthestZoom(height: 874)
+    let world = 512 * pow(2, zoom)
+    #expect(abs(world / 874 - pow(2, MapCamera.verticalSlack)) < 1e-9)
+    #expect(world > 874)
+    // A map short enough that the whole world at zoom 0 already overfills it, and no map yet.
+    #expect(MapCamera.furthestZoom(height: 200) == MapCamera.minZoom)
+    #expect(MapCamera.furthestZoom(height: 0) == MapCamera.minZoom)
+  }
+
   /// Half the map's height of world stays above and below the camera's point.
   @Test func aHeldLatitudeZoomsOutOnlyWhileTheWorldCoversHalfTheMapEachSide() {
     #expect(MapCamera.zoomHolding(latitude: 0, height: 512) == 0)
