@@ -37,11 +37,23 @@ extension DiveComputerEngine {
   }
 
   private func uploadAll() async {
-    guard let origin = session.state.origin else { return }
+    // What a walk kept before a load it outlasted moves to the account the load named.
+    if session.accountLoaded { settleMarks() }
+    guard let origin = session.state.origin, let (kept, _) = keeping() else { return }
     guard case .signedIn = session.state else {
       announceSignedOut()
       return
     }
+    // Before the account's load, which with no route would wait for one and fail: what waits is
+    // said and iOS asked to wake the app, whatever this process has loaded.
+    guard session.connectivity.isRouteAvailable else {
+      waitForRoute(DownloadStore(store: session.store, origin: origin, account: kept), origin)
+      return
+    }
+    // One assertion for the whole pass, the load included: a process iOS woke for this has no
+    // other time.
+    let token = await session.background.begin(name: "Importing the dives just downloaded")
+    defer { Task { [session] in await session.background.end(token) } }
     if !session.accountLoaded { await loadAccount() }
     guard case .signedIn = session.state else {
       announceSignedOut()
@@ -53,14 +65,11 @@ extension DiveComputerEngine {
     defer { reload() }
     for archive in downloads.archives() where archive.refusal == nil {
       guard session.connectivity.isRouteAvailable else {
-        waitForRoute(downloads, origin: origin)
+        waitForRoute(downloads, origin)
         return
       }
       guard let client = try? session.requireClient() else { return }
-      let token = await session.background.begin(name: "Importing the dives just downloaded")
-      let goesOn = await send(archive, downloads, client, origin: origin)
-      await session.background.end(token)
-      guard goesOn else { return }
+      guard await send(archive, downloads, client, origin: origin) else { return }
     }
   }
 
@@ -99,7 +108,7 @@ extension DiveComputerEngine {
         announceSignedOut()
         return false
       case .unreachable:
-        waitForRoute(downloads, origin: origin)
+        waitForRoute(downloads, origin)
         return false
       case .secretStore, .notAnInstance, .unreadableResponse:
         return false
@@ -117,9 +126,10 @@ extension DiveComputerEngine {
     try? downloads.save(refused)
   }
 
-  /// No route: each archive not yet announced says its dives wait, and iOS is left the request
-  /// that wakes the app once there is one.
-  private func waitForRoute(_ downloads: DownloadStore, origin: ServerOrigin) {
+  /// No route: each archive not yet announced says its dives wait, and, where any waits, iOS is
+  /// left the request that wakes the app once there is one.
+  private func waitForRoute(_ downloads: DownloadStore, _ origin: ServerOrigin) {
+    guard downloads.archives().contains(where: { $0.refusal == nil }) else { return }
     announce(downloads) { archive, computer in
       .noInternet(dives: archive.summary.dives, from: computer, id: archive.id)
     }

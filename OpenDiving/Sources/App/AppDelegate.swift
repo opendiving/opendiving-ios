@@ -41,7 +41,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
       }
     }
     UNUserNotificationCenter.current().delegate = self
-    wake.onWake = { [engine] in engine.upload() }
+    wake.onWake = { [engine] in
+      engine.upload()
+      await engine.settled()
+    }
     engine.launched()
     let center = NotificationCenter.default
     center.addObserver(

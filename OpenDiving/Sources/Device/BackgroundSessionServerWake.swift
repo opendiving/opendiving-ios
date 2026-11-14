@@ -8,11 +8,13 @@ import OpenDivingKit
 final class BackgroundSessionServerWake: NSObject, ServerWake {
   static let identifier = "app.opendiving.server-wake"
 
-  /// The request completed: the app has a route to try the upload on.
-  var onWake: (() -> Void)?
-  /// iOS's handler for a relaunch to deliver the session's events, called once they are.
+  /// The request completed: the app has a route to try the upload on, and returns once it has.
+  var onWake: (() async -> Void)?
+  /// iOS's handler for a relaunch to deliver the session's events, called once the upload they
+  /// led to has settled, since it lets iOS suspend the app.
   var eventsDelivered: (() -> Void)?
   private var session: URLSession!
+  private var waking: Task<Void, Never>?
 
   override init() {
     super.init()
@@ -44,13 +46,23 @@ extension BackgroundSessionServerWake: URLSessionDownloadDelegate {
   nonisolated func urlSession(
     _ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?
   ) {
-    MainActor.assumeIsolated { onWake?() }
+    MainActor.assumeIsolated {
+      let previous = waking
+      waking = Task { [onWake] in
+        await previous?.value
+        await onWake?()
+      }
+    }
   }
 
   nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
     MainActor.assumeIsolated {
-      eventsDelivered?()
-      eventsDelivered = nil
+      let waking = waking
+      Task {
+        await waking?.value
+        eventsDelivered?()
+        eventsDelivered = nil
+      }
     }
   }
 }

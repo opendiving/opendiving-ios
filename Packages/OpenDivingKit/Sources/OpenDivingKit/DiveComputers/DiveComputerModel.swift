@@ -162,6 +162,8 @@ public final class DiveComputerModel {
   @ObservationIgnored private var scanTask: Task<Void, Never>?
   @ObservationIgnored private var seen: [FoundComputer] = []
   @ObservationIgnored private var lastComputer: FoundComputer?
+  /// A walk nobody started stopped the scan, which starts again once it ends.
+  @ObservationIgnored private var resumesScan = false
 
   private var session: Session { engine.session }
   private var link: any DiveComputerLink { engine.link }
@@ -173,6 +175,18 @@ public final class DiveComputerModel {
     phoneZone = zone
     engine.reload()
     engine.pairingsChanged = { [weak self] in self?.rebuildRows() }
+    engine.walkStarting = { [weak self] walk in
+      guard let self, !walk.watched, scanTask != nil else { return }
+      stopScanning()
+      resumesScan = true
+    }
+    engine.walkEnded = { [weak self] _ in
+      guard let self else { return }
+      rebuildRows()
+      guard resumesScan, engine.walk == nil else { return }
+      resumesScan = false
+      startScanning()
+    }
   }
 
   // MARK: - Scanning

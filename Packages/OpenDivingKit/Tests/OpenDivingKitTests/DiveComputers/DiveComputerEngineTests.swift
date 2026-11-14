@@ -466,6 +466,54 @@ struct DiveComputerEngineTests {
     #expect(notifier.posted.map(\.title) == ["2 dives downloaded", "1 new dive imported"])
   }
 
+  @Test func offlineInAProcessThatHasNotLoadedTheAccountTheDiverIsToldAndIOSLeftAWake()
+    async throws
+  {
+    // An earlier load left the pointer; this process has not loaded the account.
+    _ = try await session()
+    let fresh = try await session(loaded: false)
+    route.isRouteAvailable = false
+    try pair(fresh, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    var loads = 0
+    let engine = engine(fresh) { loads += 1 }
+    watcher.send(.connected(F.perdixFound.id))
+    await engine.settled()
+    #expect(engine.archives.map(\.receivedBeforeAccountKnown) == [true])
+    #expect(notifier.posted.map(\.title) == ["2 dives downloaded"])
+    #expect(wake.left == [ImportServer.origin])
+    #expect(loads == 0)
+  }
+
+  @Test func withNothingWaitingNoWakeIsLeft() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    let engine = engine(session)
+    engine.upload()
+    await engine.settled()
+    #expect(wake.left.isEmpty)
+  }
+
+  @Test func aWalkNobodyStartedStopsTheScreensScanUntilItEnds() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.found = [F.perdixFound]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let engine = engine(session)
+    let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    await model.watch()
+    #expect(model.phase == .scanning)
+
+    watcher.send(.connected(F.perdixFound.id))
+    await until { link.isHeld }
+    #expect(model.phase == .idle)
+    link.release()
+    await engine.settled()
+    #expect(model.phase == .scanning)
+  }
+
   @Test func aRetryGoesUnderTheSameKeyAndTheDiverIsToldOnce() async throws {
     let session = try await session()
     server.answerAtOnce { index in
