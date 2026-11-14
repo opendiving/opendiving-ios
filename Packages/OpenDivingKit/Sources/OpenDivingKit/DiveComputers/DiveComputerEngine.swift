@@ -511,13 +511,7 @@ public final class DiveComputerEngine {
         .init(kind: .notKept, sentence: failure.map(DiveComputerText.notWritten) ?? ""))
     }
     reload()
-    if let heldWalk, !heldWalk.announced {
-      notifier?.post(
-        .timeZone(dives: heldWalk.dives.count, from: identity.title, id: heldWalk.id))
-      var announced = heldWalk
-      announced.announced = true
-      try? downloads.save(announced)
-    }
+    if heldWalk != nil { announceHeld(downloads) }
     await session.background.end(token)
   }
 
@@ -699,6 +693,18 @@ public final class DiveComputerEngine {
           downloads.remove(walk: kept.id)
         }
       }
+      announceHeld(downloads)
+    }
+  }
+
+  /// Each walk held for a zone that has not said so yet asks for one, once.
+  private func announceHeld(_ downloads: DownloadStore) {
+    for walk in downloads.walks() where walk.heldForZone && !walk.announced {
+      guard let identity = walk.dives.first?.identity else { continue }
+      var announced = walk
+      announced.announced = true
+      guard (try? downloads.save(announced)) != nil else { continue }
+      notifier?.post(.timeZone(dives: walk.dives.count, from: identity.title, id: walk.id))
     }
   }
 

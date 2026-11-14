@@ -312,6 +312,7 @@ public final class DiveComputerModel {
   public func answerTimeZone(_ zone: TimeZone) {
     if askingHeld {
       engine.answerHeld(zone)
+      startScanning()
     } else if let walk {
       engine.answerTimeZone(zone, for: walk)
     }

@@ -322,6 +322,52 @@ struct DiveComputerEngineTests {
     #expect(model.phase != .askingTimeZone)
   }
 
+  @Test func answeringTheHeldDivesLeavesTheScreenScanning() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
+    link.found = [F.oceanFound]
+    let engine = engine(session)
+    watcher.send(.connected(F.oceanFound.id))
+    await engine.settled()
+
+    let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    await model.watch()
+    #expect(model.phase == .askingTimeZone)
+    model.answerTimeZone(try #require(TimeZone(identifier: "Asia/Tokyo")))
+    #expect(model.phase == .scanning)
+    await until { !model.rows.isEmpty }
+    #expect(model.rows.map(\.computer) == [F.oceanFound])
+    await engine.settled()
+  }
+
+  @Test func theNextLaunchAsksForTheZoneOfTheDivesAnEndedWalkHeld() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
+    link.holdBeforeEnd = true
+    let engine = engine(session)
+    var kept = 0
+    engine.diveKept = { kept += 1 }
+    watcher.send(.connected(F.oceanFound.id))
+    await until { kept == 2 }
+
+    // The process ends here; the next one holds the dives and asks, once.
+    let next = DiveComputerEngine(
+      session: session, makeLink: { FakeDiveComputerLink() }, generator: F.generator,
+      notifier: notifier, workFolder: root.appendingPathComponent("Next", isDirectory: true),
+      now: { F.moment }, zone: F.helsinki)
+    next.launched()
+    #expect(next.held.map(\.dives) == [2])
+    #expect(notifier.posted.map(\.title) == ["Choose a time zone to import 2 dives"])
+    next.launched()
+    #expect(notifier.posted.count == 1)
+    link.release()
+    await engine.settled()
+  }
+
   @Test func heldDivesAreAnsweredOnceAndKeptWhereTheirArchiveCannotBe() async throws {
     let session = try await session()
     route.isRouteAvailable = false
