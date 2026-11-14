@@ -239,7 +239,7 @@ public final class InboxModel {
       phase = .idle
       workTask = nil
       // Unread, a pending import may still be there: the files wait for the next occasion.
-      guard read, pending == nil, canUpload else { return }
+      guard read, pending == nil else { return }
       // The arrivals alone: a file refused before, or kept from before, waits for *Upload*.
       upload(only: arrivals)
     }
@@ -263,13 +263,16 @@ public final class InboxModel {
 
   /// The upload, of every waiting file the bounds admit or of those in `only`.
   private func upload(only: Set<UUID>?) {
-    guard canUpload, let store = destination?.store, let client = try? session.requireClient()
+    guard session.accountLoaded, phase == .idle, pending == nil, let store = destination?.store,
+      let client = try? session.requireClient()
     else { return }
     let sent = store.load().files.filter { file in
       file.uploadedInto == nil && refusal(for: file) == nil
         && (only?.contains(file.id) ?? true)
     }
-    guard !sent.isEmpty else { return }
+    // The bounds of what goes, which for the arrivals leaves out what waits from before.
+    guard !sent.isEmpty, ImportBounds.selectionRefusal(byteSizes: sent.map(\.byteSize)) == nil
+    else { return }
     // Tried once by itself: what does not go waits for *Upload*.
     arrivals.subtract(sent.map(\.id))
     stopReading()

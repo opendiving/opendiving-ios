@@ -139,6 +139,29 @@ struct InboxModelTests {
     #expect(model.waiting.map(\.filename) == ["bad.fit"])
   }
 
+  @Test func anArrivalGoesUpAloneThoughWhatWaitsBesideItBreaksTheBounds() async throws {
+    let server = try ImportServer()
+    let route = offline()
+    let session = try await signedIn(server, connectivity: route)
+    let zips = try ["a.zip", "b.zip"].map { name in
+      let url = try shared.make(name)
+      let handle = try FileHandle(forWritingTo: url)
+      try handle.truncate(atOffset: UInt64(ImportBounds.maxArchiveSize / 2 + 1))
+      try handle.close()
+      return url
+    }
+    // Kept by an earlier process, with no route: they wait for *Upload*.
+    InboxModel(session: session).receive(zips, moving: true)
+    let model = InboxModel(session: session)
+    model.sessionChanged()
+
+    route.isRouteAvailable = true
+    try arrive(model, "small.fit")
+    await model.settled()
+    #expect(server.uploads == [["small.fit"]])
+    #expect(model.selectionRefusal != nil)
+  }
+
   @Test func aFileThatCouldNotGoWaitsForTheTap() async throws {
     let server = try ImportServer()
     server.answerUploads { _ in .json(#"{"detail":"Too many imports."}"#, status: 429) }
