@@ -9,6 +9,9 @@ struct SignedInDevicesSection: View {
   var body: some View {
     if !model.list.isAbsent {
       Section {
+        if let lastUpdated = model.list.lastUpdated {
+          LastUpdatedLine(date: lastUpdated)
+        }
         OptionalListStatus(
           list: model.list, failed: SignedInDevicesModel.loadFailed,
           loading: "Loading signed-in devices…")

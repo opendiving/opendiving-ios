@@ -9,6 +9,9 @@ struct APIKeysSection: View {
   var body: some View {
     if !model.list.isAbsent {
       Section {
+        if let lastUpdated = model.list.lastUpdated {
+          LastUpdatedLine(date: lastUpdated)
+        }
         if model.isCreating {
           APIKeyForm(model: model)
         }

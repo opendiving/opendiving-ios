@@ -9,6 +9,9 @@ struct PasskeysSection: View {
   var body: some View {
     if model.isShown {
       Section {
+        if let lastUpdated = model.list.lastUpdated {
+          LastUpdatedLine(date: lastUpdated)
+        }
         OptionalListStatus(
           list: model.list, failed: PasskeysModel.loadFailed, loading: "Loading passkeys…")
         ForEach(model.list.value ?? []) { passkey in
