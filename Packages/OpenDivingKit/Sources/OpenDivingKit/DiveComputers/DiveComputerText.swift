@@ -142,8 +142,12 @@ public enum DiveComputerText {
   }
 
   public static let cancelled = "The download was cancelled."
+  /// A connection that never opened. A computer forgotten in the Settings app keeps its side of
+  /// the pairing until it is paired anew from the computer, and until then answers no connection.
   public static let unreachable =
     "The dive computer did not answer. Wake it and turn on its Bluetooth, then connect again."
+    + " If you forgot it in the Settings app's Bluetooth list, start a new pairing from the dive"
+    + " computer's own Bluetooth menu first."
 
   /// The archive could not be written on this phone.
   public static func notWritten(_ error: any Error) -> String {

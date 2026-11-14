@@ -77,9 +77,17 @@ final class LibDCDiveComputerLink: DiveComputerLink {
       return stream
     }
     var yielded: Set<UUID> = []
+    var cleared = false
     manager.clearDiscoveredPeripherals()
     scanSubscription = manager.$discoveredPeripherals.receive(on: DispatchQueue.main).sink {
       peripherals in
+      // The manager is the process's, and its list first replays every peripheral an earlier scan
+      // found, advertising or not. The clear lands later, on the main queue, as an empty list;
+      // what follows it is this scan's.
+      if !cleared {
+        cleared = peripherals.isEmpty
+        guard cleared else { return }
+      }
       for peripheral in peripherals where !yielded.contains(peripheral.identifier) {
         guard let name = peripheral.name else { continue }
         yielded.insert(peripheral.identifier)

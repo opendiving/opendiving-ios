@@ -107,7 +107,7 @@ public final class DiveComputerModel {
 
   public private(set) var availability = DiveComputerAvailability.unknown
   public private(set) var phase = Phase.idle
-  /// The computers found, newest-seen first.
+  /// The computers the latest scan found, newest-seen first.
   public private(set) var rows: [Row] = []
   /// The phone's paired computers, by title, with this account's downloads.
   public private(set) var paired: [Paired] = []
@@ -256,6 +256,10 @@ public final class DiveComputerModel {
     else { return }
     phase = .scanning
     outcome = nil
+    // A row is a computer this scan saw: one an earlier scan saw may since have gone, or been
+    // given a new identifier by iOS, which a computer forgotten in the Settings app is.
+    seen = []
+    rebuildRows()
     let stream = link.scan()
     scanTask = Task { [weak self] in
       for await computer in stream {
@@ -263,6 +267,15 @@ public final class DiveComputerModel {
       }
     }
     pairedWatch?.scanStarted()
+  }
+
+  /// The app came back to the foreground: a scan in progress starts over, since what the diver
+  /// did meanwhile, such as forgetting a computer in the Settings app, can leave a row whose
+  /// identifier no longer reaches the computer.
+  public func appBecameActive() {
+    guard phase == .scanning else { return }
+    stopScanning()
+    startScanning()
   }
 
   public func stopScanning() {
@@ -273,7 +286,13 @@ public final class DiveComputerModel {
   }
 
   private func found(_ computer: FoundComputer) {
-    seen.removeAll { $0.id == computer.id }
+    // A name carrying the serial names one computer, so the same name under another identifier
+    // is that computer moved, and the row under the old one is stale.
+    let serial = computer.advertisedSerial
+    seen.removeAll {
+      $0.id == computer.id
+        || (serial != nil && $0.family == computer.family && $0.advertisedSerial == serial)
+    }
     seen.insert(computer, at: 0)
     follow(computer)
     rebuildRows()

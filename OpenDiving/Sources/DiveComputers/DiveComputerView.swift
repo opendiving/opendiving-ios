@@ -25,6 +25,7 @@ struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
   @State private var showsImport = false
   @State private var showing: DiveComputerRecord?
+  @Environment(\.scenePhase) private var scenePhase
 
   private var model: DiveComputerModel { downloads.model }
 
@@ -59,6 +60,9 @@ struct DiveComputerScreen: View {
       if downloads.screenAppeared()?.kind == .handedOver { showsImport = true }
     }
     .onDisappear { downloads.screenDisappeared() }
+    .onChange(of: scenePhase) { _, phase in
+      if phase == .active { model.appBecameActive() }
+    }
     .onChange(of: model.outcome) { _, outcome in
       if outcome?.kind == .handedOver { showsImport = true }
     }
