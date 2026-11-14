@@ -7,12 +7,14 @@ import OpenDivingKit
 final class FakeDiveComputerWatcher: DiveComputerWatcher {
   enum Call: Hashable {
     case start
-    case arm(UUID, after: TimeInterval)
+    case arm(UUID, after: Int)
     case disarm(UUID)
     case observe(Bool)
   }
 
   private(set) var calls: [Call] = []
+  /// Fails every request in the turn it is made, as iOS fails one it refuses.
+  var failsRequests = false
   private var handler: (@MainActor (DiveComputerWatchEvent) -> Void)?
 
   func start(_ handler: @escaping @MainActor (DiveComputerWatchEvent) -> Void) {
@@ -20,8 +22,11 @@ final class FakeDiveComputerWatcher: DiveComputerWatcher {
     self.handler = handler
   }
 
-  func arm(_ peripheral: UUID, after delay: TimeInterval) {
-    calls.append(.arm(peripheral, after: delay))
+  func arm(_ peripheral: UUID, after seconds: Int) {
+    calls.append(.arm(peripheral, after: seconds))
+    if failsRequests {
+      handler?(.failedToConnect(peripheral, reason: "One or more parameters were invalid."))
+    }
   }
 
   func disarm(_ peripheral: UUID) {

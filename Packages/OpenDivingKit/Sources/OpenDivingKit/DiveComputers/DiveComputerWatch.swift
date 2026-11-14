@@ -9,7 +9,12 @@ import Foundation
 /// paired never asks for Bluetooth here.
 ///
 /// **A request that completes is closed and asked again after ``revisitDelay``**, measured from
-/// the connection; so is one that fails. A download from the screen counts as a visit too.
+/// the connection. A download from the screen counts as a visit too.
+///
+/// **A request that fails is not asked again in its own turn**, since iOS fails some at once and
+/// would fail the same request again: the computer is left unarmed until the next launch,
+/// Bluetooth coming back on, its hint moving, a scan from the Dive Computers screen or a download
+/// from it, each of which arms it once.
 ///
 /// **It yields to the diver**: while the screen downloads from a computer, no request of the
 /// watch's is open to it, so libdc-swift's central is the only one connected.
@@ -27,10 +32,10 @@ public final class DiveComputerWatch {
     case byIOS(restoring: [String])
   }
 
-  /// After a computer connected, how long until the next request to it may complete: about four
-  /// looks an hour at a computer that stays connectable. libdc-swift's own revisit interval for a
-  /// watch it does not stay connected to.
-  public static let revisitDelay: TimeInterval = 15 * 60
+  /// After a computer connected, how many seconds until the next request to it may complete:
+  /// about four looks an hour at a computer that stays connectable. libdc-swift's own revisit
+  /// interval for a watch it does not stay connected to.
+  public static let revisitDelay = 15 * 60
 
   private let log: DiveComputerWatchLog
   private let pairings: () -> [DiveComputerRecord]
@@ -38,8 +43,17 @@ public final class DiveComputerWatch {
   private let now: () -> Date
   private var watcher: (any DiveComputerWatcher)?
   private var availability = DiveComputerAvailability.unknown
-  /// The requests open, by peripheral, each with the record it was armed for.
-  private var armed: [UUID: String] = [:]
+  /// A request open: the record it was armed for, and the delay it carried where the watch sent
+  /// it rather than iOS restoring it.
+  private struct Request {
+    var record: String
+    var delay: Int?
+  }
+
+  /// The requests open, by peripheral.
+  private var armed: [UUID: Request] = [:]
+  /// Peripherals whose request iOS failed, left unarmed until an event that arms them once.
+  private var failed: Set<UUID> = []
   /// Connections the watch is closing, re-armed once each reports its disconnection.
   private var closing: Set<UUID> = []
   /// Connections iOS restored, closed once Bluetooth is on.
@@ -103,6 +117,7 @@ public final class DiveComputerWatch {
   /// revisit delay.
   public func downloadEnded(_ peripheral: UUID) {
     yielded.remove(peripheral)
+    failed.remove(peripheral)
     reload()
     visit(peripheral)
     arm()
@@ -114,6 +129,7 @@ public final class DiveComputerWatch {
     guard !scanning else { return }
     scanning = true
     advertised = []
+    failed = []
     refresh()
     watcher?.observeAdvertisements(true)
   }
@@ -133,6 +149,7 @@ public final class DiveComputerWatch {
         before != after
       {
         log.write("moved \(record.title) from \(before.uuidString) to \(after.uuidString)")
+        failed.remove(before)
       }
     }
     records = Dictionary(read.map { ($0.id, $0) }) { first, _ in first }
@@ -156,24 +173,27 @@ public final class DiveComputerWatch {
         wanted[peripheral] = record
       }
     }
-    for (peripheral, id) in armed where wanted[peripheral]?.id != id {
+    for (peripheral, request) in armed where wanted[peripheral]?.id != request.record {
       armed[peripheral] = nil
       let why = yielded.contains(peripheral) ? "a download from the screen" : "not watched"
       log.write("withdrawn \(label(peripheral)): \(why)")
       watcher.disarm(peripheral)
     }
     for (peripheral, record) in wanted.sorted(by: { $0.value.id < $1.value.id })
-    where armed[peripheral] == nil && !closing.contains(peripheral) {
+    where armed[peripheral] == nil && !closing.contains(peripheral) && !failed.contains(peripheral)
+    {
       let delay = remaining(record.id)
-      armed[peripheral] = record.id
-      log.write("armed \(label(peripheral)) after \(Int(delay)) s")
+      armed[peripheral] = Request(record: record.id, delay: delay)
+      log.write("armed \(label(peripheral)) after \(delay) s")
       watcher.arm(peripheral, after: delay)
     }
   }
 
-  private func remaining(_ id: String) -> TimeInterval {
+  /// Rounded up, so that no request completes before the revisit delay has passed.
+  private func remaining(_ id: String) -> Int {
     guard let visit = visited[id] else { return 0 }
-    return max(0, visit.addingTimeInterval(Self.revisitDelay).timeIntervalSince(now()).rounded())
+    let left = Double(Self.revisitDelay) - now().timeIntervalSince(visit)
+    return max(0, Int(left.rounded(.up)))
   }
 
   private func visit(_ peripheral: UUID) {
@@ -203,11 +223,12 @@ public final class DiveComputerWatch {
         armed = [:]
         closing = []
         restoredConnected = []
+        failed = []
       }
     case .restored(let peripheral, let request):
       log.write("restored \(label(peripheral)), request \(request.rawValue)")
       switch request {
-      case .pending: armed[peripheral] = recordByPeripheral[peripheral] ?? ""
+      case .pending: armed[peripheral] = Request(record: recordByPeripheral[peripheral] ?? "")
       case .connected: restoredConnected.insert(peripheral)
       case .none: break
       }
@@ -216,10 +237,12 @@ public final class DiveComputerWatch {
       restoredConnected.remove(peripheral)
       completed(peripheral)
     case .failedToConnect(let peripheral, let reason):
-      log.write("failed to connect \(label(peripheral)): \(reason ?? "no reason given")")
+      let delay = armed[peripheral]?.delay.map { "\($0) s" } ?? "unknown"
+      log.write(
+        "failed to connect \(label(peripheral)), requested after \(delay): "
+          + "\(reason ?? "no reason given"); left unarmed")
       armed[peripheral] = nil
-      visit(peripheral)
-      arm()
+      failed.insert(peripheral)
     case .disconnected(let peripheral, let reason):
       log.write("disconnected \(label(peripheral))" + (reason.map { ": \($0)" } ?? ""))
       closing.remove(peripheral)
@@ -244,7 +267,7 @@ public final class DiveComputerWatch {
     armed[peripheral] = nil
     closing.insert(peripheral)
     visit(peripheral)
-    log.write("closing \(label(peripheral)), the next request after \(Int(Self.revisitDelay)) s")
+    log.write("closing \(label(peripheral)), the next request after \(Self.revisitDelay) s")
     watcher?.disarm(peripheral)
   }
 
