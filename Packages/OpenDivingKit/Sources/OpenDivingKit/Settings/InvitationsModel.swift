@@ -6,8 +6,8 @@ import Observation
 ///
 /// An instance anyone may join answers the list's read with 404, and the section is left out.
 /// The link's own read answers 404 there too, so it is asked only once the list has answered:
-/// from then on its 404 means the diver has no link yet. The link's token lives here alone — no
-/// file, no keychain item — and is read again on every visit.
+/// from then on its 404 means the diver has no link yet. Both show the phone's copy at once while
+/// they are read, and keep it standing under ``lastUpdated`` when a read fails.
 @MainActor
 @Observable
 public final class InvitationsModel {
@@ -15,7 +15,7 @@ public final class InvitationsModel {
   nonisolated public static let pageSize = 20
 
   /// The invitations read so far, newest first, and where the paging stands.
-  public struct Loaded: Hashable, Sendable {
+  public struct Loaded: Codable, Hashable, Sendable {
     public var invitations: [InvitationRead]
     public var hasMore: Bool
     public var page: Int
@@ -40,6 +40,9 @@ public final class InvitationsModel {
   public private(set) var isLinkRead = false
   /// Why the last read of the link failed.
   public private(set) var linkLoadFailure: String?
+  /// When the link shown was fetched, once it is the cache's and no read of it is on its way.
+  private var linkFetchedAt: Date?
+  private var isReadingLink = false
   /// The change waiting for the diver to confirm it.
   public var confirmingLink: LinkChange?
   public private(set) var isChangingLink = false
@@ -71,15 +74,30 @@ public final class InvitationsModel {
 
   public init(session: Session) {
     self.session = session
-    list = OptionalList(session: session) { client in
+    list = OptionalList(session: session, kept: .invitations) { client in
       let page = try await client.invitations(page: 1, itemsPerPage: Self.pageSize)
       return Loaded(invitations: page.data, hasMore: page.hasMore, page: page.page)
     }
+    if let entry = AccountStores.current(session)?.cache.kept(
+      .inviteLink, of: InviteLinkRead?.self)
+    {
+      link = entry.value
+      isLinkRead = true
+      linkFetchedAt = entry.fetchedAt
+    }
+  }
+
+  /// When the oldest of what the screen shows from the phone's copy was fetched; nil once
+  /// nothing on it is.
+  public var lastUpdated: Date? {
+    let link = isReadingLink ? nil : linkFetchedAt
+    return [list.lastUpdated, link].compactMap(\.self).min()
   }
 
   /// Reads the list, then the link once the list says the feature is here.
   public func load() async {
     await list.load()
+    if list.isAbsent { forgetLink() }
     guard list.value != nil else { return }
     await loadLink()
   }
@@ -90,14 +108,33 @@ public final class InvitationsModel {
   }
 
   public func loadLink() async {
+    let stores = AccountStores.current(session)
+    isReadingLink = true
+    defer { isReadingLink = false }
     do {
-      link = try await session.routedClient().inviteLink()
-      isLinkRead = true
+      let link = try await session.routedClient().inviteLink()
       linkLoadFailure = nil
+      showLink(link, fetchedUnder: stores)
     } catch is CancellationError {
     } catch {
       linkLoadFailure = APIError(error).message
     }
+  }
+
+  /// The server's answer about the link, kept as its copy.
+  private func showLink(_ link: InviteLinkRead?, fetchedUnder stores: AccountStores?) {
+    self.link = link
+    isLinkRead = true
+    linkFetchedAt = nil
+    cacheForAnswer(fetchedUnder: stores, session: session)?.writeKept(link, .inviteLink)
+  }
+
+  /// The server has no invitations: nothing of the link is shown or kept.
+  private func forgetLink() {
+    link = nil
+    isLinkRead = false
+    linkFetchedAt = nil
+    cacheForAnswer(fetchedUnder: nil, session: session)?.removeKept(.inviteLink)
   }
 
   // MARK: - The link
@@ -131,9 +168,9 @@ public final class InvitationsModel {
     sentNote = nil
     isChangingLink = true
     defer { isChangingLink = false }
+    let stores = AccountStores.current(session)
     do {
-      link = try await session.routedClient().createInviteLink()
-      isLinkRead = true
+      showLink(try await session.routedClient().createInviteLink(), fetchedUnder: stores)
     } catch {
       linkFailure = APIError(error).message
     }
@@ -155,9 +192,10 @@ public final class InvitationsModel {
     sentNote = nil
     isChangingLink = true
     defer { isChangingLink = false }
+    let stores = AccountStores.current(session)
     do {
       try await session.routedClient().removeInviteLink()
-      link = nil
+      showLink(nil, fetchedUnder: stores)
     } catch {
       linkFailure = APIError(error).message
     }

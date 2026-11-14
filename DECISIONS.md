@@ -147,8 +147,8 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives, sites, trips, More's records, species photos and drafts are written when a screen
-loads them, never fetched to fill the cache, and each kind of detail is bounded to the two hundred
+Pages, dives, sites, trips, More's records, Settings' storage, tags and invitations, species photos
+and drafts are written when a screen loads them, never fetched to fill the cache, and each kind of detail is bounded to the two hundred
 most recently opened, a species photo to the five hundred most recently drawn. It exists so a screen
 shows at once and offline, not as a copy of the logbook. Rejected: a sync that pulls every
 dive; showing the cache only once a fetch has failed, a minute of spinner offline.

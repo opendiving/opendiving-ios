@@ -4,13 +4,20 @@ import Observation
 /// *Preferences*' tags: every one the diver has, with how many dives and sites carry each,
 /// renamed in the row and deleted after a confirmation. Both are direct calls, online only;
 /// after either every list and page over the account reads again, as after any direct write.
+/// The phone's copy shows at once while the tags are read, and stays under ``lastUpdated`` when
+/// the read fails.
 @MainActor
 @Observable
 public final class TagsModel: ReloadingListObserver {
-  /// Nil until the first read lands.
+  /// Nil until the phone has a copy or the first read lands.
   public private(set) var tags: [TagRead]?
   /// Why the last read failed, shown while there are no tags to show.
   public private(set) var loadFailure: String?
+  /// When the tags shown were fetched, once they are the cache's and no read is on its way.
+  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the cache's copy on screen was fetched; nil once a read has landed.
+  private var fetchedAt: Date?
+  private var isReading = false
   public let rename = InlineRename<UUID>(maxLength: DiveFormBounds.tagMax)
   /// The tag waiting for the diver to confirm its delete.
   public var confirmingDelete: TagRead?
@@ -23,6 +30,10 @@ public final class TagsModel: ReloadingListObserver {
 
   public init(session: Session) {
     self.session = session
+    if let entry = AccountStores.current(session)?.cache.kept(.tags, of: [TagRead].self) {
+      tags = entry.value
+      fetchedAt = entry.fetchedAt
+    }
   }
 
   /// While a rename or a delete is on its way, neither starts.
@@ -45,15 +56,21 @@ public final class TagsModel: ReloadingListObserver {
       + " it keep everything else, but will no longer be filed under it."
   }
 
-  /// Every page of `GET /tags`. With no route nothing is asked for: tags already read stay,
+  /// Every page of `GET /tags`. With no route nothing is asked for: tags already shown stay,
   /// and without any the screen says it needs a connection; ``followRoute()`` reads again.
   public func load() async {
+    let stores = AccountStores.current(session)
+    isReading = true
+    defer { isReading = false }
     do {
       let client = try session.routedClient()
-      tags = try await APIClient.allPages { page, perPage in
+      let tags = try await APIClient.allPages { page, perPage in
         try await client.tags(page: page, itemsPerPage: perPage)
       }
+      self.tags = tags
+      fetchedAt = nil
       loadFailure = nil
+      cacheForAnswer(fetchedUnder: stores, session: session)?.writeKept(tags, .tags)
     } catch is CancellationError {
     } catch {
       loadFailure = APIError(error).message

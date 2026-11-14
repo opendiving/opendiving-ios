@@ -58,6 +58,9 @@ private struct TagsSection: View {
   var body: some View {
     Section {
       if let tags = model.tags {
+        if let lastUpdated = model.lastUpdated {
+          LastUpdatedLine(date: lastUpdated)
+        }
         if tags.isEmpty {
           Text("No tags yet. Add one to a dive or a dive site from its form.")
             .foregroundStyle(.secondary)

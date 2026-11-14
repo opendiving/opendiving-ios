@@ -38,6 +38,9 @@ private struct StorageSection: View {
   var body: some View {
     Section {
       if let usage = model.usage {
+        if let lastUpdated = model.lastUpdated {
+          LastUpdatedLine(date: lastUpdated)
+        }
         VStack(alignment: .leading, spacing: 8) {
           Text(StorageText.used(usage))
             .font(.subheadline.weight(.medium))

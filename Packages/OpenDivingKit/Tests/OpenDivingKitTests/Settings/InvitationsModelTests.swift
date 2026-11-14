@@ -3,7 +3,7 @@ import OpenDivingKit
 import Testing
 
 /// *Invitations*: the list paged by twenty with no invitation twice, sends and revocations, and
-/// the invite link read only once the list has answered and kept in no file.
+/// the invite link read only once the list has answered, and both kept for the next visit.
 @MainActor
 struct InvitationsModelTests {
   private func model(_ harness: InvitationsHarness) async -> InvitationsModel {
@@ -211,25 +211,35 @@ struct InvitationsModelTests {
     #expect(!harness.server.invitationRoutes.contains("DELETE user/invite-link"))
   }
 
-  @Test func theTokenReachesNoFileAndNoKeychainItem() async throws {
+  @Test func theListAndTheLinkAreShownOfflineAtTheNextVisitUnderWhenTheyWereRead() async throws {
     let harness = try await InvitationsHarness(linked: true)
-    let model = await model(harness)
-    await model.createLink()
-    let token = try #require(model.link?.token)
-    // Whatever the session keeps for offline, after another read of the account.
-    try await harness.session.loadAccount()
+    let first = await model(harness)
+    #expect(first.lastUpdated == nil)
 
-    let secret = Data(token.utf8)
-    let files = FileManager.default.enumerator(
-      at: harness.directory, includingPropertiesForKeys: nil)
-    var read = 0
-    while let file = files?.nextObject() as? URL {
-      guard let contents = try? Data(contentsOf: file) else { continue }
-      read += 1
-      #expect(contents.range(of: secret) == nil, "\(file.lastPathComponent) holds the token")
-    }
-    #expect(read > 0)
-    #expect(!harness.keychain.all.contains { $0.contains(token) })
+    harness.connectivity.isRouteAvailable = false
+    let model = InvitationsModel(session: harness.session)
+    #expect(model.list.value?.invitations.count == 3)
+    #expect(model.link?.token == InvitationsServer.token(0))
+    #expect(model.isLinkRead)
+    await model.load()
+    #expect(model.list.value?.invitations.count == 3)
+    #expect(model.link?.token == InvitationsServer.token(0))
+    #expect(model.lastUpdated != nil)
+
+    harness.connectivity.isRouteAvailable = true
+    await model.load()
+    #expect(model.lastUpdated == nil)
+  }
+
+  @Test func aRemovedLinkIsKeptAsNone() async throws {
+    let harness = try await InvitationsHarness(linked: true)
+    let first = await model(harness)
+    await first.confirmLinkChange(.remove)
+
+    harness.connectivity.isRouteAvailable = false
+    let model = InvitationsModel(session: harness.session)
+    #expect(model.isLinkRead)
+    #expect(model.link == nil)
   }
 
   @Test func offlineTheListAndTheLinkAreReadWhenARouteAppears() async throws {

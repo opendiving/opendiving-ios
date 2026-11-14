@@ -30,6 +30,9 @@ private struct InvitationsList: View {
         }
       } else {
         List {
+          if let lastUpdated = model.lastUpdated {
+            LastUpdatedLine(date: lastUpdated)
+          }
           if model.list.value != nil {
             InviteLinkSection(model: model)
           }

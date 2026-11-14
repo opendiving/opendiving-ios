@@ -8,14 +8,15 @@ struct StorageModelTests {
   private let origin = ClientHarness.origin
 
   private func model(
-    _ server: SettingsServer, connectivity: SettingsConnectivity = SettingsConnectivity()
+    _ server: SettingsServer, connectivity: SettingsConnectivity = SettingsConnectivity(),
+    in directory: URL = FileManager.default.temporaryDirectory
+      .appendingPathComponent("StorageModelTests-\(UUID().uuidString)", isDirectory: true)
   ) async throws -> StorageModel {
     let session = Session(
       transport: server, secrets: InMemorySecretStore([origin.description: "refresh-0"]),
       activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
       connectivity: connectivity,
-      applicationSupport: FileManager.default.temporaryDirectory
-        .appendingPathComponent("StorageModelTests-\(UUID().uuidString)", isDirectory: true),
+      applicationSupport: directory,
       userAgent: ClientHarness.userAgent)
     try await session.loadAccount()
     return StorageModel(session: session)
@@ -57,6 +58,28 @@ struct StorageModelTests {
     following.cancel()
     await following.value
     #expect(model.loadFailure == nil)
+  }
+
+  @Test func theUsageIsKeptAndShownAtTheNextVisitUnderWhenItWasRead() async throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("StorageModelTests-\(UUID().uuidString)", isDirectory: true)
+    let first = try await model(try SettingsServer(), in: directory)
+    await first.load()
+    #expect(first.lastUpdated == nil)
+
+    let server = try SettingsServer()
+    let connectivity = SettingsConnectivity()
+    let model = try await model(server, connectivity: connectivity, in: directory)
+    #expect(model.usage?.divesWithFilesCount == 9)
+    let shown = try #require(model.lastUpdated)
+    connectivity.isRouteAvailable = false
+    await model.load()
+    #expect(model.usage?.divesWithFilesCount == 9)
+    #expect(model.lastUpdated == shown)
+
+    connectivity.isRouteAvailable = true
+    await model.load()
+    #expect(model.lastUpdated == nil)
   }
 
   @Test func aRefusalIsTheAPIsSentence() async throws {
