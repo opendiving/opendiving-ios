@@ -240,7 +240,8 @@ public final class InboxModel {
       workTask = nil
       // Unread, a pending import may still be there: the files wait for the next occasion.
       guard read, pending == nil, canUpload else { return }
-      upload()
+      // The arrivals alone: a file refused before, or kept from before, waits for *Upload*.
+      upload(only: arrivals)
     }
   }
 
@@ -257,9 +258,18 @@ public final class InboxModel {
   /// 201 each records the import and the answer is the pending import; on anything else the
   /// files stay waiting, and a 409 reads the pending import it names.
   public func upload() {
+    upload(only: nil)
+  }
+
+  /// The upload, of every waiting file the bounds admit or of those in `only`.
+  private func upload(only: Set<UUID>?) {
     guard canUpload, let store = destination?.store, let client = try? session.requireClient()
     else { return }
-    let sent = store.load().files.filter { $0.uploadedInto == nil && refusal(for: $0) == nil }
+    let sent = store.load().files.filter { file in
+      file.uploadedInto == nil && refusal(for: file) == nil
+        && (only?.contains(file.id) ?? true)
+    }
+    guard !sent.isEmpty else { return }
     // Tried once by itself: what does not go waits for *Upload*.
     arrivals.subtract(sent.map(\.id))
     stopReading()

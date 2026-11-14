@@ -7,7 +7,7 @@ public struct WaitingDownload: Hashable, Sendable, Identifiable {
   public let id: UUID
   public let title: String
   public let stage: String
-  /// The stage is why the archive is not sent by itself.
+  /// The stage is the server's reason, or the app's, for not sending the archive by itself.
   public let refused: Bool
   /// The archive the row is, which *Upload* sends again and *Remove* removes; nil for dives
   /// held for a zone, which the Dive Computers screen asks about.
@@ -21,6 +21,8 @@ public struct WaitingDownload: Hashable, Sendable, Identifiable {
       let computer = archive.summary.computers.first?.title ?? ""
       let stage: String
       switch archive.refusal {
+      // A refusal with no sentence has nothing to say but where the dives are; *Upload* is
+      // still offered for it.
       case .none, .server(message: nil): stage = DiveComputerText.waitingToUploadStage
       case .server(message: let message?): stage = message
       case .notAppliedAtOnce: stage = DiveComputerText.needsNewerServer

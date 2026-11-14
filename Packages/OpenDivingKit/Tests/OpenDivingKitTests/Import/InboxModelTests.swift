@@ -124,6 +124,21 @@ struct InboxModelTests {
     #expect(server.uploads == [["a.fit"]])
   }
 
+  @Test func aNewArrivalGoesUpAloneLeavingWhatWasRefusedBefore() async throws {
+    let server = try ImportServer()
+    server.answerUploads { index in
+      index == 0 ? .json(#"{"detail":"This file cannot be read."}"#, status: 422) : nil
+    }
+    let model = try await loaded(server)
+    try arrive(model, "bad.fit")
+    await model.settled()
+    try arrive(model, "good.fit")
+    await model.settled()
+
+    #expect(server.uploads == [["bad.fit"], ["good.fit"]])
+    #expect(model.waiting.map(\.filename) == ["bad.fit"])
+  }
+
   @Test func aFileThatCouldNotGoWaitsForTheTap() async throws {
     let server = try ImportServer()
     server.answerUploads { _ in .json(#"{"detail":"Too many imports."}"#, status: 429) }
