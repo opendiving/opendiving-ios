@@ -12,4 +12,7 @@ public struct InstanceConfigRead: Codable, Hashable, Sendable {
   public let mapAttribution: String?
   /// Whether this instance edits OpenDiving Commons and so takes proposals.
   public let commonsPrimary: Bool?
+  /// The experimental features this instance switches on, by name, with `all` standing for
+  /// every one; read through `Session.isExperimentalFeatureOn(_:)`.
+  public let experimentalFeatures: [String]?
 }

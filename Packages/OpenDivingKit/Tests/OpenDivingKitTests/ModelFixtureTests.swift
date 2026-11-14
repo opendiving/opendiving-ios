@@ -224,6 +224,13 @@ struct ModelFixtureTests {
     #expect(
       try KitFixture.roundTrip(InstanceConfigRead.self, "config-commons-primary").commonsPrimary
         == true)
+    #expect(try KitFixture.roundTrip(InstanceConfigRead.self, "config").experimentalFeatures == nil)
+    #expect(
+      try KitFixture.roundTrip(InstanceConfigRead.self, "config-experimental-features")
+        .experimentalFeatures == ["dive-planner", "trip-sharing"])
+    #expect(
+      try KitFixture.roundTrip(InstanceConfigRead.self, "config-experimental-features-all")
+        .experimentalFeatures == ["all"])
     #expect(try KitFixture.roundTrip(HealthRead.self, "health").status == "healthy")
   }
 

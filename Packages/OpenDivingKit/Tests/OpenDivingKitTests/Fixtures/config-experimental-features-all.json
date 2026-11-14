@@ -1,0 +1,8 @@
+{
+  "registration_mode": "open",
+  "project_operated": false,
+  "join_links": false,
+  "map_tiles": false,
+  "commons_primary": false,
+  "experimental_features": ["all"]
+}

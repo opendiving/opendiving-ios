@@ -50,6 +50,19 @@ view model in the Kit, then reach it from the screen that shows it. A placeholde
 type name and its initializer when it is filled in, because other screens already construct it by
 that name. Give every view a `#Preview`.
 
+## Experimental features
+
+A feature that is not ready merges behind a gate, and the server says which ones it switches on:
+`/config` lists their names, or `all` for every one. The phone reads the list and has no switch of
+its own.
+
+- **A view gates on `session.isExperimentalFeatureOn("<name>")`**, as it reads
+  `isCommonsPrimary`: never on the config's list directly, and never on the build.
+- **A gated surface asks for the server's info in its own task** (`.task { await
+  session.loadServerInfo() }`). The config is empty at each launch, and until it is answered every
+  feature reads as off.
+- **Its tests serve a config that names the feature**, and one that does not.
+
 ## Code style — Swift
 
 - Swift 6 language mode everywhere, and warnings are errors (`project.yml` and `Package.swift`

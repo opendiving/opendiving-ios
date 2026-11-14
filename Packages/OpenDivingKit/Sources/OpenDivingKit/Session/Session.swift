@@ -484,6 +484,16 @@ public final class Session {
     server?.config.commonsPrimary == true
   }
 
+  // MARK: - Experimental features
+
+  /// Whether the active server switches on the experimental feature `name`: only once it has
+  /// answered, and only where its config lists the name or `all`. A config that does not say
+  /// reads as off.
+  public func isExperimentalFeatureOn(_ name: String) -> Bool {
+    guard let features = server?.config.experimentalFeatures else { return false }
+    return features.contains(name) || features.contains("all")
+  }
+
   // MARK: - Internals
 
   /// The one place the session takes the account a server answered, and keeps it as a
