@@ -452,8 +452,9 @@ public final class Session {
   /// ``requireClient()`` for a read a screen starts on its own, which fails at once with
   /// ``APIError/noRoute`` while the phone believes it has no route rather than waiting a
   /// minute for one; the screen reads again when ``Connectivity/moments()`` says one appeared.
-  /// Every settings call goes through it too, the writes the diver asks for included: a
-  /// settings control says at once that there is no connection, and saves nothing.
+  /// Every settings call goes through it too, the writes the diver asks for included, so one
+  /// that starts with no route saves nothing; the controls are disabled while ``hasRoute`` is
+  /// false.
   public func routedClient() throws -> APIClient {
     let client = try requireClient()
     guard connectivity.isRouteAvailable else { throw APIError.noRoute }

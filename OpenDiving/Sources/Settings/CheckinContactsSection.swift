@@ -60,8 +60,9 @@ struct CheckinContactsSection: View {
 }
 
 #Preview {
+  let session = Session.stub(transport: StubTransport(routes: [:]))
   Form {
-    CheckinContactsSection(
-      model: CheckinDetailsModel(session: Session.stub(transport: StubTransport(routes: [:]))))
+    CheckinContactsSection(model: CheckinDetailsModel(session: session))
   }
+  .environment(session)
 }
