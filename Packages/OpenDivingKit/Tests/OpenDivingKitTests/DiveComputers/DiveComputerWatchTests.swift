@@ -4,7 +4,8 @@ import Testing
 @testable import OpenDivingKit
 
 /// The watch over the paired computers, against a fake watcher: what is armed, when, and what a
-/// completed request, Bluetooth's state, a restoration and the screen's download lead to.
+/// completed or failed request, Bluetooth's state, a restoration and the screen's download lead
+/// to.
 @MainActor
 final class DiveComputerWatchTests {
   private typealias F = DiveComputerFixtures
@@ -142,18 +143,75 @@ final class DiveComputerWatchTests {
       ])
   }
 
-  @Test func aFailedRequestIsArmedAgainAfterTheRevisitDelay() {
+  @Test func aFailedRequestIsLeftUnarmedUntilAnEventArmsItOnce() {
+    records = [record(F.perdix, perdix), record(F.ocean, ocean)]
+    watcher.failsRequests = true
+    let watch = watch()
+    watch.launched(.byUser)
+    _ = watcher.take()
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(Set(watcher.take()) == [.arm(perdix, after: 0), .arm(ocean, after: 0)])
+    watch.refresh()
+    #expect(watcher.take().isEmpty)
+    #expect(
+      lines().contains(
+        "failed to connect Shearwater Perdix 3 \(perdix.uuidString), requested after 0 s: "
+          + "One or more parameters were invalid.; left unarmed"))
+
+    // A scan from the Dive Computers screen.
+    watch.scanStarted()
+    #expect(
+      Set(watcher.take()) == [.arm(perdix, after: 0), .arm(ocean, after: 0), .observe(true)])
+    watch.scanStopped()
+    _ = watcher.take()
+    watch.refresh()
+    #expect(watcher.take().isEmpty)
+
+    // A download from the screen, which is a visit.
+    watch.downloadStarted(perdix)
+    #expect(watcher.take().isEmpty)
+    watch.downloadEnded(perdix)
+    #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
+    watch.refresh()
+    #expect(watcher.take().isEmpty)
+
+    // Bluetooth coming back on.
+    watcher.send(.state(.off, detail: "poweredOff"))
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(
+      Set(watcher.take()) == [
+        .arm(perdix, after: DiveComputerWatch.revisitDelay), .arm(ocean, after: 0),
+      ])
+    watch.refresh()
+    #expect(watcher.take().isEmpty)
+
+    // A moved identifier.
+    let moved = UUID()
+    records = [record(F.perdix, perdix), record(F.ocean, moved)]
+    watch.refresh()
+    #expect(watcher.take() == [.arm(moved, after: 0)])
+    watch.refresh()
+    #expect(watcher.take().isEmpty)
+
+    // The next launch.
+    let next = self.watch()
+    next.launched(.byUser)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(Set(watcher.take()) == [.start, .arm(perdix, after: 0), .arm(moved, after: 0)])
+    next.refresh()
+    #expect(watcher.take().isEmpty)
+  }
+
+  @Test func theRevisitDelayIsWholeSecondsRoundedUp() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
     watch.launched(.byUser)
     watcher.send(.state(.on, detail: "poweredOn"))
+    watcher.send(.connected(perdix))
     _ = watcher.take()
-    watcher.send(.failedToConnect(perdix, reason: "Peer removed pairing information"))
-    #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
-    #expect(
-      lines().contains(
-        "failed to connect Shearwater Perdix 3 \(perdix.uuidString): Peer removed pairing information"
-      ))
+    clock += 2.5
+    watcher.send(.disconnected(perdix, reason: nil))
+    #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay - 2)])
   }
 
   @Test func aComputerSwitchedOffOrForgottenIsWithdrawn() {

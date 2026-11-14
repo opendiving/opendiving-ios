@@ -31,7 +31,7 @@ final class CoreBluetoothDiveComputerWatcher: NSObject, DiveComputerWatcher {
       ])
   }
 
-  func arm(_ peripheral: UUID, after delay: TimeInterval) {
+  func arm(_ peripheral: UUID, after seconds: Int) {
     guard let central, central.state == .poweredOn else { return }
     guard
       let found = peripherals[peripheral]
@@ -41,8 +41,12 @@ final class CoreBluetoothDiveComputerWatcher: NSObject, DiveComputerWatcher {
       return
     }
     peripherals[peripheral] = found
+    // An integer NSNumber: iOS fails a request whose start delay is a floating-point one, of any
+    // value, at once.
     central.connect(
-      found, options: delay > 0 ? [CBConnectPeripheralOptionStartDelayKey: delay] : nil)
+      found,
+      options: seconds > 0
+        ? [CBConnectPeripheralOptionStartDelayKey: NSNumber(value: seconds)] : nil)
   }
 
   func disarm(_ peripheral: UUID) {

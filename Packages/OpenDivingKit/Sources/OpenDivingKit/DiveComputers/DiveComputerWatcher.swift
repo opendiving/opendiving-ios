@@ -10,11 +10,12 @@ public protocol DiveComputerWatcher: AnyObject {
   /// while observed, each advertisement.
   func start(_ handler: @escaping @MainActor (DiveComputerWatchEvent) -> Void)
 
-  /// Asks iOS to connect to the peripheral once `delay` seconds have passed. The request does not
-  /// time out; it ends in ``DiveComputerWatchEvent/connected(_:)`` or
+  /// Asks iOS to connect to the peripheral once `seconds` have passed, a whole number because iOS
+  /// refuses a start delay given as a fraction. The request does not time out; it ends in
+  /// ``DiveComputerWatchEvent/connected(_:)`` or
   /// ``DiveComputerWatchEvent/failedToConnect(_:reason:)``, or at once in
   /// ``DiveComputerWatchEvent/notFound(_:)`` where iOS knows no peripheral by that identifier.
-  func arm(_ peripheral: UUID, after delay: TimeInterval)
+  func arm(_ peripheral: UUID, after seconds: Int)
 
   /// Withdraws the request, or closes the connection it made, which then reports
   /// ``DiveComputerWatchEvent/disconnected(_:reason:)``.

@@ -244,6 +244,18 @@ never while Bluetooth is undecided, so the prompt still comes at pairing. A comp
 a watch. Rejected: a background scan, which must name a service, and a paired Perdix 3 advertises
 none; a library change that forwards the delegate, under a pin that must stay exact.
 
+## A request's start delay is whole seconds, and a failed request waits for an event
+
+iOS fails a connection request at once, *One or more parameters were invalid*, when its
+`CBConnectPeripheralOptionStartDelayKey` is a floating-point `NSNumber` of any value above zero,
+and accepts and honours an integer one of 1 to 86,400 seconds. Measured on iOS 26.7.2: the same
+with the app in front and behind, and whether the request is sent from a quiet moment or from
+inside a failure or disconnection callback. So `DiveComputerWatcher.arm` takes whole seconds. A
+request that fails is not asked again in its turn, since a refused request fails the same way
+again. Instead, the next launch, Bluetooth coming back on, a moved hint, a scan or a download
+from the screen arms it once. Rejected: re-arming after the revisit delay, which spins on a
+refusal, and a timer, which an app iOS has suspended never fires.
+
 ## A download's dives carry derived uuids, and downloads waiting to upload are one union
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint,
