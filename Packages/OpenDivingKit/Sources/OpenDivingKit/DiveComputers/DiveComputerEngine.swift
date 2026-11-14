@@ -304,9 +304,10 @@ public final class DiveComputerEngine {
       if all { record.fingerprint = nil }
       return record
     }
-    let waitingDives = downloads.waitingDives()
-    // *Download all dives* takes again what the server answered for, and never what waits.
-    let delivered = all ? [] : downloads.allDelivered()
+    let waitingDives = downloads.waitingDives(marked: marked)
+    // *Download all dives* takes again what the server answered for, and never what waits. A
+    // walk before the load may be for another account than the one the server answered.
+    let delivered = all || marked ? [] : downloads.allDelivered()
     let notAgain: @Sendable (DiveComputerIdentity, Data) -> Bool = { identity, fingerprint in
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
       return waitingDives.contains(uuid) || delivered.contains(uuid)

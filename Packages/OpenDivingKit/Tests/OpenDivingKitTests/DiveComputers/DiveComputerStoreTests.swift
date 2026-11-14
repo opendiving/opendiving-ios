@@ -229,18 +229,9 @@ struct DiveComputerStoreTests {
   }
 
   @Test func theScreensWords() {
-    let union = InboxDownload(
-      computers: [
-        .init(
-          family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", serial: "D9772626",
-          dives: 12),
-        .init(
-          family: .suuntoNautic, vendor: "Suunto", product: "Ocean", serial: "253810000400",
-          dives: 2),
-      ], downloadedAt: F.moment)
-    #expect(
-      DiveComputerText.inboxRow(union, in: F.helsinki)
-        == "14 dives from Shearwater Perdix 3 and Suunto Ocean, downloaded 25 October")
+    #expect(DiveComputerText.waitingToUpload(3) == "3 dives waiting to upload")
+    #expect(DiveComputerText.alreadyWaiting(1) == "1 dive waiting to upload.")
+    #expect(DiveComputerText.chooseTimeZone(1) == "Choose a time zone to import 1 dive")
     #expect(
       DiveComputerText.nothingNew(since: F.moment, in: F.helsinki)
         == "No new dives since 25 October.")
@@ -259,11 +250,7 @@ struct DiveComputerStoreTests {
     #expect(
       DiveComputerText.busyOtherApp
         == "This computer is busy. Closing other apps that use it lets the download go on.")
-    #expect(
-      DiveComputerText.alreadyWaiting(2)
-        == "The new dives are already waiting in the import screen.")
-    #expect(
-      DiveComputerText.alreadyWaiting(1) == "The new dive is already waiting in the import screen.")
+    #expect(DiveComputerText.alreadyWaiting(2) == "2 dives waiting to upload.")
     #expect(DiveComputerText.couldNotDownload(1) == "1 dive couldn't be downloaded.")
     #expect(DiveComputerText.couldNotDownload(2) == "2 dives couldn't be downloaded.")
     #expect(DiveComputerText.connecting == "Connecting")

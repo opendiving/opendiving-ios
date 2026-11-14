@@ -310,8 +310,12 @@ public final class DiveComputerModel {
   }
 
   private func start(_ computer: FoundComputer, all: Bool) {
-    guard !isBusy, admits(), let started = engine.start(computer, all: all) else { return }
+    guard !isBusy, admits() else { return }
     stopScanning()
+    guard let started = engine.start(computer, all: all) else {
+      startScanning()
+      return
+    }
     lastComputer = computer
     walk = started
   }

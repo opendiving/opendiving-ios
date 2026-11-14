@@ -124,10 +124,12 @@ public struct DownloadStore: Sendable {
   /// The computer's fingerprint moved past every dive a complete walk saw, these among them.
   func clearDelivered(_ record: String) { deliveredRecords.remove(record) }
 
-  /// The dives the phone holds unimported: in an archive, or kept by a walk.
-  func waitingDives() -> Set<UUID> {
-    var dives = Set(archives().flatMap(\.dives))
-    for walk in walks() {
+  /// The dives the phone holds unimported under one mark: in an archive, or kept by a walk.
+  /// Those kept under the other may yet move to another account.
+  func waitingDives(marked: Bool) -> Set<UUID> {
+    var dives = Set(
+      archives().filter { $0.receivedBeforeAccountKnown == marked }.flatMap(\.dives))
+    for walk in walks() where walk.receivedBeforeAccountKnown == marked {
       for dive in walk.dives {
         if let fingerprint = Hex.data(dive.fingerprint) {
           dives.insert(DiveComputerArchive.diveUUID(dive.identity, fingerprint: fingerprint))

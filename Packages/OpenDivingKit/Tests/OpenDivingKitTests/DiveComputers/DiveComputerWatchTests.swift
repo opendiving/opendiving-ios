@@ -50,15 +50,15 @@ final class DiveComputerWatchTests {
   @Test func aPhoneWithNothingPairedMakesNoWatcher() {
     records = [record(F.perdix, perdix, automatically: false), record(F.ocean, nil)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watch.refresh()
     #expect(made == 0)
-    #expect(lines() == ["launch by the user"])
+    #expect(lines() == ["launch"])
   }
 
   @Test func aScanMakesTheWatcherToObserveWhatIsAdvertised() {
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watch.scanStarted()
     #expect(made == 1)
     #expect(watcher.take() == [.start, .observe(true)])
@@ -70,7 +70,7 @@ final class DiveComputerWatchTests {
     records = [record(F.perdix, perdix)]
     allowed = false
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     #expect(made == 0)
     allowed = true
     watch.refresh()
@@ -80,7 +80,7 @@ final class DiveComputerWatchTests {
   @Test func eachComputerWatchedIsArmedOnceBluetoothIsOn() {
     records = [record(F.perdix, perdix), record(F.ocean, ocean)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     #expect(watcher.take() == [.start])
     watcher.send(.state(.on, detail: "poweredOn"))
     #expect(Set(watcher.take()) == [.arm(perdix, after: 0), .arm(ocean, after: 0)])
@@ -92,7 +92,7 @@ final class DiveComputerWatchTests {
   @Test func aCompletedRequestIsClosedAndArmedAgainAfterTheRevisitDelay() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     _ = watcher.take()
 
@@ -128,10 +128,58 @@ final class DiveComputerWatchTests {
       ])
   }
 
+  @Test func aConnectionAWalkTakesIsYieldedToItAndArmedAgainAfterItEnds() {
+    records = [record(F.perdix, perdix), record(F.ocean, ocean)]
+    let watch = watch()
+    var offered: [String] = []
+    watch.onConnected = { _, record in
+      offered.append(record.id)
+      return record.family == .shearwaterPetrel
+    }
+    watch.launched()
+    watcher.send(.state(.on, detail: "poweredOn"))
+    _ = watcher.take()
+
+    watcher.send(.connected(perdix))
+    #expect(watcher.take() == [.disarm(perdix)])
+    // Its disconnection arms nothing while the walk runs, nor does a second connection report.
+    watcher.send(.disconnected(perdix, reason: nil))
+    watcher.send(.connected(perdix))
+    watch.refresh()
+    #expect(watcher.take().isEmpty)
+    clock += 120
+    watch.downloadEnded(perdix)
+    #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
+
+    // A connection no walk takes is closed, and asked again after the delay from it.
+    watcher.send(.connected(ocean))
+    #expect(watcher.take() == [.disarm(ocean)])
+    watcher.send(.disconnected(ocean, reason: nil))
+    #expect(watcher.take() == [.arm(ocean, after: DiveComputerWatch.revisitDelay)])
+    #expect(offered == [F.perdix, F.ocean].map { DiveComputerRecord(identity: $0).id })
+    #expect(lines().contains("walking Shearwater Perdix 3 \(perdix.uuidString)"))
+  }
+
+  @Test func aConnectionIOSRestoredStartsAWalkOnceBluetoothIsOn() {
+    records = [record(F.ocean, ocean)]
+    let watch = watch()
+    var offered = 0
+    watch.onConnected = { _, _ in
+      offered += 1
+      return true
+    }
+    watch.launched()
+    watcher.send(.restored(ocean, .connected))
+    #expect(offered == 0)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(offered == 1)
+    #expect(watcher.take() == [.start, .disarm(ocean)])
+  }
+
   @Test func aResetDropsWhatWasArmedOrClosingAndArmsBothAgain() {
     records = [record(F.perdix, perdix), record(F.ocean, ocean)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     watcher.send(.connected(ocean))
     _ = watcher.take()
@@ -147,7 +195,7 @@ final class DiveComputerWatchTests {
     records = [record(F.perdix, perdix), record(F.ocean, ocean)]
     watcher.failsRequests = true
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     _ = watcher.take()
     watcher.send(.state(.on, detail: "poweredOn"))
     #expect(Set(watcher.take()) == [.arm(perdix, after: 0), .arm(ocean, after: 0)])
@@ -195,7 +243,7 @@ final class DiveComputerWatchTests {
 
     // The next launch.
     let next = self.watch()
-    next.launched(.byUser)
+    next.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     #expect(Set(watcher.take()) == [.start, .arm(perdix, after: 0), .arm(moved, after: 0)])
     next.refresh()
@@ -205,7 +253,7 @@ final class DiveComputerWatchTests {
   @Test func theRevisitDelayIsWholeSecondsRoundedUp() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     watcher.send(.connected(perdix))
     _ = watcher.take()
@@ -217,7 +265,7 @@ final class DiveComputerWatchTests {
   @Test func aComputerSwitchedOffOrForgottenIsWithdrawn() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     _ = watcher.take()
     records = [record(F.perdix, perdix, automatically: false)]
@@ -235,7 +283,7 @@ final class DiveComputerWatchTests {
   @Test func itYieldsToTheScreensDownloadAndVisitsAgainAfterIt() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     _ = watcher.take()
     watch.downloadStarted(perdix)
@@ -246,13 +294,13 @@ final class DiveComputerWatchTests {
     #expect(watcher.take() == [.arm(perdix, after: DiveComputerWatch.revisitDelay)])
     #expect(
       lines().contains(
-        "withdrawn Shearwater Perdix 3 \(perdix.uuidString): a download from the screen"))
+        "withdrawn Shearwater Perdix 3 \(perdix.uuidString): a walk"))
   }
 
   @Test func theRequestFollowsTheComputerToAnotherIdentifier() {
     records = [record(F.ocean, ocean)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     _ = watcher.take()
     let moved = UUID()
@@ -266,7 +314,7 @@ final class DiveComputerWatchTests {
   @Test func aPeripheralNotFoundIsNotAskedForAgainUntilBluetoothReturns() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     watcher.send(.notFound(perdix))
     _ = watcher.take()
@@ -281,7 +329,7 @@ final class DiveComputerWatchTests {
     let orphan = UUID()
     records = [record(F.perdix, perdix), record(F.ocean, ocean)]
     let watch = watch()
-    watch.launched(.byIOS(restoring: ["app.opendiving.dive-computer-watch"]))
+    watch.launched()
     watcher.send(.restored(perdix, .pending))
     watcher.send(.restored(ocean, .connected))
     watcher.send(.restored(orphan, .pending))
@@ -292,23 +340,14 @@ final class DiveComputerWatchTests {
     // The connection iOS delivers after the restoration is the same one.
     watcher.send(.connected(ocean))
     #expect(watcher.take().isEmpty)
-    #expect(lines().first == "launch by iOS, restoring app.opendiving.dive-computer-watch")
+    #expect(lines().first == "launch")
     #expect(lines().contains("restored Suunto Ocean \(ocean.uuidString), request connected"))
-  }
-
-  @Test func aLaunchByIOSWithNothingPairedWithdrawsWhatItRestored() {
-    let watch = watch()
-    watch.launched(.byIOS(restoring: ["app.opendiving.dive-computer-watch"]))
-    #expect(made == 1)
-    watcher.send(.restored(perdix, .pending))
-    watcher.send(.state(.on, detail: "poweredOn"))
-    #expect(watcher.take() == [.start, .disarm(perdix)])
   }
 
   @Test func eachDiveComputerAdvertisingIsLoggedOncePerScan() {
     records = [record(F.perdix, perdix)]
     let watch = watch()
-    watch.launched(.byUser)
+    watch.launched()
     let paired = DiveComputerAdvertisement(
       peripheral: perdix, name: "Perdix 3", family: nil, services: [],
       companyIdentifier: 0x0009, connectable: true)
