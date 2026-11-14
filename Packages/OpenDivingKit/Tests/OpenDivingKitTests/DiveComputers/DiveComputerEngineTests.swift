@@ -351,6 +351,24 @@ struct DiveComputerEngineTests {
     #expect(engine.held.isEmpty)
   }
 
+  @Test func heldDivesWhoseBytesAreGoneLeaveWithTheAnswer() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
+    let engine = engine(session)
+    watcher.send(.connected(F.oceanFound.id))
+    await engine.settled()
+    let walk = try #require(downloads(session).walks().first)
+    try FileManager.default.removeItem(at: downloads(session).folder(of: walk.id))
+
+    engine.answerHeld(try #require(TimeZone(identifier: "Asia/Tokyo")))
+    await engine.settled()
+    #expect(engine.held.isEmpty)
+    #expect(downloads(session).walks().isEmpty)
+    #expect(downloads(session).archives().isEmpty)
+  }
+
   @Test func theDivesUnderADayOldGoOnWithTheWatchsZoneAndTheOlderWait() async throws {
     let session = try await session()
     route.isRouteAvailable = false

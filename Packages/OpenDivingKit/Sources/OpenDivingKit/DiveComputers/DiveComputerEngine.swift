@@ -260,13 +260,15 @@ public final class DiveComputerEngine {
     keepingAnswer = Task {
       await previous?.value
       let token = await session.background.begin(name: "Keeping the dives just downloaded")
-      if let identity = dives.first?.identity, let record = kept.record,
-        await archive(
+      // Kept only for another try at an archive that failed: a walk with nothing left to
+      // archive would come back as the same question every time.
+      var failure: (any Error)?
+      if let identity = dives.first?.identity, let record = kept.record {
+        failure = await archive(
           dives, identity: identity, record: record, instantZone: zone,
-          marked: kept.receivedBeforeAccountKnown, into: downloads) == nil
-      {
-        downloads.remove(walk: kept.id)
+          marked: kept.receivedBeforeAccountKnown, into: downloads)
       }
+      if failure == nil { downloads.remove(walk: kept.id) }
       answering.remove(kept.id)
       reload()
       await session.background.end(token)
