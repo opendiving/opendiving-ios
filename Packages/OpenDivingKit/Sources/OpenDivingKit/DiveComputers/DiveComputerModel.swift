@@ -415,6 +415,9 @@ public final class DiveComputerModel {
     let others = engine.otherComputers(than: waiting.serial, store: store)
     guard others.count == 1, let other = others.first else {
       orderQuestion = nil
+      // None known may only be the order not read yet, whose computer may be the other one:
+      // the dives keep waiting until a read says so.
+      guard others.count > 1 || engine.order != nil || engine.orderRouteMissing else { return }
       Task { await engine.answerOrder(nil, for: waiting) }
       return
     }

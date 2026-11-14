@@ -121,6 +121,32 @@ struct DiveComputerListTests {
     #expect(server.atOnce.count == 1)
   }
 
+  @Test func aQuestionAboutAComputerOnlyTheServerKnowsOutlivesTheProcess() async throws {
+    let session = try await session()
+    server.keepComputers([ocean])
+    let (_, model) = model(session)
+    await model.appeared()
+    try await pairPerdix(model)
+    #expect(model.orderQuestion?.other == "Suunto Ocean")
+
+    // A later process, with no route: the order is not read, and the dives keep waiting.
+    route.isRouteAvailable = false
+    let (offline, unread) = self.model(session)
+    await unread.appeared()
+    await offline.settled()
+    #expect(unread.orderQuestion == nil)
+    #expect(offline.archives.count == 1)
+    #expect(computers(session).records().first { $0.serial == "D9772626" }?.awaitsOrder == true)
+
+    // With a route, the read names the other computer and the question is asked again.
+    route.isRouteAvailable = true
+    let (engine, again) = self.model(session)
+    await again.appeared()
+    #expect(again.orderQuestion?.other == "Suunto Ocean")
+    await engine.settled()
+    #expect(server.atOnce.isEmpty)
+  }
+
   @Test func aServerWithNoOrderTakesTheAnswerAsSent() async throws {
     let session = try await session()
     try computers(session).save(DiveComputerRecord(identity: F.ocean))
