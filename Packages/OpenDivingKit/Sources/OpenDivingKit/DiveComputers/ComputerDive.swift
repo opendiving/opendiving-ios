@@ -36,6 +36,10 @@ public struct ComputerDive: Hashable, Sendable {
     self.body = body
   }
 
+  /// The reader's dive as JSON again, which ``init(json:logsInstants:fallbackStart:)`` reads
+  /// back to this dive.
+  var json: Data { Data(ArchiveJSON.object(body).text.utf8) }
+
   /// No samples and no duration over a second: not a dive. On the Nautic family, an empty or
   /// aborted session.
   public var isEmpty: Bool {

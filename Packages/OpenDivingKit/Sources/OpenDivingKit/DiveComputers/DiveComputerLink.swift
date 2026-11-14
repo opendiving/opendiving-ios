@@ -32,13 +32,24 @@ public protocol DiveComputerLink: AnyObject {
   /// ``DiveComputerDownloadEvent/skipped(fingerprint:)`` for an entry left out — and last
   /// ``DiveComputerDownloadEvent/finished(_:)``.
   ///
-  /// `waiting` says whether the dive of an identity and fingerprint already waits in the import
-  /// screen; a family that lists its entries leaves such an entry out and does not count it new.
+  /// `waiting` says whether the dive of an identity and fingerprint is one the phone need not
+  /// take again; a family that lists its entries leaves such an entry out and does not count it
+  /// new. `keep` is called with each dive, on the walk's own thread, before the dive is yielded
+  /// and before the next transfer starts.
+  ///
+  /// With `pairedOnly`, a computer whose family and serial `lookup` finds no record of is closed
+  /// as soon as it is identified, with none of its entries listed or read, and the stream ends
+  /// ``DiveComputerDownloadEnd/Kind/unpaired``.
   func download(
-    _ computer: FoundComputer,
+    _ computer: FoundComputer, pairedOnly: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
-    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool
+    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
+    keep: @escaping @Sendable (DownloadedDive) -> Void
   ) -> AsyncStream<DiveComputerDownloadEvent>
+
+  /// The computer a paired record names, to open under the Core Bluetooth identifier it was
+  /// last seen under: what a walk nobody started from a scan opens.
+  func computer(for record: DiveComputerRecord, at peripheral: UUID) -> FoundComputer
 
   /// Stops the walk between dives; the stream still finishes, with
   /// ``DiveComputerDownloadEnd/Kind/cancelled``.

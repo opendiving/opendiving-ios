@@ -190,7 +190,7 @@ struct PendingScreen: View {
         ForEach(inbox.files) { file in
           let stage = inbox.stage(of: file)
           VStack(alignment: .leading, spacing: 2) {
-            Label(ImportFileRow.title(file), systemImage: "doc")
+            Label(file.filename, systemImage: "doc")
             Text(PendingText.fileStage(stage))
               .font(.caption)
               .foregroundStyle(stage.isRefused ? Color.danger : Color.secondary)

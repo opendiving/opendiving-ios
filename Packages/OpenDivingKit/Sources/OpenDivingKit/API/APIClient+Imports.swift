@@ -19,13 +19,29 @@ public struct ImportFile: Hashable, Sendable {
 }
 
 // The logbook import: an upload of any number of files, each a `file` part, that the server
-// holds as one pending import per account until it is applied or discarded, from any device.
+// holds as one pending import per account until it is applied or discarded, from any device —
+// or writes at once, holding nothing.
 extension APIClient {
   /// `POST /imports`: uploads `files` once, for the server to hold and review. Writes nothing to
   /// the logbook; a 409 while the account has a pending import.
   public func uploadImport(files: [ImportFile]) async throws -> LogbookImportRead {
     try await authorizedDecoded(
       LogbookImportRead.self, Call(method: "POST", path: "imports", parts: Self.fileParts(files)))
+  }
+
+  /// `POST /imports?apply=true`: uploads `files` and writes them at once, answering the applied
+  /// import, with no review and no pending import. Under one `idempotencyKey` a repeat writes
+  /// nothing and answers the import the first made; a 409 while that first is still running and
+  /// a 410 once its import is gone. A server that cannot apply in one request ignores the query
+  /// and answers as ``uploadImport(files:)`` does.
+  public func importAtOnce(files: [ImportFile], idempotencyKey: UUID) async throws
+    -> LogbookImportRead
+  {
+    try await authorizedDecoded(
+      LogbookImportRead.self,
+      Call(
+        method: "POST", path: "imports", query: [URLQueryItem(name: "apply", value: "true")],
+        parts: Self.fileParts(files), headers: ["Idempotency-Key": Self.wire(idempotencyKey)]))
   }
 
   /// `GET /imports`: the applied imports, most recently applied first.

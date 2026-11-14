@@ -29,9 +29,10 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
 
   /// Opens the computer, walks it, and closes it, logging each step to a log started afresh.
   func download(
-    _ computer: FoundComputer, cancel: CancelFlag,
+    _ computer: FoundComputer, pairedOnly: Bool, cancel: CancelFlag,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
+    keep: @escaping @Sendable (DownloadedDive) -> Void,
     into events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
     dispatchPrecondition(condition: .onQueue(queue))
@@ -50,7 +51,7 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     defer { if let resume { dc_buffer_free(resume) } }
     let walk = LibDCWalk(
       computer: computer, device: device, session: self, resume: resume, cancel: cancel,
-      lookup: lookup, waiting: waiting, events: events)
+      lookup: lookup, waiting: waiting, keep: keep, pairedOnly: pairedOnly, events: events)
     let end = walk.run()
     log.write("end \(end.kind)")
     events.yield(.finished(end))

@@ -8,8 +8,7 @@ import Foundation
 /// descriptors or could not be fetched — a dive wrongly skipped is never walked again once the
 /// fingerprint moves past it. An entry whose summary answered with no bytes is not counted, most
 /// such entries holding nothing, but is still downloaded, its profile possibly a dive. A new
-/// entry whose dive already waits in the import screen is walked as a run is, and not counted
-/// new.
+/// entry whose dive the phone need not take again is walked as a run is, and not counted new.
 public struct NauticSelection: Hashable, Sendable {
   /// What a walk learned of one entry's summary.
   public enum Summary: Hashable, Sendable {
@@ -26,7 +25,7 @@ public struct NauticSelection: Hashable, Sendable {
   public enum Fate: Hashable, Sendable {
     /// A non-diving sport: yielded as skipped, its profile never read.
     case skip
-    /// Its dive already waits in the import screen: yielded as skipped, its profile not read
+    /// Its dive is one the phone need not take again: yielded as skipped, its profile not read
     /// again.
     case waiting
     /// Downloaded and handed on as a dive.
@@ -56,8 +55,8 @@ public struct NauticSelection: Hashable, Sendable {
   /// `ids` are the logbook's, newest first; the new entries are those before the one whose four
   /// little-endian bytes equal `fingerprint`, or every one where none does, as libdivecomputer's
   /// walk compares. `learned` holds what this walk read of the summaries `remembered` did not
-  /// name; an entry in neither counts as unread. `waiting` says whether an entry's dive already
-  /// waits in the import screen.
+  /// name; an entry in neither counts as unread. `waiting` says whether an entry's dive is one
+  /// the phone need not take again.
   public init(
     ids: [UInt32], fingerprint: Data?, remembered: [NauticEntrySport]?,
     learned: [UInt32: Summary], waiting: (UInt32) -> Bool = { _ in false }

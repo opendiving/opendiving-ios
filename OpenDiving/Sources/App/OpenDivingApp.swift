@@ -6,7 +6,9 @@ struct OpenDivingApp: App {
 
   var body: some Scene {
     WindowGroup {
-      RootView(watch: delegate.watch)
+      RootView(
+        session: delegate.session, account: delegate.account, inbox: delegate.inbox,
+        engine: delegate.engine, notices: delegate.notices)
     }
   }
 }

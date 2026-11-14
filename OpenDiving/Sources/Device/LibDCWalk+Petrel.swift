@@ -4,8 +4,8 @@ import OpenDivingKit
 
 /// A Shearwater Petrel-family computer, walked as `shearwater_petrel_device_foreach` walks it but
 /// with the whole manifest read first, so the count comes before the first dive: the identity by
-/// identifier, every manifest page, then each new record's dive but those already waiting in the
-/// import screen. One connection, since a Perdix 3 answers a second manifest read on it with an
+/// identifier, every manifest page, then each new record's dive but those the phone need not take
+/// again. One connection, since a Perdix 3 answers a second manifest read on it with an
 /// all-zero index.
 nonisolated extension LibDCWalk {
   func walkPetrel(_ handle: OpaquePointer) -> DiveComputerDownloadEnd {
@@ -16,6 +16,7 @@ nonisolated extension LibDCWalk {
     case .failure(let failure): return petrelEnd(failure.status)
     case .success(let found):
       identity = identify(serial: found.serial, firmware: found.firmware, hardware: found.hardware)
+      if refusesUnpaired(serial: found.serial) { return .init(.unpaired) }
       fingerprint = lookup(family, found.serial)?.fingerprint
       base = found.logBase
     }

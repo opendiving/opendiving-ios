@@ -8,6 +8,8 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
     case unreachable
     /// libdivecomputer's status, by name: `DC_STATUS_PROTOCOL`.
     case failed(status: String)
+    /// The computer that answered has no pairing on the phone, and was closed unread.
+    case unpaired
   }
 
   public let kind: Kind
@@ -17,7 +19,8 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
   public let emptyReads: Int
   /// Records the parser could not read, delivered as ``DownloadedDive/Reading/refused(start:)``.
   public let refused: Int
-  /// New entries left out because their dive already waits in the import screen, yielded as
+  /// New entries left out because the phone need not take their dive again — it waits to be
+  /// imported, or the server has answered for it — yielded as
   /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``.
   public let waiting: Int
   /// Entries left out because their download failed the same way on every attempt, yielded as

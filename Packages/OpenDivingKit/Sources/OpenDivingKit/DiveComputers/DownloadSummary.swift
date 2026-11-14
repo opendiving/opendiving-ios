@@ -1,9 +1,7 @@
 import Foundation
 
-/// What a waiting file downloaded from dive computers holds: each computer with its dive count,
-/// and when it was downloaded. Its presence is what makes a file a download archive — the only
-/// copy of its dives until they are imported.
-public struct InboxDownload: Codable, Hashable, Sendable {
+/// What a download archive holds: each computer with its dive count, and when it was downloaded.
+public struct DownloadSummary: Codable, Hashable, Sendable {
   public struct Computer: Codable, Hashable, Sendable {
     public var family: DiveComputerFamily
     public var vendor: String

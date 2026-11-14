@@ -5,8 +5,8 @@ import Testing
 
 @testable import OpenDiving
 
-/// The dive computer screen, the Settings list and a download's inbox row, over a session that
-/// has loaded its account.
+/// The dive computer screen, the download button and a computer's page, over a session that has
+/// loaded its account.
 @MainActor
 struct DiveComputerScreensTests {
   private typealias F = OfflineFixtures
@@ -29,19 +29,14 @@ struct DiveComputerScreensTests {
     let account = try #require(session.user?.uuid)
     try DiveComputerStore(store: session.store, origin: origin, account: account)
       .save(DiveComputerRecord(identity: perdix, lastDownloaded: Date()))
-    let inbox = InboxModel(session: session)
-    inbox.sessionChanged()
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+      generator: DiveComputerView.generator)
     let window = F.window(
       NavigationStack {
-        DiveComputerScreen(
-          downloads: DiveComputerDownloads {
-            DiveComputerModel(
-              session: session, inbox: inbox,
-              link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-              generator: DiveComputerView.generator)
-          })
+        DiveComputerScreen(downloads: DiveComputerDownloads { DiveComputerModel(engine: engine) })
       }
-      .environment(session).environment(inbox))
+      .environment(session))
     defer { window?.isHidden = true }
     #expect(window != nil)
   }
@@ -69,23 +64,5 @@ struct DiveComputerScreensTests {
       })
     defer { window?.isHidden = true }
     #expect(window != nil)
-  }
-
-  @Test func aDownloadsRowSaysWhatItHolds() {
-    let download = InboxDownload(
-      computers: [
-        .init(
-          family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3",
-          serial: "D9772626", dives: 12)
-      ],
-      downloadedAt: Date())
-    let file = InboxFile(
-      filename: "shearwater-perdix-3_D9772626_2026-10-25T0914.zip", byteSize: 4096,
-      download: download)
-    #expect(ImportFileRow.title(file) == DiveComputerText.inboxRow(download))
-    #expect(ImportFileRow.title(InboxFile(filename: "dive.fit", byteSize: 1)) == "dive.fit")
-    #expect(ImportFileRow.removeLabel(file) == "Remove " + DiveComputerText.inboxRow(download))
-    #expect(
-      ImportFileRow.removeLabel(InboxFile(filename: "dive.fit", byteSize: 1)) == "Remove dive.fit")
   }
 }

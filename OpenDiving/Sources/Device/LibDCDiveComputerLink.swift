@@ -102,9 +102,10 @@ final class LibDCDiveComputerLink: DiveComputerLink {
   }
 
   func download(
-    _ computer: FoundComputer,
+    _ computer: FoundComputer, pairedOnly: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
-    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool
+    waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
+    keep: @escaping @Sendable (DownloadedDive) -> Void
   ) -> AsyncStream<DiveComputerDownloadEvent> {
     let (stream, continuation) = AsyncStream.makeStream(of: DiveComputerDownloadEvent.self)
     stopScan()
@@ -113,12 +114,25 @@ final class LibDCDiveComputerLink: DiveComputerLink {
     let session = session
     session.queue.async {
       session.download(
-        computer, cancel: cancel, lookup: lookup, waiting: waiting, into: continuation)
+        computer, pairedOnly: pairedOnly, cancel: cancel, lookup: lookup, waiting: waiting,
+        keep: keep, into: continuation)
     }
     return stream
   }
 
   func cancelDownload() {
     cancel.set(true)
+  }
+
+  /// The name the computer advertises, rebuilt from its record — its product, then its serial
+  /// for a family whose name carries one — which resolves it to the family and model it opens
+  /// as.
+  func computer(for record: DiveComputerRecord, at peripheral: UUID) -> FoundComputer {
+    let name =
+      record.family.advertisesSerial
+      ? DiveComputerText.title(vendor: record.vendor, product: record.product) + " "
+        + record.serial
+      : record.product
+    return LibDCNames.found(name: name, id: peripheral)
   }
 }

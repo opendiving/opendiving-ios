@@ -18,7 +18,7 @@ public enum DiveComputerDownloadEvent: Hashable, Sendable {
   case dive(DownloadedDive)
   /// An entry the walk left out — one the computer logged that is no dive, a Suunto watch's run
   /// or a session that holds none, its profile unread where its summary named the sport; one
-  /// whose dive already waits in the import screen; or one whose download kept failing. Only its
+  /// whose dive the phone need not take again; or one whose download kept failing. Only its
   /// fingerprint is kept, which the record moves past as it does a dive's.
   case skipped(fingerprint: Data)
   case finished(DiveComputerDownloadEnd)

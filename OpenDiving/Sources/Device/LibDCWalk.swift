@@ -25,8 +25,12 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   let resume: OpaquePointer?
   let cancel: CancelFlag
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
-  /// Whether a dive already waits in the import screen, which a walk that lists leaves out.
+  /// Whether a dive is one the phone need not take again, which a walk that lists leaves out.
   let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool
+  /// Keeps each dive on the phone before the walk goes on.
+  let keep: @Sendable (DownloadedDive) -> Void
+  /// A computer no record names is closed unread (``DiveComputerLink``).
+  let pairedOnly: Bool
   let events: AsyncStream<DiveComputerDownloadEvent>.Continuation
 
   let family: DiveComputerFamily
@@ -40,18 +44,23 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   private(set) var delivered = 0
   private(set) var emptyReads = 0
   private(set) var refused = 0
-  /// New entries left out as waiting in the import screen.
+  /// New entries left out as ones the phone need not take again.
   var waitingSkipped = 0
   /// Entries left out because their download kept failing.
   var notDownloaded = 0
   /// The reopens made after a transfer that timed out.
   private(set) var reconnects = 0
+  /// The computer identified itself as one no record names, under ``pairedOnly``.
+  private(set) var unpaired = false
+  /// The serial a record was found for, so the check is not read again for each dive.
+  private var pairedSerial: String?
 
   init(
     computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>,
     session: LibDCDeviceSession, resume: OpaquePointer?, cancel: CancelFlag,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
+    keep: @escaping @Sendable (DownloadedDive) -> Void, pairedOnly: Bool,
     events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
     self.computer = computer
@@ -61,6 +70,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     self.cancel = cancel
     self.lookup = lookup
     self.waiting = waiting
+    self.keep = keep
+    self.pairedOnly = pairedOnly
     self.events = events
     let descriptor = device.pointee.descriptor
     dcFamily = descriptor.map(dc_descriptor_get_type) ?? DC_FAMILY_NULL
@@ -82,6 +93,27 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
     adopt(handle)
     defer { if let handle = self.device?.pointee.device { release(handle) } }
+    let end = walkFamily(device, handle)
+    return unpaired ? .init(.unpaired) : end
+  }
+
+  /// Under ``pairedOnly``, whether the computer identified as `serial` is one no record names:
+  /// the walk is then stopped before it lists or reads anything.
+  func refusesUnpaired(serial: String) -> Bool {
+    guard pairedOnly, pairedSerial != serial else { return false }
+    guard lookup(family, serial) == nil else {
+      pairedSerial = serial
+      return false
+    }
+    unpaired = true
+    cancel.set(true)
+    log("unpaired \(family.rawValue) \(serial): closed unread")
+    return true
+  }
+
+  private func walkFamily(
+    _ device: UnsafeMutablePointer<device_data_t>, _ handle: OpaquePointer
+  ) -> DiveComputerDownloadEnd {
     // By the open device's own family, which decides what its handle is.
     switch dc_device_get_type(handle) {
     case DC_FAMILY_SHEARWATER_PETREL:
@@ -197,6 +229,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       // The device info's 32-bit serial overflows this family's, so the advertised name is the
       // identity and the bridge's lookup hook, which hands over that field, is not used.
       identify(serial: serial, firmware: deviceInfoFirmware)
+      if refusesUnpaired(serial: serial) { return .init(.unpaired) }
       if let fingerprint = lookup(family, serial)?.fingerprint {
         fingerprintSet =
           fingerprint.withUnsafeBytes {
@@ -232,6 +265,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     guard let number = UInt32(hex, radix: 16) else { return nil }
     let serial = family.serial(deviceInfo: number)
     identify(serial: serial, firmware: deviceInfoFirmware)
+    // The cancel stops libdivecomputer's walk before its next transfer.
+    if refusesUnpaired(serial: serial) { return nil }
     guard let fingerprint = lookup(family, serial)?.fingerprint, !fingerprint.isEmpty,
       let buffer = malloc(fingerprint.count)?.assumingMemoryBound(to: UInt8.self)
     else { return nil }
@@ -262,7 +297,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     } else if identity == nil {
       identify(serial: computer.advertisedSerial ?? "", firmware: nil)
     }
-    guard let identity else { return false }
+    guard let identity, !refusesUnpaired(serial: identity.serial) else { return false }
     if Self.skipsUnframed(bytes, family: family)
       || (family == .suuntoNautic && !NauticSport.isDive(bytes))
     {
@@ -287,10 +322,10 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       reading = .dive(dive)
     }
     delivered += 1
-    events.yield(
-      .dive(
-        DownloadedDive(
-          identity: identity, fingerprint: fingerprint, bytes: bytes, reading: reading)))
+    let downloaded = DownloadedDive(
+      identity: identity, fingerprint: fingerprint, bytes: bytes, reading: reading)
+    keep(downloaded)
+    events.yield(.dive(downloaded))
     return true
   }
 

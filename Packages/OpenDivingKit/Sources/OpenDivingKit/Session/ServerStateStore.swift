@@ -38,6 +38,9 @@ public struct ServerStateStore: Sendable {
       .appendingPathComponent(account.uuidString.lowercased(), isDirectory: true)
   }
 
+  /// The app's Application Support directory, for what belongs to the phone alone.
+  var applicationSupport: URL { root }
+
   /// The dive computers paired with the phone, which belong to no server. Not created here.
   var diveComputersDirectory: URL { Self.diveComputersDirectory(root: root) }
 

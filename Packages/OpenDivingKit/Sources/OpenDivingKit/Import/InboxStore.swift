@@ -99,16 +99,13 @@ public struct InboxStore: Sendable {
   /// Takes `source` into the inbox under a name of its own and returns its record, which the
   /// caller saves. `moving` takes the file itself — the copy iOS made for the app — and
   /// otherwise copies it, leaving the original where another app keeps it.
-  func take(_ source: URL, moving: Bool, marked: Bool, download: InboxDownload? = nil) throws
-    -> InboxFile
-  {
+  func take(_ source: URL, moving: Bool, marked: Bool) throws -> InboxFile {
     try FileManager.default.createDirectory(at: filesFolder, withIntermediateDirectories: true)
     let size =
       (try FileManager.default.attributesOfItem(atPath: source.path)[.size] as? NSNumber)?.intValue
       ?? 0
     let file = InboxFile(
-      filename: source.lastPathComponent, byteSize: size, receivedBeforeAccountKnown: marked,
-      download: download)
+      filename: source.lastPathComponent, byteSize: size, receivedBeforeAccountKnown: marked)
     if moving {
       try FileManager.default.moveItem(at: source, to: url(for: file))
     } else {
