@@ -53,6 +53,7 @@ private struct AccountFieldForm: View {
         } else {
           ToolbarConfirmButton(title: "Save", action: save)
             .disabled(!model.canSave)
+            .needsServer()
         }
       }
     }

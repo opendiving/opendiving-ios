@@ -37,6 +37,7 @@ private struct DeleteAccountForm: View {
           Button("Download my data first") { model.downloadFirst() }
             .accentRow()
             .disabled(model.exports.isBusy || model.isDeleting)
+            .needsServer()
         }
       } footer: {
         if let failure = model.exports.failure {
@@ -76,6 +77,7 @@ private struct DeleteAccountForm: View {
           }
           .dangerRow()
           .disabled(!model.canDelete)
+          .needsServer()
         }
       } footer: {
         if let failure = model.failure {

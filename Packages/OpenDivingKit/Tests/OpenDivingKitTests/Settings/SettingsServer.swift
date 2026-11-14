@@ -250,17 +250,37 @@ extension SettingsServer {
 final class SettingsConnectivity: Connectivity {
   private let state:
     Mutex<
-      (available: Bool, appearances: Int, streams: [AsyncStream<ConnectivityMoment>.Continuation])
+      (
+        available: Bool, appearances: Int, streams: [AsyncStream<ConnectivityMoment>.Continuation],
+        changes: [AsyncStream<Bool>.Continuation]
+      )
     >
 
   init(available: Bool = true) {
-    state = Mutex((available, 0, []))
+    state = Mutex((available, 0, [], []))
   }
 
+  /// Setting it says so to whatever follows ``routeChanges()``, as a path update would.
   var isRouteAvailable: Bool {
     get { state.withLock { $0.available } }
-    set { state.withLock { $0.available = newValue } }
+    set {
+      let changes = state.withLock { state in
+        let changed = state.available != newValue
+        state.available = newValue
+        return changed ? state.changes : []
+      }
+      for change in changes { change.yield(newValue) }
+    }
   }
+
+  func routeChanges() -> AsyncStream<Bool> {
+    let (stream, continuation) = AsyncStream<Bool>.makeStream()
+    state.withLock { $0.changes.append(continuation) }
+    return stream
+  }
+
+  /// Whether anything is following the route's changes yet.
+  var isRouteFollowed: Bool { state.withLock { !$0.changes.isEmpty } }
 
   var routeAppearances: Int { state.withLock { $0.appearances } }
 
@@ -274,11 +294,13 @@ final class SettingsConnectivity: Connectivity {
   }
 
   func appear() {
-    let streams = state.withLock { state in
+    let (streams, changes) = state.withLock { state in
+      let changes = state.available ? [] : state.changes
       state.available = true
       state.appearances += 1
-      return state.streams
+      return (state.streams, changes)
     }
+    for change in changes { change.yield(true) }
     for stream in streams { stream.yield(.routeAppeared) }
   }
 

@@ -56,6 +56,23 @@ struct PathMonitorConnectivityTests {
     #expect(seen == [.routeAppeared, .routeAppeared, .routeAppeared, .becameActive])
   }
 
+  @Test func aRouteChangeIsReportedOnlyWhenSatisfactionChanges() async {
+    let connectivity = PathMonitorConnectivity(monitor: nil)
+    let stream = connectivity.routeChanges()
+    connectivity.receive(wifi)
+    connectivity.receive(none)
+    connectivity.receive(none)
+    connectivity.receive(cellular)
+    connectivity.receive(wifi)
+    connectivity.receive(none)
+    var seen: [Bool] = []
+    for await available in stream {
+      seen.append(available)
+      if seen.count == 3 { break }
+    }
+    #expect(seen == [false, true, false])
+  }
+
   @Test func eachSubscriptionHearsEveryMoment() async {
     let connectivity = PathMonitorConnectivity(monitor: nil)
     let first = connectivity.moments()

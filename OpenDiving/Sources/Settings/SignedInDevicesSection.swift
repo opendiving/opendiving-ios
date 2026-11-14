@@ -35,6 +35,7 @@ struct SignedInDevicesSection: View {
           }
           .accentRow()
           .disabled(model.isBusy)
+          .needsServer()
           .confirmationDialog(
             SignedInDevicesModel.signOutOthersButton,
             isPresented: Bindable(model).confirmingSignOutOthers, titleVisibility: .visible
@@ -92,6 +93,7 @@ struct SignedInDevicesSection: View {
           .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")
           .buttonStyle(.borderless)
           .disabled(model.isBusy)
+          .needsServer()
           .rowConfirmation(
             SignedInDevicesModel.signOutTitle, for: device,
             confirming: Bindable(model).confirmingSignOut
@@ -114,4 +116,5 @@ struct SignedInDevicesSection: View {
     SignedInDevicesSection(model: model)
   }
   .task { await model.list.load() }
+  .environment(AuthenticationPreviewData.session)
 }

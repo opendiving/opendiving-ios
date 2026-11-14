@@ -76,6 +76,7 @@ private struct StorageSection: View {
           Text(StorageText.loadFailed + " " + failure)
             .foregroundStyle(.secondary)
           Button("Try again") { Task { await model.load() } }
+            .needsServer()
             .buttonStyle(.borderless)
             .accentRow()
         }
@@ -155,6 +156,7 @@ private struct ExportSection: View {
       .buttonStyle(.borderless)
       .accentRow()
       .disabled(model.isBusy)
+      .needsServer()
       .accessibilityLabel("Download \(format.title)")
     }
   }

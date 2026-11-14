@@ -61,6 +61,7 @@ struct OptionalListStatus<Value: Sendable>: View {
         Text(failed + " " + failure)
           .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
+          .needsServer()
           .buttonStyle(.borderless)
           .accentRow()
       }

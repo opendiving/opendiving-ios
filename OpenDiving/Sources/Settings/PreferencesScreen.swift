@@ -35,6 +35,7 @@ private struct PreferencesList: View {
         .pickerStyle(.inline)
         .labelsHidden()
         .disabled(model.write.isSaving)
+        .needsServer()
       } header: {
         Text("Units")
       } footer: {
@@ -138,6 +139,7 @@ private struct TagsSection: View {
     }
     .buttonStyle(.borderless)
     .disabled(model.isBusy || model.rename.editing != nil)
+    .needsServer()
   }
 }
 

@@ -63,6 +63,7 @@ struct RootView: View {
     .inboxHost(inbox, session: session)
     .outboxHost(outbox, session: session)
     .task { await account.launch() }
+    .task { await session.followRouteChanges() }
     .task { await splash.run(session.requests) }
     .onChange(of: session.state) { old, new in
       downloads.sessionChanged()

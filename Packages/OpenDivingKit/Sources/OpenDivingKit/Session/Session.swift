@@ -44,6 +44,9 @@ public final class Session {
   /// the account's directory may still be the previous account's, and nothing that writes to
   /// the server on an account's behalf should run.
   public private(set) var accountLoaded = false
+  /// Whether a route is believed to exist, as what the screens offer draws it: kept current by
+  /// ``followRouteChanges()``.
+  public private(set) var hasRoute: Bool
   /// The account, as last read from the server or remembered from the last time it was.
   public private(set) var user: UserRead? = nil
   /// Everyone a dive, a trip, a course or a card can name, by uuid.
@@ -121,6 +124,7 @@ public final class Session {
     self.activeOrigin = activeOrigin
     self.background = background
     self.connectivity = connectivity
+    hasRoute = connectivity.isRouteAvailable
     self.userAgent = userAgent
     self.now = now
     store = ServerStateStore(root: applicationSupport, secrets: secrets, activeOrigin: activeOrigin)
@@ -133,6 +137,14 @@ public final class Session {
       try? store.markUsed(origin, at: now())
     }
     savedServers = store.savedServers()
+  }
+
+  /// Keeps ``hasRoute`` current, until the calling task is cancelled.
+  public func followRouteChanges() async {
+    // Subscribed before the route is read, so no change falls between the two.
+    let changes = connectivity.routeChanges()
+    hasRoute = connectivity.isRouteAvailable
+    for await available in changes { hasRoute = available }
   }
 
   // MARK: - Servers

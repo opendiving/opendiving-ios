@@ -28,6 +28,7 @@ private struct CheckinForm: View {
             VStack(alignment: .leading, spacing: 8) {
               FieldMessage("Your check-in details didn’t load. \(failure)")
               Button("Try again") { Task { await model.load() } }
+                .needsServer()
                 .accentRow()
                 .buttonStyle(.borderless)
             }

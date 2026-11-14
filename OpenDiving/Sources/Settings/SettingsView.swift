@@ -45,6 +45,7 @@ private struct SettingsList: View {
       .disabled(model.isWorking)
       Section {
         Button("Sign out") { Task { await model.signOut() } }
+          .needsServer()
           .accentRow()
           .disabled(model.isWorking)
         if let origin = model.signIn.signingOut {
