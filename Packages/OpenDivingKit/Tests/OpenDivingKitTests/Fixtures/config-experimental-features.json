@@ -1,0 +1,8 @@
+{
+  "registration_mode": "invite",
+  "project_operated": true,
+  "join_links": true,
+  "map_tiles": true,
+  "commons_primary": false,
+  "experimental_features": ["dive-planner", "trip-sharing"]
+}
