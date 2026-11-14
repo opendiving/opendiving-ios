@@ -14,10 +14,6 @@ struct APIKeysSection: View {
         }
         OptionalListStatus(
           list: model.list, failed: APIKeysModel.loadFailed, loading: "Loading API keys…")
-        if model.list.value?.isEmpty == true, !model.isCreating {
-          Text(APIKeysModel.empty)
-            .foregroundStyle(.secondary)
-        }
         ForEach(model.list.value ?? []) { key in
           row(key)
           if let secret = model.secret(for: key) {
