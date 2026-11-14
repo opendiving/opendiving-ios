@@ -100,9 +100,11 @@ final class FakeDiveComputerLink: DiveComputerLink {
 
   var isHeld: Bool { held != nil }
 
+  /// Ends the download in flight as cancelled, a hold included.
   func cancelDownload() {
     cancelled = true
     if downloads > 0 { cancelledDownloads.insert(downloads - 1) }
+    release()
   }
 
   /// A download that lists first: the identity, the listing, the dives, the end, with no

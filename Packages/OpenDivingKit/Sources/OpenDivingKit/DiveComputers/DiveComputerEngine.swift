@@ -204,6 +204,8 @@ public final class DiveComputerEngine {
     }
     let walk = DiveComputerWalk(computer: computer, watched: true, all: all, zone: phoneZone)
     watch?.downloadStarted(computer.id)
+    // The tap walks the computer a connection queued: that walk is this one.
+    queue.removeAll { $0.peripheral == computer.id }
     queue.insert(Queued(walk: walk, peripheral: computer.id), at: 0)
     if self.walk != nil { link.cancelDownload() }
     next()
@@ -332,7 +334,10 @@ public final class DiveComputerEngine {
       switch event {
       case .identified(let found):
         walk.identity = found
-        pair(found, computer: walk.computer, store: store, marked: marked)
+        // A walk nobody started pairs nothing: the computer it opened may not be the paired one.
+        if walk.watched || store.record(family: found.family, serial: found.serial) != nil {
+          pair(found, computer: walk.computer, store: store, marked: marked)
+        }
         keeper.identified(record: store.record(family: found.family, serial: found.serial)?.id, zone: nil)
       case .watchZone(let zone):
         watchZone = zone
