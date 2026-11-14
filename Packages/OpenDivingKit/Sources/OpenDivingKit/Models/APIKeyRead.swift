@@ -8,6 +8,8 @@ public struct APIKeyRead: Codable, Hashable, Sendable, Identifiable {
   /// The secret's first characters, kept so a row can name a key nobody holds any longer.
   public let prefix: String
   public let scope: APIKeyScope
+  /// The permissions a `scoped` key grants, and nil for a legacy one.
+  public let scopes: [String]?
   public let createdAt: DiveTimestamp
   public let lastUsedAt: DiveTimestamp?
   /// Nil for a key that never expires. An expired key is listed until it is revoked.
@@ -16,13 +18,14 @@ public struct APIKeyRead: Codable, Hashable, Sendable, Identifiable {
   public var id: UUID { uuid }
 
   public init(
-    uuid: UUID, name: String, prefix: String, scope: APIKeyScope, createdAt: DiveTimestamp,
-    lastUsedAt: DiveTimestamp?, expiresAt: DiveTimestamp?
+    uuid: UUID, name: String, prefix: String, scope: APIKeyScope, scopes: [String]? = nil,
+    createdAt: DiveTimestamp, lastUsedAt: DiveTimestamp?, expiresAt: DiveTimestamp?
   ) {
     self.uuid = uuid
     self.name = name
     self.prefix = prefix
     self.scope = scope
+    self.scopes = scopes
     self.createdAt = createdAt
     self.lastUsedAt = lastUsedAt
     self.expiresAt = expiresAt

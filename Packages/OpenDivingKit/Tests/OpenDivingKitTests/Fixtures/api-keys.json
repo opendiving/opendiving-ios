@@ -4,6 +4,7 @@
     "name": "laptop",
     "prefix": "odk_3fA9xQ2b",
     "scope": "read",
+    "scopes": null,
     "created_at": "2026-09-01T10:00:00Z",
     "last_used_at": "2026-11-08T07:31:00.512000Z",
     "expires_at": "2026-10-01T10:00:00Z"
@@ -13,8 +14,23 @@
     "name": "backup script",
     "prefix": "odk_Zk81mPq0",
     "scope": "write",
+    "scopes": null,
     "created_at": "2026-10-20T16:20:00Z",
     "last_used_at": null,
     "expires_at": null
+  },
+  {
+    "uuid": "019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a83",
+    "name": "logbook assistant",
+    "prefix": "odk_Qp2vL9sT",
+    "scope": "scoped",
+    "scopes": [
+      "dives:read",
+      "dives:write",
+      "sites:read"
+    ],
+    "created_at": "2026-11-12T09:00:00Z",
+    "last_used_at": null,
+    "expires_at": "2027-11-12T09:00:00Z"
   }
 ]

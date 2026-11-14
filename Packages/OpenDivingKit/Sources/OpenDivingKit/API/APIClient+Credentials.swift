@@ -53,6 +53,12 @@ extension APIClient {
     try await authorizedDecoded([APIKeyRead].self, Call(path: "user/api-keys"))
   }
 
+  /// `GET /user/api-key-permissions`: every permission a new key can be given, sorted. A server
+  /// older than detailed permissions answers 404.
+  public func apiKeyPermissions() async throws -> [String] {
+    try await authorizedDecoded([String].self, Call(path: "user/api-key-permissions"))
+  }
+
   /// `POST /user/api-keys`, whose answer is the only one carrying the key's secret. A 409 at
   /// the account's cap and a 429 past the rate limit each carry the API's sentence.
   public func createAPIKey(_ body: APIKeyCreate) async throws -> APIKeyCreated {

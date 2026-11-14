@@ -14,6 +14,7 @@ final class CredentialsServer: HTTPTransport {
     var passkeys: [[String: Any]]
     var sessions: [[String: Any]]
     var keys: [[String: Any]]
+    var permissions: [String]
     var failing: [String: StubTransport.Response] = [:]
   }
 
@@ -32,7 +33,9 @@ final class CredentialsServer: HTTPTransport {
     state = Mutex(
       State(
         passkeys: try rows("passkeys"), sessions: try rows("user-sessions"),
-        keys: try rows("api-keys")))
+        keys: try rows("api-keys"),
+        permissions: try JSONSerialization.jsonObject(
+          with: KitFixture.data("api-key-permissions")) as! [String]))
   }
 
   /// Every request sent so far, in order.
@@ -105,6 +108,7 @@ final class CredentialsServer: HTTPTransport {
       case "GET user/passkeys": return try Self.json(state.passkeys)
       case "GET user/sessions": return try Self.json(state.sessions)
       case "GET user/api-keys": return try Self.json(state.keys)
+      case "GET user/api-key-permissions": return try Self.json(state.permissions)
       case "DELETE user/sessions":
         let others = state.sessions.filter { $0["current"] as? Bool != true }
         state.sessions.removeAll { $0["current"] as? Bool != true }
@@ -113,6 +117,7 @@ final class CredentialsServer: HTTPTransport {
         var row: [String: Any] = [
           "uuid": "019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a82", "name": body?["name"] ?? "",
           "prefix": String(Self.secret.prefix(12)), "scope": body?["scope"] ?? "",
+          "scopes": body?["scopes"] ?? NSNull(),
           "created_at": "2026-11-10T12:00:00Z", "last_used_at": NSNull(),
           "expires_at": "2026-12-10T12:00:00Z",
         ]

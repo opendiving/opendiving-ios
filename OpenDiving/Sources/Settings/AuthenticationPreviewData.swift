@@ -1,6 +1,6 @@
 import OpenDivingKit
 
-/// A stub session for the Authentication previews, answering the three lists as the API would.
+/// A stub session for the Authentication previews, answering the three lists, and the permissions a key can carry, as the API would.
 enum AuthenticationPreviewData {
   static var session: Session {
     Session.stub(
@@ -8,6 +8,7 @@ enum AuthenticationPreviewData {
         "GET user/passkeys": .json(passkeys),
         "GET user/sessions": .json(sessions),
         "GET user/api-keys": .json(keys),
+        "GET user/api-key-permissions": .json(permissions),
       ]))
   }
 
@@ -30,5 +31,13 @@ enum AuthenticationPreviewData {
   static let keys =
     #"[{"uuid":"019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a80","name":"laptop","prefix":"odk_3fA9xQ2b","#
     + #""scope":"read","created_at":"2026-09-01T10:00:00Z","#
-    + #""last_used_at":"2026-11-08T07:31:00Z","expires_at":"2026-10-01T10:00:00Z"}]"#
+    + #""last_used_at":"2026-11-08T07:31:00Z","expires_at":"2026-10-01T10:00:00Z"},"#
+    + #"{"uuid":"019a3c4d-5e6f-7081-9a2b-3c4d5e6f7a83","name":"logbook assistant","#
+    + #""prefix":"odk_Qp2vL9sT","scope":"scoped","scopes":["dives:read","dives:write","#
+    + #""sites:read"],"created_at":"2026-11-14T09:00:00Z","last_used_at":null,"#
+    + #""expires_at":"2027-11-14T09:00:00Z"}]"#
+
+  static let permissions =
+    #"["checkin:read","dives:delete","dives:read","dives:write","gear:read","gear:write","#
+    + #""sites:read","sites:write"]"#
 }
