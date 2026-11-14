@@ -160,7 +160,7 @@ struct DiveComputerListTests {
     engine.upload()
     await engine.settled()
     #expect(server.atOnce.isEmpty)
-    await model.appeared()
+    // The screen still in front asks it, with no visit of its own.
     #expect(model.orderQuestion?.other == "Suunto Ocean")
     await model.answerOrder(newFirst: false)
     await model.settled()

@@ -65,6 +65,8 @@ extension DiveComputerEngine {
       record.awaitsOrder = false
       try? store.save(record)
     }
+    // The screen in front asks the question the read may have named.
+    pairingsChanged?()
   }
 
   /// The records of `account` whose dives wait for the order's question.
