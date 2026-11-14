@@ -87,8 +87,8 @@ struct SignedInDevicesSection: View {
             model.confirmingSignOut = device
           } label: {
             Image(systemName: "rectangle.portrait.and.arrow.right")
+              .foregroundStyle(.primary)
           }
-          .tint(Color.danger)
           .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")
           .buttonStyle(.borderless)
           .disabled(model.isBusy)
