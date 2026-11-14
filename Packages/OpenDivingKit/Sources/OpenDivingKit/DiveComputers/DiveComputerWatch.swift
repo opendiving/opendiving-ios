@@ -60,7 +60,7 @@ public final class DiveComputerWatch {
   private var restoredConnected: Set<UUID> = []
   /// Peripherals the screen is downloading from.
   private var yielded: Set<UUID> = []
-  /// When each record's computer last connected, failed to, or was downloaded from the screen.
+  /// When each record's computer last connected or was downloaded from the screen.
   private var visited: [String: Date] = [:]
   private var records: [String: DiveComputerRecord] = [:]
   private var recordByPeripheral: [UUID: String] = [:]
