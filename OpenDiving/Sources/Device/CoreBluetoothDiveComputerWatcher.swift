@@ -14,10 +14,10 @@ final class CoreBluetoothDiveComputerWatcher: NSObject, DiveComputerWatcher {
   private var peripherals: [UUID: CBPeripheral] = [:]
   private var observing = false
 
-  /// A watcher where the app may use Bluetooth, or where iOS launched it to restore this central;
-  /// nil otherwise, so that the watch never raises the Bluetooth prompt.
-  static func make(restoring: Bool) -> CoreBluetoothDiveComputerWatcher? {
-    guard restoring || CBManager.authorization == .allowedAlways else { return nil }
+  /// A watcher where the app may use Bluetooth; nil otherwise, so that the watch never raises the
+  /// Bluetooth prompt.
+  static func make() -> CoreBluetoothDiveComputerWatcher? {
+    guard CBManager.authorization == .allowedAlways else { return nil }
     return CoreBluetoothDiveComputerWatcher()
   }
 

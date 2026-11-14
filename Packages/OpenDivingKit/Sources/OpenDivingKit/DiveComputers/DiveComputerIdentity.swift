@@ -1,7 +1,7 @@
 /// One dive computer as the device reported itself, with its serial spelled as its family's
 /// exports spell it (``DiveComputerFamily/serial(deviceInfo:)``,
 /// ``DiveComputerFamily/serial(advertisedIn:)``).
-public struct DiveComputerIdentity: Hashable, Sendable {
+public struct DiveComputerIdentity: Codable, Hashable, Sendable {
   public let family: DiveComputerFamily
   /// libdivecomputer's descriptor vendor, `Shearwater`.
   public let vendor: String

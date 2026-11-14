@@ -6,8 +6,8 @@ import OpenDivingKit
 /// A Suunto Nautic-family watch, walked by id: the identity, the zone, a wait while the watch says
 /// it is busy, the logbook listed, each entry's sport learned from its summary — or from the
 /// record, where an earlier walk kept it — and counted, then each new entry downloaded by id
-/// unless its summary names a sport that is no dive or its dive already waits in the import
-/// screen. Which entries are summarised, counted and downloaded is ``NauticSelection``'s.
+/// unless its summary names a sport that is no dive or its dive is one the phone need not take
+/// again. Which entries are summarised, counted and downloaded is ``NauticSelection``'s.
 ///
 /// Another app, such as the Suunto app, can share the link. A summary, the descriptors or a
 /// download that another app's handshake broke, which the watch's busy state does not show, is
@@ -22,6 +22,7 @@ nonisolated extension LibDCWalk {
   func walkNautic(serial: String) -> DiveComputerDownloadEnd {
     var firmware = nauticFirmware()
     let identity = identify(serial: serial, firmware: firmware)
+    if refusesUnpaired(serial: serial) { return .init(.unpaired) }
     let record = lookup(family, serial)
     let fingerprint = record?.fingerprint
     let zoneRead = readWatchZone()

@@ -5,19 +5,20 @@ import Foundation
 /// request, so that iOS wakes or relaunches the app when the computer connects.
 ///
 /// **No computer, no Bluetooth.** The watcher, and with it the central, is made only once there
-/// is something to watch, a scan to observe, or a request iOS restored; a phone with nothing
-/// paired never asks for Bluetooth here.
+/// is something to watch or a scan to observe; a phone with nothing paired never asks for
+/// Bluetooth here.
 ///
-/// **A request that completes is closed and asked again after ``revisitDelay``**, measured from
-/// the connection. A download from the screen counts as a visit too.
+/// **A request that completes starts a walk** (``onConnected``), the watch yielding the computer
+/// to it until it ends; one no walk takes is closed. Either way the next request to it is asked
+/// after ``revisitDelay``, measured from the connection, or from the walk's end.
 ///
 /// **A request that fails is not asked again in its own turn**, since iOS fails some at once and
 /// would fail the same request again: the computer is left unarmed until the next launch,
-/// Bluetooth coming back on, its hint moving, a scan from the Dive Computers screen or a download
-/// from it, each of which arms it once.
+/// Bluetooth coming back on, its hint moving, a scan from the Dive Computers screen or a walk of
+/// it, each of which arms it once.
 ///
-/// **It yields to the diver**: while the screen downloads from a computer, no request of the
-/// watch's is open to it, so libdc-swift's central is the only one connected.
+/// **It yields to the walk**: while a computer is walked, no request of the watch's is open to
+/// it, so libdc-swift's central is the only one connected.
 ///
 /// **It follows the computer**: a request is keyed by the hint its record holds now, so a hint
 /// that moves withdraws the old request and arms the new one.
@@ -25,13 +26,6 @@ import Foundation
 /// Everything it does and hears is written to ``DiveComputerWatchLog``.
 @MainActor
 public final class DiveComputerWatch {
-  /// How a process began.
-  public enum Launch: Hashable, Sendable {
-    case byUser
-    /// iOS launched it in the background to restore the centrals it names.
-    case byIOS(restoring: [String])
-  }
-
   /// After a computer connected, how many seconds until the next request to it may complete:
   /// about four looks an hour at a computer that stays connectable. libdc-swift's own revisit
   /// interval for a watch it does not stay connected to.
@@ -56,7 +50,7 @@ public final class DiveComputerWatch {
   private var failed: Set<UUID> = []
   /// Connections the watch is closing, re-armed once each reports its disconnection.
   private var closing: Set<UUID> = []
-  /// Connections iOS restored, closed once Bluetooth is on.
+  /// Connections iOS restored, completed requests once Bluetooth is on.
   private var restoredConnected: Set<UUID> = []
   /// Peripherals the screen is downloading from.
   private var yielded: Set<UUID> = []
@@ -64,11 +58,10 @@ public final class DiveComputerWatch {
   private var visited: [String: Date] = [:]
   private var records: [String: DiveComputerRecord] = [:]
   private var recordByPeripheral: [UUID: String] = [:]
-  /// iOS launched the process for a central: made whatever is paired, so the requests it
-  /// restored can be withdrawn.
-  private var restoring = false
   private var scanning = false
   private var advertised: Set<DiveComputerAdvertisement> = []
+  /// A paired computer connected: whether a walk takes the connection. Set by the engine.
+  var onConnected: ((UUID, DiveComputerRecord) -> Bool)?
 
   /// `pairings` reads the phone's paired computers; `makeWatcher` makes the watcher, or nil while
   /// the app may not use Bluetooth.
@@ -83,15 +76,10 @@ public final class DiveComputerWatch {
     self.now = now
   }
 
-  /// The process began: arms what is paired.
-  public func launched(_ launch: Launch) {
-    switch launch {
-    case .byUser:
-      log.write("launch by the user")
-    case .byIOS(let restoring):
-      log.write("launch by iOS, restoring \(restoring.joined(separator: ", "))")
-      self.restoring = !restoring.isEmpty
-    }
+  /// The process began, whoever launched it — a scene-based app is told neither way: arms what
+  /// is paired.
+  public func launched() {
+    log.write("launch")
     refresh()
   }
 
@@ -107,14 +95,13 @@ public final class DiveComputerWatch {
     arm()
   }
 
-  /// The screen is downloading from the peripheral: the watch's request to it is withdrawn.
+  /// A walk is downloading from the peripheral: the watch's request to it is withdrawn.
   public func downloadStarted(_ peripheral: UUID) {
     yielded.insert(peripheral)
     refresh()
   }
 
-  /// The screen's download ended, whatever its outcome: the request is armed again after the
-  /// revisit delay.
+  /// The walk ended, whatever its outcome: the request is armed again after the revisit delay.
   public func downloadEnded(_ peripheral: UUID) {
     yielded.remove(peripheral)
     failed.remove(peripheral)
@@ -162,7 +149,7 @@ public final class DiveComputerWatch {
   private func arm() {
     let watched = records.values.filter { $0.downloadsAutomatically && $0.peripheral != nil }
     if watcher == nil {
-      guard !watched.isEmpty || scanning || restoring, let made = makeWatcher() else { return }
+      guard !watched.isEmpty || scanning, let made = makeWatcher() else { return }
       watcher = made
       made.start { [weak self] in self?.receive($0) }
     }
@@ -175,7 +162,7 @@ public final class DiveComputerWatch {
     }
     for (peripheral, request) in armed where wanted[peripheral]?.id != request.record {
       armed[peripheral] = nil
-      let why = yielded.contains(peripheral) ? "a download from the screen" : "not watched"
+      let why = yielded.contains(peripheral) ? "a walk" : "not watched"
       log.write("withdrawn \(label(peripheral)): \(why)")
       watcher.disarm(peripheral)
     }
@@ -260,11 +247,20 @@ public final class DiveComputerWatch {
     }
   }
 
-  /// Until a download is started from it, a connection is closed at once and the request asked
-  /// again after the revisit delay, from its disconnection.
+  /// A connection starts a walk where the engine takes it, the request withdrawn until the walk
+  /// ends; otherwise it is closed at once and the request asked again after the revisit delay,
+  /// from its disconnection.
   private func completed(_ peripheral: UUID) {
-    guard !closing.contains(peripheral) else { return }
+    guard !closing.contains(peripheral), !yielded.contains(peripheral) else { return }
     armed[peripheral] = nil
+    if let record = recordByPeripheral[peripheral].flatMap({ records[$0] }),
+      onConnected?(peripheral, record) == true
+    {
+      yielded.insert(peripheral)
+      log.write("walking \(label(peripheral))")
+      watcher?.disarm(peripheral)
+      return
+    }
     closing.insert(peripheral)
     visit(peripheral)
     log.write("closing \(label(peripheral)), the next request after \(Self.revisitDelay) s")

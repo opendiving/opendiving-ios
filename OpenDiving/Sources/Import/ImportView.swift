@@ -15,7 +15,6 @@ struct ImportView: View {
   @State private var picking = false
   @State private var pickFailure: String?
   @State private var choices = ImportCheckInChoices()
-  @State private var confirmingRemoveAll = false
 
   var body: some View {
     List {
@@ -122,22 +121,9 @@ struct ImportView: View {
             .accentRow()
             .disabled(!inbox.canUpload)
         }
-        Button("Remove all", role: .destructive) {
-          if inbox.removeAllNeedsConfirmation {
-            confirmingRemoveAll = true
-          } else {
-            inbox.removeAll()
-          }
-        }
-        .dangerRow()
-        .disabled(inbox.phase != .idle)
-        .confirmationDialog(
-          "Remove all files?", isPresented: $confirmingRemoveAll, titleVisibility: .visible
-        ) {
-          Button("Remove all", role: .destructive) { inbox.removeAll() }
-        } message: {
-          Text(DiveComputerText.removeDownloadWarning)
-        }
+        Button("Remove all", role: .destructive) { inbox.removeAll() }
+          .dangerRow()
+          .disabled(inbox.phase != .idle)
       }
     }
 

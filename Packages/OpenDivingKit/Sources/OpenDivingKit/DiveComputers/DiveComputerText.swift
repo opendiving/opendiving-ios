@@ -1,6 +1,6 @@
 import Foundation
 
-/// The words of the *Dive Computers* screen, a computer's page and the inbox's download rows.
+/// The words of the *Dive Computers* screen, a computer's page and a download's notifications.
 public enum DiveComputerText {
   public static let connect = "Connect a dive computer"
   public static let screenTitle = "Dive Computers"
@@ -15,8 +15,6 @@ public enum DiveComputerText {
   public static let openSettings = "Open Settings"
   public static let accountLoading =
     "Your account is still loading; connect the dive computer again in a moment."
-  public static let archiveWaiting =
-    "Import or remove the archive waiting in the import screen first."
   public static let lockHint = "You can lock the phone. The download keeps going."
   public static let downloadAll = "Download all dives"
   public static let noDives = "No dives on this computer."
@@ -46,19 +44,21 @@ public enum DiveComputerText {
   /// *About Shearwater Perdix 3*: what the button that opens it says to VoiceOver.
   public static func about(_ title: String) -> String { "About \(title)" }
 
-  // MARK: - The inbox
+  // MARK: - Waiting
 
-  /// Asked before *Remove* or *Remove all* takes a download archive out of the inbox.
+  /// Asked before a download waiting to be imported is removed from the phone.
   public static let removeDownloadWarning =
     "These dives have not been imported. The next download takes them again only with Download"
     + " all dives."
 
-  /// *12 dives from Shearwater Perdix 3, downloaded 25 October*.
-  public static func inboxRow(_ download: InboxDownload, in zone: TimeZone = .current) -> String {
-    let names = download.computers.map(\.title)
-    let from = names.count <= 1 ? (names.first ?? "") : PendingText.list(names)
-    return
-      "\(count(download.dives)) from \(from), downloaded \(day(download.downloadedAt, in: zone))"
+  /// *3 dives waiting to upload*.
+  public static func waitingToUpload(_ dives: Int) -> String {
+    "\(count(dives)) waiting to upload"
+  }
+
+  /// *Choose a time zone to import 3 dives*.
+  public static func chooseTimeZone(_ dives: Int) -> String {
+    "Choose a time zone to import \(count(dives))"
   }
 
   // MARK: - Downloading
@@ -100,12 +100,10 @@ public enum DiveComputerText {
   public static let busyOtherApp =
     "This computer is busy. Closing other apps that use it lets the download go on."
 
-  /// *The new dives are already waiting in the import screen.*: every new dive was downloaded
-  /// before and waits there unimported.
+  /// *3 dives waiting to upload.*: every new dive was downloaded before and waits on the phone
+  /// to be imported.
   public static func alreadyWaiting(_ dives: Int) -> String {
-    dives == 1
-      ? "The new dive is already waiting in the import screen."
-      : "The new dives are already waiting in the import screen."
+    waitingToUpload(dives) + "."
   }
 
   /// *1 dive couldn't be downloaded.*: entries whose download failed the same way each time.

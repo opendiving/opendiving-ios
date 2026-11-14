@@ -7,9 +7,9 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// The download model over a fake link that replays scripted downloads into a temporary
-/// account directory, with the inbox and the server stubbed: what lands in the inbox, what the
-/// account remembers, and what each state says.
+/// The screen's model over the engine and a fake link that replays scripted downloads into a
+/// temporary account directory, with the server stubbed and no route: what the phone keeps to
+/// import, what the account remembers, and what each state says.
 @MainActor
 struct DiveComputerModelTests {
   private typealias F = DiveComputerFixtures
@@ -32,15 +32,30 @@ struct DiveComputerModelTests {
     return session
   }
 
-  private func model(
-    _ session: Session, _ inbox: InboxModel, _ link: FakeDiveComputerLink,
+  private func engine(
+    _ session: Session, _ link: FakeDiveComputerLink = FakeDiveComputerLink(),
     now: Date = DiveComputerFixtures.moment, watch: DiveComputerWatch? = nil
-  ) -> DiveComputerModel {
-    inbox.sessionChanged()
-    return DiveComputerModel(
-      session: session, inbox: inbox, link: link, generator: F.generator, watch: watch,
+  ) -> DiveComputerEngine {
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { link }, generator: F.generator, watch: watch,
       workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { now },
       zone: F.helsinki)
+    engine.accountLoaded()
+    return engine
+  }
+
+  private func model(
+    _ session: Session, _ link: FakeDiveComputerLink, now: Date = DiveComputerFixtures.moment,
+    watch: DiveComputerWatch? = nil
+  ) -> DiveComputerModel {
+    DiveComputerModel(engine: engine(session, link, now: now, watch: watch), zone: F.helsinki)
+  }
+
+  /// The archives kept to import for `account`, oldest first.
+  private func archives(_ session: Session, _ account: UUID = ImportServer.accountA)
+    -> [DownloadArchive]
+  {
+    DownloadStore(store: session.store, origin: ImportServer.origin, account: account).archives()
   }
 
   private func scanned(_ model: DiveComputerModel) async throws -> DiveComputerModel.Row {
@@ -60,13 +75,12 @@ struct DiveComputerModelTests {
     DiveComputerStore(store: session.store, origin: ImportServer.origin, account: account)
   }
 
-  @Test func aCompletedDownloadIsOneArchiveInTheInboxAndAdvancesTheRecord() async throws {
+  @Test func aCompletedDownloadIsOneArchiveOnThePhoneAndAdvancesTheRecord() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
 
     let row = try await scanned(model)
     #expect(row.title == "Shearwater Perdix 3")
@@ -77,16 +91,14 @@ struct DiveComputerModelTests {
     await model.settled()
 
     #expect(model.phase == .finished)
-    #expect(model.outcome?.kind == .handedOver)
+    #expect(model.outcome?.kind == .kept)
     #expect(model.outcome?.sentence == "2 dives downloaded. 1 dive could not be read.")
-    let file = try #require(inbox.files.first)
-    #expect(inbox.files.count == 1)
-    #expect(file.filename == "shearwater-perdix-3_D9772626_2026-10-25T0920.zip")
-    #expect(
-      DiveComputerText.inboxRow(try #require(file.download), in: F.helsinki)
-        == "2 dives from Shearwater Perdix 3, downloaded 25 October")
-    #expect(inbox.removalNeedsConfirmation(file))
-    #expect(inbox.removeAllNeedsConfirmation)
+    let archive = try #require(archives(session).first)
+    #expect(archives(session).count == 1)
+    #expect(archive.filename == "shearwater-perdix-3_D9772626_2026-10-25T0920.zip")
+    #expect(archive.summary.dives == 2)
+    #expect(archive.refusal == nil)
+    #expect(!archive.receivedBeforeAccountKnown)
 
     let record = try #require(
       computers(session).record(family: .shearwaterPetrel, serial: "d9772626"))
@@ -118,14 +130,13 @@ struct DiveComputerModelTests {
       log: DiveComputerWatchLog(file: root.appendingPathComponent("dive-computer-watch.log")),
       pairings: { DiveComputerStore.pairings(applicationSupport: root) },
       makeWatcher: { watcher }, now: { F.moment })
-    watch.launched(.byUser)
+    watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     return watch
   }
 
   @Test func aDownloadFromTheScreenWithdrawsTheWatchsRequestUntilItEnds() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
@@ -135,7 +146,7 @@ struct DiveComputerModelTests {
     let watch = watch(watcher)
     #expect(watcher.take() == [.start, .arm(F.perdixFound.id, after: 0)])
 
-    let model = model(session, inbox, link, watch: watch)
+    let model = model(session, link, watch: watch)
     let row = try await scanned(model)
     _ = watcher.take()
     link.holdBeforeEnd = true
@@ -150,7 +161,6 @@ struct DiveComputerModelTests {
 
   @Test func aScanMovesAPairedComputersHintAndTheWatchsRequestWithIt() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     let watcher = FakeDiveComputerWatcher()
@@ -161,7 +171,7 @@ struct DiveComputerModelTests {
     let watch = watch(watcher)
     #expect(watcher.take() == [.start, .arm(before, after: 0)])
 
-    let model = model(session, inbox, link, watch: watch)
+    let model = model(session, link, watch: watch)
     let row = try await scanned(model)
     #expect(row.recordID == record.id)
     record.peripheral = F.oceanFound.id
@@ -172,7 +182,6 @@ struct DiveComputerModelTests {
 
   @Test func nothingNewOffersDownloadAllWhichSetsNoFingerprint() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [
@@ -180,7 +189,7 @@ struct DiveComputerModelTests {
       FakeDiveComputerLink.script(F.perdix, []),
       FakeDiveComputerLink.script(F.perdix, Array(F.perdixDownload.prefix(1))),
     ]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     try await download(model)
     try await download(model)
 
@@ -192,10 +201,9 @@ struct DiveComputerModelTests {
     model.downloadAll()
     await model.settled()
     #expect(link.fingerprintsSet == [nil, F.fingerprint(3), nil])
-    #expect(model.outcome?.kind == .handedOver)
-    // Two download archives of one mark, neither uploaded, are one union and not two files.
-    #expect(inbox.files.count == 1)
-    #expect(inbox.files.first?.download?.dives == 2)
+    #expect(model.outcome?.kind == .kept)
+    // Each walk is an archive of its own.
+    #expect(archives(session).map(\.summary.dives).sorted() == [1, 2])
   }
 
   @Test func aComputerThatListsNoDiveSaysSo() async throws {
@@ -203,7 +211,7 @@ struct DiveComputerModelTests {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, [])]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.kind == .noDives)
     #expect(model.outcome?.sentence == "No dives on this computer.")
@@ -211,16 +219,15 @@ struct DiveComputerModelTests {
 
   @Test func anEmptyReadOrACancelHandsTheDivesOverAndLeavesTheFingerprint() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [
       FakeDiveComputerLink.script(F.perdix, F.perdixDownload, end: .init(.complete, emptyReads: 1))
     ]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     try await download(model)
-    #expect(model.outcome?.kind == .handedOver)
-    #expect(inbox.files.count == 1)
+    #expect(model.outcome?.kind == .kept)
+    #expect(archives(session).count == 1)
     let record = try #require(
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))
     #expect(record.fingerprint == nil)
@@ -245,7 +252,6 @@ struct DiveComputerModelTests {
   /// or every later download would meet it again.
   @Test func anEntrySkippedAsNoDiveAdvancesTheFingerprintPastIt() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     link.scripts = [
@@ -257,10 +263,10 @@ struct DiveComputerModelTests {
       ],
       [.identified(F.ocean), .finished(.init(.complete))],
     ]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.sentence == "2 dives downloaded.")
-    #expect(inbox.files.first?.download?.dives == 2)
+    #expect(archives(session).first?.summary.dives == 2)
     let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
     #expect(ocean()?.fingerprint == F.fingerprint(0x13))
 
@@ -268,7 +274,7 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(model.outcome?.kind == .nothingNew)
     #expect(model.outcome?.sentence == "No new dives since 25 October.")
-    #expect(inbox.files.count == 1)
+    #expect(archives(session).count == 1)
     #expect(ocean()?.fingerprint == F.fingerprint(0x14))
     #expect(ocean()?.lastDownloaded == F.moment)
 
@@ -286,7 +292,7 @@ struct DiveComputerModelTests {
         .finished(.init(.complete, emptyReads: 1)),
       ]
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.kind == .noDives)
     // Paired at the connection, its fingerprint unmoved.
@@ -302,7 +308,7 @@ struct DiveComputerModelTests {
     link.scripts = [
       [.identified(F.ocean), .finished(.init(.failed(status: "DC_STATUS_PROTOCOL")))]
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     let row = try await scanned(model)
     #expect(row.title == "Suunto Ocean")
     #expect(row.subtitle == "Serial 253810000400")
@@ -317,7 +323,7 @@ struct DiveComputerModelTests {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [[.finished(.init(.unreachable))]]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await model.settled()
     #expect(model.outcome?.kind == .failed)
@@ -338,7 +344,7 @@ struct DiveComputerModelTests {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     _ = try await scanned(model)
 
     link.found = [F.oceanFound]
@@ -353,7 +359,7 @@ struct DiveComputerModelTests {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     _ = try await scanned(model)
 
     link.found = [Self.perdixRepaired]
@@ -368,7 +374,7 @@ struct DiveComputerModelTests {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [[.finished(.init(.unreachable))]]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await model.settled()
 
@@ -384,7 +390,7 @@ struct DiveComputerModelTests {
       product: "Ocean", modelNumber: 1)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound, F.perdixFound, moved]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     _ = try await scanned(model)
     await until { model.rows.count == 2 && model.rows.first?.computer == moved }
     #expect(model.rows.map(\.computer) == [moved, F.perdixFound])
@@ -392,38 +398,35 @@ struct DiveComputerModelTests {
 
   @Test func instantsWithNoZoneAskAfterTheWalkOutsideTheBackgroundAssertion() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload)]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     for _ in 0..<1000 where model.phase != .askingTimeZone { await Task.yield() }
     #expect(model.phase == .askingTimeZone)
     #expect(model.suggestedZone == F.helsinki)
-    #expect(inbox.files.isEmpty)
+    #expect(archives(session).isEmpty)
     #expect(log.all == ["begin", "end"])
 
     let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
     model.answerTimeZone(tokyo)
     await model.settled()
     #expect(log.all == ["begin", "end", "begin", "end"])
-    let file = try #require(inbox.files.first)
-    let started = try startedAt(inbox, file)
+    let started = try startedAt(session, try #require(archives(session).first))
     #expect(started == ["2026-10-26T19:00:00+09:00", "2026-10-24T19:00:00+09:00"])
   }
 
   @Test func divesUnderADayOldTakeTheWatchsZoneWithNoQuestion() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload, zone: F.helsinki)]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     try await download(model)
     #expect(log.all == ["begin", "end"])
     #expect(
-      try startedAt(inbox, try #require(inbox.files.first)) == [
+      try startedAt(session, try #require(archives(session).first)) == [
         "2026-10-26T12:00:00+02:00", "2026-10-24T13:00:00+03:00",
       ])
   }
@@ -432,7 +435,6 @@ struct DiveComputerModelTests {
   /// answer stands for its download alone, and the next recent dive takes the watch's zone again.
   @Test func anOlderDiveAsksOfferingTheWatchsZoneAndTheAnswerIsNotKept() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     let dubai = try #require(TimeZone(identifier: "Asia/Dubai"))
@@ -440,26 +442,28 @@ struct DiveComputerModelTests {
     link.scripts = [
       FakeDiveComputerLink.script(F.ocean, Array(F.oceanDownload.suffix(1)), zone: dubai)
     ]
-    let older = model(
-      session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
+    let older = model(session, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
     older.connect(try await scanned(older))
     await until { older.phase == .askingTimeZone }
     #expect(older.phase == .askingTimeZone)
     #expect(older.suggestedZone == dubai)
     older.answerTimeZone(tokyo)
     await older.settled()
-    #expect(try startedAt(inbox, try #require(inbox.files.first)) == ["2026-10-24T19:00:00+09:00"])
+    #expect(
+      try startedAt(session, try #require(archives(session).first)) == ["2026-10-24T19:00:00+09:00"]
+    )
 
     let nextLink = FakeDiveComputerLink()
     nextLink.found = [F.oceanFound]
     nextLink.scripts = [
       FakeDiveComputerLink.script(F.ocean, Array(F.oceanDownload.prefix(1)), zone: dubai)
     ]
-    let recent = model(session, inbox, nextLink)
+    let recent = model(session, nextLink)
     try await download(recent)
-    #expect(recent.outcome?.kind == .handedOver)
+    #expect(recent.outcome?.kind == .kept)
     #expect(
-      try startedAt(inbox, try #require(inbox.files.first)).contains("2026-10-26T14:00:00+04:00"))
+      try startedAt(session, try #require(archives(session).first)).contains(
+        "2026-10-26T14:00:00+04:00"))
   }
 
   /// `dive` with the head a Nautic's bytes open with: the wall clock under `hours`, then the
@@ -476,22 +480,21 @@ struct DiveComputerModelTests {
   /// nothing about it.
   @Test func aLoggedOffsetAsksNothingHoweverOldAndBeatsTheWatch() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     let dubai = try #require(TimeZone(identifier: "Asia/Dubai"))
     let dives = [logged(F.oceanDownload[0], instant: 1_793_008_800, hours: 3)]
     link.scripts = [FakeDiveComputerLink.script(F.ocean, dives, zone: dubai)]
-    let model = model(session, inbox, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
+    let model = model(session, link, now: F.moment.addingTimeInterval(4 * 24 * 60 * 60))
     try await download(model)
-    #expect(model.outcome?.kind == .handedOver)
+    #expect(model.outcome?.kind == .kept)
     #expect(
-      try startedAt(inbox, try #require(inbox.files.first)) == ["2026-10-26T13:00:00+03:00"])
+      try startedAt(session, try #require(archives(session).first)) == ["2026-10-26T13:00:00+03:00"]
+    )
   }
 
   @Test func theQuestionIsLeftOnlyTheDivesThatLoggedNoOffset() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
@@ -499,35 +502,22 @@ struct DiveComputerModelTests {
       logged(F.oceanDownload[0], instant: 1_793_008_800, hours: 3), F.oceanDownload[1],
     ]
     link.scripts = [FakeDiveComputerLink.script(F.ocean, dives)]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await until { model.phase == .askingTimeZone }
     #expect(model.phase == .askingTimeZone)
     model.answerTimeZone(tokyo)
     await model.settled()
     #expect(
-      try startedAt(inbox, try #require(inbox.files.first)) == [
+      try startedAt(session, try #require(archives(session).first)) == [
         "2026-10-26T13:00:00+03:00", "2026-10-24T19:00:00+09:00",
       ])
   }
 
-  @Test func aSharedArchiveWaitingOrAnAccountLoadingStartsNothing() async throws {
+  @Test func noAccountToKeepTheDivesForStartsNothing() async throws {
     let server = try ImportServer()
-    let session = try await session(server)
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
-    let model = model(session, inbox, link)
-
-    let export = root.appendingPathComponent("opendiving-export.zip")
-    var zip = try ZipWriter(creating: export, moment: F.moment, zone: F.helsinki)
-    try zip.add("logbook.divejson", Data("{}".utf8))
-    try zip.finish()
-    inbox.receive([export], moving: true)
-    await model.watch()
-    #expect(model.phase == .idle)
-    #expect(model.blocker == DiveComputerText.archiveWaiting)
-
     let other = FileManager.default.temporaryDirectory
       .appendingPathComponent("DiveComputerModelTests-\(UUID().uuidString)", isDirectory: true)
     let fresh = Session(
@@ -536,8 +526,7 @@ struct DiveComputerModelTests {
       activeOrigin: InMemoryActiveOriginStore(ImportServer.origin),
       background: NoBackgroundExecution(), applicationSupport: other,
       userAgent: ClientHarness.userAgent, accessToken: "live")
-    let loading = DiveComputerModel(
-      session: fresh, inbox: InboxModel(session: fresh), link: link, generator: F.generator)
+    let loading = model(fresh, link)
     await loading.watch()
     #expect(loading.blocker == DiveComputerText.accountLoading)
     #expect(link.downloads == 0)
@@ -551,27 +540,29 @@ struct DiveComputerModelTests {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
-    try await download(model(first, InboxModel(session: first), link))
+    try await download(model(first, link))
 
-    // Signed in again, the account not yet loaded: A's inbox, marked, beside A's own archive.
+    // Signed in again, the account not yet loaded: kept for A, marked, beside A's own archive.
     let later = try await session(server, loaded: false)
-    let inbox = InboxModel(session: later)
+    let engine = engine(later, link)
     link.scripts = [FakeDiveComputerLink.script(F.perdix, Array(F.perdixDownload.prefix(1)))]
-    try await download(model(later, inbox, link))
-    #expect(inbox.files.count == 2)
-    #expect(inbox.files.map(\.receivedBeforeAccountKnown) == [false, true])
+    let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    try await download(model)
+    #expect(archives(later).count == 2)
+    #expect(Set(archives(later).map(\.receivedBeforeAccountKnown)) == [false, true])
     #expect(
       computers(later).record(family: .shearwaterPetrel, serial: "D9772626")?
         .receivedBeforeAccountKnown == true)
 
     server.signIn(as: ImportServer.accountB)
     try await later.loadAccount()
-    inbox.sessionChanged()
+    engine.accountLoaded()
     #expect(
       computers(later).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint == nil)
     #expect(computers(later, ImportServer.accountB).records().map(\.fingerprint) == [nil])
-    #expect(inbox.files.count == 1)
-    #expect(inbox.files.first?.download?.dives == 1)
+    #expect(archives(later).map(\.summary.dives) == [2])
+    #expect(archives(later, ImportServer.accountB).map(\.summary.dives) == [1])
+    #expect(engine.archives.map(\.summary.dives) == [1])
   }
 
   @Test func marksAreSettledOnlyAfterWholeRecordsBecomePairings() async throws {
@@ -589,7 +580,7 @@ struct DiveComputerModelTests {
         identity: F.ocean, fingerprint: F.fingerprint(4), receivedBeforeAccountKnown: true),
       in: folder(ImportServer.accountB))
 
-    InboxModel(session: session).sessionChanged()
+    _ = engine(session)
 
     let records = computers(session).records()
     #expect(records.map(\.family) == [.shearwaterPetrel, .suuntoNautic])
@@ -605,7 +596,8 @@ struct DiveComputerModelTests {
       in: session.store.directory(for: ImportServer.origin, account: ImportServer.accountA)
         .appendingPathComponent("DiveComputers", isDirectory: true))
 
-    _ = InboxModel(session: session)
+    _ = DiveComputerEngine(
+      session: session, makeLink: { FakeDiveComputerLink() }, generator: F.generator)
 
     #expect(
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint
@@ -618,13 +610,11 @@ struct DiveComputerModelTests {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
-    try await download(model(first, InboxModel(session: first), link))
+    try await download(model(first, link))
 
     server.signIn(as: ImportServer.accountB)
     let next = try await session(server)
-    let inbox = InboxModel(session: next)
-    inbox.sessionChanged()
-    let model = model(next, inbox, link)
+    let model = model(next, link)
     await model.watch()
     #expect(model.paired.map(\.title) == ["Shearwater Perdix 3"])
     #expect(model.paired.first?.subtitle == "Serial D9772626")
@@ -632,7 +622,7 @@ struct DiveComputerModelTests {
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
     try await download(model)
     #expect(link.fingerprintsSet == [nil, nil])
-    #expect(model.outcome?.kind == .handedOver)
+    #expect(model.outcome?.kind == .kept)
     #expect(
       computers(next, ImportServer.accountB).record(family: .shearwaterPetrel, serial: "D9772626")?
         .fingerprint == F.fingerprint(3))
@@ -642,23 +632,25 @@ struct DiveComputerModelTests {
     let server = try ImportServer()
     _ = try await session(server)
     let later = try await session(server, loaded: false)
-    let inbox = InboxModel(session: later)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.holdBeforeEnd = true
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
-    let model = model(later, inbox, link)
+    let engine = engine(later, link)
+    let model = DiveComputerModel(engine: engine, zone: F.helsinki)
     model.connect(try await scanned(model))
     for _ in 0..<1000 where !link.isHeld { await Task.yield() }
 
     server.signIn(as: ImportServer.accountB)
     try await later.loadAccount()
-    inbox.sessionChanged()
+    engine.accountLoaded()
     link.release()
     await model.settled()
 
-    #expect(model.outcome?.kind == .handedOver)
-    #expect(inbox.files.count == 1)
+    // Kept for A, marked, and moved to B by the upload that follows the walk.
+    #expect(model.outcome?.kind == .kept)
+    #expect(archives(later).isEmpty)
+    #expect(archives(later, ImportServer.accountB).count == 1)
     #expect(computers(later).records().map(\.fingerprint) == [nil])
     #expect(computers(later, ImportServer.accountB).records().map(\.fingerprint) == [nil])
   }
@@ -692,7 +684,7 @@ struct DiveComputerModelTests {
       FakeDiveComputerLink.script(F.perdix, Array(F.perdixDownload.suffix(1))),
       FakeDiveComputerLink.script(F.perdix, listing: listing, Array(F.perdixDownload.prefix(2))),
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     try await download(model)
 
     // Not yet identified: connecting.
@@ -742,7 +734,7 @@ struct DiveComputerModelTests {
         F.perdix, listing: .init(dives: 1, newDives: 1), F.perdixDownload)
     ]
     link.holdBeforeEnd = true
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.divesDownloaded == 3 }
@@ -751,7 +743,7 @@ struct DiveComputerModelTests {
     #expect(model.progress == 1)
     link.release()
     await model.settled()
-    #expect(model.outcome?.kind == .handedOver)
+    #expect(model.outcome?.kind == .kept)
   }
 
   @Test func skippedEntriesFillTheBarButNotTheCounter() async throws {
@@ -770,7 +762,7 @@ struct DiveComputerModelTests {
       ] + F.oceanDownload.map { .dive($0) } + [.finished(.init(.complete))]
     ]
     link.holdBefore = 4
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.phase == .downloading }
@@ -810,7 +802,7 @@ struct DiveComputerModelTests {
         .finished(.init(.cancelled)),
       ],
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
     try await download(model)
     #expect(ocean()?.nauticSports == nil)
@@ -873,7 +865,7 @@ struct DiveComputerModelTests {
       ],
       [.identified(F.ocean), .finished(.init(.cancelled))],
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
 
     try await download(model)
@@ -902,7 +894,6 @@ struct DiveComputerModelTests {
 
   @Test func aCancelledTimeZoneQuestionStillPairsTheComputer() async throws {
     let session = try await session(try ImportServer())
-    let inbox = InboxModel(session: session)
     let link = FakeDiveComputerLink()
     link.found = [F.oceanFound]
     let sports: [NauticEntrySport] = [
@@ -913,7 +904,7 @@ struct DiveComputerModelTests {
         F.ocean, listing: .init(dives: 2, newDives: 2, sports: sports),
         F.oceanDownload)
     ]
-    let model = model(session, inbox, link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await until { model.phase == .askingTimeZone }
     #expect(model.phase == .askingTimeZone)
@@ -921,7 +912,7 @@ struct DiveComputerModelTests {
     await model.settled()
 
     #expect(model.outcome?.kind == .cancelled)
-    #expect(inbox.files.isEmpty)
+    #expect(archives(session).isEmpty)
     let record = try #require(
       computers(session).record(family: .suuntoNautic, serial: "253810000400"))
     #expect(record.fingerprint == nil)
@@ -952,7 +943,7 @@ struct DiveComputerModelTests {
     var record = DiveComputerRecord(identity: F.ocean)
     record.nauticSports = sports
     try computers(session).save(record)
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     let ocean = { computers(session).record(family: .suuntoNautic, serial: "253810000400") }
 
     // Sports and no fingerprint.
@@ -982,7 +973,7 @@ struct DiveComputerModelTests {
       ] + F.oceanDownload.map { .dive($0) } + [.finished(.init(.complete))]
     ]
     link.holdBefore = 3
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.computerBusy }
@@ -1009,7 +1000,7 @@ struct DiveComputerModelTests {
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
     link.holdBefore = 1
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.identity != nil }
@@ -1021,7 +1012,7 @@ struct DiveComputerModelTests {
     #expect(model.progress == 0.25)
     await next(link, holding: nil)
     await model.settled()
-    #expect(model.outcome?.kind == .handedOver)
+    #expect(model.outcome?.kind == .kept)
   }
 
   @Test func aWalkKeepsTheHardwareItReadAndALaterWalkThatReadsNoneLeavesIt() async throws {
@@ -1038,7 +1029,7 @@ struct DiveComputerModelTests {
       FakeDiveComputerLink.script(
         F.perdix, listing: .init(dives: 3, newDives: 0), []),
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     for _ in 0..<2 {
       model.connect(try await scanned(model))
       await model.settled()
@@ -1053,7 +1044,7 @@ struct DiveComputerModelTests {
     try computers(session).save(record)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     _ = try await scanned(model)
     #expect(model.paired.map(\.id) == [record.id])
     #expect(model.unpairedRows.isEmpty)
@@ -1075,7 +1066,7 @@ struct DiveComputerModelTests {
         F.perdix, listing: .init(dives: 3, newDives: 3), F.perdixDownload)
     ]
     link.holdBefore = 1
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.identity != nil }
@@ -1087,7 +1078,7 @@ struct DiveComputerModelTests {
 
     await next(link, holding: nil)
     await model.settled()
-    #expect(model.outcome?.kind == .handedOver)
+    #expect(model.outcome?.kind == .kept)
     let kept = computers(session).record(family: .shearwaterPetrel, serial: "D9772626")
     #expect(kept?.fingerprint == F.fingerprint(3))
   }
@@ -1108,7 +1099,7 @@ struct DiveComputerModelTests {
       ]
     ]
     link.holdBefore = 4
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.computerBusy }
@@ -1150,7 +1141,7 @@ struct DiveComputerModelTests {
     ]
     let line = "This computer is busy. Closing other apps that use it lets the download go on."
     link.holdBefore = 3
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     model.connect(try await scanned(model))
     await held(link)
     await until { model.otherAppHandshaking }
@@ -1175,15 +1166,15 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.sentence == "2 dives downloaded.")
   }
 
-  /// The walk is handed the dives of the download archives waiting under its own mark; a refused
-  /// reading carries no uuid there, so it is downloaded again.
+  /// The walk is handed the dives of the archives waiting under its own mark; a refused reading
+  /// carries no uuid there, so it is downloaded again.
   @Test func aDiveWaitingUnderTheWalksMarkReachesTheWalkAsWaiting() async throws {
     let server = try ImportServer()
     let first = try await session(server)
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
-    let model = model(first, InboxModel(session: first), link)
+    let model = model(first, link)
     try await download(model)
     try await download(model)
     #expect(!link.waitingTests[0](F.perdix, F.fingerprint(3)))
@@ -1193,9 +1184,9 @@ struct DiveComputerModelTests {
     #expect(!waiting(F.perdix, F.fingerprint(1)))
     #expect(!waiting(F.ocean, F.fingerprint(3)))
 
-    // Signed in again before the account loads: the marked inbox's walk is not told them.
+    // Signed in again before the account loads: the marked walk is not told them.
     let later = try await session(server, loaded: false)
-    try await download(self.model(later, InboxModel(session: later), link))
+    try await download(self.model(later, link))
     #expect(!link.waitingTests[2](F.perdix, F.fingerprint(3)))
   }
 
@@ -1205,113 +1196,44 @@ struct DiveComputerModelTests {
       bytes: Data("perdix dive \(fingerprint)".utf8), reading: .dive(F.perdixDive))
   }
 
-  /// A dive in an uploaded archive is on the phone until the import is applied, so the walk still
-  /// leaves it out; the archive itself is out of reach of the new download's union.
-  @Test func aDownloadBesideAnUploadedArchiveLeavesItAloneAndUnitesWithTheWaitingOnes()
-    async throws
-  {
-    let server = try ImportServer()
-    let session = try await session(server)
-    let inbox = InboxModel(session: session)
-    let link = FakeDiveComputerLink()
-    link.found = [F.perdixFound]
-    link.scripts = [
-      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
-      FakeDiveComputerLink.script(F.perdix, [perdix(4)]),
-      FakeDiveComputerLink.script(F.perdix, [perdix(5)]),
-    ]
-    let model = model(session, inbox, link)
-    try await download(model)
-    inbox.upload()
-    await inbox.settled()
-    let uploaded = try #require(inbox.files.first)
-    let held = try #require(uploaded.uploadedInto)
-
-    try await download(model)
-    #expect(link.waitingTests[1](F.perdix, F.fingerprint(3)))
-    #expect(inbox.files.count == 2)
-    #expect(inbox.files.first == uploaded)
-    #expect(inbox.files.last?.uploadedInto == nil)
-
-    try await download(model)
-    #expect(link.waitingTests[2](F.perdix, F.fingerprint(3)))
-    #expect(inbox.files.count == 2)
-    #expect(inbox.files.first?.uploadedInto == held)
-    #expect(inbox.files.first?.download == uploaded.download)
-    #expect(inbox.files.last?.download?.dives == 2)
-  }
-
-  /// A discard or an expiry hands an uploaded archive back; it is not a download arriving, so it
-  /// waits beside a newer one, and the next upload sends both for the api to refuse one as a row.
-  @Test func anArchiveReturnedToWaitingStaysBesideANewerDownloadAndBothGoUp() async throws {
-    let server = try ImportServer()
-    let session = try await session(server)
-    let inbox = InboxModel(session: session)
-    let link = FakeDiveComputerLink()
-    link.found = [F.perdixFound]
-    link.scripts = [
-      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
-      FakeDiveComputerLink.script(F.perdix, [perdix(4)]),
-    ]
-    let model = model(session, inbox, link)
-    try await download(model)
-    inbox.upload()
-    await inbox.settled()
-    try await download(model)
-
-    inbox.discard()
-    await inbox.settled()
-
-    #expect(inbox.files.count == 2)
-    #expect(inbox.files.map(\.uploadedInto) == [nil, nil])
-    let names = inbox.files.map(\.filename)
-    inbox.upload()
-    await inbox.settled()
-    #expect(server.uploads.last == names)
-  }
-
-  /// A completed walk whose every new dive already waits says so, offers *Download all dives*,
-  /// and moves the fingerprint past them.
+  /// A completed walk whose every new dive already waits on the phone says so, offers *Download
+  /// all dives*, and moves the fingerprint past them; one whose new dives the server has answered
+  /// for has nothing new.
   @Test func aWalkWhoseEveryNewDiveIsWaitingSaysSo() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
-    let one: [DiveComputerDownloadEvent] = [
+    let skipped: [DiveComputerDownloadEvent] = [
       .identified(F.perdix), .listing(.init(dives: 11, newDives: 0)),
-      .skipped(fingerprint: F.fingerprint(4)), .finished(.init(.complete, waiting: 1)),
-    ]
-    let two: [DiveComputerDownloadEvent] = [
-      .identified(F.perdix), .listing(.init(dives: 11, newDives: 0)),
-      .skipped(fingerprint: F.fingerprint(5)), .skipped(fingerprint: F.fingerprint(4)),
+      .skipped(fingerprint: F.fingerprint(3)), .skipped(fingerprint: F.fingerprint(2)),
       .finished(.init(.complete, waiting: 2)),
     ]
-    link.scripts = [one, two]
-    let model = model(session, InboxModel(session: session), link)
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload, end: .init(.cancelled)), skipped,
+    ]
+    let model = model(session, link)
+    try await download(model)
+    #expect(archives(session).count == 1)
 
-    // Without a fingerprint.
     try await download(model)
     #expect(model.outcome?.kind == .alreadyWaiting)
-    #expect(
-      model.outcome?.sentence
-        == "The new dive is already waiting in the import screen. 11 dives on this computer.")
+    #expect(model.outcome?.sentence == "2 dives waiting to upload. 11 dives on this computer.")
     #expect(model.outcome?.offersDownloadAll == true)
     let perdix = { computers(session).record(family: .shearwaterPetrel, serial: "D9772626") }
-    #expect(perdix()?.fingerprint == F.fingerprint(4))
+    #expect(perdix()?.fingerprint == F.fingerprint(3))
 
-    // With one.
+    // Answered for and gone from the phone, the same dives are nothing new.
+    let downloads = DownloadStore(
+      store: session.store, origin: ImportServer.origin, account: ImportServer.accountA)
+    let archive = try #require(downloads.archives().first)
+    try downloads.deliver(archive.dives, of: archive.record)
+    downloads.remove(archive)
+    var record = try #require(perdix())
+    record.fingerprint = nil
+    try computers(session).save(record)
     try await download(model)
-    #expect(model.outcome?.kind == .alreadyWaiting)
-    #expect(
-      model.outcome?.sentence
-        == "The new dives are already waiting in the import screen. 11 dives on this computer.")
-    #expect(perdix()?.fingerprint == F.fingerprint(5))
-
-    // Under *Download all dives*.
-    model.downloadAll()
-    await model.settled()
-    #expect(model.outcome?.kind == .alreadyWaiting)
-    let set: [Data?] = [nil, F.fingerprint(4), nil]
-    #expect(link.fingerprintsSet == set)
+    #expect(model.outcome?.kind == .nothingNew)
+    #expect(model.outcome?.sentence == "No new dives since 25 October. 11 dives on this computer.")
   }
 
   @Test func entriesThatCouldNotBeDownloadedAreNamedInTheOutcome() async throws {
@@ -1331,7 +1253,7 @@ struct DiveComputerModelTests {
         .finished(.init(.failed(status: "DC_STATUS_TIMEOUT"), notDownloaded: 2)),
       ],
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.sentence == "2 dives downloaded. 1 dive couldn't be downloaded.")
     #expect(model.outcome?.offersDownloadAll == false)
@@ -1358,7 +1280,7 @@ struct DiveComputerModelTests {
         .finished(.init(.complete, waiting: 1, notDownloaded: 1)),
       ],
     ]
-    let model = model(session, InboxModel(session: session), link)
+    let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.kind == .notDownloaded)
     #expect(
@@ -1369,15 +1291,15 @@ struct DiveComputerModelTests {
     model.downloadAll()
     await model.settled()
     #expect(
-      model.outcome?.sentence
-        == "The new dive is already waiting in the import screen. 1 dive couldn't be downloaded."
-        + " 3 dives on this computer.")
+      model.outcome?.sentence == "1 dive couldn't be downloaded. 3 dives on this computer.")
     let set: [Data?] = [nil, nil]
     #expect(link.fingerprintsSet == set)
   }
 
-  private func startedAt(_ inbox: InboxModel, _ file: InboxFile) throws -> [String?] {
-    let reader = try ZipReader(try #require(inbox.url(for: file)))
+  private func startedAt(_ session: Session, _ archive: DownloadArchive) throws -> [String?] {
+    let downloads = DownloadStore(
+      store: session.store, origin: ImportServer.origin, account: ImportServer.accountA)
+    let reader = try ZipReader(downloads.url(for: archive))
     let entry = try #require(reader.entries.first { $0.name == "logbook.divejson" })
     let json = try #require(ArchiveJSON.parse(try reader.read(entry)))
     return (json["dives"]?.arrayValue ?? []).map { $0["started_at"]?.stringValue }

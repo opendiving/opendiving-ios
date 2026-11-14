@@ -2,9 +2,10 @@ import OpenDivingKit
 import SwiftUI
 import UIKit
 
-/// The *Dive Computers* screen: the phone's paired computers, the others found nearby, a
-/// download from the one the diver picks, and the import screen once its dives are in the inbox.
-/// Reached from the profile's dive-computer button.
+/// The *Dive Computers* screen: the phone's paired computers, the others found nearby, and a
+/// download from the one the diver picks, which ends on its outcome while its dives are imported
+/// and announced as any walk's are. Reached from the profile's dive-computer button and from a
+/// download's notification.
 struct DiveComputerView: View {
   @Environment(DiveComputerDownloads.self) private var downloads
 
@@ -23,7 +24,6 @@ struct DiveComputerView: View {
 /// Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
-  @State private var showsImport = false
   @State private var showing: DiveComputerRecord?
   @Environment(\.scenePhase) private var scenePhase
 
@@ -55,18 +55,11 @@ struct DiveComputerScreen: View {
     .navigationTitle(DiveComputerText.screenTitle)
     .navigationBarTitleDisplayMode(.inline)
     .task(id: ObjectIdentifier(model)) { await model.watch() }
-    .onAppear {
-      // A download that handed its dives over while the screen was away goes on to the import.
-      if downloads.screenAppeared()?.kind == .handedOver { showsImport = true }
-    }
+    .onAppear { downloads.screenAppeared() }
     .onDisappear { downloads.screenDisappeared() }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { model.appBecameActive() }
     }
-    .onChange(of: model.outcome) { _, outcome in
-      if outcome?.kind == .handedOver { showsImport = true }
-    }
-    .navigationDestination(isPresented: $showsImport) { ImportView() }
     .navigationDestination(item: $showing) { record in
       DiveComputerPage(record: record) {
         model.forget(record)
@@ -231,16 +224,11 @@ private struct TimeZoneQuestion: View {
 
 #Preview {
   let session = Session.stub(transport: StubTransport(routes: [:]))
-  let inbox = InboxModel(session: session)
+  let engine = DiveComputerEngine(
+    session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+    generator: DiveComputerView.generator)
   NavigationStack {
-    DiveComputerScreen(
-      downloads: DiveComputerDownloads {
-        DiveComputerModel(
-          session: session, inbox: inbox,
-          link: LibDCDiveComputerLink(manager: nil, defaults: .standard),
-          generator: DiveComputerView.generator)
-      })
+    DiveComputerScreen(downloads: DiveComputerDownloads { DiveComputerModel(engine: engine) })
   }
   .environment(session)
-  .environment(inbox)
 }

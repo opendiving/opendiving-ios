@@ -59,7 +59,7 @@ public enum PetrelManifest {
     /// The live records the walk takes, newest first: each downloaded, but those in
     /// ``waiting``.
     public let new: [Record]
-    /// The starts of the new records whose dive already waits in the import screen: walked as
+    /// The starts of the new records whose dive the phone need not take again: walked as
     /// skipped, not downloaded again.
     public let waiting: Set<Data>
     public let listing: DiveComputerListing
@@ -69,7 +69,7 @@ public enum PetrelManifest {
   /// is, as libdivecomputer's walk compares — deleted records skipped wherever they sit. Unlike
   /// libdivecomputer, which keeps a page's first records by count and so can drop live ones
   /// where deleted ones sit among them, every live record is kept. `waiting` says whether a
-  /// start's dive already waits in the import screen.
+  /// start's dive is one the phone need not take again.
   public static func select(
     _ records: [Record], fingerprint: Data?, waiting: (Data) -> Bool = { _ in false }
   ) -> Selection {

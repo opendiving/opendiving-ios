@@ -12,7 +12,7 @@ struct DiveComputerDownloadsTests {
     .appendingPathComponent("DiveComputerDownloadsTests-\(UUID().uuidString)", isDirectory: true)
 
   private func downloads(_ link: FakeDiveComputerLink) async throws -> (
-    DiveComputerDownloads, InboxModel
+    DiveComputerDownloads, DiveComputerEngine
   ) {
     let route = SwitchedRoute()
     route.isRouteAvailable = false
@@ -23,16 +23,12 @@ struct DiveComputerDownloadsTests {
       background: NoBackgroundExecution(), connectivity: route,
       applicationSupport: root, userAgent: ClientHarness.userAgent, accessToken: "live")
     try await session.loadAccount()
-    let inbox = InboxModel(session: session)
-    inbox.sessionChanged()
-    let root = root
-    let downloads = DiveComputerDownloads {
-      DiveComputerModel(
-        session: session, inbox: inbox, link: link, generator: F.generator,
-        workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
-        zone: F.helsinki)
-    }
-    return (downloads, inbox)
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { link }, generator: F.generator,
+      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
+      zone: F.helsinki)
+    let downloads = DiveComputerDownloads { DiveComputerModel(engine: engine, zone: F.helsinki) }
+    return (downloads, engine)
   }
 
   /// Starts a download the link holds before its end, until ``FakeDiveComputerLink/release()``,
@@ -120,7 +116,7 @@ struct DiveComputerDownloadsTests {
     link.found = [F.perdixFound]
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
     link.holdBeforeEnd = true
-    let (downloads, inbox) = try await downloads(link)
+    let (downloads, engine) = try await downloads(link)
     let model = downloads.model
     #expect(downloads.screenAppeared() == nil)
     try await start(model, link)
@@ -133,11 +129,11 @@ struct DiveComputerDownloadsTests {
 
     link.release()
     await model.settled()
-    #expect(inbox.files.count == 1)
+    #expect(engine.archives.count == 1)
     // The end came while away: the button stays, finished, until the screen shows it.
     #expect(downloads.button?.state == .succeeded)
     #expect(downloads.button?.ring == .fraction(1))
-    #expect(downloads.screenAppeared()?.kind == .handedOver)
+    #expect(downloads.screenAppeared()?.kind == .kept)
     #expect(downloads.button == nil)
     #expect(downloads.model === model)
 

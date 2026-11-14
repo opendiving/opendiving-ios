@@ -1,13 +1,11 @@
 import Foundation
 
 /// Turns a download into one DiveJSON archive on disk — `logbook.divejson` at the root and each
-/// dive's original bytes under `files/`, the spec's archive convention and the api's — and
-/// unites download archives that wait unimported into one.
+/// dive's original bytes under `files/`, the spec's archive convention and the api's.
 ///
 /// A dive is named `{make-model}_{serial}_{YYYY-MM-DDThhmm}.bin` after its start, or after its
 /// fingerprint's hex where nothing gave it one; the archive after the download's moment, with a
-/// `.zip` suffix, or `dive-computers_{YYYY-MM-DDThhmm}.zip` where it holds more than one
-/// computer's dives. Each stored original is tagged, under the api's producer key, with what
+/// `.zip` suffix. Each stored original is tagged, under the api's producer key, with what
 /// reads it again on the server: the reader's key, libdivecomputer's descriptor and any fallback
 /// start the reader was given.
 public struct ComputerArchiveWriter: Sendable {
@@ -46,10 +44,11 @@ public struct ComputerArchiveWriter: Sendable {
     }
   }
 
-  /// An archive written, and what the inbox records of it.
+  /// An archive written: where, what it holds, and its dives' uuids.
   public struct Written: Hashable, Sendable {
     public let url: URL
-    public let download: InboxDownload
+    public let summary: DownloadSummary
+    public let dives: [UUID]
   }
 
   public let generator: Generator
@@ -66,6 +65,7 @@ public struct ComputerArchiveWriter: Sendable {
     var dives: [ArchiveJSON] = []
     var members: [Member] = []
     var used: Set<String> = []
+    var uuids: [UUID] = []
     for downloaded in download.dives {
       let zone = downloaded.loggedZone ?? download.instantZone
       let resolved: (text: String, clock: LocalDateTime)?
@@ -80,7 +80,7 @@ public struct ComputerArchiveWriter: Sendable {
         ?? Hex.lowercase(downloaded.fingerprint)
       let filename = Self.unique("\(slug)_\(serial)_\(stamp).bin", in: &used)
       let path = DiveComputerArchive.filesFolder + filename
-      members.append(Member(path: path, source: .bytes(downloaded.bytes)))
+      members.append(Member(path: path, bytes: downloaded.bytes))
       guard case .dive(let dive) = downloaded.reading, let resolved else { continue }
       let storedFile: ArchiveJSON = .object([
         "uuid": .string(
@@ -94,114 +94,24 @@ public struct ComputerArchiveWriter: Sendable {
         "extensions": .object([DiveComputerArchive.producerKey: Self.tag(dive, downloaded.identity)]
         ),
       ])
+      let uuid = DiveComputerArchive.diveUUID(
+        downloaded.identity, fingerprint: downloaded.fingerprint)
+      uuids.append(uuid)
       dives.append(
         ComputerDiveDocument.dive(
-          dive, identity: downloaded.identity,
-          uuid: DiveComputerArchive.diveUUID(
-            downloaded.identity, fingerprint: downloaded.fingerprint),
-          startedAt: resolved.text, storedFile: storedFile))
+          dive, identity: downloaded.identity, uuid: uuid, startedAt: resolved.text,
+          storedFile: storedFile))
     }
     let clock = DiveComputerArchive.clock(download.moment, in: download.zone)
     let url = directory.appendingPathComponent(
       "\(slug)_\(serial)_\(DiveComputerArchive.minute(clock)).zip", isDirectory: false)
     try write(dives: dives, members: members, moment: download.moment, zone: download.zone, to: url)
-    let computer = InboxDownload.Computer(
+    let computer = DownloadSummary.Computer(
       family: identity.family, vendor: identity.vendor, product: identity.product,
       serial: identity.serial, dives: dives.count)
     return Written(
-      url: url, download: InboxDownload(computers: [computer], downloadedAt: download.moment))
-  }
-
-  /// Writes into `directory` the union of `archives` — download archives this writer wrote,
-  /// each with the inbox's record of it, the newest first. Each dive is kept once, by its
-  /// derived uuid, as the first archive holding it has it, with the members its document names;
-  /// a member no document names — a refused dive's bytes — is kept once by digest.
-  public func unite(
-    _ archives: [(url: URL, download: InboxDownload)], moment: Date, zone: TimeZone,
-    into directory: URL
-  ) throws -> Written {
-    var dives: [ArchiveJSON] = []
-    var members: [Member] = []
-    var seenDives: Set<String> = []
-    var paths: [String: String] = [:]
-    var unnamedDigests: Set<String> = []
-    var computers: [InboxDownload.Computer] = []
-    for archive in archives {
-      for computer in archive.download.computers
-      where !computers.contains(where: { Self.same($0, computer) }) {
-        var fresh = computer
-        fresh.dives = 0
-        computers.append(fresh)
-      }
-      let reader: ZipReader
-      let document: ArchiveJSON
-      do {
-        reader = try ZipReader(archive.url)
-        guard
-          let entry = reader.entries.first(where: { $0.name == DiveComputerArchive.documentName }),
-          let parsed = ArchiveJSON.parse(try reader.read(entry))
-        else { throw DiveComputerArchiveError.unreadableArchive }
-        document = parsed
-      } catch {
-        throw DiveComputerArchiveError.unreadableArchive
-      }
-      let entries = Dictionary(
-        reader.entries.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
-      var named: Set<String> = [DiveComputerArchive.documentName]
-      for dive in document["dives"]?.arrayValue ?? [] {
-        let files = Self.storedFiles(dive)
-        named.formUnion(files.compactMap { $0["archive_path"]?.stringValue })
-        guard let uuid = dive["uuid"]?.stringValue, seenDives.insert(uuid).inserted else {
-          continue
-        }
-        var dive = dive
-        for file in files {
-          guard let path = file["archive_path"]?.stringValue, let entry = entries[path],
-            let digest = file["sha256"]?.stringValue
-          else { continue }
-          if paths[path] == digest { continue }
-          var taken = Set(paths.keys)
-          let target =
-            paths[path] == nil
-            ? path
-            : DiveComputerArchive.filesFolder
-              + Self.unique(Self.base(path), in: &taken, prefix: DiveComputerArchive.filesFolder)
-          if target != path { dive = Self.renaming(dive, path, to: target) }
-          paths[target] = digest
-          members.append(Member(path: target, source: .entry(reader, entry)))
-        }
-        dives.append(dive)
-        if let serial = dive["recordings"]?.arrayValue?.first?["device"]?["serial"]?.stringValue,
-          let index = computers.firstIndex(where: {
-            $0.serial.uppercased() == serial.uppercased()
-          })
-        {
-          computers[index].dives += 1
-        }
-      }
-      for entry in reader.entries where !named.contains(entry.name) {
-        let bytes = try reader.read(entry)
-        guard unnamedDigests.insert(SHA256Digest.hex(bytes)).inserted else { continue }
-        var taken = Set(paths.keys)
-        let path =
-          DiveComputerArchive.filesFolder
-          + Self.unique(Self.base(entry.name), in: &taken, prefix: DiveComputerArchive.filesFolder)
-        paths[path] = ""
-        members.append(Member(path: path, source: .bytes(bytes)))
-      }
-    }
-    let clock = DiveComputerArchive.clock(moment, in: zone)
-    let name: String
-    if computers.count == 1, let only = computers.first {
-      name =
-        "\(DiveComputerArchive.slug(vendor: only.vendor, product: only.product))_"
-        + "\(DiveComputerArchive.fileSerial(only.serial))_\(DiveComputerArchive.minute(clock)).zip"
-    } else {
-      name = "dive-computers_\(DiveComputerArchive.minute(clock)).zip"
-    }
-    let url = directory.appendingPathComponent(name, isDirectory: false)
-    try write(dives: dives, members: members, moment: moment, zone: zone, to: url)
-    return Written(url: url, download: InboxDownload(computers: computers, downloadedAt: moment))
+      url: url, summary: DownloadSummary(computers: [computer], downloadedAt: download.moment),
+      dives: uuids)
   }
 
   // MARK: - Internals
@@ -224,13 +134,8 @@ public struct ComputerArchiveWriter: Sendable {
   }
 
   private struct Member {
-    enum Source {
-      case bytes(Data)
-      case entry(ZipReader, ZipReader.Entry)
-    }
-
     let path: String
-    let source: Source
+    let bytes: Data
   }
 
   private func write(
@@ -250,12 +155,7 @@ public struct ComputerArchiveWriter: Sendable {
     do {
       var zip = try ZipWriter(creating: url, moment: moment, zone: zone)
       try zip.add(DiveComputerArchive.documentName, Data(document.text.utf8))
-      for member in members {
-        switch member.source {
-        case .bytes(let bytes): try zip.add(member.path, bytes)
-        case .entry(let reader, let entry): try zip.add(member.path, try reader.read(entry))
-        }
-      }
+      for member in members { try zip.add(member.path, member.bytes) }
       try zip.finish()
     } catch {
       try? FileManager.default.removeItem(at: url)
@@ -263,56 +163,16 @@ public struct ComputerArchiveWriter: Sendable {
     }
   }
 
-  private static func storedFiles(_ dive: ArchiveJSON) -> [ArchiveJSON] {
-    (dive["recordings"]?.arrayValue ?? []).flatMap { $0["source_files"]?.arrayValue ?? [] }
-  }
-
-  /// The member's name inside `files/`.
-  private static func base(_ path: String) -> String {
-    path.hasPrefix(DiveComputerArchive.filesFolder)
-      ? String(path.dropFirst(DiveComputerArchive.filesFolder.count))
-      : path.replacingOccurrences(of: "/", with: "-")
-  }
-
-  /// `dive` with the stored file at `path` moved to `target`, its `original_filename` kept.
-  private static func renaming(_ dive: ArchiveJSON, _ path: String, to target: String)
-    -> ArchiveJSON
-  {
-    guard case .object(var out) = dive, let recordings = out["recordings"]?.arrayValue else {
-      return dive
-    }
-    out["recordings"] = .array(
-      recordings.map { recording in
-        guard case .object(var fields) = recording, let files = fields["source_files"]?.arrayValue
-        else { return recording }
-        fields["source_files"] = .array(
-          files.map { file in
-            guard case .object(var stored) = file, stored["archive_path"]?.stringValue == path
-            else { return file }
-            stored["archive_path"] = .string(target)
-            return .object(stored)
-          })
-        return .object(fields)
-      })
-    return .object(out)
-  }
-
-  private static func same(_ a: InboxDownload.Computer, _ b: InboxDownload.Computer) -> Bool {
-    a.family == b.family && a.serial.uppercased() == b.serial.uppercased()
-  }
-
   /// `name`, or `name` with `-2`, `-3`… before its extension where `used` holds it.
-  private static func unique(_ name: String, in used: inout Set<String>, prefix: String = "")
-    -> String
-  {
+  private static func unique(_ name: String, in used: inout Set<String>) -> String {
     var candidate = name
     var counter = 2
-    while used.contains(prefix + candidate) {
+    while used.contains(candidate) {
       let dot = name.lastIndex(of: ".") ?? name.endIndex
       candidate = String(name[..<dot]) + "-\(counter)" + String(name[dot...])
       counter += 1
     }
-    used.insert(prefix + candidate)
+    used.insert(candidate)
     return candidate
   }
 }

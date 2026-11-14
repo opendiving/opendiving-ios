@@ -8,9 +8,8 @@ import Observation
 /// every other device, so nothing uploads on an arrival, on the account loading or on a
 /// connectivity moment; the tap tries with or without a route.
 ///
-/// **The phone keeps what it sent until the import is seen applied.** A download archive is the
-/// only copy of its dives, and a pending import can be discarded on any device or expire. A
-/// pending read that does not name the import a file recorded says nothing about it, since
+/// **The phone keeps what it sent until the import is seen applied**, since a pending import can
+/// be discarded on any device or expire. A pending read that does not name the import a file recorded says nothing about it, since
 /// another device's apply and a discard or an expiry answer alike, so that import is read itself:
 /// `applied` removes its files, a 404 returns them to waiting. A server's answer that is neither
 /// leaves everything as it was.
@@ -58,9 +57,6 @@ public final class InboxModel {
 
   public init(session: Session) {
     self.session = session
-    // Here rather than on a session change: a cold start offline gets none, and can download.
-    // Before the marks too, which read an account's whole records as progress alone.
-    DiveComputerStore.adoptAccountRecords(store: session.store)
     reload()
   }
 
@@ -133,10 +129,9 @@ public final class InboxModel {
   /// Takes files handed to the app into the inbox the session names, as one arrival:
   /// `moving` for the copy iOS made for the app, otherwise copied. Signed in before the
   /// account has loaded, the inbox is the last account's and the files are marked; with no
-  /// such account, or no server, they are kept nowhere. `download` marks an archive
-  /// downloaded from dive computers.
+  /// such account, or no server, they are kept nowhere.
   @discardableResult
-  public func receive(_ urls: [URL], moving: Bool, download: InboxDownload? = nil) -> Intake {
+  public func receive(_ urls: [URL], moving: Bool) -> Intake {
     guard let destination else {
       if case .signedIn = session.state { return .notKept(Self.accountLoadingSentence) }
       return .notKept(Self.noAccountSentence)
@@ -148,7 +143,7 @@ public final class InboxModel {
     for url in urls {
       do {
         added.append(
-          try store.take(url, moving: moving, marked: destination.marked, download: download))
+          try store.take(url, moving: moving, marked: destination.marked))
       } catch {
         failure = error
       }
@@ -168,79 +163,6 @@ public final class InboxModel {
     reload()
     let signedIn = if case .signedIn = session.state { true } else { false }
     return .kept(account: store.account, signedIn: signedIn)
-  }
-
-  /// Whether *Remove* asks first: a download archive is the only copy of its dives.
-  public func removalNeedsConfirmation(_ file: InboxFile) -> Bool { file.download != nil }
-
-  /// Whether *Remove all* asks first.
-  public var removeAllNeedsConfirmation: Bool { waiting.contains { $0.download != nil } }
-
-  /// Replaces download archives waiting to upload with their union, in one save: the union
-  /// taken in and recorded and the waiting files' records dropped together, their bytes
-  /// discarded only after it, so a failed take leaves them where they were. Acts only while
-  /// the inbox is idle and every one of `waiting` is still there and still waiting, as a swap
-  /// would otherwise pull a file out from under an upload or the import that holds it; nil
-  /// otherwise, for the caller to try again.
-  func replaceDownloads(_ waiting: [InboxFile], with union: URL, download: InboxDownload)
-    -> Intake?
-  {
-    guard phase == .idle, let destination else { return nil }
-    let store = destination.store
-    var contents = store.load()
-    let ids = Set(waiting.map(\.id))
-    guard ids.isSubset(of: contents.files.filter { $0.uploadedInto == nil }.map(\.id)) else {
-      return nil
-    }
-    let taken: InboxFile
-    do {
-      taken = try store.take(union, moving: true, marked: destination.marked, download: download)
-    } catch {
-      return .notKept("The file could not be kept on this phone: \(error).")
-    }
-    contents.files.removeAll { ids.contains($0.id) }
-    contents.files.append(taken)
-    do {
-      try store.save(contents)
-    } catch {
-      store.discard([taken])
-      return .notKept("The file could not be kept on this phone: \(error).")
-    }
-    store.discard(waiting)
-    reload()
-    let signedIn = if case .signedIn = session.state { true } else { false }
-    return .kept(account: store.account, signedIn: signedIn)
-  }
-
-  /// The account a file handed over now is kept for, and whether it is marked as received
-  /// before the account was known; nil where nothing would be kept.
-  var keeping: (account: UUID, marked: Bool)? {
-    destination.map { ($0.store.account, $0.marked) }
-  }
-
-  /// Every download archive on the phone in that inbox with the given mark, an import's among
-  /// them: the dives a walk has no need to take again.
-  func keptDownloads(marked: Bool) -> [InboxFile] {
-    guard let store = destination?.store else { return [] }
-    return store.load().files.filter {
-      $0.download != nil && $0.receivedBeforeAccountKnown == marked
-    }
-  }
-
-  /// The download archives of that mark no upload has taken: what a new download may unite
-  /// with, an uploaded archive being out of reach under the import that holds it.
-  func unitableDownloads(marked: Bool) -> [InboxFile] {
-    keptDownloads(marked: marked).filter { $0.uploadedInto == nil }
-  }
-
-  /// Whether that inbox holds a full-export archive that is not a download — one the diver
-  /// shared — which would make a download's the second archive of one import. Read from each
-  /// kept zip's central directory, never from the server.
-  var holdsSharedArchive: Bool {
-    guard let store = destination?.store else { return false }
-    return store.load().files.contains {
-      $0.download == nil && ZipReader.isFullExport(store.url(for: $0))
-    }
   }
 
   /// Where a file in that inbox keeps its bytes.
@@ -268,8 +190,7 @@ public final class InboxModel {
   }
 
   /// The session changed — signed in or out, or the account loaded. A load moves the files
-  /// received before it into the loaded account's inbox, and removes the dive computers'
-  /// progress written before it for any other account; a session that ended before one leaves
+  /// received before it into the loaded account's inbox; a session that ended before one leaves
   /// them where they are.
   public func sessionChanged() {
     if let origin = session.state.origin {
@@ -277,9 +198,6 @@ public final class InboxModel {
       switch session.state {
       case .signingIn:
         for inbox in inboxes { try? inbox.clearMarks() }
-        for computers in DiveComputerStore.all(store: session.store, origin: origin) {
-          try? computers.clearMarks()
-        }
       case .signedIn where session.accountLoaded:
         if let user = session.user {
           let mine = InboxStore(store: session.store, origin: origin, account: user.uuid)
@@ -287,15 +205,6 @@ public final class InboxModel {
             _ = try? mine.takeMarked(from: other)
           }
           try? mine.clearMarks()
-          // A computer's progress written before the load stays only with the account it was
-          // written for: moved, it would carry that account's fingerprint into this one's.
-          for computers in DiveComputerStore.all(store: session.store, origin: origin) {
-            if computers.account == user.uuid {
-              try? computers.clearMarks()
-            } else {
-              computers.removeMarked()
-            }
-          }
         }
       default:
         break
@@ -415,24 +324,14 @@ public final class InboxModel {
     }
   }
 
-  /// An applied import's files leave the inbox, whichever device applied it. A download archive
-  /// whose own row the upload refused is the only copy of its dives, so it returns to waiting,
-  /// to go up alone; every other file goes, another copy of a shared file existing wherever it
-  /// was shared from.
+  /// An applied import's files leave the inbox, whichever device applied it, another copy of a
+  /// shared file existing wherever it was shared from.
   private func seenApplied(_ read: LogbookImportRead, _ store: InboxStore) {
     var contents = store.load()
     let sent = contents.files.filter { $0.uploadedInto == read.uuid }
-    let kept = Set(
-      sent.enumerated().filter { part, file in
-        file.download != nil
-          && read.members.contains { $0.part == part && $0.container == nil && $0.refusal != nil }
-      }.map(\.element.id))
-    contents.files.removeAll { $0.uploadedInto == read.uuid && !kept.contains($0.id) }
-    for index in contents.files.indices where kept.contains(contents.files[index].id) {
-      contents.files[index].uploadedInto = nil
-    }
+    contents.files.removeAll { $0.uploadedInto == read.uuid }
     guard (try? store.save(contents)) != nil else { return }
-    store.discard(sent.filter { !kept.contains($0.id) })
+    store.discard(sent)
     reload()
     if let stores = AccountStores.current(session) {
       OutboxHub.hub(for: stores.directory).listsChanged()

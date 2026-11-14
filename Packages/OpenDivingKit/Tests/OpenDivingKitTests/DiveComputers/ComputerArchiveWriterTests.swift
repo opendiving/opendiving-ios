@@ -67,13 +67,20 @@ struct ComputerArchiveWriterTests {
     let written = try perdixArchive()
     #expect(written.url.lastPathComponent == "shearwater-perdix-3_D9772626_2026-10-25T0920.zip")
     #expect(
-      written.download
-        == InboxDownload(
+      written.summary
+        == DownloadSummary(
           computers: [
             .init(
               family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3",
               serial: "D9772626", dives: 2)
           ], downloadedAt: F.moment))
+    #expect(
+      written.dives
+        == F.perdixDownload.compactMap { dive in
+          dive.dive.map { _ in
+            DiveComputerArchive.diveUUID(dive.identity, fingerprint: dive.fingerprint)
+          }
+        })
 
     let reader = try ZipReader(written.url)
     #expect(
@@ -156,7 +163,7 @@ struct ComputerArchiveWriterTests {
     let written = try document(try perdixArchive().url).json
     guard case .object(var dive)? = written["dives"]?.arrayValue?.first,
       case .object(var recording)? = dive["recordings"]?.arrayValue?.first
-    else { throw DiveComputerArchiveError.unreadableArchive }
+    else { throw DiveComputerArchiveError.noZone }
     recording["device"] = nil
     recording["source_files"] = nil
     dive["recordings"] = .array([.object(recording)])
@@ -215,42 +222,5 @@ struct ComputerArchiveWriterTests {
     let uuid = try #require(first["dives"]?.arrayValue?.first?["uuid"]?.stringValue)
     #expect(UUID(uuidString: uuid).map { $0.uuidString.lowercased() } == uuid)
     #expect(uuid.dropFirst(14).first == "5")
-  }
-
-  // MARK: - The union
-
-  @Test func theUnionHoldsEachDiveAndEachOriginalOnce() throws {
-    defer { try? FileManager.default.removeItem(at: folder) }
-    let first = try perdixArchive()
-    let held = folder.appendingPathComponent("held", isDirectory: true)
-    try FileManager.default.createDirectory(at: held, withIntermediateDirectories: true)
-    let firstURL = held.appendingPathComponent("first.zip")
-    try FileManager.default.moveItem(at: first.url, to: firstURL)
-    let second = try perdixArchive()
-    let ocean = try oceanArchive()
-
-    let union = try writer.unite(
-      [(ocean.url, ocean.download), (second.url, second.download), (firstURL, first.download)],
-      moment: F.moment.addingTimeInterval(600), zone: F.helsinki,
-      into: folder.appendingPathComponent("union", isDirectory: true))
-
-    #expect(union.url.lastPathComponent == "dive-computers_2026-10-25T0930.zip")
-    #expect(union.download.computers.map(\.dives) == [2, 2])
-    #expect(
-      DiveComputerText.inboxRow(union.download, in: F.helsinki)
-        == "4 dives from Suunto Ocean and Shearwater Perdix 3, downloaded 25 October")
-    let reader = try ZipReader(union.url)
-    let json = try document(union.url).json
-    let uuids = try #require(json["dives"]?.arrayValue).compactMap { $0["uuid"]?.stringValue }
-    #expect(uuids.count == 4)
-    #expect(Set(uuids).count == 4)
-    #expect(reader.entries.count == 1 + 4 + 1)
-    #expect(Set(reader.entries.map(\.name)).count == reader.entries.count)
-
-    let alone = try writer.unite(
-      [(second.url, second.download), (firstURL, first.download)], moment: F.moment,
-      zone: F.helsinki, into: folder.appendingPathComponent("alone", isDirectory: true))
-    #expect(alone.url.lastPathComponent == "shearwater-perdix-3_D9772626_2026-10-25T0920.zip")
-    #expect(alone.download.dives == 2)
   }
 }

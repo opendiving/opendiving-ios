@@ -7,9 +7,12 @@ import Testing
   import FoundationNetworking
 #endif
 
-/// A server for the inbox's tests: it signs in as account A or B and holds imports as the API
-/// does, one pending at a time, and each test can answer an upload or an apply its own way or act
-/// as another device. It counts the uploads and keeps the filenames each was sent.
+/// A server for the inbox's and the engine's tests: it signs in as account A or B and holds
+/// imports as the API does, one pending at a time, applies an upload at once under
+/// `apply=true` with its `Idempotency-Key` — a repeat answering the first's import — and each
+/// test can answer an upload or an apply its own way, act as another device, or be a server from
+/// before `apply=true`, which ignores it. It counts the uploads and keeps the filenames each was
+/// sent.
 final class ImportServer: HTTPTransport {
   static let origin = ServerOrigin("https://dive.example.org")!
   static let accountA = UUID(uuidString: "01a0a51f-afe3-7363-a0bc-b0d634c35923")!
@@ -20,6 +23,14 @@ final class ImportServer: HTTPTransport {
   private struct Held {
     var files: [String]
     var applied = false
+    /// The rows an import applied at once answers: each row's outcome and start.
+    var rows: [(outcome: String, start: String)]? = nil
+  }
+
+  /// One `POST /imports?apply=true` as sent.
+  struct AtOnce: Hashable {
+    var files: [String]
+    var key: String?
   }
 
   private struct State {
@@ -29,6 +40,13 @@ final class ImportServer: HTTPTransport {
     var discards: [String] = []
     var routes: [String] = []
     var held: [UUID: Held] = [:]
+    var atOnce: [AtOnce] = []
+    /// The import each `Idempotency-Key` made.
+    var keys: [String: UUID] = [:]
+    /// Answers an upload applied at once in place of the server when it does not answer nil.
+    var applyAtOnce: Answer = { _ in nil }
+    var rows: [(outcome: String, start: String)] = [("new", "2026-09-08T15:17:38+03:00")]
+    var ignoresApply = false
     /// The parts each upload refuses as rows, past the files nothing reads.
     var refused: Set<Int> = []
     /// Answers an upload in place of the server when it does not answer nil.
@@ -57,6 +75,25 @@ final class ImportServer: HTTPTransport {
   func signIn(as account: UUID) { state.withLock { $0.account = account } }
 
   func answerUploads(_ answer: @escaping Answer) { state.withLock { $0.upload = answer } }
+
+  /// Answers each upload applied at once, by its index among them, in place of the server.
+  func answerAtOnce(_ answer: @escaping Answer) { state.withLock { $0.applyAtOnce = answer } }
+
+  /// The rows the next imports applied at once answer, each an outcome and a start.
+  func applyAtOnce(rows: [(outcome: String, start: String)]) {
+    state.withLock { $0.rows = rows }
+  }
+
+  /// A server from before `apply=true`, which answers with a pending import.
+  func ignoreApply() { state.withLock { $0.ignoresApply = true } }
+
+  /// Deletes the applied import a key made, as a diver deleting it from the history would.
+  func deleteImport(madeBy key: UUID) {
+    state.withLock { state in
+      guard let uuid = state.keys[key.uuidString.lowercased()] else { return }
+      state.held[uuid] = nil
+    }
+  }
 
   func answerApply(_ answer: @escaping @Sendable () -> StubTransport.Response?) {
     state.withLock { $0.apply = answer }
@@ -98,6 +135,8 @@ final class ImportServer: HTTPTransport {
 
   /// The filenames each upload carried, in the order sent.
   var uploads: [[String]] { state.withLock { $0.uploads } }
+  /// Each upload applied at once, in the order sent.
+  var atOnce: [AtOnce] { state.withLock { $0.atOnce } }
   /// The body of each apply.
   var applies: [Data] { state.withLock { $0.applies } }
   /// The query of each `DELETE /import/{uuid}`.
@@ -138,7 +177,13 @@ final class ImportServer: HTTPTransport {
     case "GET dives/numbering":
       return .json(numbering)
     case "POST imports":
-      return try await upload(try ReceivedPart.parts(of: request).compactMap(\.filename))
+      let names = try ReceivedPart.parts(of: request).compactMap(\.filename)
+      let ignores = state.withLock { $0.ignoresApply }
+      if !ignores, request.url?.query?.contains("apply=true") == true {
+        return try await applyAtOnce(
+          names, key: request.value(forHTTPHeaderField: "Idempotency-Key"))
+      }
+      return try await upload(names)
     case "GET imports/pending":
       try await state.withLock { $0.pendingRead }()
       return try state.withLock { state in
@@ -199,6 +244,28 @@ final class ImportServer: HTTPTransport {
     }
   }
 
+  private func applyAtOnce(_ names: [String], key: String?) async throws
+    -> StubTransport.Response
+  {
+    let (index, answer) = state.withLock { state in
+      state.atOnce.append(AtOnce(files: names, key: key))
+      return (state.atOnce.count - 1, state.applyAtOnce)
+    }
+    if let answered = try await answer(index) { return answered }
+    return try state.withLock { state in
+      if let key, let made = state.keys[key] {
+        guard state.held[made] != nil else {
+          return .json(#"{"detail":"This import has since been deleted."}"#, status: 410)
+        }
+        return .json(try body(made, state))
+      }
+      let uuid = UUID()
+      state.held[uuid] = Held(files: names, applied: true, rows: state.rows)
+      if let key { state.keys[key] = uuid }
+      return .json(try body(uuid, state), status: 201)
+    }
+  }
+
   private static func pending(_ state: State) -> UUID? {
     state.held.first { !$0.value.applied }?.key
   }
@@ -228,6 +295,21 @@ final class ImportServer: HTTPTransport {
         "opened": NSNull(), "kept": !refused, "not_kept": NSNull(),
         "refusal": refused ? "This file is not one OpenDiving reads." : NSNull(),
       ] as [String: Any]
+    }
+    if let rows = held.rows, let template = (json["dives"] as? [[String: Any]])?.first {
+      json["dives"] = rows.map { row in
+        var dive = template
+        let uuid = UUID().uuidString.lowercased()
+        dive["uuid"] = uuid
+        dive["outcome"] = row.outcome
+        dive["start_time"] = row.start
+        if var read = dive["dive"] as? [String: Any] {
+          read["uuid"] = uuid
+          read["start_time"] = row.start
+          dive["dive"] = read
+        }
+        return dive
+      }
     }
     return String(decoding: try JSONSerialization.data(withJSONObject: json), as: UTF8.self)
   }

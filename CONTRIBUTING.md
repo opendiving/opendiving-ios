@@ -157,13 +157,17 @@ xcrun devicectl device copy from --device <UDID> --domain-type appDataContainer 
   --source "Library/Application Support/dive-computer.log" --destination dive-computer.log
 ```
 
-A paired computer with *Download automatically* on is watched for from every launch, and the watch
-keeps a log beside it, appended across launches and trimmed of its older half once it passes a
-megabyte: each launch and whether iOS made it, each change of Bluetooth's state, each connection
-request with its delay, each connection, disconnection and restoration, and, while the Dive
+A paired computer with *Download automatically* on is watched for from every launch, and its new
+dives are downloaded each time it connects. The watch keeps a log beside the download's, appended
+across launches and trimmed of its older half once it passes a megabyte: each launch, and each
+time the app comes to the front — a launch with no *active* within a second of it is one iOS
+made, the app being told neither way — each change of Bluetooth's state, each connection request
+with its delay, each connection, walk, disconnection and restoration, and, while the Dive
 Computers screen scans, what each dive computer nearby advertises. Copy it the same way, as
 `dive-computer-watch.log`. To see iOS relaunch the app, launch it with `--end-in-background`, and it
-ends itself five seconds after it leaves the foreground, as iOS ending it would:
+ends itself five seconds after it leaves the foreground, as iOS ending it would; with
+`--end-after-first-dive`, it ends itself once a download has kept its first dive, as iOS ending it
+mid-download would:
 
 ```bash
 xcrun devicectl device process launch --device <UDID> app.opendiving.ios -- --end-in-background

@@ -65,9 +65,7 @@ struct InboxModelTests {
     let model = InboxModel(session: session)
     model.sessionChanged()
     try arrive(model, "a.fit")
-    model.receive(
-      [try shared.make("b.zip")], moving: true,
-      download: InboxDownload(computers: [], downloadedAt: DiveComputerFixtures.moment))
+    model.receive([try shared.make("b.zip")], moving: true)
     model.sessionChanged()
     await model.settled()
 
@@ -573,6 +571,31 @@ struct InboxModelTests {
     let saved = try #require(
       try JSONSerialization.jsonObject(with: Data(contentsOf: record)) as? [String: Any])
     #expect(saved["read"] == nil)
+  }
+
+  @Test func aDownloadAnEarlierBuildKeptInTheInboxLoadsAsAFileLikeAnyOther() async throws {
+    let store = try await store()
+    let file = InboxFile(filename: "shearwater-perdix-3_D9772626_2026-10-25T0920.zip", byteSize: 1)
+    try store.save(InboxStore.Contents(files: [file]))
+    let record = store.url(for: file).deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("inbox.json")
+    var json = try #require(
+      try JSONSerialization.jsonObject(with: Data(contentsOf: record)) as? [String: Any])
+    var files = try #require(json["files"] as? [[String: Any]])
+    files[0]["download"] = [
+      "computers": [
+        [
+          "family": "shearwater-petrel", "vendor": "Shearwater", "product": "Perdix 3",
+          "serial": "D9772626", "dives": 12,
+        ]
+      ],
+      "downloaded_at": "2026-10-25T09:20:00Z",
+    ]
+    json["files"] = files
+    try JSONSerialization.data(withJSONObject: json).write(to: record)
+
+    #expect(store.load().files == [file])
+    #expect(store.unreadableCount == 0)
   }
 
   @Test func aRecordedImportSurvivesTheDisk() async throws {

@@ -8,7 +8,7 @@ import UIKit
 @MainActor
 struct RootViewTests {
   @Test func rootViewConstructs() {
-    let host = UIHostingController(rootView: RootView())
+    let host = UIHostingController(rootView: RootView(session: .device()))
     host.loadViewIfNeeded()
     host.view.layoutIfNeeded()
     #expect(host.view != nil)

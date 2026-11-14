@@ -54,8 +54,8 @@ public struct DiveComputerStore: Sendable {
     }
   }
 
-  /// The phone's paired computers, read without an account: what the watch needs at a launch by
-  /// iOS, before any session has loaded. Each record carries no account's progress.
+  /// The phone's paired computers, read without an account: what the watch needs at a launch,
+  /// before any session has loaded. Each record carries no account's progress.
   public static func pairings(applicationSupport: URL) -> [DiveComputerRecord] {
     KeptFolder<PairedComputer>(
       url: ServerStateStore.diveComputersDirectory(root: applicationSupport)

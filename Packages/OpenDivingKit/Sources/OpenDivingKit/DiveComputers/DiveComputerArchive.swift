@@ -20,18 +20,6 @@ enum DiveComputerArchive {
     UUID.version5(namespace: namespace, name: "dive/" + key(identity, fingerprint))
   }
 
-  /// The uuids of the dives a download archive's document holds; none where it cannot be read.
-  static func diveUUIDs(inArchive url: URL) -> Set<UUID> {
-    guard let reader = try? ZipReader(url),
-      let entry = reader.entries.first(where: { $0.name == documentName }),
-      let bytes = try? reader.read(entry), let document = ArchiveJSON.parse(bytes)
-    else { return [] }
-    return Set(
-      (document["dives"]?.arrayValue ?? []).compactMap {
-        $0["uuid"]?.stringValue.flatMap(UUID.init(uuidString:))
-      })
-  }
-
   /// The uuid of the dive's stored original.
   static func fileUUID(_ identity: DiveComputerIdentity, fingerprint: Data) -> UUID {
     UUID.version5(namespace: namespace, name: "file/" + key(identity, fingerprint))
@@ -115,6 +103,4 @@ enum DiveComputerArchive {
 public enum DiveComputerArchiveError: Error, Hashable, Sendable {
   /// A dive's start is an instant and no zone was given to write it in.
   case noZone
-  /// A waiting archive to unite with is not one this build wrote.
-  case unreadableArchive
 }

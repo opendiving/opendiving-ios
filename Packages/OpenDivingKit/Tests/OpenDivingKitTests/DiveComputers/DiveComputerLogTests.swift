@@ -57,11 +57,11 @@ struct DiveComputerLogTests {
 
   @Test func theWatchLogAppendsAcrossProcesses() throws {
     let url = file()
-    DiveComputerWatchLog(file: url).write("launch by the user")
-    DiveComputerWatchLog(file: url).write("launch by iOS, restoring watch")
+    DiveComputerWatchLog(file: url).write("launch")
+    DiveComputerWatchLog(file: url).write("active")
     let written: [String] = try lines(url)
     #expect(written.count == 2)
-    #expect(written.last?.hasSuffix(" launch by iOS, restoring watch") == true)
+    #expect(written.last?.hasSuffix(" active") == true)
   }
 
   @Test func theWatchLogDropsItsOlderHalfAtTheLimit() throws {

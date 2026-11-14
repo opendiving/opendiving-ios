@@ -76,15 +76,11 @@ struct ArchivePrimitivesTests {
     #expect(reader.entries.map(\.name) == ["logbook.divejson", "files/a.bin", "files/empty.bin"])
     #expect(try reader.read(reader.entries[1]) == Data([0, 1, 2, 255]))
     #expect(try reader.read(reader.entries[2]) == Data())
-    #expect(ZipReader.isFullExport(url))
 
     var bytes = try Data(contentsOf: url)
     let at = try #require(bytes.firstRange(of: Data([0, 1, 2, 255]))).lowerBound
     bytes[at] = 9
     try bytes.write(to: url)
     #expect(throws: ZipError.unreadable) { try ZipReader(url).read(reader.entries[1]) }
-
-    try Data("not a zip".utf8).write(to: url)
-    #expect(!ZipReader.isFullExport(url))
   }
 }
