@@ -125,7 +125,7 @@ private struct DiveDetailPage: View {
   var body: some View {
     ScrollView {
       VStack(spacing: 12) {
-        HeroView(content: content.hero)
+        HeroView(content: content.hero, detailsOnGlass: true)
         VStack(spacing: 12) {
           if let lastUpdated {
             LastUpdatedLine(date: lastUpdated)
