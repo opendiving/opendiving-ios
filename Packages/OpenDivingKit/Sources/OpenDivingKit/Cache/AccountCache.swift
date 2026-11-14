@@ -491,6 +491,12 @@ public struct AccountCache: Sendable {
   }
 }
 
+/// The invite link as the cache keeps it: that there is one and when it was made. Its token is
+/// a secret, kept beside the session's (``ServerStateStore``).
+struct KeptInviteLink: Codable, Hashable, Sendable {
+  let createdAt: DiveTimestamp
+}
+
 /// The settings reads the cache keeps, each one file.
 public enum KeptSetting: String, Sendable {
   case storage, tags, invitations

@@ -7,7 +7,9 @@ import Observation
 /// An instance anyone may join answers the list's read with 404, and the section is left out.
 /// The link's own read answers 404 there too, so it is asked only once the list has answered:
 /// from then on its 404 means the diver has no link yet. Both show the phone's copy at once while
-/// they are read, and keep it standing under ``lastUpdated`` when a read fails.
+/// they are read, and keep it standing under ``lastUpdated`` when a read fails. The link's token
+/// is a credential, so it is kept as a secret, never in the cache, and goes when the session
+/// ends: a link whose token has gone is nothing kept.
 @MainActor
 @Observable
 public final class InvitationsModel {
@@ -78,12 +80,19 @@ public final class InvitationsModel {
       let page = try await client.invitations(page: 1, itemsPerPage: Self.pageSize)
       return Loaded(invitations: page.data, hasMore: page.hasMore, page: page.page)
     }
-    if let entry = AccountStores.current(session)?.cache.kept(
-      .inviteLink, of: InviteLinkRead?.self)
+    if let stores = AccountStores.current(session),
+      let entry = stores.cache.kept(.inviteLink, of: KeptInviteLink?.self)
     {
-      link = entry.value
-      isLinkRead = true
-      linkFetchedAt = entry.fetchedAt
+      if let kept = entry.value {
+        if let token = stores.store.inviteLinkToken(for: stores.origin, account: stores.account) {
+          link = InviteLinkRead(token: token, createdAt: kept.createdAt)
+          isLinkRead = true
+          linkFetchedAt = entry.fetchedAt
+        }
+      } else {
+        isLinkRead = true
+        linkFetchedAt = entry.fetchedAt
+      }
     }
   }
 
@@ -121,12 +130,21 @@ public final class InvitationsModel {
     }
   }
 
-  /// The server's answer about the link, kept as its copy.
-  private func showLink(_ link: InviteLinkRead?, fetchedUnder stores: AccountStores?) {
+  /// The server's answer about the link, kept as its copy: the token as a secret first, so the
+  /// cache never names a link whose token was not kept.
+  private func showLink(_ link: InviteLinkRead?, fetchedUnder before: AccountStores?) {
     self.link = link
     isLinkRead = true
     linkFetchedAt = nil
-    cacheForAnswer(fetchedUnder: stores, session: session)?.writeKept(link, .inviteLink)
+    guard let stores = storesForAnswer(fetchedUnder: before, session: session) else { return }
+    do {
+      try stores.store.setInviteLinkToken(
+        link?.token, for: stores.origin, account: stores.account)
+    } catch {
+      stores.cache.removeKept(.inviteLink)
+      return
+    }
+    stores.cache.writeKept(link.map { KeptInviteLink(createdAt: $0.createdAt) }, .inviteLink)
   }
 
   /// The server has no invitations: nothing of the link is shown or kept.
@@ -134,7 +152,9 @@ public final class InvitationsModel {
     link = nil
     isLinkRead = false
     linkFetchedAt = nil
-    cacheForAnswer(fetchedUnder: nil, session: session)?.removeKept(.inviteLink)
+    guard let stores = storesForAnswer(fetchedUnder: nil, session: session) else { return }
+    stores.cache.removeKept(.inviteLink)
+    try? stores.store.setInviteLinkToken(nil, for: stores.origin, account: stores.account)
   }
 
   // MARK: - The link

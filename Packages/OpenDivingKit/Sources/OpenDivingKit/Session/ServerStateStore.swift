@@ -1,7 +1,7 @@
 import Foundation
 
-/// Everything the phone keeps about one server, as one thing: the refresh token in the
-/// ``SecretStore``, the remembered account, a directory under Application Support that other
+/// Everything the phone keeps about one server, as one thing: the refresh token and each
+/// account's invite-link token in the ``SecretStore``, the remembered account, a directory under Application Support that other
 /// features write into — the check-in sheet among them — its place on the saved list, and
 /// when it was last used and the build it last said it runs.
 /// ``forget(_:)`` is the only call that removes them all, so no feature needs a forget path of
@@ -118,14 +118,48 @@ public struct ServerStateStore: Sendable {
     try write(user, to: userFile(for: origin))
   }
 
-  /// A session ended, by sign-out or by the server refusing it: the token and the account go;
-  /// the directory, the last-account pointer and the active-origin pointer stay.
+  /// A session ended, by sign-out or by the server refusing it: the tokens — the session's and
+  /// every account's invite link — and the account go; the directory, the last-account pointer and the active-origin pointer stay.
   func endSession(for origin: ServerOrigin) throws {
     try secrets.removeSecret(for: origin.description)
     try removeIfPresent(userFile(for: origin))
+    for account in accounts(on: origin) where inviteLinkToken(for: origin, account: account) != nil
+    {
+      try secrets.removeSecret(for: Self.inviteLinkKey(origin, account))
+    }
   }
 
-  /// Removes the token, the remembered account and the directory — every account's directory
+  /// The account's invite-link token, a bearer credential, kept as a secret while the account's
+  /// cache keeps the rest of the link.
+  func inviteLinkToken(for origin: ServerOrigin, account: UUID) -> String? {
+    try? secrets.secret(for: Self.inviteLinkKey(origin, account))
+  }
+
+  /// Keeps `token`, or removes the one kept when it is nil. The account's directory is made
+  /// first, since it is what ending the session finds the token by.
+  func setInviteLinkToken(_ token: String?, for origin: ServerOrigin, account: UUID) throws {
+    let key = Self.inviteLinkKey(origin, account)
+    guard let token else { return try secrets.removeSecret(for: key) }
+    try FileManager.default.createDirectory(
+      at: directory(for: origin, account: account), withIntermediateDirectories: true)
+    try secrets.setSecret(token, for: key)
+  }
+
+  /// Keyed by account as well as server: two accounts on one server each have a link.
+  private static func inviteLinkKey(_ origin: ServerOrigin, _ account: UUID) -> String {
+    "\(origin.description) invite-link \(account.uuidString.lowercased())"
+  }
+
+  /// The accounts with a directory on `origin`.
+  private func accounts(on origin: ServerOrigin) -> [UUID] {
+    let accounts = directory(for: origin).appendingPathComponent("Accounts", isDirectory: true)
+    let names =
+      (try? FileManager.default.contentsOfDirectory(
+        at: accounts, includingPropertiesForKeys: nil)) ?? []
+    return names.compactMap { UUID(uuidString: $0.lastPathComponent) }
+  }
+
+  /// Removes the tokens, the remembered account and the directory — every account's directory
   /// and the last-account pointer with it — takes the server off the saved list, drops when it
   /// was last used and what it runs, and clears the active-origin pointer when it names this
   /// server. Needs no server, so a server that is gone can still be forgotten.
