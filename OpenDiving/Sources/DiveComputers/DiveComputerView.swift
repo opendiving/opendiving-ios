@@ -25,6 +25,7 @@ struct DiveComputerView: View {
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
   @State private var showing: DiveComputerRecord?
+  @Environment(\.scenePhase) private var scenePhase
 
   private var model: DiveComputerModel { downloads.model }
 
@@ -56,6 +57,9 @@ struct DiveComputerScreen: View {
     .task(id: ObjectIdentifier(model)) { await model.watch() }
     .onAppear { downloads.screenAppeared() }
     .onDisappear { downloads.screenDisappeared() }
+    .onChange(of: scenePhase) { _, phase in
+      if phase == .active { model.appBecameActive() }
+    }
     .navigationDestination(item: $showing) { record in
       DiveComputerPage(record: record) {
         model.forget(record)

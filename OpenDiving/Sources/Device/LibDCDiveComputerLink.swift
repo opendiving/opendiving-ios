@@ -15,6 +15,9 @@ final class LibDCDiveComputerLink: DiveComputerLink {
   private var watchers: [UUID: AsyncStream<DiveComputerAvailability>.Continuation] = [:]
   private var stateSubscription: AnyCancellable?
   private var scanSubscription: AnyCancellable?
+  /// Counts scans, so the stop a finished stream schedules ends its own scan and never a newer
+  /// one started in the meantime.
+  private var scans = 0
 
   /// The device's: libdc-swift's manager and the standard defaults it writes to.
   convenience init() {
@@ -76,10 +79,20 @@ final class LibDCDiveComputerLink: DiveComputerLink {
       continuation.finish()
       return stream
     }
+    scans += 1
+    let scan = scans
     var yielded: Set<UUID> = []
+    var cleared = false
     manager.clearDiscoveredPeripherals()
     scanSubscription = manager.$discoveredPeripherals.receive(on: DispatchQueue.main).sink {
       peripherals in
+      // The manager is the process's, and its list first replays every peripheral an earlier scan
+      // found, advertising or not. The clear lands later, on the main queue, as an empty list;
+      // what follows it is this scan's.
+      if !cleared {
+        cleared = peripherals.isEmpty
+        guard cleared else { return }
+      }
       for peripheral in peripherals where !yielded.contains(peripheral.identifier) {
         guard let name = peripheral.name else { continue }
         yielded.insert(peripheral.identifier)
@@ -91,7 +104,10 @@ final class LibDCDiveComputerLink: DiveComputerLink {
     // or a name it recognises, which keeps the list to dive computers.
     manager.startScanning(omitUnsupportedPeripherals: false)
     continuation.onTermination = { [weak self] _ in
-      Task { @MainActor in self?.stopScan() }
+      Task { @MainActor in
+        guard let self, self.scans == scan else { return }
+        self.stopScan()
+      }
     }
     return stream
   }
