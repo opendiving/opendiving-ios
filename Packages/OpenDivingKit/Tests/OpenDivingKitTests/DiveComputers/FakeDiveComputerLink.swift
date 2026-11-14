@@ -38,7 +38,11 @@ final class FakeDiveComputerLink: DiveComputerLink {
     }
   }
 
+  /// How many scans were started.
+  private(set) var scans = 0
+
   func scan() -> AsyncStream<FoundComputer> {
+    scans += 1
     let found = found
     return AsyncStream { continuation in
       for computer in found { continuation.yield(computer) }

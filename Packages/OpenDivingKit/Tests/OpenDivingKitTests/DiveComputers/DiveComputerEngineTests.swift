@@ -514,6 +514,33 @@ struct DiveComputerEngineTests {
     #expect(model.phase == .scanning)
   }
 
+  @Test func walksQueuedOneAfterAnotherResumeTheScanOnceBothEnd() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
+      FakeDiveComputerLink.script(F.ocean, F.oceanDownload, zone: F.helsinki),
+    ]
+    link.holdBeforeEnd = true
+    let engine = engine(session)
+    let model = DiveComputerModel(engine: engine, zone: F.helsinki)
+    await model.watch()
+    #expect(link.scans == 1)
+
+    watcher.send(.connected(F.perdixFound.id))
+    await until { link.isHeld }
+    watcher.send(.connected(F.oceanFound.id))
+    link.holdBeforeEnd = false
+    link.release()
+    await engine.settled()
+    #expect(link.downloads == 2)
+    #expect(link.scans == 2)
+    #expect(model.phase == .scanning)
+  }
+
   @Test func aRetryGoesUnderTheSameKeyAndTheDiverIsToldOnce() async throws {
     let session = try await session()
     server.answerAtOnce { index in

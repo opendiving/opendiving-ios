@@ -293,8 +293,9 @@ public final class DiveComputerEngine {
       running = nil
       runningPeripheral = nil
       if walk === queued.walk { walk = nil }
-      walkEnded?(queued.walk)
+      // After the next walk has started, so the screen sees whether one did.
       next()
+      walkEnded?(queued.walk)
       upload()
     }
   }
