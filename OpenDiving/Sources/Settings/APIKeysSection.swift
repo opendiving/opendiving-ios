@@ -5,6 +5,9 @@ import SwiftUI
 /// on its row, and each opening a page of its own with its permissions and its revocation.
 struct APIKeysSection: View {
   let model: APIKeysModel
+  /// Its own, not the model's ``APIKeysModel/confirmingRevoke``, which the key's page presents
+  /// from while this row sits under it in the stack.
+  @State private var confirmingRevoke: APIKeyRead?
 
   var body: some View {
     if !model.list.isAbsent {
@@ -35,7 +38,12 @@ struct APIKeysSection: View {
       } header: {
         Text("API keys")
       } footer: {
-        Text(APIKeysModel.description)
+        VStack(alignment: .leading, spacing: 8) {
+          if let failure = model.revokeFailure {
+            FieldMessage(failure)
+          }
+          Text(APIKeysModel.description)
+        }
       }
     }
   }
@@ -60,6 +68,28 @@ struct APIKeysSection: View {
           .foregroundStyle(.secondary)
       }
     }
+    .swipeActions {
+      revokeButton(key)
+        .tint(.dangerFill)
+    }
+    .contextMenu {
+      revokeButton(key)
+    }
+    .rowConfirmation(APIKeysModel.revokeTitle, for: key, confirming: $confirmingRevoke) { key in
+      Button(APIKeysModel.revokeButton, role: .destructive) {
+        Task { await model.confirmRevoke(key) }
+      }
+    } message: { key in
+      Text(APIKeysModel.revokeMessage(key))
+    }
+  }
+
+  private func revokeButton(_ key: APIKeyRead) -> some View {
+    Button(APIKeysModel.revokeButton, systemImage: "trash", role: .destructive) {
+      confirmingRevoke = key
+    }
+    .disabled(model.revoking != nil)
+    .needsServer()
   }
 }
 
