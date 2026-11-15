@@ -14,8 +14,7 @@ struct FurthestZoomTests {
     }
   }
 
-  /// A 700-point map's floor is one MapLibre reads back a bit off what was set, which used to set
-  /// it again from every move the setting made.
+  /// A 700-point map's floor is one MapLibre reads back a bit off what was set.
   @Test func aFloorReadBackOffWhatWasSetIsNotSetAgain() {
     let map = CountingMapView(frame: CGRect(x: 0, y: 0, width: 402, height: 700))
     let furthest = MapCamera.furthestZoom(height: 700)
