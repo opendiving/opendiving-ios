@@ -2,33 +2,52 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import OpenDivingKit
 import SwiftUI
+import UIKit
 
 /// A QR code of an address, with the brand mark at its centre. Whenever the app is not active a
 /// blurred symbol of a stand-in address of the same length takes its place, as ``CopyField``
-/// hides its value, so the app switcher's snapshot never holds the link.
+/// hides its value, so the app switcher never holds the link.
 struct InviteQRCode: View {
   let address: String
   let label: String
 
-  @Environment(\.scenePhase) private var scenePhase
+  @State private var isShielded = UIApplication.shared.applicationState != .active
+
+  private static let fade = Animation.easeInOut(duration: 0.25)
 
   var body: some View {
-    Group {
-      if scenePhase == .active, let layout = Self.layout(address) {
-        InviteQRSymbol(layout: layout)
-          .accessibilityElement()
-          .accessibilityLabel(label)
-          .accessibilityAddTraits(.isImage)
-      } else if let layout = Self.layout(Self.standIn(for: address)) {
+    ZStack {
+      if let layout = Self.layout(Self.standIn(for: address)) {
         InviteQRSymbol(layout: layout)
           .blur(radius: 8)
           .clipShape(.rect(cornerRadius: 12))
+          .opacity(isShielded ? 1 : 0)
+          .animation(Self.fade, value: isShielded)
           .accessibilityHidden(true)
+      }
+      if let layout = Self.layout(address) {
+        InviteQRSymbol(layout: layout)
+          // Gone at once as the app leaves, since a fade would hold the code in the switcher's
+          // first frames, and back with a fade.
+          .opacity(isShielded ? 0 : 1)
+          .animation(isShielded ? nil : Self.fade, value: isShielded)
+          .accessibilityElement()
+          .accessibilityLabel(label)
+          .accessibilityAddTraits(.isImage)
+          .accessibilityHidden(isShielded)
       }
     }
     // Square before the cap: a canvas has no shape of its own and fills whatever it is offered.
     .aspectRatio(1, contentMode: .fit)
     .frame(maxWidth: 256)
+    // The scene's own notices rather than `scenePhase`, which can reach the view only after the
+    // switcher has drawn the app's card.
+    .onReceive(NotificationCenter.default.publisher(for: UIScene.willDeactivateNotification)) {
+      _ in isShielded = true
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIScene.didActivateNotification)) {
+      _ in isShielded = false
+    }
   }
 
   /// An address of `address`'s length, whose symbol is the size of its own.
