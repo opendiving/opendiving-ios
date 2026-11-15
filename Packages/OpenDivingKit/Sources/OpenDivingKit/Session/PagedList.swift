@@ -230,6 +230,18 @@ public final class PagedList<Item: Codable & Sendable> {
     }
   }
 
+  /// The first page with nothing kept shown while it is on its way, and the kept pages once it
+  /// fails: for a list that waits behind another on screen until it can take its place.
+  func loadKeptOnFailure() async {
+    switch phase {
+    case .loading, .loaded: return
+    case .idle, .failed: await loadFirstPage()
+    }
+    guard case .failed(let error) = phase else { return }
+    showCached()
+    if phase == .loaded, error != .noRoute { pageError = error }
+  }
+
   /// The kept pages alone, asking nothing: what a screen shows while it works out what to ask.
   func showKept() {
     showCached()
