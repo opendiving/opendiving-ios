@@ -413,6 +413,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     // Its inset is the margin above; the safe area's own would add to it where the panel's frame,
     // placed before it is moved, happens to reach the screen's foot.
     .ignoresSafeArea(.container, edges: .bottom)
+    .modifier(PanelHiddenBelow(drag: drag, panel: panel, hasMap: map.hasMap))
     // Another site opens at its top, rather than where the last one was scrolled to.
     .id(opened.uuid)
   }
@@ -770,6 +771,25 @@ private struct PanelFrame: ViewModifier {
     content.frame(
       height: hasMap && !drag.isMoving ? panel.height(drag.detent) : panel.height(.full),
       alignment: .top)
+  }
+}
+
+extension EnvironmentValues {
+  /// How much of the finder's panel stands below the screen: none at rest, and while it moves, laid
+  /// out at its tallest, all it is laid out taller than it shows.
+  @Entry var panelHiddenBelow: Double = 0
+}
+
+/// Tells what the panel shows how much of it stands below the screen. Only this reads how far the
+/// panel is dragged, so a frame of the move draws again just what reads the value.
+private struct PanelHiddenBelow: ViewModifier {
+  let drag: SiteFinderPanelDrag
+  let panel: SiteFinderPanel
+  let hasMap: Bool
+
+  func body(content: Content) -> some View {
+    let hidden = hasMap && drag.isMoving ? panel.height(.full) - drag.height(in: panel) : 0
+    content.environment(\.panelHiddenBelow, max(0, hidden))
   }
 }
 

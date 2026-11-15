@@ -439,9 +439,23 @@ extension View {
   /// Fills what the panel shows under its tabs, `below` points tall, less the stack's gap under
   /// them and the panel's foot, so a message stands in the middle of what is left.
   fileprivate func centredInPanel(below: CGFloat) -> some View {
-    containerRelativeFrame(.vertical) { length, _ in
-      max(0, length - below - 2 * PanelMetrics.gap)
-    }
+    modifier(CentredInPanel(below: below))
+  }
+}
+
+private struct CentredInPanel: ViewModifier {
+  let below: CGFloat
+  @Environment(\.panelHiddenBelow) private var hidden
+
+  func body(content: Content) -> some View {
+    content
+      .containerRelativeFrame(.vertical) { length, _ in
+        max(0, length - below - 2 * PanelMetrics.gap)
+      }
+      // Moving, the panel is laid out at its tallest with its foot below the screen: raised by
+      // half of that, the message stays in the middle of what shows. Drawn only, so a frame of the
+      // move lays nothing out again.
+      .offset(y: -hidden / 2)
   }
 }
 
