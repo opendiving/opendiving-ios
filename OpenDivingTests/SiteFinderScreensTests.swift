@@ -23,7 +23,8 @@ struct SiteFinderScreensTests {
     map.automaticallyAdjustsContentInset = false
     let coordinator = SiteFinderMap.Coordinator()
     coordinator.cover(map, with: UIEdgeInsets(top: 50, left: 0, bottom: 300, right: 0))
-    coordinator.move(map, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), glides: false)
+    coordinator.move(
+      map, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), number: 1, glides: false)
     #expect(map.contentInset == .zero)
     map.frame = CGRect(x: 0, y: 0, width: 320, height: 640)
     coordinator.laidOut(map)
@@ -31,6 +32,30 @@ struct SiteFinderScreensTests {
     #expect(abs(map.centerCoordinate.latitude - 28.5) < 1e-6)
     #expect(abs(map.centerCoordinate.longitude - 34.5) < 1e-6)
     #expect(abs(map.zoomLevel - 10) < 1e-6)
+  }
+
+  /// The report its first layout queues names the move the map was laid out on, not one asked
+  /// for after it, which reports for itself.
+  @Test func aReportNamesTheMoveTheMapLastMade() async {
+    let map = MLNMapView(
+      frame: CGRect(x: 0, y: 0, width: 320, height: 640),
+      styleJSON: MapStyleModel.Shown.preview.styleJSON)
+    map.automaticallyAdjustsContentInset = false
+    let coordinator = SiteFinderMap.Coordinator()
+    var reports: [Int] = []
+    coordinator.onCameraChange = { _, _, move in reports.append(move) }
+    coordinator.move(map, to: .world, number: 0, glides: false)
+    coordinator.laidOut(map)
+    await Self.mainQueueDrained()
+    #expect(reports == [0])
+    coordinator.move(
+      map, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), number: 1, glides: false)
+    await Self.mainQueueDrained()
+    #expect(reports == [0, 1])
+  }
+
+  private static func mainQueueDrained() async {
+    await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
   }
 
   /// The panel rising leaves the map where it was, its camera now the middle of what shows.

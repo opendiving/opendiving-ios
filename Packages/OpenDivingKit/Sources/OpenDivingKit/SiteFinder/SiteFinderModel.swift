@@ -41,10 +41,14 @@ public final class SiteFinderModel {
   /// *Your sites*: only the diver's own sites and the Commons records they saved.
   public private(set) var yours = false
   /// Where the map looks. A change moves the map there, jumping unless ``centre`` asks for the
-  /// glide after it; the map's own moves come back through ``mapMoved(to:byGesture:)``.
+  /// glide after it; the map's own moves come back through ``mapMoved(to:byGesture:after:)``.
   public private(set) var camera = MapCamera.world {
     didSet { glides = false }
   }
+  /// Counts the moves of ``camera`` the finder asks of the map, which hands the count back with
+  /// each move it reports: a report it sent before the latest one reached it is of a place the
+  /// camera has since left.
+  public private(set) var cameraMove = 0
   /// The opening rule has not answered yet, and the camera waits on the world.
   public private(set) var isOpening = true
   public private(set) var list: PagedList<DiveSiteSearchRow>?
@@ -201,7 +205,7 @@ public final class SiteFinderModel {
     opening = opened
     restsOnWorld = opened.isWorld
     restsOnOpening = true
-    camera = opened.camera(width: viewport.width, height: viewport.height)
+    send(opened.camera(width: viewport.width, height: viewport.height))
     isFitted = Self.isMeasured(viewport)
     isOpening = false
     isResolving = false
@@ -238,7 +242,7 @@ public final class SiteFinderModel {
   private func refit() {
     guard restsOnOpening, !isFitted, Self.isMeasured(viewport), let opening else { return }
     isFitted = true
-    camera = opening.camera(width: viewport.width, height: viewport.height)
+    send(opening.camera(width: viewport.width, height: viewport.height))
   }
 
   /// The site the finder opens on, and the opening that centres it where the map has its point.
@@ -264,8 +268,12 @@ public final class SiteFinderModel {
 
   // MARK: - The diver
 
-  /// The map came to rest: a gesture's move, or its account of one asked of it.
-  public func mapMoved(to camera: MapCamera, byGesture: Bool) {
+  /// The map came to rest: a gesture's move, or its account of one asked of it, `move` being the
+  /// last ``cameraMove`` it had made. An account from before the latest move is dropped, where it
+  /// would send the camera back to where the map was — the world, for one queued as the opening
+  /// lands.
+  public func mapMoved(to camera: MapCamera, byGesture: Bool, after move: Int) {
+    guard byGesture || move == cameraMove else { return }
     self.camera = camera
     guard byGesture, !isOpening else { return }
     restsOnWorld = false
@@ -418,9 +426,14 @@ public final class SiteFinderModel {
   }
 
   private func move(to camera: MapCamera) {
-    self.camera = camera
+    send(camera)
     restsOnWorld = false
     restsOnOpening = false
+  }
+
+  private func send(_ camera: MapCamera) {
+    self.camera = camera
+    cameraMove += 1
   }
 
   /// The camera moved: a request still on its way is for a view no longer shown, and the list

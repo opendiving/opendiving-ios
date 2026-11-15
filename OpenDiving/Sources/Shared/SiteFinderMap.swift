@@ -11,8 +11,11 @@ import SwiftUI
 struct SiteFinderMap: UIViewRepresentable {
   let styleJSON: String
   /// Where the map looks, at the middle of what `covered` leaves showing. A change jumps it there;
-  /// every move comes back through `onCameraChange`, saying whether a gesture made it.
+  /// every move comes back through `onCameraChange`, saying whether a gesture made it and which
+  /// `cameraMove` the map had last made.
   let camera: MapCamera
+  /// The host's count of the moves it has asked for, `camera` being the latest.
+  var cameraMove = 0
   /// The move to `camera` glides there rather than jumping.
   var glides = false
   /// What the screen draws over the map, which a change leaves where it was.
@@ -24,7 +27,7 @@ struct SiteFinderMap: UIViewRepresentable {
   /// The map stays on what it is looking at: it zooms about the middle of what shows and pans
   /// nowhere, and a group's tap lets go of the hold before it opens the group.
   var holdsMiddle = false
-  let onCameraChange: (MapCamera, Bool) -> Void
+  let onCameraChange: (MapCamera, Bool, Int) -> Void
   let onPoint: (UUID) -> Void
   /// A tap on the map that touched no site, and no group but one tapped with the middle held.
   var onMapTap: () -> Void = {}
@@ -69,7 +72,7 @@ struct SiteFinderMap: UIViewRepresentable {
     }
     coordinator.show(Layers(commons: commons, yours: yours, selected: selected), on: map)
     coordinator.cover(map, with: covered)
-    coordinator.move(map, to: camera, glides: glides)
+    coordinator.move(map, to: camera, number: cameraMove, glides: glides)
     coordinator.grip(map)
   }
 
@@ -87,7 +90,7 @@ struct SiteFinderMap: UIViewRepresentable {
   }
 
   final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
-    var onCameraChange: ((MapCamera, Bool) -> Void)?
+    var onCameraChange: ((MapCamera, Bool, Int) -> Void)?
     var onPoint: ((UUID) -> Void)?
     var onMapTap: (() -> Void)?
     var onLongPress: ((CLLocationCoordinate2D) -> Void)?
@@ -111,6 +114,8 @@ struct SiteFinderMap: UIViewRepresentable {
     private var zoomedIntoCluster = false
     /// A glide to `camera` has not landed yet.
     private var isGliding = false
+    /// The host's move the map last made, which every report names.
+    private var madeMove = 0
 
     func listen(on map: MLNMapView) {
       let hold = UILongPressGestureRecognizer(target: self, action: #selector(held))
@@ -332,7 +337,8 @@ struct SiteFinderMap: UIViewRepresentable {
       return false
     }
 
-    func move(_ map: MLNMapView, to camera: MapCamera, glides: Bool) {
+    func move(_ map: MLNMapView, to camera: MapCamera, number: Int, glides: Bool) {
+      madeMove = number
       guard camera != self.camera else { return }
       self.camera = camera
       guard isPlaced else { return }
@@ -577,7 +583,7 @@ struct SiteFinderMap: UIViewRepresentable {
         latitude: map.centerCoordinate.latitude, longitude: map.centerCoordinate.longitude,
         zoom: map.zoomLevel)
       camera = reported
-      onCameraChange?(reported, byGesture)
+      onCameraChange?(reported, byGesture, madeMove)
     }
   }
 
@@ -633,5 +639,5 @@ struct SiteFinderMap: UIViewRepresentable {
       DiveSitePoint(
         longitude: 34.5372, latitude: 28.5722, uuid: UUID(), name: "Blue Hole",
         owner: DiveSiteOwner.account)
-    ], selected: nil, onCameraChange: { _, _ in }, onPoint: { _ in })
+    ], selected: nil, onCameraChange: { _, _, _ in }, onPoint: { _ in })
 }

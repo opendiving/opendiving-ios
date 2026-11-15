@@ -124,10 +124,13 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     )
     return ZStack(alignment: .bottom) {
       SiteFinderMap(
-        styleJSON: style.styleJSON, camera: model.camera, glides: model.glides, covered: covered,
+        styleJSON: style.styleJSON, camera: model.camera, cameraMove: model.cameraMove,
+        glides: model.glides, covered: covered,
         commons: model.yours ? nil : model.points.commons, yours: model.points.yours,
         selected: model.highlighted, holdsMiddle: model.holdsOpenedSite,
-        onCameraChange: { camera, byGesture in model.mapMoved(to: camera, byGesture: byGesture) },
+        onCameraChange: { camera, byGesture, move in
+          model.mapMoved(to: camera, byGesture: byGesture, after: move)
+        },
         onPoint: { model.select($0) },
         onMapTap: { model.closeSite() },
         onLongPress: onLongPress.map { add in

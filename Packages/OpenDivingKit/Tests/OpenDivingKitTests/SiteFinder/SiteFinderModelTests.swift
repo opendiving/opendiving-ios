@@ -114,7 +114,7 @@ struct SiteFinderModelTests {
 
   /// A gesture's move to `camera`, once the list has followed it.
   private func pan(_ model: SiteFinderModel, to camera: MapCamera) async {
-    model.mapMoved(to: camera, byGesture: true)
+    model.mapMoved(to: camera, byGesture: true, after: model.cameraMove)
     await model.settling?.value
   }
 
@@ -171,6 +171,22 @@ struct SiteFinderModelTests {
     #expect(sentBox(try #require(searches.queries.last)) == box(model.camera))
   }
 
+  /// The map's account of the world it was laid out on, queued before the opening's fix reached
+  /// it, leaves the camera on the fix; a diver's move made meanwhile is still the diver's.
+  @Test func aReportFromBeforeTheOpeningLeavesTheCameraOnTheFix() async throws {
+    let (world, _) = try await world()
+    let model = sitesMap(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
+    let laidOut = model.cameraMove
+    await model.open()
+    let opened = model.camera
+    #expect(opened != .world)
+    model.mapMoved(to: .world, byGesture: false, after: laidOut)
+    #expect(model.camera == opened)
+    let panned = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
+    model.mapMoved(to: panned, byGesture: true, after: laidOut)
+    #expect(model.camera == panned)
+  }
+
   @Test func aMapMeasuredAfterTheOpeningSendsItAgainNarrowed() async throws {
     let (world, searches) = try await world()
     let model = sitesMap(world, FakeFinderLocator(.success(.init(latitude: 28.5, longitude: 34.5))))
@@ -211,7 +227,9 @@ struct SiteFinderModelTests {
     let (world, searches) = try await world()
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
     await model.open()
-    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: false)
+    model.mapMoved(
+      to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: false,
+      after: model.cameraMove)
     #expect(model.settling == nil)
     #expect(searches.queries.count == 1)
     let moved = MapCamera(latitude: 28.51, longitude: 34.53, zoom: 10)
@@ -228,9 +246,11 @@ struct SiteFinderModelTests {
     let (world, searches) = try await world()
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
     model.settleDelay = .milliseconds(50)
-    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    model.mapMoved(
+      to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true,
+      after: model.cameraMove)
     let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
-    model.mapMoved(to: last, byGesture: true)
+    model.mapMoved(to: last, byGesture: true, after: model.cameraMove)
     #expect(!model.isSearching)
     await model.settling?.value
     #expect(searches.queries.count == 2)
@@ -243,14 +263,16 @@ struct SiteFinderModelTests {
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
     let opened = try #require(model.list)
     gate.isHeld = true
-    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    model.mapMoved(
+      to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true,
+      after: model.cameraMove)
     while searches.queries.count < 2 { await Task.yield() }
     #expect(model.isSearching)
     #expect(model.list === opened)
     #expect(model.lastUpdated == nil)
     #expect(model.rows.count == 3)
     let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
-    model.mapMoved(to: last, byGesture: true)
+    model.mapMoved(to: last, byGesture: true, after: model.cameraMove)
     while searches.queries.count < 3 { await Task.yield() }
     gate.isHeld = false
     await model.settling?.value
@@ -269,7 +291,9 @@ struct SiteFinderModelTests {
     gate.isHeld = true
     let toggled = Task { await model.setYours(true) }
     while searches.queries.count < 2 { await Task.yield() }
-    model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
+    model.mapMoved(
+      to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true,
+      after: model.cameraMove)
     await toggled.value
     #expect(model.list === shown)
     #expect(shown.phase == .loaded)
@@ -435,7 +459,8 @@ struct SiteFinderModelTests {
     await model.useMyLocation()
     #expect(model.camera.zoom == SiteFinderOpening.pointZoom)
     #expect(model.glides)
-    model.mapMoved(to: MapCamera(latitude: 0, longitude: 0, zoom: 14), byGesture: true)
+    model.mapMoved(
+      to: MapCamera(latitude: 0, longitude: 0, zoom: 14), byGesture: true, after: model.cameraMove)
     await model.useMyLocation()
     #expect(model.camera == MapCamera(latitude: -8.27, longitude: 115.6, zoom: 14))
   }
@@ -577,7 +602,7 @@ struct SiteFinderModelTests {
         == MapCamera(latitude: 28.5687, longitude: 34.5372, zoom: SiteFinderOpening.siteZoom))
     #expect(model.glides)
     // The glide's landing is the map's own move, which the list does not follow.
-    model.mapMoved(to: model.camera, byGesture: false)
+    model.mapMoved(to: model.camera, byGesture: false, after: model.cameraMove)
     #expect(model.settling == nil)
     #expect(searches.queries.count == sent)
     #expect(model.highlighted == Self.canyon)
