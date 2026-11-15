@@ -1,14 +1,16 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The dive's cylinders, one card each — the gas and its role, the diver's cylinder it names
-/// and what was recorded of it, its pressures and its MOD — then the dive-wide MOD warning.
+/// The dive's cylinders under one title, a card each — the gas and its role, the diver's
+/// cylinder it names and what was recorded of it, its pressures and its MOD — then the dive-wide
+/// MOD warning.
 struct DiveDetailTanksCard: View {
   let tanks: DiveDetailContent.Tanks
 
   var body: some View {
-    SectionCard(title: "Tanks", icon: .twinTank) {
-      VStack(spacing: 8) {
+    VStack(alignment: .leading, spacing: 6) {
+      SectionTitle(title: "Tanks", icon: .twinTank)
+      VStack(spacing: 12) {
         ForEach(Array(tanks.tanks.enumerated()), id: \.offset) { _, tank in
           TankView(tank: tank)
         }
@@ -17,6 +19,7 @@ struct DiveDetailTanksCard: View {
         Label(warning, systemImage: "exclamationmark.triangle")
           .font(.subheadline)
           .foregroundStyle(.orange)
+          .padding(.horizontal, 16)
       }
     }
   }
@@ -31,9 +34,10 @@ private struct TankView: View {
         .frame(width: 40, height: 40)
       details
     }
-    .padding(12)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 12)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(.separator)))
+    .background(Color.cardFill, in: .formSection)
   }
 
   private var details: some View {
