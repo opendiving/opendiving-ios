@@ -16,6 +16,7 @@ struct PersonRowView: View {
           if let uuid = content.uuid {
             NavigationLink(content.name) { PersonDetailView(personUUID: uuid) }
               .font(.body.weight(.medium))
+              .accentRow()
           } else {
             Text(content.name)
               .font(.body.weight(.medium))

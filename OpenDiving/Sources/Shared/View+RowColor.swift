@@ -1,8 +1,8 @@
 import SwiftUI
 
 extension View {
-  /// A row's action in the accent. A tint will not do: iOS 26 lightens tinted text in a list in the
-  /// dark and darkens it in the light, so it is set as a colour, which is drawn as it stands.
+  /// A row's action in the accent, set as a colour: with Increase Contrast on, iOS brightens the
+  /// default tint, and a colour is drawn as it stands.
   func accentRow() -> some View {
     modifier(RowColor(color: .accentText))
   }

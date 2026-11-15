@@ -39,7 +39,7 @@ struct CodeField: View {
       .background(RoundedRectangle(cornerRadius: 10).fill(.fill.tertiary))
       .overlay(
         RoundedRectangle(cornerRadius: 10)
-          .strokeBorder(isNext ? Color.accentColor : .clear, lineWidth: 2))
+          .strokeBorder(isNext ? Color.accentText : .clear, lineWidth: 2))
   }
 }
 

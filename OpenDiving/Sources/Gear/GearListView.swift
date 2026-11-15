@@ -140,7 +140,7 @@ private struct GearListContent: View {
       ListHeading(title: GearListView.setsTitle, icon: .layers) {
         Button("New set", systemImage: "plus") { creating = .set }
           .font(.subheadline)
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)

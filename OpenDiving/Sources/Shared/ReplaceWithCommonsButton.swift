@@ -15,7 +15,7 @@ struct ReplaceWithCommonsButton: View {
         Text(DiveSiteProposalSummary.replaceTitle)
       }
     }
-    .buttonStyle(.bordered)
+    .brandBorderedButton()
     .disabled(replacement.replacing != nil)
   }
 }

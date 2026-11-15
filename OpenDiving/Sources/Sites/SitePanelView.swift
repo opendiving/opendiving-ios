@@ -132,12 +132,7 @@ private struct SitePanelContent: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     if !site.notes.isEmpty {
       VStack(alignment: .leading, spacing: 6) {
-        // Over the card, as a form's section header stands over its rows.
-        FormSectionHeader(title: "Notes", icon: .fileText)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .padding(.horizontal, 16)
-          .accessibilityAddTraits(.isHeader)
+        SectionTitle(title: "Notes", icon: .fileText)
         Text(site.notes)
           .padding(.horizontal, 16)
           .padding(.vertical, 11)
@@ -184,7 +179,7 @@ private struct PanelMessage: View {
         .foregroundStyle(.secondary)
       if let retry {
         Button("Try again", action: retry)
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)

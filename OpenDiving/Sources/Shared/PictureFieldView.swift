@@ -29,7 +29,7 @@ struct PictureFieldView: View {
         VStack(alignment: .leading, spacing: 8) {
           controls
         }
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
         .disabled(busy)
       }
       Text(model.caption)
@@ -84,6 +84,7 @@ struct PictureFieldView: View {
       } label: {
         Image(systemName: bin == .keep ? "arrow.uturn.backward" : "trash")
       }
+      .tint(bin == .keep ? Color.accentText : Color.danger)
       .accessibilityLabel(bin.label(model.kind))
     }
   }

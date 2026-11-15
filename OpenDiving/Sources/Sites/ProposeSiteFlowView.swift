@@ -102,7 +102,7 @@ private struct MatchesStep: View {
         if let error = model.loadError {
           FieldMessage(error)
           Button("Try again") { Task { await model.load() } }
-            .buttonStyle(.bordered)
+            .brandBorderedButton()
         } else if model.matches.isEmpty {
           Text(DiveSiteCommonsMatchSummary.none)
             .font(.subheadline)
@@ -116,7 +116,7 @@ private struct MatchesStep: View {
           Text(DiveSiteCommonsMatchSummary.needsPin)
             .font(.subheadline)
           Button("Edit", action: onEdit)
-            .buttonStyle(.bordered)
+            .brandBorderedButton()
         }
         if model.hasIdentityMatch {
           Text(DiveSiteCommonsMatchSummary.isACopy)

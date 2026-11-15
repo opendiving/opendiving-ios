@@ -142,7 +142,6 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       .onChange(of: [shown.width, shown.height], initial: true) {
         model.viewport = shown
       }
-      TopBarBlur()
       HStack(alignment: .bottom) {
         MapCredit(credit: style.credit)
         Spacer()
@@ -470,7 +469,8 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         EmptyOrErrorView(
           status: .empty(
             icon: .diveSite,
-            title: SiteFinderText.empty(typed: model.isTyped, yours: model.yours), message: nil)
+            title: SiteFinderText.empty(typed: model.isTyped, yours: model.listsYours), message: nil
+          )
         )
         // Lowered by what the question under it gives up, so the icon stands as far below the
         // search as the title stands above the question, and the question stays put.

@@ -188,6 +188,30 @@ struct PagedListTests {
     #expect(list.lastUpdated == nil)
   }
 
+  @Test func aListLoadedKeptOnFailureShowsNothingKeptUntilItsReadFails() async throws {
+    let first = try OutboxWorld()
+    try await first.load()
+    await PagedList<DiveListItem>(session: first.session, cache: .dives) { client, page, perPage in
+      try await client.dives(page: page, itemsPerPage: perPage)
+    }.load()
+    let world = try first.relaunched()
+    let gate = Gate()
+    let list = PagedList<DiveListItem>(session: world.session, cache: .dives) { _, _, _ in
+      await gate.pass()
+      throw URLError(.timedOut)
+    }
+    let load = Task { await list.loadKeptOnFailure() }
+    await gate.untilArrived()
+    #expect(list.phase == .loading)
+    #expect(list.items.isEmpty)
+    await gate.open()
+    await load.value
+    #expect(list.phase == .loaded)
+    #expect(!list.items.isEmpty)
+    #expect(list.lastUpdated != nil)
+    #expect(list.pageError != nil)
+  }
+
   @Test func aRefreshCancelledWhileTheAccountReloadsIsNoFailure() async throws {
     let transport = HangingAccount(inner: try transport())
     let list = trips(Session.stub(transport: transport))

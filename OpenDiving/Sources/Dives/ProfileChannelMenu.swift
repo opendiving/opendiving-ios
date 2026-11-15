@@ -26,6 +26,7 @@ struct ProfileChannelMenu: View {
     } label: {
       Image(systemName: "slider.horizontal.3")
         .frame(minWidth: 44, minHeight: 44)
+        .accentRow()
     }
     .menuActionDismissBehavior(.disabled)
     .accessibilityLabel(chart.events.isEmpty ? "Channels" : "Channels and markers")

@@ -197,7 +197,11 @@ struct PendingScreen: View {
         ForEach(inbox.files) { file in
           let stage = inbox.stage(of: file)
           VStack(alignment: .leading, spacing: 2) {
-            Label(file.filename, systemImage: "doc")
+            Label {
+              Text(file.filename)
+            } icon: {
+              Image(systemName: "doc").accentRow()
+            }
             Text(PendingText.fileStage(stage))
               .font(.caption)
               .foregroundStyle(stage.isRefused ? Color.danger : Color.secondary)
@@ -226,7 +230,7 @@ struct PendingScreen: View {
       Section {
         ForEach(downloadRows) { row in
           VStack(alignment: .leading, spacing: 6) {
-            Label(row.title, icon: .diveComputer)
+            Label(row: row.title, icon: .diveComputer)
             Text(row.stage)
               .font(.caption)
               .foregroundStyle(row.refused ? Color.danger : Color.secondary)
