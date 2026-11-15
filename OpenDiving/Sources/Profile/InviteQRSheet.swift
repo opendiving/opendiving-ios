@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The profile's QR button's pane: the diver's invite link as a QR code to show, its reset and
-/// removal under it and the share in the corner, or the way to make one while there is none.
+/// removal under it and the share in the top bar, or the way to make one while there is none.
 struct InviteQRSheet: View {
   @Environment(Session.self) private var session
 
@@ -28,12 +28,14 @@ private struct InviteQRPane: View {
         .frame(maxWidth: .infinity)
         .padding()
       }
-      .bubbleRefreshable { await model.load() }
       .navigationTitle("Your invite link")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
+        ToolbarItem(placement: .topBarLeading) {
+          Button("Close", systemImage: "xmark") { dismiss() }
+        }
         if let address = model.linkAddress {
-          ToolbarItem(placement: .topBarLeading) {
+          ToolbarItem(placement: .topBarTrailing) {
             ShareLink(
               item: address, subject: Text(model.shareTitle),
               preview: SharePreview(model.shareTitle)
@@ -42,9 +44,6 @@ private struct InviteQRPane: View {
             }
           }
         }
-        ToolbarItem(placement: .topBarTrailing) {
-          Button("Close", systemImage: "xmark") { dismiss() }
-        }
       }
     }
     .task { await model.load() }
@@ -52,6 +51,10 @@ private struct InviteQRPane: View {
   }
 
   @ViewBuilder private var content: some View {
+    // Read again each time the pane opens; a read that fails leaves the phone's copy dated.
+    if let lastUpdated = model.lastUpdated, !model.list.isAbsent {
+      LastUpdatedLine(date: lastUpdated)
+    }
     if model.list.isAbsent {
       ContentUnavailableView {
         Label(SettingsSection.invitations.title, systemImage: "envelope.badge.person.crop")
@@ -76,9 +79,6 @@ private struct InviteQRPane: View {
         .foregroundStyle(.secondary)
       }
     } else if let address = model.linkAddress {
-      if let lastUpdated = model.lastUpdated {
-        LastUpdatedLine(date: lastUpdated)
-      }
       InviteQRCode(address: address.absoluteString, label: InvitationsModel.qrLabel)
       Text(InvitationsModel.linkLive)
         .font(.footnote)
@@ -89,6 +89,7 @@ private struct InviteQRPane: View {
         changeButton(.remove)
       }
       .controlSize(.large)
+      .confirmsInviteLinkChanges(model)
       failure
     } else {
       Text(InvitationsModel.linkNone)
@@ -130,7 +131,6 @@ private struct InviteQRPane: View {
     .brandBorderedButton(isRemoval ? .danger : .accentText)
     .disabled(model.isChangingLink)
     .needsServer()
-    .confirmsInviteLinkChange(change, model: model)
   }
 }
 

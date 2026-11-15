@@ -39,6 +39,7 @@ private struct InvitationsList: View {
           SendInvitationSection(model: model)
           SentInvitationsSection(model: model)
         }
+        .confirmsInviteLinkChanges(model)
       }
     }
     .task { await model.load() }
@@ -136,7 +137,6 @@ private struct InviteLinkSection: View {
     }
     .disabled(model.isChangingLink)
     .needsServer()
-    .confirmsInviteLinkChange(change, model: model)
   }
 }
 
