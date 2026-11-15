@@ -68,12 +68,13 @@ struct APIKeysSection: View {
           .foregroundStyle(.secondary)
       }
     }
+    // No destructive role on the swipe: the list would slide the row out before the dialog asks.
     .swipeActions {
-      revokeButton(key)
+      revokeButton(key, role: nil)
         .tint(.dangerFill)
     }
     .contextMenu {
-      revokeButton(key)
+      revokeButton(key, role: .destructive)
     }
     .rowConfirmation(APIKeysModel.revokeTitle, for: key, confirming: $confirmingRevoke) { key in
       Button(APIKeysModel.revokeButton, role: .destructive) {
@@ -84,8 +85,8 @@ struct APIKeysSection: View {
     }
   }
 
-  private func revokeButton(_ key: APIKeyRead) -> some View {
-    Button(APIKeysModel.revokeButton, systemImage: "trash", role: .destructive) {
+  private func revokeButton(_ key: APIKeyRead, role: ButtonRole?) -> some View {
+    Button(APIKeysModel.revokeButton, systemImage: "trash", role: role) {
       confirmingRevoke = key
     }
     .disabled(model.revoking != nil)
