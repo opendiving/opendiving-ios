@@ -479,4 +479,28 @@ struct DiveDetailContentTests {
   @Test func aLoneRecordingIsNotNumbered() throws {
     #expect(content(try dive("dive-detail")).recordings.map(\.name) == [nil])
   }
+
+  // MARK: - Tabs
+
+  @Test func eachTabHasSectionsWhileOneOfItsOwnIsThere() throws {
+    var page = content(try dive("dive-two-recordings"))
+    #expect(DiveDetailContent.Tab.allCases.allSatisfy { page.hasSections(in: $0) })
+    page.environment = []
+    page.notes = nil
+    page.people = []
+    page.course = nil
+    #expect(page.hasSections(in: .info))
+    page.location = nil
+    #expect(!page.hasSections(in: .info))
+    page.profile = nil
+    page.tanks = nil
+    page.gasConsumption = nil
+    page.exposure = nil
+    #expect(page.hasSections(in: .data))
+    page.recordings = []
+    #expect(!page.hasSections(in: .data))
+    page.gear = nil
+    page.sightings = []
+    #expect(!page.hasSections(in: .gear) && !page.hasSections(in: .marineLife))
+  }
 }
