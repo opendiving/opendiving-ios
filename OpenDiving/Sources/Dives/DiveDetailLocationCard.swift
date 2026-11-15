@@ -47,9 +47,12 @@ struct DiveDetailLocationCard: View {
               NavigationLink {
                 SiteMapView(siteUUID: site.id)
               } label: {
-                placeLabel(site.name, detail: site.location, icon: .diveSite)
+                placeLabel(
+                  site.name, detail: site.location, icon: .diveSite,
+                  iconColor: site.mark?.color ?? Color.secondary)
               }
               .accentRow()
+              .accessibilityValue(site.mark?.label ?? "")
             }
           }
         }
@@ -72,16 +75,20 @@ struct DiveDetailLocationCard: View {
     }
   }
 
-  /// A name over its place, led by an icon level with the name.
-  private func placeLabel(_ name: String, detail: String?, icon: Icon) -> some View {
+  /// A name over its place, led by an icon level with the name. Only the name takes a link's
+  /// accent; the place stays grey, as on a person's row, and so does the icon unless a site's
+  /// mark colours it as on the sites map.
+  private func placeLabel(
+    _ name: String, detail: String?, icon: Icon, iconColor: Color = .secondary
+  ) -> some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
       Image(icon)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(iconColor)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(name).fontWeight(.medium)
         if let detail {
-          Text(detail).foregroundStyle(.secondary)
+          Text(detail).foregroundStyle(Color.secondary)
         }
       }
       .multilineTextAlignment(.leading)

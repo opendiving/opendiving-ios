@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One dive's page, pushed from any list of dive cards: the hero, then the main column's
-/// cards and the sidebar's, stacked in the web's order. The pager in the navigation bar
+/// One dive's page, pushed from any list of dive cards: the hero, then its cards in four tabs —
+/// Info, Data, Gear and Marine life. The pager in the navigation bar
 /// steps to the dive before or after in place. A dive the phone has opened before shows at
 /// once from its copy, under when that was fetched, and an edit waiting to sync is marked.
 struct DiveDetailView: View {
@@ -122,57 +122,98 @@ private struct DiveDetailPage: View {
   let hasPendingEdit: Bool
   let speciesPhoto: (UUID, String) async -> Data?
 
+  /// Kept while the pager steps, so the next dive opens on the tab this one was read on.
+  @State private var tab = DiveDetailContent.Tab.info
+  @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
+  @State private var tabsBottom: CGFloat = 0
+  @State private var visibleHeight: CGFloat = 0
+
+  /// The stack's gap under the tabs and the page's foot.
+  private static let emptyGaps: CGFloat = 12 + 16
+  /// What a message keeps where the head leaves less of the screen.
+  private static let emptyMinHeight: CGFloat = 240
+
   var body: some View {
     ScrollView {
       VStack(spacing: 12) {
         HeroView(content: content.hero, detailsOnGlass: true)
+        if lastUpdated != nil || hasPendingEdit {
+          VStack(spacing: 12) {
+            if let lastUpdated {
+              LastUpdatedLine(date: lastUpdated)
+            }
+            if hasPendingEdit {
+              PendingEditLine()
+            }
+          }
+          .padding(.horizontal)
+        }
+        SectionTabs(
+          selection: $tab,
+          title: { tab in
+            tab == .marineLife
+              ? DiveSiteSummary.counted(tab.title, content.sightings.count) : tab.title
+          },
+          onReselect: { withAnimation { scroll.scroll(to: reselect) } }
+        )
+        .readsTabsTop($tabsTop)
+        .onGeometryChange(for: CGFloat.self) {
+          $0.frame(in: .pageContent).maxY
+        } action: {
+          tabsBottom = $0
+        }
         VStack(spacing: 12) {
-          if let lastUpdated {
-            LastUpdatedLine(date: lastUpdated)
+          if content.hasSections(in: tab) {
+            switch tab {
+            case .info: info
+            case .data: data
+            case .gear:
+              if let gear = content.gear {
+                DiveDetailGearCard(gear: gear)
+              }
+            case .marineLife:
+              DiveDetailSpeciesCard(sightings: content.sightings, photo: speciesPhoto)
+            }
+          } else {
+            // In the middle of what the screen shows under the tabs, at their place at rest.
+            EmptyOrErrorView(status: Self.empty(tab))
+              .frame(height: max(Self.emptyMinHeight, visibleHeight - tabsBottom - Self.emptyGaps))
           }
-          if hasPendingEdit {
-            PendingEditLine()
-          }
-          mainColumn
-          sidebar
         }
         .padding(.horizontal)
-        .padding(.bottom)
       }
+      .coordinateSpace(.pageContent)
+      .padding(.bottom)
     }
+    .scrollPosition($scroll)
+    // The height less the insets, whose top is the content's at rest.
+    .onScrollGeometryChange(for: CGFloat.self) {
+      $0.containerSize.height
+    } action: {
+      visibleHeight = $1
+    }
+    .tabsReselect($reselect, tabsTop: tabsTop)
     .heroUnderTopBar()
     .background(Color.pageBackground)
   }
 
-  @ViewBuilder private var mainColumn: some View {
-    if let profile = content.profile {
-      DiveDetailProfileCard(diveUUID: diveUUID, profile: profile, fromCopy: fromCopy)
-    }
-    if let tanks = content.tanks {
-      DiveDetailTanksCard(tanks: tanks)
-    }
-    if let gas = content.gasConsumption {
-      DiveDetailGasCard(gas: gas)
-    }
-    if let exposure = content.exposure {
-      DiveDetailExposureCard(exposure: exposure)
-    }
-    if let gear = content.gear {
-      DiveDetailGearCard(gear: gear)
-    }
-    if !content.sightings.isEmpty {
-      DiveDetailSpeciesCard(sightings: content.sightings, photo: speciesPhoto)
-    }
-    if let notes = content.notes {
-      SectionCard(title: "Notes", icon: .fileText) {
-        Text(notes)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
+  private static func empty(_ tab: DiveDetailContent.Tab) -> ContentStatus {
+    switch tab {
+    case .info: .empty(icon: .fileText, title: "Nothing else logged", message: nil)
+    case .data: .empty(icon: .chartLine, title: "No profile or tanks logged", message: nil)
+    case .gear: .empty(icon: .backpack, title: "No gear logged", message: nil)
+    case .marineLife: .empty(icon: .fish, title: "No marine life logged", message: nil)
     }
   }
 
-  @ViewBuilder private var sidebar: some View {
+  @ViewBuilder private var info: some View {
+    if !content.environment.isEmpty {
+      SectionCard(title: "Environment", icon: .cloudSun) {
+        FiguresRow(figures: content.environment)
+      }
+    }
     if let course = content.course {
       SectionCard(title: "Training", icon: .graduationCap) {
         InfoRow(label: "Course") {
@@ -201,10 +242,27 @@ private struct DiveDetailPage: View {
         }
       }
     }
-    if !content.environment.isEmpty {
-      SectionCard(title: "Environment", icon: .cloudSun) {
-        FiguresRow(figures: content.environment)
+    if let notes = content.notes {
+      SectionCard(title: "Notes", icon: .fileText) {
+        Text(notes)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
       }
+    }
+  }
+
+  @ViewBuilder private var data: some View {
+    if let profile = content.profile {
+      DiveDetailProfileCard(diveUUID: diveUUID, profile: profile, fromCopy: fromCopy)
+    }
+    if let tanks = content.tanks {
+      DiveDetailTanksCard(tanks: tanks)
+    }
+    if let gas = content.gasConsumption {
+      DiveDetailGasCard(gas: gas)
+    }
+    if let exposure = content.exposure {
+      DiveDetailExposureCard(exposure: exposure)
     }
     if !content.recordings.isEmpty {
       DiveDetailRecordingsCard(recordings: content.recordings)

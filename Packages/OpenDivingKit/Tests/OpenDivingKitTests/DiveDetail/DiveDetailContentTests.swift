@@ -407,11 +407,26 @@ struct DiveDetailContentTests {
     #expect(location.sitesLabel == "Dive site")
     #expect(location.sites.map(\.name) == ["Blue Hole"])
     #expect(location.sites.map(\.location) == ["Dahab, South Sinai, Egypt"])
+    #expect(location.sites.map(\.mark) == [.commons])
     #expect(location.entry == "28.420546, 34.457623")
     #expect(location.exit == "28.420563, 34.457658")
     #expect(location.drift == "4 m")
     #expect(location.entryType == "Boat")
     #expect(location.boatName == "Legend")
+  }
+
+  @Test func aSitesMarkIsUnknownWithoutItsOwner() throws {
+    let site: [String: Any] = [
+      "uuid": "01a20000-0000-7000-8000-0000000000a1", "name": "Blue Hole", "latitude": 28.5,
+      "longitude": 34.5,
+    ]
+    var proposed = site
+    proposed["uuid"] = "01a20000-0000-7000-8000-0000000000a2"
+    proposed["owner"] = "account"
+    proposed["proposal_status"] = "waiting"
+    let page = content(try dive("dive-two-recordings", ["dive_sites": [site, proposed]]))
+    let marks = try #require(page.location).sites.map(\.mark)
+    #expect(marks == [nil, .proposed])
   }
 
   @Test func locationRendersForAFixAlone() throws {
@@ -478,5 +493,29 @@ struct DiveDetailContentTests {
 
   @Test func aLoneRecordingIsNotNumbered() throws {
     #expect(content(try dive("dive-detail")).recordings.map(\.name) == [nil])
+  }
+
+  // MARK: - Tabs
+
+  @Test func eachTabHasSectionsWhileOneOfItsOwnIsThere() throws {
+    var page = content(try dive("dive-two-recordings"))
+    #expect(DiveDetailContent.Tab.allCases.allSatisfy { page.hasSections(in: $0) })
+    page.environment = []
+    page.notes = nil
+    page.people = []
+    page.course = nil
+    #expect(page.hasSections(in: .info))
+    page.location = nil
+    #expect(!page.hasSections(in: .info))
+    page.profile = nil
+    page.tanks = nil
+    page.gasConsumption = nil
+    page.exposure = nil
+    #expect(page.hasSections(in: .data))
+    page.recordings = []
+    #expect(!page.hasSections(in: .data))
+    page.gear = nil
+    page.sightings = []
+    #expect(!page.hasSections(in: .gear) && !page.hasSections(in: .marineLife))
   }
 }
