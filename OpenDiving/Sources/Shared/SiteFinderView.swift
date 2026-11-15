@@ -139,7 +139,6 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       .onChange(of: [shown.width, shown.height], initial: true) {
         model.viewport = shown
       }
-      TopBarBlur()
       HStack(alignment: .bottom) {
         MapCredit(credit: style.credit)
         Spacer()
