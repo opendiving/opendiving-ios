@@ -87,13 +87,14 @@ struct SignedInDevicesSection: View {
         if model.signingOut == device.uuid {
           BubbleSpinner()
         } else {
-          Button(role: .destructive) {
+          // No destructive role here: it draws the icon red over any tint. The confirmation's
+          // button carries it, and the tint keeps the icon dimming while disabled.
+          Button {
             model.confirmingSignOut = device
           } label: {
             Image(systemName: "rectangle.portrait.and.arrow.right")
-              // `Color`, not `.primary`: the hierarchical style resolves to the destructive role's red.
-              .foregroundStyle(Color.primary)
           }
+          .tint(Color.primary)
           .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")
           .buttonStyle(.borderless)
           .disabled(model.isBusy)
