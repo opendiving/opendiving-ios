@@ -101,6 +101,21 @@ swift format --in-place --recursive .
 
 Warnings are errors in both the app and the Kit, so a build that prints one has failed.
 
+Check that no control is left in the default tint:
+
+```bash
+scripts/default-tint.sh
+```
+
+It catches the common cases, not every one. Anything left in the default tint changes colour only
+when the phone's Increase Contrast is on, so look at a screen you changed with it switched on in the
+simulator, in both appearances:
+
+```bash
+xcrun simctl ui "$(scripts/simulator.sh)" increase_contrast enabled
+xcrun simctl ui "$(scripts/simulator.sh)" appearance dark
+```
+
 ## Running on your iPhone
 
 A free Apple Account is enough to put the app on your own phone; no developer program membership.

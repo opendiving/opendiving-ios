@@ -16,7 +16,7 @@ struct AddServerScreen: View {
       // What the *Forget* below did, as the servers screen shows it.
       if let notice = flow.notice {
         Section {
-          Label(notice, systemImage: "info.circle")
+          NoticeRow(notice: notice)
         }
       }
       if let origin = flow.signingOut {

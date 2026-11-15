@@ -155,7 +155,7 @@ private struct CourseCertificationsSection: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
           Button("Try again") { Task { await list.load() } }
-            .buttonStyle(.bordered)
+            .brandBorderedButton()
         }
       // The web leaves a list it could not read empty, which invites the first card.
       case .failed:
@@ -227,6 +227,7 @@ private struct CourseInformationCard: View {
           InfoRow(label: "Instructor") {
             if let uuid = instructor.uuid {
               NavigationLink(instructor.name) { PersonDetailView(personUUID: uuid) }
+                .accentRow()
             } else {
               Text(instructor.name)
             }
@@ -261,7 +262,7 @@ private struct CourseInformationCard: View {
             Label("Add a certification", icon: .badgeCheck)
               .frame(maxWidth: .infinity)
           }
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
         }
       }
     }

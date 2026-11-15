@@ -41,7 +41,7 @@ struct CopyField: View {
         Label(
           showsCopied ? copied : "Copy", systemImage: showsCopied ? "checkmark" : "doc.on.doc")
       }
-      .buttonStyle(.bordered)
+      .brandBorderedButton()
       .contentTransition(.opacity)
       .sensoryFeedback(.success, trigger: copies)
     }

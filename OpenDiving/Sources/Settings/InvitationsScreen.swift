@@ -253,9 +253,8 @@ private struct SentInvitationsSection: View {
         Button(role: .destructive) {
           model.confirmingRevoke = invitation
         } label: {
-          Image(systemName: "trash")
+          Image(systemName: "trash").dangerRow()
         }
-        .tint(Color.danger)
         .accessibilityLabel("Revoke the invitation to \(invitation.email ?? "")")
         .buttonStyle(.borderless)
         .disabled(model.revoking != nil)

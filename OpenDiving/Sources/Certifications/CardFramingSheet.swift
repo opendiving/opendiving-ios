@@ -47,6 +47,7 @@ struct CardFramingSheet: View {
           ) {
             Text("Zoom")
           }
+          .tint(Color.accentText)
         }
         Spacer()
       }

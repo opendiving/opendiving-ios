@@ -15,7 +15,7 @@ struct LoadMoreFooter: View {
         BubbleSpinner()
       } else if failed {
         Button("Try again", action: retry)
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     }
     .frame(maxWidth: .infinity)

@@ -48,7 +48,7 @@ struct DiveProfileChartView: View {
       VStack(alignment: .leading, spacing: 8) {
         note(message)
         Button("Try again") { attempt += 1 }
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
           .controlSize(.small)
       }
     }

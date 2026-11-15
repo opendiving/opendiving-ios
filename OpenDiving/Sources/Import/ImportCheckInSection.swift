@@ -44,7 +44,7 @@ struct ImportCheckInSection: View {
       Button(kept ? "Use the import's" : mine == nil ? "Leave unset" : "Keep mine") {
         if kept { choices.kept.remove(detail.key) } else { choices.kept.insert(detail.key) }
       }
-      .buttonStyle(.bordered)
+      .brandBorderedButton()
       .controlSize(.small)
     }
   }
@@ -75,7 +75,7 @@ struct ImportCheckInSection: View {
       Button(kept ? "Use the import's" : mine ? "Keep mine" : "Leave unset") {
         choices.portraitKept.toggle()
       }
-      .buttonStyle(.bordered)
+      .brandBorderedButton()
       .controlSize(.small)
     }
   }

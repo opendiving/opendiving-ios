@@ -182,6 +182,7 @@ private struct DiveDetailPage: View {
             } label: {
               Label(course.title, icon: .graduationCap)
             }
+            .accentRow()
           } else {
             Label(course.title, icon: .graduationCap)
           }
