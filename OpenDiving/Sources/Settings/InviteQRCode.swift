@@ -29,8 +29,9 @@ struct InviteQRCode: View {
     .frame(maxWidth: 256)
   }
 
-  /// The layout of the address's symbol at correction level M, which keeps the flagship's invite
-  /// links at version 5, and still recovers the modules the mark leaves out.
+  /// The layout of the address's symbol at correction level Q, which recovers the modules the
+  /// mark leaves out with room to spare and keeps the flagship's invite links below version 7,
+  /// where the mark has no room.
   nonisolated static func layout(_ text: String) -> InviteQRLayout? {
     matrix(text).flatMap(InviteQRLayout.init(matrix:))
   }
@@ -40,7 +41,7 @@ struct InviteQRCode: View {
   nonisolated static func matrix(_ text: String) -> [[Bool]]? {
     let filter = CIFilter.qrCodeGenerator()
     filter.message = Data(text.utf8)
-    filter.correctionLevel = "M"
+    filter.correctionLevel = "Q"
     guard let output = filter.outputImage,
       let image = CIContext().createCGImage(output, from: output.extent)
     else { return nil }
@@ -191,6 +192,6 @@ struct InviteQRSymbol: View {
 
 #Preview {
   InviteQRCode(
-    address: "https://opendiving.app/join?via=q7Zr2LmW-exampleInviteTokenNot_Real01234567",
+    address: "https://opendiving.app/join?via=dd61596d15ae703e0aa5a28b92586efd",
     label: "QR code of your invite link")
 }

@@ -9,12 +9,12 @@ import Testing
 /// address the screen shows.
 @MainActor
 struct InviteQRCodeTests {
-  /// A flagship invite: the token is 43 base64url characters, which puts the symbol at version 5.
-  static let flagshipToken = "q7Zr2LmW-exampleInviteTokenNot_Real01234567"
+  /// A flagship invite: the token is 32 hex characters, which puts the symbol at version 6.
+  static let flagshipToken = "dd61596d15ae703e0aa5a28b92586efd"
 
-  @Test func aFlagshipInviteIsVersionFiveWithTheMark() throws {
+  @Test func aFlagshipInviteIsVersionSixWithTheMark() throws {
     let layout = try #require(InviteQRCode.layout(Self.address(on: "https://opendiving.app")))
-    #expect(layout.size == 37)
+    #expect(layout.size == 41)
     #expect(layout.mark != nil)
   }
 
