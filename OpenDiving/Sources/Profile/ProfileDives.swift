@@ -1,14 +1,17 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The profile's *Dives*: what is waiting to sync, then the logbook, newest first as the server
-/// orders it, a page at a time — the pages the phone has shown first, from its copy.
+/// The profile's *Dives*: the buttons that log a dive and import files, what is waiting to sync,
+/// then the logbook, newest first as the server orders it, a page at a time — the pages the phone
+/// has shown first, from its copy.
 struct ProfileDives: View {
   let list: PagedList<DiveListItem>
   let units: UnitSystem
 
   var body: some View {
     LazyVStack(spacing: 12) {
+      // However the list stands: a dive logged offline waits to sync like any other.
+      AddDivesButtons()
       // What is waiting to sync shows however the list stands: offline with nothing kept, the
       // first page is a minute away.
       PendingSection()
@@ -25,7 +28,7 @@ struct ProfileDives: View {
           status: .empty(
             icon: .dive, title: "No dives logged yet",
             message:
-              "No dives yet. Log one or import your dive computer's files with +, or download "
+              "No dives yet. Log one or import your dive computer's files above, or download "
               + "them from the dive computer with the button on the left."
           )
         )
@@ -45,6 +48,30 @@ struct ProfileDives: View {
         LoadMoreFooter(list: list)
       }
     }
+  }
+}
+
+/// *Log a dive* and *Import files* side by side, the ways into the logbook the top bar's `+` also
+/// offers.
+private struct AddDivesButtons: View {
+  var body: some View {
+    HStack(spacing: 12) {
+      NavigationLink {
+        DiveFormView(mode: .create)
+      } label: {
+        Label("Log a dive", icon: .dive)
+          .frame(maxWidth: .infinity)
+      }
+      .brandProminentButton()
+      NavigationLink {
+        ImportView()
+      } label: {
+        Label("Import files", icon: .upload)
+          .frame(maxWidth: .infinity)
+      }
+      .brandBorderedButton()
+    }
+    .controlSize(.large)
   }
 }
 
