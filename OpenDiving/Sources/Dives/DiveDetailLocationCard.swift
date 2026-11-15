@@ -72,16 +72,17 @@ struct DiveDetailLocationCard: View {
     }
   }
 
-  /// A name over its place, led by an icon level with the name.
+  /// A name over its place, led by an icon level with the name. Only the name takes a link's
+  /// accent; the icon and the place stay grey, as on a person's row.
   private func placeLabel(_ name: String, detail: String?, icon: Icon) -> some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
       Image(icon)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color.secondary)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(name).fontWeight(.medium)
         if let detail {
-          Text(detail).foregroundStyle(.secondary)
+          Text(detail).foregroundStyle(Color.secondary)
         }
       }
       .multilineTextAlignment(.leading)

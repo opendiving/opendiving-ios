@@ -15,11 +15,11 @@ struct PersonRowView: View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           if let uuid = content.uuid {
             NavigationLink(content.name) { PersonDetailView(personUUID: uuid) }
-              .font(.body.weight(.medium))
+              .fontWeight(.medium)
               .accentRow()
           } else {
             Text(content.name)
-              .font(.body.weight(.medium))
+              .fontWeight(.medium)
           }
           if let username = content.username {
             Text("@\(username)")
@@ -28,11 +28,12 @@ struct PersonRowView: View {
         }
         if let role = content.role {
           Text(role)
-            .font(.caption)
             .foregroundStyle(.secondary)
         }
       }
     }
+    // A dive's location card draws its places in the same size and colours.
+    .font(.subheadline)
     .accessibilityElement(children: .combine)
   }
 }
