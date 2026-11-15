@@ -2,8 +2,8 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// The trip's card, hero and information card over the `trip` fixture, as the web's
-/// `tripFacts`, `tripFigures` and trip page print them.
+/// The trip's card, hero and *Info* tab over the `trip` fixture, as the web's `tripFacts`,
+/// `tripFigures` and trip page print them.
 struct TripSummaryTests {
   static func trip(_ changes: [String: Any] = [:]) throws -> TripRead {
     var object = try #require(
@@ -111,7 +111,7 @@ struct TripSummaryTests {
     #expect(headings[2].title == "No place recorded")
   }
 
-  @Test func theInformationCardNamesTheContactsItCanRead() throws {
+  @Test func theInfoTabNamesTheContactsItCanRead() throws {
     let trip = try Self.trip(["parts": parts, "contact_uuids": [centre, missing, hotel]])
     let contacts = Dictionary(
       uniqueKeysWithValues: try [
