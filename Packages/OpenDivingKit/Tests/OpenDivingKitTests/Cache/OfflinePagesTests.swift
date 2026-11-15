@@ -74,7 +74,7 @@ struct OfflinePagesTests {
       switch request.route {
       case siteRoute: .json(site)
       case tripRoute: .json(trip)
-      case "GET user/species": .json(species)
+      case tripRoute + "/species", "GET user/species": .json(species)
       case "GET contact/\(contactUUID)": .json(contact)
       default: nil
       }

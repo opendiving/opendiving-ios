@@ -208,7 +208,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     do {
       let client = try session.routedClient()
       let entries = try await APIClient.allPages { page, itemsPerPage in
-        try await client.speciesLifeList(tripUUID: tripUUID, page: page, itemsPerPage: itemsPerPage)
+        try await client.tripSpecies(tripUUID, page: page, itemsPerPage: itemsPerPage)
       }
       species = .loaded(entries)
       if case .loaded(let shown) = phase, fetchedAt == nil { keep(shown, fetchedUnder: stores) }

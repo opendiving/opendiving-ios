@@ -57,7 +57,7 @@ struct DetailModelTests {
     #expect(query(list, "items_per_page") == "100")
     // The fixture's trip counts no species, so none are asked for.
     #expect(model.species == .none)
-    #expect(!transport.requests.contains { StubTransport.routeKey($0) == "GET user/species" })
+    #expect(!transport.requests.contains { StubTransport.routeKey($0).hasSuffix("/species") })
   }
 
   @Test func aTripReadsTheSpeciesSeenOnItsDivesWithTheirPhotos() async throws {
@@ -70,7 +70,7 @@ struct DetailModelTests {
       case "GET trip/\(tripUUID.uuidString.lowercased())": return .json(trip)
       case "GET dives":
         return .json(#"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":100}"#)
-      case "GET user/species": return .json(species)
+      case "GET trip/\(tripUUID.uuidString.lowercased())/species": return .json(species)
       default:
         if route.hasSuffix("/photo") { return StubTransport.Response(body: Data([1, 2, 3])) }
         return .json(#"{"detail":"Not Found"}"#, status: 404)
@@ -84,10 +84,7 @@ struct DetailModelTests {
       return
     }
     #expect(entries.count == 2)
-    let read = try #require(
-      transport.requests.first { StubTransport.routeKey($0) == "GET user/species" })
-    #expect(query(read, "trip_uuid") == tripUUID.uuidString.lowercased())
-    #expect(query(read, "dive_site_uuid") == nil)
+    #expect(!transport.requests.contains { StubTransport.routeKey($0) == "GET user/species" })
 
     await model.photos.load(entries[0])
     #expect(model.photos[entries[0].uuid] == Data([1, 2, 3]))
