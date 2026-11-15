@@ -96,23 +96,14 @@ struct DiveComputerScreen: View {
     if !model.paired.isEmpty {
       Section {
         ForEach(model.paired) { paired in
-          Button {
+          NavigationRow {
             showing = paired.record
           } label: {
-            HStack {
-              VStack(alignment: .leading, spacing: 2) {
-                Text(paired.title).foregroundStyle(.primary)
-                Text(model.status(paired.record)).font(.caption).foregroundStyle(.secondary)
-              }
-              Spacer(minLength: 0)
-              Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+              Text(paired.title).foregroundStyle(.primary)
+              Text(model.status(paired.record)).font(.caption).foregroundStyle(.secondary)
             }
-            .contentShape(Rectangle())
           }
-          .buttonStyle(PairedRowButtonStyle())
         }
         .onMove(
           perform: model.canReorder
@@ -240,14 +231,6 @@ private struct OrderQuestionSection: View {
       Text(DiveComputerText.orderQuestionDetail)
     }
     .disabled(model.answeringOrder)
-  }
-}
-
-/// A paired computer's row, which dims on a press and otherwise keeps the label's own colours,
-/// where the default style would tint its title as a button's.
-private struct PairedRowButtonStyle: ButtonStyle {
-  func makeBody(configuration: Configuration) -> some View {
-    configuration.label.opacity(configuration.isPressed ? 0.5 : 1)
   }
 }
 

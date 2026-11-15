@@ -5,6 +5,8 @@ import SwiftUI
 /// on its row, and each opening a page of its own with its permissions and its revocation.
 struct APIKeysSection: View {
   let model: APIKeysModel
+  /// The key whose page is open, held by the screen that pushes it.
+  @Binding var opened: APIKeyRead?
   /// Its own, not the model's ``APIKeysModel/confirmingRevoke``, which the key's page presents
   /// from while this row sits under it in the stack.
   @State private var confirmingRevoke: APIKeyRead?
@@ -49,8 +51,8 @@ struct APIKeysSection: View {
   }
 
   private func row(_ key: APIKeyRead) -> some View {
-    NavigationLink {
-      APIKeyScreen(model: model, key: key)
+    NavigationRow {
+      opened = key
     } label: {
       VStack(alignment: .leading, spacing: 4) {
         FlowLayout(spacing: 6) {
@@ -223,7 +225,7 @@ private struct NewSecretRow: View {
 #Preview {
   @Previewable @State var model = APIKeysModel(session: AuthenticationPreviewData.session)
   List {
-    APIKeysSection(model: model)
+    APIKeysSection(model: model, opened: .constant(nil))
   }
   .task { await model.list.load() }
   .environment(AuthenticationPreviewData.session)
