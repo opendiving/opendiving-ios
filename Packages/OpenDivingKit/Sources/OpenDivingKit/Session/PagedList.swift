@@ -8,9 +8,9 @@ import Observation
 /// Given a cache key, the pages it loads are kept for the account, and on appear the kept
 /// pages show at once while page 1 is fetched behind them; a fetch that fails leaves them
 /// standing, under ``lastUpdated``. Nothing waits for a request to fail before showing what the
-/// phone has, since a request waits a minute for a route. A page is written only once the
-/// account has loaded in this process, so another account's answer never lands in the
-/// previous one's cache.
+/// phone has, since a request waits a minute for a route — except a list loaded behind another
+/// still on screen, ``loadKeptOnFailure()``. A page is written only once the account has loaded
+/// in this process, so another account's answer never lands in the previous one's cache.
 ///
 /// A list that has loaded fetches every page it shows again, behind the items shown, when the
 /// account's records change under it — an import applied, a queued write landed — rather than
