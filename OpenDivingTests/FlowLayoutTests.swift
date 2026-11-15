@@ -12,8 +12,8 @@ struct FlowLayoutTests {
   }
 
   /// Placed in bounds exactly as wide as it measured, a line that ends on a separated child keeps
-  /// that child: these widths sum a hair wider in one order than the other, which once wrapped
-  /// the last child under the height the layout had reported, over whatever came next.
+  /// that child, inside the height the layout reported: these widths sum a hair wider in one
+  /// order than the other.
   @Test func placesItsChildrenOnTheLinesItMeasured() throws {
     let scene = try #require(
       UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
