@@ -313,7 +313,7 @@ struct SiteFinderMap: UIViewRepresentable {
       if holdsMiddle, !isGliding, let camera {
         furthest = max(furthest, MapCamera.zoomHolding(latitude: camera.latitude, height: height))
       }
-      if map.minimumZoomLevel != furthest { map.minimumZoomLevel = furthest }
+      map.zoomOutNoFurtherThan(furthest)
     }
 
     /// MapLibre keeps a zoom on the held middle only while two fingers pinch: a pinch left with one

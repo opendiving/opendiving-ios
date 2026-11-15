@@ -26,8 +26,7 @@ struct MapLibreView: UIViewRepresentable {
     // Its height is what keeps the world over the map, however far out it zooms.
     map.onLayout = { [weak map] in
       guard let map else { return }
-      let furthest = MapCamera.furthestZoom(height: Double(map.bounds.height))
-      if map.minimumZoomLevel != furthest { map.minimumZoomLevel = furthest }
+      map.zoomOutNoFurtherThan(MapCamera.furthestZoom(height: Double(map.bounds.height)))
     }
     map.delegate = context.coordinator
     map.isRotateEnabled = false
