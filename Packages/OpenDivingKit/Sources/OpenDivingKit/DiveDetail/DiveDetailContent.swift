@@ -164,6 +164,8 @@ public struct DiveDetailContent: Hashable, Sendable {
       public var id: UUID
       public var name: String
       public var location: String?
+      /// What colours the site's icon, as on the sites map; nil where it is not known.
+      public var mark: DiveSiteMark?
     }
   }
 

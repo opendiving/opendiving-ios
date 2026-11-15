@@ -320,7 +320,7 @@ extension DiveDetailContent {
       sites: dive.diveSites.map {
         Location.Site(
           id: $0.ref.uuid, name: $0.name,
-          location: $0.location.flatMap { $0.name.isEmpty ? nil : $0.name })
+          location: $0.location.flatMap { $0.name.isEmpty ? nil : $0.name }, mark: $0.mark)
       },
       entry: entry,
       exit: exit,
