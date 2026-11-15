@@ -212,6 +212,32 @@ struct OfflinePagesTests {
     #expect(world.server.sent.count == mark)
   }
 
+  @Test func aSpeciesPhotoMissedOfflineIsAskedForOnceARouteAppears() async throws {
+    let first = try world()
+    try await first.load()
+    await TripDetailModel(session: first.session, tripUUID: tripUUID).load()
+
+    let route = RouteSwitch()
+    let world = try first.relaunched(connectivity: route)
+    world.server.override { request, _ in
+      request.route.hasSuffix("/photo") ? StubTransport.Response(body: Data([1, 2, 3])) : nil
+    }
+    let model = TripDetailModel(session: world.session, tripUUID: tripUUID)
+    await model.load()
+    guard case .loaded(let entries) = model.species,
+      let entry = entries.first(where: { $0.photoSha256 != nil })
+    else {
+      Issue.record("no species with a photo: \(model.species)")
+      return
+    }
+    await model.photos.load(entry)
+    #expect(model.photos[entry.uuid] == nil)
+
+    route.isRouteAvailable = true
+    await model.photos.load(entry)
+    #expect(model.photos[entry.uuid] == Data([1, 2, 3]))
+  }
+
   @Test func aKeptTripsAgeShowsOnlyOnceItsReadFails() async throws {
     let first = try world()
     try await first.load()
