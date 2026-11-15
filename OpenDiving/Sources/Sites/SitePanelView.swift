@@ -179,7 +179,7 @@ private struct PanelMessage: View {
         .foregroundStyle(.secondary)
       if let retry {
         Button("Try again", action: retry)
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)

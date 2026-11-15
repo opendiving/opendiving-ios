@@ -37,6 +37,7 @@ struct ProfileChartPlot: View {
             Image(.zoomOut)
               .frame(minWidth: 44, minHeight: 44)
           }
+          .accentRow()
           .accessibilityLabel("Zoom out")
         }
         ProfileChannelMenu(chart: chart, hidden: $hidden, markersHidden: $markersHidden)

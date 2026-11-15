@@ -113,7 +113,7 @@ private struct TripDives: View {
         .font(.subheadline)
         .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     case .loaded where trip.parts.isEmpty && list.items.isEmpty:
       EmptyOrErrorView(

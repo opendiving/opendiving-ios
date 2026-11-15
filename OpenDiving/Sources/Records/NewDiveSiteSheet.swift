@@ -277,6 +277,7 @@ private struct DiveSiteSheetForm: View {
         }
         .pickerStyle(.inline)
         .labelsHidden()
+        .tint(Color.accentText)
       } header: {
         visibilityHeader
       } footer: {

@@ -26,6 +26,7 @@ struct DiveDetailGearCard: View {
                 if let uuid = item.uuid {
                   NavigationLink(item.name) { GearItemDetailView(gearItemUUID: uuid) }
                     .fontWeight(.medium)
+                    .accentRow()
                 } else {
                   Text(item.name).fontWeight(.medium)
                 }

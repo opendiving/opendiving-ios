@@ -72,7 +72,7 @@ struct GearServiceCard: View {
         Label("Add schedule", systemImage: "plus")
           .font(.subheadline)
       }
-      .buttonStyle(.bordered)
+      .brandBorderedButton()
     }
   }
 
@@ -148,7 +148,9 @@ struct GearServiceCard: View {
         } label: {
           RowIcon(Image(systemName: "trash"), label: row.deleteLabel)
         }
+        .dangerRow()
       }
+      .accentRow()
       .buttonStyle(.borderless)
     }
     .padding(12)
@@ -169,7 +171,7 @@ struct GearServiceCard: View {
           Label("Log service", systemImage: "plus")
             .font(.subheadline)
         }
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
       }
       switch service.records.phase {
       case .idle, .loading:
@@ -219,7 +221,9 @@ struct GearServiceCard: View {
         } label: {
           RowIcon(Image(systemName: "trash"), label: row.deleteLabel)
         }
+        .dangerRow()
       }
+      .accentRow()
       .buttonStyle(.borderless)
     }
   }
@@ -230,7 +234,7 @@ struct GearServiceCard: View {
         .font(.subheadline)
         .foregroundStyle(.secondary)
       Button("Try again") { Task { await retry() } }
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
     }
   }
 

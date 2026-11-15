@@ -17,7 +17,7 @@ struct ProposalWithdrawButton: View {
         Text("Withdraw")
       }
     }
-    .buttonStyle(.bordered)
+    .brandBorderedButton()
     .disabled(withdrawal.withdrawing != nil)
   }
 }

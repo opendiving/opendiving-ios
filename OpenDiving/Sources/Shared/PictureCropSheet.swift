@@ -51,6 +51,7 @@ struct PictureCropSheet: View {
           ) {
             Text("Zoom")
           }
+          .tint(Color.accentText)
         }
         Spacer()
       }

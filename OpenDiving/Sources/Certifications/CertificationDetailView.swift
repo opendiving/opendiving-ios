@@ -127,8 +127,10 @@ private struct CertificationPage: View {
             switch row.link {
             case .course(let uuid):
               NavigationLink(row.value) { CourseDetailView(courseUUID: uuid) }
+                .accentRow()
             case .person(let uuid):
               NavigationLink(row.value) { PersonDetailView(personUUID: uuid) }
+                .accentRow()
             case nil:
               Text(row.value)
             }
@@ -164,7 +166,7 @@ private struct CertificationDownloadButton: View {
         Label("Download", systemImage: "arrow.down.to.line")
       }
     }
-    .buttonStyle(.bordered)
+    .brandBorderedButton()
     .disabled(preparing)
     .fileExporter(
       isPresented: Binding(get: { bytes != nil }, set: { if !$0 { bytes = nil } }),

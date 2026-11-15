@@ -49,7 +49,7 @@ struct DiveDetailProfileCard: View {
     if isShown {
       button.brandProminentButton()
     } else {
-      button.buttonStyle(.bordered)
+      button.brandBorderedButton()
     }
   }
 }

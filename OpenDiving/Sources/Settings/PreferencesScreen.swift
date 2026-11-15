@@ -34,6 +34,7 @@ private struct PreferencesList: View {
         }
         .pickerStyle(.inline)
         .labelsHidden()
+        .tint(Color.accentText)
         .disabled(model.write.isSaving)
         .needsServer()
       } header: {
@@ -124,9 +125,8 @@ private struct TagsSection: View {
         Button(role: .destructive) {
           model.confirmingDelete = tag
         } label: {
-          Image(systemName: "trash")
+          Image(systemName: "trash").dangerRow()
         }
-        .tint(Color.danger)
         .accessibilityLabel("Delete \u{201C}\(tag.name)\u{201D}")
         .rowConfirmation(
           TagsModel.deleteTitle, for: tag, confirming: Bindable(model).confirmingDelete

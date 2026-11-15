@@ -34,7 +34,7 @@ struct CodeScreen: View {
       }
       Section {
         if let message = flow.resendMessage {
-          Label(message, systemImage: "checkmark.circle")
+          NoticeRow(notice: message, systemImage: "checkmark.circle")
         }
         TimelineView(.periodic(from: .now, by: 1)) { context in
           Button(flow.resendLabel(at: context.date)) {

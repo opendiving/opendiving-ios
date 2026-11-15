@@ -76,9 +76,8 @@ struct APIKeysSection: View {
         Button(role: .destructive) {
           model.confirmingRevoke = key
         } label: {
-          Image(systemName: "trash")
+          Image(systemName: "trash").dangerRow()
         }
-        .tint(Color.danger)
         .accessibilityLabel("Revoke \u{201C}\(key.name)\u{201D}")
         .buttonStyle(.borderless)
         .disabled(model.revoking != nil)
@@ -144,7 +143,7 @@ private struct APIKeyForm: View {
         BubbleSpinner()
       }
       Button("Create key") { Task { await model.create() } }
-        .buttonStyle(.borderedProminent)
+        .brandProminentButton()
         .disabled(!model.canSubmit)
         .needsServer()
     }
@@ -169,8 +168,9 @@ private struct PermissionPicker: View {
       }
       Spacer()
       Button("Read only") { model.grantReadsOnly() }
+        .accentRow()
       Button("Select all") { model.grantAll() }
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
     }
     .buttonStyle(.borderless)
     .disabled(model.isSubmitting)
@@ -186,7 +186,7 @@ private struct PermissionPicker: View {
                 set: { model.grant(permission.scope, $0) })
             )
             .toggleStyle(.button)
-            .buttonStyle(.bordered)
+            .brandBorderedButton()
             .font(.subheadline)
             .accessibilityLabel(group.spoken(permission))
           }
@@ -217,6 +217,7 @@ private struct KeyPermissions: View {
       Text("Permissions \u{00B7} \(scopes.count)")
         .font(.caption)
     }
+    .tint(Color.accentText)
   }
 }
 
@@ -236,7 +237,7 @@ private struct NewSecretRow: View {
       HStack {
         Spacer()
         Button("Done", action: done)
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     }
     .buttonStyle(.borderless)
