@@ -8,8 +8,9 @@ import SwiftUI
 /// `detailsOnGlass`, the credit over the map and the rest on a card of glass. `leading` stands
 /// before the title and the facts — the profile's picture. A record with nowhere to put on a
 /// map, or on an instance with no map to draw, gets the band without one; a species gets its
-/// photo in place of a map. A record with neither — gear, a course, a person — puts its details
-/// on the glass too, under a short band, as there is nothing above them to show.
+/// photo in place of a map. A ``HeroBackdrop/plain`` head — gear, a course, a person, which
+/// never have either — puts its details on the glass under a short band instead, as there is
+/// nothing above them to show.
 struct HeroView<Leading: View>: View {
   let content: HeroContent
   var backdrop = HeroBackdrop.map
@@ -33,12 +34,9 @@ struct HeroView<Leading: View>: View {
       && (!content.points.isEmpty || !content.fixes.isEmpty || content.mapsTheWorldWhenEmpty)
   }
 
-  private var hasBackdrop: Bool {
-    if case .photo = backdrop { return true }
-    return hasMap
-  }
+  private var isPlain: Bool { backdrop == .plain }
 
-  private var onGlass: Bool { detailsOnGlass || !hasBackdrop }
+  private var onGlass: Bool { detailsOnGlass || isPlain }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -58,9 +56,9 @@ struct HeroView<Leading: View>: View {
     } action: {
       detailsHeight = $0
     }
-    .padding(.top, hasBackdrop ? 0 : topInset + Self.bareBand)
+    .padding(.top, isPlain ? topInset + Self.bareBand : 0)
     .frame(
-      maxWidth: .infinity, minHeight: hasBackdrop ? 280 + topInset : nil,
+      maxWidth: .infinity, minHeight: isPlain ? nil : 280 + topInset,
       alignment: .bottomLeading
     )
     .onGeometryChange(for: CGFloat.self) {
@@ -173,7 +171,8 @@ extension HeroView where Leading == EmptyView {
         title: "Perdix 2", facts: [Fact(text: "Shearwater · Dive computer")],
         figures: [
           Figure(label: "Dives", value: "112"), Figure(label: "Last used", value: "3 days ago"),
-        ]))
+        ]),
+      backdrop: .plain)
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

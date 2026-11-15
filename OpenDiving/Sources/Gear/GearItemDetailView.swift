@@ -52,7 +52,8 @@ private struct GearItemDetailContent: View {
           LazyVStack(spacing: 16) {
             HeroView(
               content: GearItemPageContent.hero(
-                item, units: session.units, today: CalendarDate.today()))
+                item, units: session.units, today: CalendarDate.today()),
+              backdrop: .plain)
             Group {
               if let lastUpdated = model.page.lastUpdated {
                 LastUpdatedLine(date: lastUpdated)

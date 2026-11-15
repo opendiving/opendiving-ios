@@ -49,7 +49,7 @@ private struct PersonDetailContent: View {
       case .loaded(let person):
         ScrollView {
           LazyVStack(spacing: 16) {
-            HeroView(content: PersonPageContent.hero(person))
+            HeroView(content: PersonPageContent.hero(person), backdrop: .plain)
             Group {
               PersonReachLinks(
                 email: PersonPageContent.email(person), phone: PersonPageContent.phone(person))
