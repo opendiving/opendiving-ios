@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The diver's own page, opened from the sites map by their picture: their name over the places
 /// their trips went, with the logbook's figures, as the web's Home has it; the way back to the
-/// map, the dive-computer button, the `+` that logs a dive, imports files or adds a trip, and
-/// the settings in the top bar; their picture, which opens *Account*; and under the
+/// map, the dive-computer button, the QR code that opens the diver's invite link, and the
+/// settings in the top bar; their picture, which opens *Account*; and under the
 /// head their dives, their trips, their check-in sheet or *More*, the menu of the rest, one at a
 /// time.
 struct ProfileView: View {
@@ -18,7 +18,7 @@ struct ProfileView: View {
 
 /// Where the top bar's buttons lead.
 private enum ProfileRoute: Hashable {
-  case logDive, importFiles, addTrip, diveComputer, settings, account
+  case diveComputer, settings, account
 }
 
 private struct ProfileContent: View {
@@ -32,6 +32,7 @@ private struct ProfileContent: View {
   @State private var pictures = PictureCache()
   @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
+  @State private var isShowingInvite = false
   @State private var tabsStuck = false
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsTop: CGFloat = 0
@@ -112,36 +113,20 @@ private struct ProfileContent: View {
       ToolbarIslandGap(placement: .topBarLeading)
       DiveComputerToolbarItem { route = .diveComputer }
       ToolbarItemGroup(placement: .topBarTrailing) {
-        Menu("Add", systemImage: "plus") {
-          Button {
-            route = .logDive
-          } label: {
-            Label(menuItem: "Log a dive", icon: .dive)
-          }
-          Button {
-            route = .importFiles
-          } label: {
-            Label(menuItem: "Import files", icon: .upload)
-          }
-          Button {
-            route = .addTrip
-          } label: {
-            Label(menuItem: "Add trip", icon: .luggage)
-          }
+        if InvitationsModel.isOffered(by: session.server?.config) {
+          Button("Invite link", systemImage: "qrcode") { isShowingInvite = true }
         }
         Button("Settings", systemImage: "gearshape") { route = .settings }
       }
     }
     .navigationDestination(item: $route) { route in
       switch route {
-      case .logDive: DiveFormView(mode: .create)
-      case .importFiles: ImportView()
-      case .addTrip: TripFormView(mode: .create)
       case .diveComputer: DiveComputerView()
       case .settings: SettingsView()
       case .account: AccountScreen()
       }
     }
+    .sheet(isPresented: $isShowingInvite) { InviteQRSheet() }
     .task {
       await model.refresh()
       await model.followRoute()

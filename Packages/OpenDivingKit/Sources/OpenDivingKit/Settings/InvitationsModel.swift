@@ -96,6 +96,13 @@ public final class InvitationsModel {
     }
   }
 
+  /// Whether `config`'s server takes invitations: every one until it has said anyone may
+  /// register, which leaves nobody to invite. Until it has answered, a surface offering them
+  /// stays, since the invitations' own read answers for itself either way.
+  nonisolated public static func isOffered(by config: InstanceConfigRead?) -> Bool {
+    config?.registrationMode != "open"
+  }
+
   /// When the oldest of what the screen shows from the phone's copy was fetched; nil once
   /// nothing on it is.
   public var lastUpdated: Date? {

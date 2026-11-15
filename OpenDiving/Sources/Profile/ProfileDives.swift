@@ -51,8 +51,7 @@ struct ProfileDives: View {
   }
 }
 
-/// *Log a dive* and *Import files* side by side, the ways into the logbook the top bar's `+` also
-/// offers.
+/// *Log a dive* and *Import files* side by side, the ways into the logbook.
 private struct AddDivesButtons: View {
   var body: some View {
     HStack(spacing: 12) {

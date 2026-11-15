@@ -39,6 +39,6 @@ public enum SettingsSection: String, CaseIterable, Hashable, Sendable, Identifia
   /// anyone may register, which leaves nobody to invite. Until it has answered the row stays,
   /// since the screen behind it answers for itself either way.
   public static func offered(by config: InstanceConfigRead?) -> [SettingsSection] {
-    allCases.filter { $0 != .invitations || config?.registrationMode != "open" }
+    allCases.filter { $0 != .invitations || InvitationsModel.isOffered(by: config) }
   }
 }

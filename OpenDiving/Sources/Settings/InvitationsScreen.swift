@@ -136,17 +136,7 @@ private struct InviteLinkSection: View {
     }
     .disabled(model.isChangingLink)
     .needsServer()
-    .confirmationDialog(
-      change == .reset ? InvitationsModel.resetTitle : InvitationsModel.removeTitle,
-      isPresented: Binding(
-        get: { model.confirmingLink == change },
-        set: { if !$0, model.confirmingLink == change { model.confirmingLink = nil } }),
-      titleVisibility: .visible, presenting: change
-    ) { change in
-      Button(title, role: role) { Task { await model.confirmLinkChange(change) } }
-    } message: { change in
-      Text(change == .reset ? InvitationsModel.resetMessage : InvitationsModel.removeMessage)
-    }
+    .confirmsInviteLinkChange(change, model: model)
   }
 }
 

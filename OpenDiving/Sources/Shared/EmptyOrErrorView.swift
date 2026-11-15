@@ -42,7 +42,7 @@ struct EmptyOrErrorView: View {
     status: .empty(
       icon: .dive, title: "No dives logged yet",
       message:
-        "No dives yet. Log one or import your dive computer's files with +, or download "
+        "No dives yet. Log one or import your dive computer's files above, or download "
         + "them from the dive computer with the button on the left."
     ))
 }
