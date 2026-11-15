@@ -41,18 +41,24 @@ struct APIKeyScreen: View {
         }
       }
       Section {
-        HStack {
-          Button(APIKeysModel.revokeTitle, role: .destructive) {
-            model.confirmingRevoke = key
-          }
-          .dangerRow()
-          .disabled(model.revoking != nil)
-          .needsServer()
-          if model.revoking == key.uuid {
-            Spacer()
-            BubbleSpinner()
-          }
+        // Drawn as DeleteRecordSection draws a form's delete, with a spinner while it runs.
+        Button(role: .destructive) {
+          model.confirmingRevoke = key
+        } label: {
+          Text(APIKeysModel.revokeTitle)
+            .bold()
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .trailing) {
+              if model.revoking == key.uuid {
+                BubbleSpinner()
+              }
+            }
         }
+        .dangerRow()
+        .disabled(model.revoking != nil)
+        .needsServer()
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
         .rowConfirmation(
           APIKeysModel.revokeTitle, for: key, confirming: Bindable(model).confirmingRevoke
         ) { key in
@@ -70,6 +76,7 @@ struct APIKeyScreen: View {
           FieldMessage(failure)
         }
       }
+      .listSectionSpacing(.compact)
     }
     .navigationTitle(key.name)
     .navigationBarTitleDisplayMode(.inline)
