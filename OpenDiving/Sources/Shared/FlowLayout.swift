@@ -19,7 +19,10 @@ struct FlowLayout: Layout {
   func placeSubviews(
     in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
   ) {
-    let arrangement = arrange(subviews, width: bounds.width)
+    // Arranged against the width it was measured against, not the bounds: bounds exactly as wide
+    // as the widest line can come out a hair narrower than that line's width summed in another
+    // order, and the last child would wrap under the height already reported.
+    let arrangement = arrange(subviews, width: proposal.width ?? .infinity)
     for index in arrangement.dropped {
       subviews[index].place(at: bounds.origin, proposal: .zero)
     }
