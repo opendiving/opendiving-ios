@@ -1,30 +1,55 @@
 import CoreImage
 import OpenDivingKit
+import SwiftUI
 import Testing
 
 @testable import OpenDiving
 
-/// The invite link's QR code reads back as the address the screen shows.
+/// The invite link's QR code, as the screen draws it in either appearance, reads back as the
+/// address the screen shows.
+@MainActor
 struct InviteQRCodeTests {
-  @Test func theCodeDecodesToTheAddressShown() throws {
-    let origins = ["https://opendiving.app", "http://192.168.1.20:3000"]
-    for origin in origins {
-      let address = InvitationsModel.address(
-        token: "q7Zr2LmW-exampleInviteTokenNot_Real0123456", on: try #require(ServerOrigin(origin))
-      ).absoluteString
-      let image = try #require(InviteQRCode.image(address))
-      // Scaled up as the screen draws it: the detector reads nothing at a pixel a module.
-      let scaled = CIImage(cgImage: image)
-        .samplingNearest()
-        .transformed(by: CGAffineTransform(scaleX: 8, y: 8))
-      let detector = try #require(
-        CIDetector(
-          ofType: CIDetectorTypeQRCode, context: nil,
-          options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]))
-      let decoded = detector.features(in: scaled).compactMap {
-        ($0 as? CIQRCodeFeature)?.messageString
-      }
-      #expect(decoded == [address])
+  /// A flagship invite: the token is 43 base64url characters, which puts the symbol at version 5.
+  static let flagshipToken = "q7Zr2LmW-exampleInviteTokenNot_Real01234567"
+
+  @Test func aFlagshipInviteIsVersionFiveWithTheMark() throws {
+    let layout = try #require(InviteQRCode.layout(Self.address(on: "https://opendiving.app")))
+    #expect(layout.size == 37)
+    #expect(layout.mark != nil)
+  }
+
+  @Test(arguments: [ColorScheme.light, .dark])
+  func theCodeDecodesToTheAddressShown(_ scheme: ColorScheme) throws {
+    for origin in ["https://opendiving.app", "http://192.168.1.20:3000"] {
+      let address = try Self.address(on: origin)
+      let layout = try #require(InviteQRCode.layout(address))
+      #expect(try Self.decode(Self.render(layout, scheme)) == [address])
+    }
+  }
+
+  static func address(on origin: String) throws -> String {
+    InvitationsModel.address(token: flagshipToken, on: try #require(ServerOrigin(origin)))
+      .absoluteString
+  }
+
+  /// The symbol at about the size the screen draws it, on the surface it sits on there.
+  static func render(_ layout: InviteQRLayout, _ scheme: ColorScheme) throws -> CGImage {
+    let renderer = ImageRenderer(
+      content: InviteQRSymbol(layout: layout)
+        .frame(width: 256, height: 256)
+        .background(Color(.systemGroupedBackground))
+        .environment(\.colorScheme, scheme))
+    renderer.scale = 3
+    return try #require(renderer.cgImage)
+  }
+
+  static func decode(_ image: CGImage) throws -> [String] {
+    let detector = try #require(
+      CIDetector(
+        ofType: CIDetectorTypeQRCode, context: nil,
+        options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]))
+    return detector.features(in: CIImage(cgImage: image)).compactMap {
+      ($0 as? CIQRCodeFeature)?.messageString
     }
   }
 }
