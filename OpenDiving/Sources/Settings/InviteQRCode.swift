@@ -24,8 +24,9 @@ struct InviteQRCode: View {
           .accessibilityHidden(true)
       }
     }
-    .frame(maxWidth: 256)
+    // Square before the cap: a canvas has no shape of its own and fills whatever it is offered.
     .aspectRatio(1, contentMode: .fit)
+    .frame(maxWidth: 256)
   }
 
   /// The layout of the address's symbol at correction level M, which keeps the flagship's invite
