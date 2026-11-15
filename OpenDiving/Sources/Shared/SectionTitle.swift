@@ -14,11 +14,24 @@ struct SectionTitle: View {
       }
       Text(title)
     }
-    .font(.footnote)
+    .modifier(FormHeaderType())
     .foregroundStyle(.secondary)
     .padding(.horizontal, 16)
     .accessibilityElement(children: .combine)
     .accessibilityAddTraits(.isHeader)
+  }
+}
+
+/// The type a form draws its section headers in, which each system sets its own: a semibold
+/// body from iOS 26, as `UIListContentConfiguration.header()` reads there, and an uppercased
+/// footnote before.
+private struct FormHeaderType: ViewModifier {
+  func body(content: Content) -> some View {
+    if #available(iOS 26, *) {
+      content.font(.headline)
+    } else {
+      content.font(.footnote).textCase(.uppercase)
+    }
   }
 }
 

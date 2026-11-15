@@ -27,17 +27,20 @@ struct GearServiceCard: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 6) {
       header
-      if GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: gearItem.uuid) {
-        PendingEditLine()
+      VStack(alignment: .leading, spacing: 12) {
+        if GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: gearItem.uuid) {
+          PendingEditLine()
+        }
+        schedules
+        history
       }
-      schedules
-      history
+      .padding(.horizontal, 16)
+      .padding(.vertical, 12)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Color.cardFill, in: .formSection)
     }
-    .padding(12)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color.cardFill, in: .formSection)
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
     .confirmationDialog(
       deletingTitle, isPresented: isDeleting, titleVisibility: .visible, presenting: deleting
@@ -61,11 +64,7 @@ struct GearServiceCard: View {
 
   private var header: some View {
     HStack(spacing: 8) {
-      Image(.wrench)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
-      Text("Service")
-        .accessibilityAddTraits(.isHeader)
+      SectionTitle(title: "Service", icon: .wrench)
       Spacer()
       NavigationLink {
         ServiceScheduleFormView(gearItem: ref, mode: .create, gearType: gearItem.type)
@@ -75,7 +74,6 @@ struct GearServiceCard: View {
       }
       .buttonStyle(.bordered)
     }
-    .font(.headline)
   }
 
   @ViewBuilder private var schedules: some View {
