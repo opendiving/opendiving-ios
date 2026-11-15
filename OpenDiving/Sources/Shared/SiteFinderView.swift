@@ -116,8 +116,13 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     // How far the panel's top, or the island's, stands above the home indicator's inset.
     let share = panel.islandShare(shown: resting)
     let rise = resting - PanelIsland.drop(below: below, share: share, hug: hug) - hug * share
+    // MapLibre keeps only half the map's height of world above the camera, which sits in the
+    // middle of what shows: with the panel low that middle is below the screen's, and the map
+    // panned north would show past the world's edge under the bar. Run on above the screen by the
+    // bar's height, the map keeps that past the top edge.
+    let overflow = geometry.safeAreaInsets.top
     let covered = UIEdgeInsets(
-      top: geometry.safeAreaInsets.top, left: 0, bottom: below + rise, right: 0)
+      top: geometry.safeAreaInsets.top + overflow, left: 0, bottom: below + rise, right: 0)
     let shown = (
       width: Double(geometry.size.width),
       height: max(0, geometry.size.height - rise)
@@ -138,10 +143,12 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         }
       )
       .accessibilityLabel("Map of dive sites")
+      .padding(.top, -overflow)
       .ignoresSafeArea()
       .onChange(of: [shown.width, shown.height], initial: true) {
         model.viewport = shown
       }
+      TopBarBlur()
       HStack(alignment: .bottom) {
         MapCredit(credit: style.credit)
         Spacer()
