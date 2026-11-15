@@ -1,9 +1,9 @@
 import Foundation
 
-/// What a trip's card, its page's hero and its *Trip Information* card print, from the
-/// trip as the API reads it.
+/// What a trip's card, its page's hero and its *Info* tab print, from the trip as the API
+/// reads it.
 public enum TripSummary {
-  /// One part as the *Trip Information* card lists it.
+  /// One part as the *Info* tab's *Parts* card lists it.
   public struct PartRow: Hashable, Sendable {
     /// Nil for a part with no place, which is still a row: dropping it would renumber the
     /// rest.
@@ -34,26 +34,6 @@ public enum TripSummary {
     HeroContent(
       title: trip.name, facts: facts(trip), figures: figures(trip, units: units),
       points: points(trip), mapsTheWorldWhenEmpty: true)
-  }
-
-  /// The trip's own fields in the trip form's order, a section per part. A part's accommodation
-  /// and the trip's people link other records, so they stay with the page's cards.
-  public static func recordInfo(_ trip: TripRead) -> [RecordInfoSection] {
-    let parts = trip.parts.enumerated().map { index, part in
-      RecordInfoSection(
-        heading: trip.parts.count > 1 ? "Part \(index + 1)" : "Part",
-        facts: [
-          RecordInfoFact(label: "Location", value: part.location?.name),
-          RecordInfoFact(label: "Start date", value: part.startDate.map { DateText.date($0) }),
-          RecordInfoFact(label: "End date", value: part.endDate.map { DateText.date($0) }),
-        ])
-    }
-    return [RecordInfoSection(facts: [RecordInfoFact(label: "Name", value: trip.name)])]
-      + (parts.isEmpty
-        ? [RecordInfoSection(facts: [RecordInfoFact(label: "Parts", value: nil)])] : parts)
-      + [
-        RecordInfoSection(facts: [RecordInfoFact(label: "Notes", value: trip.notes, isWide: true)])
-      ]
   }
 
   /// The span of the trip's dated parts, then its places, each only where there is one —
@@ -101,7 +81,7 @@ public enum TripSummary {
   }
 
   /// A part's section heading among the trip's dives: its place over its dates, or its
-  /// dates alone for a part with no place, as the information card lists it by them.
+  /// dates alone for a part with no place, as the *Parts* card lists it by them.
   public static func partHeading(_ part: TripPartRead) -> (title: String, subtitle: String?) {
     let dates = TripText.partDates(start: part.startDate, end: part.endDate)
     if let place = part.location?.name { return (place, dates) }

@@ -306,13 +306,17 @@ public actor APIClient {
     try await authorizedDecoded(ContactRead.self, Call(path: "contact/\(Self.wire(uuid))"))
   }
 
-  /// `GET /user/species`, the life list, optionally what was seen at one site alone.
+  /// `GET /user/species`, the life list, optionally what was seen at one site or on one trip
+  /// alone.
   public func speciesLifeList(
-    diveSiteUUID: UUID? = nil, page: Int, itemsPerPage: Int = listPageSize
+    diveSiteUUID: UUID? = nil, tripUUID: UUID? = nil, page: Int, itemsPerPage: Int = listPageSize
   ) async throws -> PaginatedListResponse<SpeciesLifeListEntry> {
     var query = Self.paging(page, itemsPerPage)
     if let diveSiteUUID {
       query.append(URLQueryItem(name: "dive_site_uuid", value: Self.wire(diveSiteUUID)))
+    }
+    if let tripUUID {
+      query.append(URLQueryItem(name: "trip_uuid", value: Self.wire(tripUUID)))
     }
     return try await authorizedDecoded(
       PaginatedListResponse<SpeciesLifeListEntry>.self, Call(path: "user/species", query: query))

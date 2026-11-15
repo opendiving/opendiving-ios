@@ -44,10 +44,12 @@ public struct AccountCache: Sendable {
     public var species: [SpeciesLifeListEntry]?
   }
 
-  /// A trip the phone has opened, with the contacts its information card named.
+  /// A trip the phone has opened, with the contacts its *Info* tab named and the species
+  /// seen on its dives, once read.
   public struct Trip: Codable, Hashable, Sendable {
     public var trip: TripRead
     public var contacts: [ContactRead]
+    public var species: [SpeciesLifeListEntry]?
   }
 
   /// How many details of each kind are kept; the least recently opened go first.

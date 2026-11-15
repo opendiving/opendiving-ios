@@ -55,6 +55,42 @@ struct DetailModelTests {
       transport.requests.first { StubTransport.routeKey($0) == "GET dives" })
     #expect(query(list, "trip_uuid") == tripUUID.uuidString.lowercased())
     #expect(query(list, "items_per_page") == "100")
+    // The fixture's trip counts no species, so none are asked for.
+    #expect(model.species == .none)
+    #expect(!transport.requests.contains { StubTransport.routeKey($0) == "GET user/species" })
+  }
+
+  @Test func aTripReadsTheSpeciesSeenOnItsDivesWithTheirPhotos() async throws {
+    let trip = try KitFixture.text("trip").replacingOccurrences(
+      of: #""species_count": 0"#, with: #""species_count": 2"#)
+    let species = try KitFixture.text("species-life-list")
+    let transport = StubTransport { request in
+      let route = StubTransport.routeKey(request)
+      switch route {
+      case "GET trip/\(tripUUID.uuidString.lowercased())": return .json(trip)
+      case "GET dives":
+        return .json(#"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":100}"#)
+      case "GET user/species": return .json(species)
+      default:
+        if route.hasSuffix("/photo") { return StubTransport.Response(body: Data([1, 2, 3])) }
+        return .json(#"{"detail":"Not Found"}"#, status: 404)
+      }
+    }
+    let model = TripDetailModel(session: Session.stub(transport: transport), tripUUID: tripUUID)
+    await model.load()
+
+    guard case .loaded(let entries) = model.species else {
+      Issue.record("species not loaded: \(model.species)")
+      return
+    }
+    #expect(entries.count == 2)
+    let read = try #require(
+      transport.requests.first { StubTransport.routeKey($0) == "GET user/species" })
+    #expect(query(read, "trip_uuid") == tripUUID.uuidString.lowercased())
+    #expect(query(read, "dive_site_uuid") == nil)
+
+    await model.photos.load(entries[0])
+    #expect(model.photos[entries[0].uuid] == Data([1, 2, 3]))
   }
 
   @Test func aMissingTripIsNotFoundAndAFailureIsRetried() async throws {
@@ -121,8 +157,8 @@ struct DetailModelTests {
         "dive_site_uuid") == siteUUID.uuidString.lowercased())
 
     for entry in entries {
-      await model.loadPhoto(entry)
-      await model.loadPhoto(entry)
+      await model.photos.load(entry)
+      await model.photos.load(entry)
     }
     #expect(model.photos[entries[0].uuid] == Data([1, 2, 3]))
     #expect(model.photos[entries[1].uuid] == nil)

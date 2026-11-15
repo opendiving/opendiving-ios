@@ -59,8 +59,11 @@ struct OfflinePagesTests {
     let world = try OutboxWorld()
     let site = try KitFixture.text("dive-site").replacingOccurrences(
       of: #""species_count": 0"#, with: #""species_count": 2"#)
-    let trip = try KitFixture.text("trip").replacingOccurrences(
-      of: #""contact_uuids": []"#, with: #""contact_uuids": ["\#(contactUUID)"]"#)
+    let trip = try KitFixture.text("trip")
+      .replacingOccurrences(
+        of: #""contact_uuids": []"#, with: #""contact_uuids": ["\#(contactUUID)"]"#
+      )
+      .replacingOccurrences(of: #""species_count": 0"#, with: #""species_count": 2"#)
     let species = try KitFixture.text("species-life-list")
     let contact = try KitFixture.text("contact")
     let (siteRoute, tripRoute) = (
@@ -185,12 +188,16 @@ struct OfflinePagesTests {
         == nil)
   }
 
-  @Test func aTripOpenedBeforeShowsItsCopyWithItsDivesAndContacts() async throws {
+  @Test func aTripOpenedBeforeShowsItsCopyWithItsDivesContactsAndSpecies() async throws {
     let first = try world()
     try await first.load()
     let online = TripDetailModel(session: first.session, tripUUID: tripUUID)
     await online.load()
     #expect(online.contacts.count == 1)
+    guard case .loaded(let entries) = online.species, entries.count == 2 else {
+      Issue.record("species not loaded: \(online.species)")
+      return
+    }
 
     let route = RouteSwitch()
     let world = try first.relaunched(connectivity: route)
@@ -200,6 +207,7 @@ struct OfflinePagesTests {
     #expect(offline.phase == online.phase)
     #expect(offline.lastUpdated != nil)
     #expect(offline.contacts == online.contacts)
+    #expect(offline.species == online.species)
     #expect(offline.dives.items.map(\.id) == online.dives.items.map(\.id))
     #expect(world.server.sent.count == mark)
   }

@@ -1,11 +1,12 @@
 import Foundation
 import Observation
 
-/// One trip's page: the trip, its own dives a page at a time, and the contacts its
-/// information card names — each part's accommodation and the trip's dive centres.
+/// One trip's page: the trip, its own dives a page at a time, the contacts its *Info* tab
+/// names — each part's accommodation and the trip's dive centres — and the species seen on its
+/// dives with their photos.
 ///
-/// A trip the phone has opened before shows at once from the account's cache, its dives and
-/// contacts with it, while it is fetched behind; a fetch that fails leaves it standing, under
+/// A trip the phone has opened before shows at once from the account's cache, its dives,
+/// contacts and species with it, while it is fetched behind; a fetch that fails leaves it standing, under
 /// ``lastUpdated``. With no route nothing is asked for, and ``followRoute()`` reads again once one
 /// appears. A 404 for the trip means the server no longer has it, and the phone forgets it.
 @MainActor
@@ -27,6 +28,8 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
   /// The trip's own dives, newest first. Candidates — dives on no trip whose day a part
   /// covers — are not among them.
   public let dives: PagedList<DiveListItem>
+  public private(set) var species: SpeciesSeen = .none
+  public let photos: SpeciesCardPhotos
 
   /// The queue holds an edit of this trip, which the page shows once it lands.
   public private(set) var hasPendingEdit = false
@@ -40,6 +43,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
   public init(session: Session, tripUUID: UUID) {
     self.session = session
     self.tripUUID = tripUUID
+    photos = SpeciesCardPhotos(session: session)
     dives = PagedList(
       session: session, itemsPerPage: APIClient.nestedListPageSize, cache: .tripDives(tripUUID),
       routed: true
@@ -48,7 +52,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     }
   }
 
-  /// The trip, then its dives and its contacts; nothing once the trip is on screen.
+  /// The trip, then its dives, its contacts and its species; nothing once the trip is on screen.
   public func load() async {
     if case .loaded = phase { return }
     showCached()
@@ -56,17 +60,19 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     guard case .loaded(let trip) = phase else { return }
     async let list: Void = dives.load()
     async let names: Void = readContacts(trip)
-    _ = await (list, names)
+    async let seen: Void = readSpecies(trip)
+    _ = await (list, names, seen)
   }
 
-  /// Pull-to-refresh: the trip, its dives from the first page, and its contacts again. A
-  /// trip already on screen stays there when the refresh fails.
+  /// Pull-to-refresh: the trip, its dives from the first page, its contacts and its species
+  /// again. A trip already on screen stays there when the refresh fails.
   public func refresh() async {
     await readTrip()
     guard case .loaded(let trip) = phase else { return }
     async let list: Void = dives.refresh()
     async let names: Void = readContacts(trip)
-    _ = await (list, names)
+    async let seen: Void = readSpecies(trip)
+    _ = await (list, names, seen)
   }
 
   /// Reads again what a route can mend — now, if a read was skipped for want of one that has
@@ -87,6 +93,7 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     guard case .loaded(let trip) = phase else { return }
     async let list: Void = dives.rereadIfStale()
     if stale { await readContacts(trip) }
+    if stale || species == .failed { await readSpecies(trip) }
     await list
   }
 
@@ -97,6 +104,9 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     fetchedAt = entry.fetchedAt
     phase = .loaded(entry.value.trip)
     contacts = Dictionary(entry.value.contacts.map { ($0.uuid, $0) }) { _, last in last }
+    if entry.value.trip.speciesCount > 0, let entries = entry.value.species {
+      species = .loaded(entries)
+    }
     watchStores()
   }
 
@@ -124,11 +134,17 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     }
   }
 
-  /// Writes `trip` with the contacts it names that have been read.
+  /// Writes `trip` with the contacts it names that have been read, and the species on screen or
+  /// those kept while they have not loaded.
   private func keep(_ trip: TripRead, fetchedUnder stores: AccountStores?) {
     guard let cache = cacheForAnswer(fetchedUnder: stores, session: session) else { return }
     let named = TripSummary.contactUUIDs(trip).compactMap { contacts[$0] }
-    cache.writeTrip(AccountCache.Trip(trip: trip, contacts: named), fetchedAt: Date())
+    let entries: [SpeciesLifeListEntry]? =
+      if case .loaded(let entries) = species { entries } else {
+        cache.trip(tripUUID)?.value.species
+      }
+    cache.writeTrip(
+      AccountCache.Trip(trip: trip, contacts: named, species: entries), fetchedAt: Date())
   }
 
   private func watchStores() {
@@ -147,13 +163,16 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
       } ?? false
   }
 
-  /// A write landed, perhaps this trip's edit: the page reads the trip again. Its dives are a
-  /// list, which reads itself.
+  /// A write landed, perhaps this trip's edit or a sighting on one of its dives: the page reads
+  /// the trip and its species again. Its dives are a list, which reads itself.
   func accountListsChanged() {
     guard phase.isLoaded else { return }
     reloading = Task {
       await readTrip()
-      if case .loaded(let trip) = phase { await readContacts(trip) }
+      guard case .loaded(let trip) = phase else { return }
+      async let names: Void = readContacts(trip)
+      async let seen: Void = readSpecies(trip)
+      _ = await (names, seen)
     }
   }
 
@@ -174,5 +193,27 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     // Merged, so a refresh that cannot reach one keeps the name already shown.
     contacts.merge(read) { _, new in new }
     if case .loaded(let shown) = phase, fetchedAt == nil { keep(shown, fetchedUnder: stores) }
+  }
+
+  /// Read whole, as the site's are: a trip's species are a list worth seeing entire.
+  private func readSpecies(_ trip: TripRead) async {
+    guard trip.speciesCount > 0 else {
+      species = .none
+      return
+    }
+    if case .loaded = species {} else { species = .loading }
+    let tripUUID = tripUUID
+    let stores = AccountStores.current(session)
+    do {
+      let client = try session.routedClient()
+      let entries = try await APIClient.allPages { page, itemsPerPage in
+        try await client.speciesLifeList(tripUUID: tripUUID, page: page, itemsPerPage: itemsPerPage)
+      }
+      species = .loaded(entries)
+      if case .loaded(let shown) = phase, fetchedAt == nil { keep(shown, fetchedUnder: stores) }
+    } catch {
+      if case .loaded = species { return }
+      species = .failed
+    }
   }
 }
