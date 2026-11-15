@@ -91,7 +91,8 @@ struct SignedInDevicesSection: View {
             model.confirmingSignOut = device
           } label: {
             Image(systemName: "rectangle.portrait.and.arrow.right")
-              .foregroundStyle(.primary)
+              // `Color`, not `.primary`: the hierarchical style resolves to the destructive role's red.
+              .foregroundStyle(Color.primary)
           }
           .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")
           .buttonStyle(.borderless)
