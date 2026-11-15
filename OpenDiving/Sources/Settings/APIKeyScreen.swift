@@ -72,7 +72,7 @@ struct APIKeyScreen: View {
           Text(APIKeysModel.revokeMessage(key))
         }
       } footer: {
-        if let failure = model.revokeFailure {
+        if let failure = model.revokeFailure(for: key) {
           FieldMessage(failure)
         }
       }

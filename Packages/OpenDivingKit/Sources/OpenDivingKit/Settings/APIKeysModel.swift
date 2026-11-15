@@ -47,6 +47,8 @@ public final class APIKeysModel {
   public private(set) var revoking: UUID?
   /// Why the last revocation failed.
   public private(set) var revokeFailure: String?
+  /// The key ``revokeFailure`` is about.
+  private var revokeFailed: UUID?
 
   /// When the screen opened, which a row's *Expired* is judged against.
   public let now: Date
@@ -150,16 +152,23 @@ public final class APIKeysModel {
     guard revoking == nil else { return }
     confirmingRevoke = nil
     revokeFailure = nil
+    revokeFailed = nil
     revoking = key.uuid
     defer { revoking = nil }
     do {
       try await session.routedClient().revokeAPIKey(key.uuid)
     } catch {
       revokeFailure = APIError(error).message
+      revokeFailed = key.uuid
       return
     }
     if created?.key.uuid == key.uuid { created = nil }
     await list.load()
+  }
+
+  /// Why the last revocation failed, where it was `key`'s: a key's own page shows no other's.
+  public func revokeFailure(for key: APIKeyRead) -> String? {
+    revokeFailed == key.uuid ? revokeFailure : nil
   }
 
   nonisolated static func nameProblem(_ name: String) -> String? {

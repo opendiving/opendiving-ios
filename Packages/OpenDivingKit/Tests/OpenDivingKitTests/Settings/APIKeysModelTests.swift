@@ -234,6 +234,19 @@ struct APIKeysModelTests {
         + " back - whatever uses it will need a new key.")
   }
 
+  @Test func aFailedRevocationIsShownOnlyForItsOwnKey() async throws {
+    let harness = try await CredentialsHarness()
+    let model = await model(harness)
+    let keys = try #require(model.list.value)
+    let failed = try #require(keys.first)
+    let other = try #require(keys.last)
+    harness.connectivity.isRouteAvailable = false
+    await model.confirmRevoke(failed)
+    #expect(model.revokeFailure == APIError.noRoute.message)
+    #expect(model.revokeFailure(for: failed) == APIError.noRoute.message)
+    #expect(model.revokeFailure(for: other) == nil)
+  }
+
   @Test func theRowsAreKeptAndShownOfflineAtTheNextVisitUnderWhenTheyWereRead() async throws {
     let harness = try await CredentialsHarness()
     let first = await model(harness)
