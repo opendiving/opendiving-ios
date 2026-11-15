@@ -3,8 +3,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// The import screen, the web's Import page on the phone: the import the server holds, from
-/// whichever device uploaded it, above the files the phone keeps. Reached from the profile's `+`
-/// and shown when a file is shared to the app.
+/// whichever device uploaded it, above the files the phone keeps. Reached from the profile's
+/// *Import files* and shown when a file is shared to the app.
 struct ImportView: View {
   /// Opened because a file was shared to the app, which delivers one at a time.
   var shared = false
