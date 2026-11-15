@@ -127,6 +127,13 @@ private struct DiveDetailPage: View {
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsTop: CGFloat = 0
   @State private var reselect = TabsReselect.head
+  @State private var tabsBottom: CGFloat = 0
+  @State private var visibleHeight: CGFloat = 0
+
+  /// The stack's gap under the tabs and the page's foot.
+  private static let emptyGaps: CGFloat = 12 + 16
+  /// What a message keeps where the head leaves less of the screen.
+  private static let emptyMinHeight: CGFloat = 240
 
   var body: some View {
     ScrollView {
@@ -152,6 +159,11 @@ private struct DiveDetailPage: View {
           onReselect: { withAnimation { scroll.scroll(to: reselect) } }
         )
         .readsTabsTop($tabsTop)
+        .onGeometryChange(for: CGFloat.self) {
+          $0.frame(in: .pageContent).maxY
+        } action: {
+          tabsBottom = $0
+        }
         VStack(spacing: 12) {
           if content.hasSections(in: tab) {
             switch tab {
@@ -165,7 +177,9 @@ private struct DiveDetailPage: View {
               DiveDetailSpeciesCard(sightings: content.sightings, photo: speciesPhoto)
             }
           } else {
+            // In the middle of what the screen shows under the tabs, at their place at rest.
             EmptyOrErrorView(status: Self.empty(tab))
+              .frame(height: max(Self.emptyMinHeight, visibleHeight - tabsBottom - Self.emptyGaps))
           }
         }
         .padding(.horizontal)
@@ -174,6 +188,12 @@ private struct DiveDetailPage: View {
       .padding(.bottom)
     }
     .scrollPosition($scroll)
+    // The height less the insets, whose top is the content's at rest.
+    .onScrollGeometryChange(for: CGFloat.self) {
+      $0.containerSize.height
+    } action: {
+      visibleHeight = $1
+    }
     .tabsReselect($reselect, tabsTop: tabsTop)
     .heroUnderTopBar()
     .background(Color.pageBackground)
