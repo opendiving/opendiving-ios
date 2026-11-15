@@ -39,7 +39,6 @@ private struct InvitationsList: View {
           SendInvitationSection(model: model)
           SentInvitationsSection(model: model)
         }
-        .confirmsInviteLinkChanges(model)
       }
     }
     .task { await model.load() }
@@ -126,7 +125,7 @@ private struct InviteLinkSection: View {
   ) -> some View {
     let role: ButtonRole? = change == .remove ? .destructive : nil
     return Button(role: role) {
-      model.confirmingLink = change
+      model.askToConfirm(change)
     } label: {
       // Removing keeps the destructive role's red.
       if change == .remove {
@@ -137,6 +136,7 @@ private struct InviteLinkSection: View {
     }
     .disabled(model.isChangingLink)
     .needsServer()
+    .confirmsInviteLinkChange(change, model: model)
   }
 }
 

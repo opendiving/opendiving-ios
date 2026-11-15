@@ -18,6 +18,14 @@ struct InviteQRCodeTests {
     #expect(layout.mark != nil)
   }
 
+  @Test func theStandInHiddenFromTheSwitcherIsTheSizeOfTheCode() throws {
+    let address = try Self.address(on: "https://opendiving.app")
+    let code = try #require(InviteQRCode.layout(address))
+    let standIn = try #require(
+      InviteQRCode.layout(InviteQRCode.standIn(for: address)))
+    #expect(standIn.size == code.size)
+  }
+
   @Test(arguments: [ColorScheme.light, .dark])
   func theCodeDecodesToTheAddressShown(_ scheme: ColorScheme) throws {
     for origin in ["https://opendiving.app", "http://192.168.1.20:3000"] {

@@ -89,7 +89,6 @@ private struct InviteQRPane: View {
         changeButton(.remove)
       }
       .controlSize(.large)
-      .confirmsInviteLinkChanges(model)
       failure
     } else {
       Text(InvitationsModel.linkNone)
@@ -120,7 +119,7 @@ private struct InviteQRPane: View {
   private func changeButton(_ change: InvitationsModel.LinkChange) -> some View {
     let isRemoval = change == .remove
     return Button(role: isRemoval ? .destructive : nil) {
-      model.confirmingLink = change
+      model.askToConfirm(change)
     } label: {
       Label(
         isRemoval ? InvitationsModel.removeButton : InvitationsModel.resetButton,
@@ -131,6 +130,7 @@ private struct InviteQRPane: View {
     .brandBorderedButton(isRemoval ? .danger : .accentText)
     .disabled(model.isChangingLink)
     .needsServer()
+    .confirmsInviteLinkChange(change, model: model)
   }
 }
 

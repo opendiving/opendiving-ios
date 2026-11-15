@@ -3,8 +3,9 @@ import CoreImage.CIFilterBuiltins
 import OpenDivingKit
 import SwiftUI
 
-/// A QR code of an address, with the brand mark at its centre. Hidden whenever the app is not
-/// active, as ``CopyField`` hides its value, so the app switcher's snapshot never holds the link.
+/// A QR code of an address, with the brand mark at its centre. Whenever the app is not active a
+/// blurred symbol of a stand-in address of the same length takes its place, as ``CopyField``
+/// hides its value, so the app switcher's snapshot never holds the link.
 struct InviteQRCode: View {
   let address: String
   let label: String
@@ -18,8 +19,9 @@ struct InviteQRCode: View {
           .accessibilityElement()
           .accessibilityLabel(label)
           .accessibilityAddTraits(.isImage)
-      } else {
-        Color(.secondarySystemFill)
+      } else if let layout = Self.layout(Self.standIn(for: address)) {
+        InviteQRSymbol(layout: layout)
+          .blur(radius: 8)
           .clipShape(.rect(cornerRadius: 12))
           .accessibilityHidden(true)
       }
@@ -27,6 +29,11 @@ struct InviteQRCode: View {
     // Square before the cap: a canvas has no shape of its own and fills whatever it is offered.
     .aspectRatio(1, contentMode: .fit)
     .frame(maxWidth: 256)
+  }
+
+  /// An address of `address`'s length, whose symbol is the size of its own.
+  nonisolated static func standIn(for address: String) -> String {
+    String(repeating: "x", count: address.count)
   }
 
   /// The layout of the address's symbol at correction level Q, which recovers the modules the
