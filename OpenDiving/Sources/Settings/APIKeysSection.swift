@@ -2,9 +2,14 @@ import OpenDivingKit
 import SwiftUI
 
 /// The account's API keys: created from a form in the section, the new key's secret shown once
-/// on its row, and each revoked after a confirmation.
+/// on its row, and each opening a page of its own with its permissions and its revocation.
 struct APIKeysSection: View {
   let model: APIKeysModel
+  /// The key whose page is open, held by the screen that pushes it.
+  @Binding var opened: APIKeyRead?
+  /// Its own, not the model's ``APIKeysModel/confirmingRevoke``, which the key's page presents
+  /// from while this row sits under it in the stack.
+  @State private var confirmingRevoke: APIKeyRead?
 
   var body: some View {
     if !model.list.isAbsent {
@@ -46,7 +51,9 @@ struct APIKeysSection: View {
   }
 
   private func row(_ key: APIKeyRead) -> some View {
-    HStack(spacing: 12) {
+    NavigationRow {
+      opened = key
+    } label: {
       VStack(alignment: .leading, spacing: 4) {
         FlowLayout(spacing: 6) {
           Text(key.name)
@@ -61,38 +68,31 @@ struct APIKeysSection: View {
         Text(APIKeysModel.details(key, now: model.now))
           .font(.caption)
           .foregroundStyle(.secondary)
-        if key.scope == .scoped, let scopes = key.scopes {
-          KeyPermissions(scopes: scopes)
-        } else {
-          Text(APIKeysModel.legacyAccess)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      if model.revoking == key.uuid {
-        BubbleSpinner()
-      } else {
-        Button(role: .destructive) {
-          model.confirmingRevoke = key
-        } label: {
-          Image(systemName: "trash").dangerRow()
-        }
-        .accessibilityLabel("Revoke \u{201C}\(key.name)\u{201D}")
-        .buttonStyle(.borderless)
-        .disabled(model.revoking != nil)
-        .needsServer()
-        .rowConfirmation(
-          APIKeysModel.revokeTitle, for: key, confirming: Bindable(model).confirmingRevoke
-        ) { key in
-          Button(APIKeysModel.revokeButton, role: .destructive) {
-            Task { await model.confirmRevoke(key) }
-          }
-        } message: { key in
-          Text(APIKeysModel.revokeMessage(key))
-        }
       }
     }
+    // No destructive role on the swipe: the list would slide the row out before the dialog asks.
+    .swipeActions {
+      revokeButton(key, role: nil)
+        .tint(.dangerFill)
+    }
+    .contextMenu {
+      revokeButton(key, role: .destructive)
+    }
+    .rowConfirmation(APIKeysModel.revokeTitle, for: key, confirming: $confirmingRevoke) { key in
+      Button(APIKeysModel.revokeButton, role: .destructive) {
+        Task { await model.confirmRevoke(key) }
+      }
+    } message: { key in
+      Text(APIKeysModel.revokeMessage(key))
+    }
+  }
+
+  private func revokeButton(_ key: APIKeyRead, role: ButtonRole?) -> some View {
+    Button(APIKeysModel.revokeButton, systemImage: "trash", role: role) {
+      confirmingRevoke = key
+    }
+    .disabled(model.revoking != nil)
+    .needsServer()
   }
 }
 
@@ -200,27 +200,6 @@ private struct PermissionPicker: View {
   }
 }
 
-/// What a scoped key may do, folded away until asked for.
-private struct KeyPermissions: View {
-  let scopes: [String]
-
-  var body: some View {
-    DisclosureGroup {
-      VStack(alignment: .leading, spacing: 6) {
-        ForEach(PermissionGroup.groups(scopes)) { group in
-          LabeledContent(group.label, value: group.actions)
-            .font(.caption)
-        }
-      }
-      .padding(.top, 4)
-    } label: {
-      Text("Permissions \u{00B7} \(scopes.count)")
-        .font(.caption)
-    }
-    .tint(Color.accentText)
-  }
-}
-
 /// A new key's secret, the one time it can be read.
 private struct NewSecretRow: View {
   let secret: String
@@ -247,7 +226,7 @@ private struct NewSecretRow: View {
 #Preview {
   @Previewable @State var model = APIKeysModel(session: AuthenticationPreviewData.session)
   List {
-    APIKeysSection(model: model)
+    APIKeysSection(model: model, opened: .constant(nil))
   }
   .task { await model.list.load() }
   .environment(AuthenticationPreviewData.session)
