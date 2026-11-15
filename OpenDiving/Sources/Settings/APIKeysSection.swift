@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The account's API keys: created from a form in the section, the new key's secret shown once
-/// on its row, and each revoked after a confirmation.
+/// on its row, and each opening a page of its own with its permissions and its revocation.
 struct APIKeysSection: View {
   let model: APIKeysModel
 
@@ -35,18 +35,15 @@ struct APIKeysSection: View {
       } header: {
         Text("API keys")
       } footer: {
-        VStack(alignment: .leading, spacing: 8) {
-          if let failure = model.revokeFailure {
-            FieldMessage(failure)
-          }
-          Text(APIKeysModel.description)
-        }
+        Text(APIKeysModel.description)
       }
     }
   }
 
   private func row(_ key: APIKeyRead) -> some View {
-    HStack(spacing: 12) {
+    NavigationLink {
+      APIKeyScreen(model: model, key: key)
+    } label: {
       VStack(alignment: .leading, spacing: 4) {
         FlowLayout(spacing: 6) {
           Text(key.name)
@@ -61,37 +58,6 @@ struct APIKeysSection: View {
         Text(APIKeysModel.details(key, now: model.now))
           .font(.caption)
           .foregroundStyle(.secondary)
-        if key.scope == .scoped, let scopes = key.scopes {
-          KeyPermissions(scopes: scopes)
-        } else {
-          Text(APIKeysModel.legacyAccess)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      if model.revoking == key.uuid {
-        BubbleSpinner()
-      } else {
-        Button(role: .destructive) {
-          model.confirmingRevoke = key
-        } label: {
-          Image(systemName: "trash")
-        }
-        .tint(Color.danger)
-        .accessibilityLabel("Revoke \u{201C}\(key.name)\u{201D}")
-        .buttonStyle(.borderless)
-        .disabled(model.revoking != nil)
-        .needsServer()
-        .rowConfirmation(
-          APIKeysModel.revokeTitle, for: key, confirming: Bindable(model).confirmingRevoke
-        ) { key in
-          Button(APIKeysModel.revokeButton, role: .destructive) {
-            Task { await model.confirmRevoke(key) }
-          }
-        } message: { key in
-          Text(APIKeysModel.revokeMessage(key))
-        }
       }
     }
   }
@@ -197,26 +163,6 @@ private struct PermissionPicker: View {
     Text(APIKeysModel.permissionsNote)
       .font(.footnote)
       .foregroundStyle(.secondary)
-  }
-}
-
-/// What a scoped key may do, folded away until asked for.
-private struct KeyPermissions: View {
-  let scopes: [String]
-
-  var body: some View {
-    DisclosureGroup {
-      VStack(alignment: .leading, spacing: 6) {
-        ForEach(PermissionGroup.groups(scopes)) { group in
-          LabeledContent(group.label, value: group.actions)
-            .font(.caption)
-        }
-      }
-      .padding(.top, 4)
-    } label: {
-      Text("Permissions \u{00B7} \(scopes.count)")
-        .font(.caption)
-    }
   }
 }
 
