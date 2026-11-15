@@ -237,7 +237,7 @@ struct SiteFinderModelTests {
     #expect(sentBox(try #require(searches.queries.last)) == box(last))
   }
 
-  @Test func aMoveCancelsTheRequestOnItsWayAndTheKeptRowsShowUndatedMeanwhile() async throws {
+  @Test func aMoveCancelsTheRequestOnItsWayAndTheRowsShownStayMeanwhile() async throws {
     let gate = Gate()
     let (world, searches) = try await world(gate: gate)
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
@@ -246,8 +246,7 @@ struct SiteFinderModelTests {
     model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
     while searches.queries.count < 2 { await Task.yield() }
     #expect(model.isSearching)
-    #expect(model.list !== opened)
-    #expect(model.list?.fetchedAt != nil)
+    #expect(model.list === opened)
     #expect(model.lastUpdated == nil)
     #expect(model.rows.count == 3)
     let last = MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10)
@@ -266,13 +265,14 @@ struct SiteFinderModelTests {
     let gate = Gate()
     let (world, searches) = try await world(gate: gate)
     let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    let shown = try #require(model.list)
     gate.isHeld = true
     let toggled = Task { await model.setYours(true) }
     while searches.queries.count < 2 { await Task.yield() }
-    let shown = try #require(model.list)
     model.mapMoved(to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10), byGesture: true)
     await toggled.value
-    #expect(shown.phase == .idle)
+    #expect(model.list === shown)
+    #expect(shown.phase == .loaded)
     #expect(shown.pageError == nil)
     gate.isHeld = false
     await model.settling?.value
@@ -321,6 +321,36 @@ struct SiteFinderModelTests {
     #expect(searches.queries.count == 5)
     #expect(off["my"] == nil)
     #expect(sentBox(off) == box(model.camera))
+  }
+
+  /// The pages kept for *Your sites* are another view's, so toggling it after a pan leaves the
+  /// list shown where it is until the view's own answer lands; offline, the kept pages show.
+  @Test func yourSitesToggledAfterAPanKeepsTheListShownUntilItsOwnLands() async throws {
+    let gate = Gate()
+    let (world, searches) = try await world(gate: gate)
+    let model = await mapped(world, FakeFinderLocator(.failure(.denied)))
+    await model.setYours(true)
+    await pan(model, to: MapCamera(latitude: 28.5, longitude: 34.5, zoom: 10))
+    let yours = try #require(model.list)
+    gate.isHeld = true
+    let toggled = Task { await model.setYours(false) }
+    while searches.queries.count < 4 { await Task.yield() }
+    #expect(model.isSearching)
+    #expect(model.list === yours)
+    #expect(model.listsYours)
+    #expect(!model.offersAddingSite)
+    gate.isHeld = false
+    await toggled.value
+    #expect(model.list !== yours)
+    #expect(!model.listsYours)
+    #expect(model.list?.fetchedAt == nil)
+
+    await pan(model, to: MapCamera(latitude: 28.6, longitude: 34.6, zoom: 10))
+    world.route.isRouteAvailable = false
+    await model.setYours(true)
+    #expect(model.listsYours)
+    #expect(model.rows.count == 3)
+    #expect(model.lastUpdated != nil)
   }
 
   @Test func theWholeListEndsOnAddingASiteOnceItsLastPageIsIn() async throws {
