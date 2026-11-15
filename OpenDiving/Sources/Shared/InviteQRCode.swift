@@ -2,31 +2,67 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 import OpenDivingKit
 import SwiftUI
+import UIKit
 
-/// A QR code of an address, with the brand mark at its centre. Hidden whenever the app is not
-/// active, as ``CopyField`` hides its value, so the app switcher's snapshot never holds the link.
+/// A QR code of an address, with the brand mark at its centre. Whenever the app is not active a
+/// blurred symbol of a stand-in address of the same length takes its place, as ``CopyField``
+/// hides its value, so the app switcher's snapshot never holds the link.
 struct InviteQRCode: View {
   let address: String
   let label: String
 
-  @Environment(\.scenePhase) private var scenePhase
+  @State private var isShielded = UIApplication.shared.applicationState != .active
+  /// In the background, where the system snapshots the app: the code leaves at once, whatever
+  /// its blur has reached.
+  @State private var isAway = UIApplication.shared.applicationState == .background
+
+  private static let fade = Animation.easeInOut(duration: 0.25)
 
   var body: some View {
-    Group {
-      if scenePhase == .active, let layout = Self.layout(address) {
+    ZStack {
+      if let layout = Self.layout(Self.standIn(for: address)) {
         InviteQRSymbol(layout: layout)
+          .blur(radius: 8)
+          .clipShape(.rect(cornerRadius: 12))
+          .opacity(isShielded ? 1 : 0)
+          .animation(Self.fade, value: isShielded)
+          .accessibilityHidden(true)
+      }
+      if !isAway, let layout = Self.layout(address) {
+        // Blurred out under the stand-in, which reads as the code itself blurring.
+        InviteQRSymbol(layout: layout)
+          .blur(radius: isShielded ? 8 : 0)
+          .clipShape(.rect(cornerRadius: 12))
+          .opacity(isShielded ? 0 : 1)
+          .animation(Self.fade, value: isShielded)
           .accessibilityElement()
           .accessibilityLabel(label)
           .accessibilityAddTraits(.isImage)
-      } else {
-        Color(.secondarySystemFill)
-          .clipShape(.rect(cornerRadius: 12))
-          .accessibilityHidden(true)
+          .accessibilityHidden(isShielded)
       }
     }
     // Square before the cap: a canvas has no shape of its own and fills whatever it is offered.
     .aspectRatio(1, contentMode: .fit)
     .frame(maxWidth: 256)
+    // The scene's own notices rather than `scenePhase`, which can reach the view only after the
+    // switcher has drawn the app's card.
+    .onReceive(NotificationCenter.default.publisher(for: UIScene.willDeactivateNotification)) {
+      _ in isShielded = true
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIScene.didEnterBackgroundNotification)) {
+      _ in isAway = true
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIScene.willEnterForegroundNotification)) {
+      _ in isAway = false
+    }
+    .onReceive(NotificationCenter.default.publisher(for: UIScene.didActivateNotification)) {
+      _ in isShielded = false
+    }
+  }
+
+  /// An address of `address`'s length, whose symbol is the size of its own.
+  nonisolated static func standIn(for address: String) -> String {
+    String(repeating: "x", count: address.count)
   }
 
   /// The layout of the address's symbol at correction level Q, which recovers the modules the

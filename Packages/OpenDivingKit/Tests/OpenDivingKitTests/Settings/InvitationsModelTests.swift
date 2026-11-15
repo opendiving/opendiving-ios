@@ -202,6 +202,20 @@ struct InvitationsModelTests {
     #expect(harness.server.token == nil)
   }
 
+  @Test func aTapWhileAChangeWaitsClearsItAndTheNextAsks() async throws {
+    let harness = try await InvitationsHarness(linked: true)
+    let model = await model(harness)
+    model.askToConfirm(.reset)
+    #expect(model.confirmingLink == .reset)
+    // Its dialog is up, or was asked for and never shown: the other button's tap clears it.
+    model.askToConfirm(.remove)
+    #expect(model.confirmingLink == nil)
+    model.askToConfirm(.remove)
+    #expect(model.confirmingLink == .remove)
+    model.askToConfirm(.remove)
+    #expect(model.confirmingLink == nil)
+  }
+
   @Test func aRefusedLinkChangeKeepsTheLinkAndSaysWhy() async throws {
     let harness = try await InvitationsHarness(linked: true)
     let model = await model(harness)

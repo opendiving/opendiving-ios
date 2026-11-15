@@ -96,6 +96,13 @@ public final class InvitationsModel {
     }
   }
 
+  /// Whether `config`'s server takes invitations: every one until it has said anyone may
+  /// register, which leaves nobody to invite. Until it has answered, a surface offering them
+  /// stays, since the invitations' own read answers for itself either way.
+  nonisolated public static func isOffered(by config: InstanceConfigRead?) -> Bool {
+    config?.registrationMode != "open"
+  }
+
   /// When the oldest of what the screen shows from the phone's copy was fetched; nil once
   /// nothing on it is.
   public var lastUpdated: Date? {
@@ -194,6 +201,14 @@ public final class InvitationsModel {
     } catch {
       linkFailure = APIError(error).message
     }
+  }
+
+  /// A tap on `change`'s button. Each button's dialog is its own, and iOS never shows a dialog
+  /// asked for while another is up, which would leave `change` waiting on a dialog nobody sees
+  /// and its button dead. So a tap while any change waits only clears it, closing what is
+  /// shown, and the next tap asks.
+  public func askToConfirm(_ change: LinkChange) {
+    confirmingLink = confirmingLink == nil ? change : nil
   }
 
   /// Carries out `change`, the one the confirmation named. It is handed in rather than read
@@ -336,8 +351,7 @@ public final class InvitationsModel {
   public static let linkCreate = "Create your invite link"
   public static let linkLive =
     "Whoever scans or follows this link can create an account here, counted as your invitation."
-    + " You will see the name on their account, never their address. It keeps working until"
-    + " you reset or remove it."
+    + " It keeps working until you reset or remove it."
   public static let linkAddressLabel = "Invite link address"
   public static let linkCopied = "Link copied"
   public static let qrLabel = "QR code of your invite link"

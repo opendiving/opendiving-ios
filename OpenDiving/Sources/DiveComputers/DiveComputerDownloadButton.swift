@@ -34,7 +34,7 @@ struct DiveComputerDownloadButtonLabel: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   private static let ringWidth: CGFloat = 2.5
-  /// The toolbar's circular buttons, the `+` among them.
+  /// The toolbar's circular buttons, the settings among them.
   private static let size: CGFloat = MapRoundButtonStyle.side
 
   /// The label, which the ring overlays on the button's edge. From iOS 26 the bar's glass pads the
@@ -50,7 +50,7 @@ struct DiveComputerDownloadButtonLabel: View {
 
   var body: some View {
     Button(action: action) {
-      // The size of the bar's own symbols: the `+` stands as tall.
+      // The size of the bar's own symbols: the settings gear stands as tall.
       DiveComputerGlyph(animated: content?.state == .working && !reduceMotion)
         .frame(width: 22, height: 22)
         .foregroundStyle(Color.primary)
