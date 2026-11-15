@@ -132,12 +132,7 @@ private struct SitePanelContent: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     if !site.notes.isEmpty {
       VStack(alignment: .leading, spacing: 6) {
-        // Over the card, as a form's section header stands over its rows.
-        FormSectionHeader(title: "Notes", icon: .fileText)
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-          .padding(.horizontal, 16)
-          .accessibilityAddTraits(.isHeader)
+        SectionTitle(title: "Notes", icon: .fileText)
         Text(site.notes)
           .padding(.horizontal, 16)
           .padding(.vertical, 11)
@@ -184,7 +179,7 @@ private struct PanelMessage: View {
         .foregroundStyle(.secondary)
       if let retry {
         Button("Try again", action: retry)
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -444,9 +439,23 @@ extension View {
   /// Fills what the panel shows under its tabs, `below` points tall, less the stack's gap under
   /// them and the panel's foot, so a message stands in the middle of what is left.
   fileprivate func centredInPanel(below: CGFloat) -> some View {
-    containerRelativeFrame(.vertical) { length, _ in
-      max(0, length - below - 2 * PanelMetrics.gap)
-    }
+    modifier(CentredInPanel(below: below))
+  }
+}
+
+private struct CentredInPanel: ViewModifier {
+  let below: CGFloat
+  @Environment(\.panelHiddenBelow) private var hidden
+
+  func body(content: Content) -> some View {
+    content
+      .containerRelativeFrame(.vertical) { length, _ in
+        max(0, length - below - 2 * PanelMetrics.gap)
+      }
+      // Moving, the panel is laid out at its tallest with its foot below the screen: raised by
+      // half of that, the message stays in the middle of what shows. Drawn only, so a frame of the
+      // move lays nothing out again.
+      .offset(y: -hidden / 2)
   }
 }
 

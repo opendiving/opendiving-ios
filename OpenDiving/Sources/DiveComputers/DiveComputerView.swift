@@ -175,6 +175,7 @@ struct DiveComputerWalkSections: View {
           Text(waiting).foregroundStyle(.secondary)
         }
         Button("Cancel", role: .cancel) { model.cancel() }
+          .accentRow()
       }
     case .downloading:
       Section {
@@ -193,8 +194,10 @@ struct DiveComputerWalkSections: View {
         }
         if let progress = model.progress {
           ProgressView(value: progress)
+            .tint(Color.accentText)
         }
         Button("Cancel", role: .cancel) { model.cancel() }
+          .accentRow()
       } footer: {
         Text(DiveComputerText.lockHint)
       }
@@ -249,7 +252,9 @@ private struct TimeZoneQuestion: View {
     Section(DiveComputerText.timeZoneQuestion) {
       TimeZonePicker(title: "Time zone", selection: $zone)
       Button("Continue") { model.answerTimeZone(zone) }
+        .accentRow()
       Button("Cancel", role: .cancel) { model.cancel() }
+        .accentRow()
     }
   }
 }

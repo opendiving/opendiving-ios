@@ -38,15 +38,15 @@ struct CertificationCardSlotView: View {
             slot.primary,
             systemImage: slot.primary == "Upload" ? "square.and.arrow.up" : "arrow.2.squarepath")
         }
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
         if let secondary = slot.secondary {
           Button {
             if case .remove = secondary { onRemove() } else { onUndo() }
           } label: {
             if case .keep = secondary {
-              Image(systemName: "arrow.uturn.backward")
+              Image(systemName: "arrow.uturn.backward").accentRow()
             } else {
-              Image(systemName: "trash")
+              Image(systemName: "trash").dangerRow()
             }
           }
           .buttonStyle(.borderless)

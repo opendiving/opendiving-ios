@@ -18,6 +18,11 @@ import Observation
 /// to it too; a later move cancels a request still on its way. A request the server would read as
 /// the last one answered for the same *Your sites* setting is not sent again: that list shows.
 ///
+/// **The list on screen stays until the next one lands.** A list asked for again — a pan, *Your
+/// sites* toggled, a search typed — leaves the rows shown where they are while its request is on
+/// its way, rather than showing the pages kept for its setting, which may be another view's. It
+/// shows them only once the request fails, under when they were fetched.
+///
 /// **The list is the server's order.** Nothing re-sorts or re-filters it, except that the dive
 /// form leaves out a site already on the dive.
 @MainActor
@@ -77,6 +82,11 @@ public final class SiteFinderModel {
 
   /// The query the list shows.
   public private(set) var query: DiveSiteSearchQuery?
+  /// The query last sent, which the list shows once it is answered.
+  @ObservationIgnored private var asked: DiveSiteSearchQuery?
+
+  /// The list shows *Your sites*, which ``yours`` leads while the list for it is on its way.
+  public var listsYours: Bool { query?.yours ?? yours }
 
   /// The list shows a typed search.
   public var isTyped: Bool { !(query?.text.trimmedOfWhitespace.isEmpty ?? true) }
@@ -133,9 +143,9 @@ public final class SiteFinderModel {
     points = DiveSitePointsModel(session: form.session)
   }
 
-  /// When the rows shown were fetched, once they are kept pages no request will replace: a new
-  /// list shows its kept pages while its request is on its way, the last answer for the same
-  /// setting, which says nothing about how old the list is until that request has failed.
+  /// When the rows shown were fetched, once they are kept pages no request will replace: the sites
+  /// map opens on its kept pages, and rows stay on screen while the next list is on its way, which
+  /// says nothing about how old they are until that request has failed.
   public var lastUpdated: Date? {
     isOpening || isSearching ? nil : list?.lastUpdated
   }
@@ -155,7 +165,7 @@ public final class SiteFinderModel {
   /// only *Your sites*, which a site of the diver's own would be missing from by being left out,
   /// and once its last page is in, so that it stands at the end.
   public var offersAddingSite: Bool {
-    guard !yours, let list, list.phase == .loaded else { return false }
+    guard !listsYours, let list, list.phase == .loaded else { return false }
     return !list.hasMore
   }
 
@@ -246,7 +256,9 @@ public final class SiteFinderModel {
   /// The opening's list again, narrowed to the view, where it was sent before a map was drawn and
   /// measured to say what the view is.
   private func narrowOpening() {
-    guard restsOnOpening, !isOpening, !isTyped, query?.box == nil, shownBox != nil else { return }
+    guard restsOnOpening, !isOpening, asked?.text.trimmedOfWhitespace.isEmpty ?? true,
+      asked?.box == nil, shownBox != nil
+    else { return }
     Task { await search() }
   }
 
@@ -263,7 +275,7 @@ public final class SiteFinderModel {
 
   /// The search box's text, once the diver has paused: nothing is sent for text already searched.
   public func typed() async {
-    guard !isOpening, text.trimmedOfWhitespace != query?.text.trimmedOfWhitespace else { return }
+    guard !isOpening, text.trimmedOfWhitespace != asked?.text.trimmedOfWhitespace else { return }
     await search()
   }
 
@@ -438,13 +450,13 @@ public final class SiteFinderModel {
       camera: restsOnWorld
         ? nil : DeviceLocation(latitude: camera.latitude, longitude: camera.longitude),
       box: narrowed ? shownBox : nil, until: form?.values.startTime, yours: yours)
-    self.query = query
+    asked = query
     if let last = answered[query.yours], last.query.items == query.items,
       last.list.phase == .loaded, last.list.fetchedAt == nil
     {
       searching = nil
       isSearching = false
-      list = last.list
+      show(last.list, for: query)
       return
     }
     let list = PagedList<DiveSiteSearchRow>(
@@ -453,17 +465,24 @@ public final class SiteFinderModel {
     ) { client, page, itemsPerPage in
       try await client.searchDiveSites(query, page: page, itemsPerPage: itemsPerPage).listPage
     }
-    self.list = list
+    // A screen with no rows to keep shows the new list's spinner meanwhile.
+    if self.list?.phase != .loaded { show(list, for: query) }
     isSearching = true
     let task = Task { [weak self] in
-      await list.load()
+      await list.loadKeptOnFailure()
       guard let self, generation == self.generation else { return }
+      show(list, for: query)
       answered[query.yours] = (query, list)
       searching = nil
       isSearching = false
     }
     searching = task
     await task.value
+  }
+
+  private func show(_ list: PagedList<DiveSiteSearchRow>, for query: DiveSiteSearchQuery) {
+    self.list = list
+    self.query = query
   }
 
   /// What the diver sees of the map, where there is a map, measured, off the world the opening

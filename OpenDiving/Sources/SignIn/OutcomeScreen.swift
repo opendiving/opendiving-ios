@@ -21,7 +21,7 @@ struct OutcomeScreen: View {
           .brandProminentButton()
       }
       Button("Back", action: back)
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
     }
     .navigationTitle("Sign In")
   }

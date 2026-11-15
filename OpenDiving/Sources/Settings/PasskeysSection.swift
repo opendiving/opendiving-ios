@@ -69,9 +69,8 @@ struct PasskeysSection: View {
         Button(role: .destructive) {
           model.confirmingRemove = passkey
         } label: {
-          Image(systemName: "trash")
+          Image(systemName: "trash").dangerRow()
         }
-        .tint(Color.danger)
         .accessibilityLabel("Remove \u{201C}\(passkey.name)\u{201D}")
         .rowConfirmation(
           PasskeysModel.removeTitle, for: passkey, confirming: Bindable(model).confirmingRemove

@@ -30,7 +30,7 @@ struct EmptyOrErrorView: View {
       } actions: {
         if let retry {
           Button("Try again", action: retry)
-            .buttonStyle(.bordered)
+            .brandBorderedButton()
         }
       }
     }

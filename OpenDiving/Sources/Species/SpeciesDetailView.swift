@@ -134,7 +134,7 @@ private struct SpeciesDiveSites: View {
           .font(.subheadline)
           .foregroundStyle(.secondary)
         Button("Try again") { Task { await list.load() } }
-          .buttonStyle(.bordered)
+          .brandBorderedButton()
       }
     case .loaded where list.items.isEmpty:
       EmptyOrErrorView(

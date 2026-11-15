@@ -14,6 +14,7 @@ struct TimeZonePicker: View {
       }
     }
     .pickerStyle(.navigationLink)
+    .tint(Color.accentText)
   }
 
   static func identifiers(showing selection: TimeZone) -> [String] {

@@ -514,3 +514,15 @@ The readout follows one finger at any zoom, and two fingers pinch or slide the w
 drag pans a zoomed plot unless it lands on the crosshair, which relies on a crosshair that stays
 after the finger lifts. `chartXSelection` clears it on lift, so there is nothing to land on, and a
 drag that panned would leave a zoomed plot with no drag to read it by.
+
+## The accent is always given, never left to the default tint
+
+With Increase Contrast on, SwiftUI swaps the default tint, and `Color.accentColor`, for a brighter
+teal in the dark and a darker one in the light, in a list or out of one. A colour given by name is
+drawn as it stands: `Color.accentText`, `.accentRow()`, `Label(row:icon:)`, or an explicit
+`.tint(Color.accentText)` on a system control. A list `Label`'s own icon ignores an explicit tint,
+so its symbol takes a foreground style. `Button(role: .destructive)` draws the system red whatever
+its tint, so the web's danger goes on its label with `.dangerRow()`. Rejected: one tint at the
+root, which also turns every toolbar button teal where the default leaves them in the label colour,
+and which a navigation bar tint does not hold back; and a high-contrast variant in `AccentColor`,
+which SwiftUI brightens all the same.

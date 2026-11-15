@@ -40,6 +40,9 @@ jobs:
       - name: Lint formatting
         run: swift format lint --strict --recursive .
 
+      - name: Check no control is left in the default tint
+        run: scripts/default-tint.sh
+
       - name: Test the Kit
         run: swift test --package-path Packages/OpenDivingKit
 

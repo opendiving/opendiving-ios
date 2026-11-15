@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The titled card each section of a dive, a trip, a site and the check-in sheet sits in,
-/// its title led by the section's symbol where it has one.
+/// The card each section of a dive, a trip, a site and the check-in sheet sits in, under its
+/// title.
 struct SectionCard<Content: View>: View {
   let title: String
   let icon: Icon?
@@ -15,23 +15,16 @@ struct SectionCard<Content: View>: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack(spacing: 8) {
-        if let icon {
-          Image(icon)
-            .foregroundStyle(.secondary)
-            .accessibilityHidden(true)
-        }
-        Text(title)
+    VStack(alignment: .leading, spacing: 6) {
+      SectionTitle(title: title, icon: icon)
+      VStack(alignment: .leading, spacing: 12) {
+        content
       }
-      .font(.headline)
-      .accessibilityElement(children: .combine)
-      .accessibilityAddTraits(.isHeader)
-      content
+      .padding(.horizontal, 16)
+      .padding(.vertical, 12)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Color.cardFill, in: .formSection)
     }
-    .padding(12)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color.cardFill, in: .formSection)
   }
 }
 

@@ -46,6 +46,7 @@ private struct StorageSection: View {
             .font(.subheadline.weight(.medium))
           if let limit = usage.limitBytes {
             ProgressView(value: Double(min(usage.usedBytes, limit)), total: Double(max(limit, 1)))
+              .tint(Color.accentText)
               .accessibilityLabel("Storage used")
               .accessibilityValue(StorageText.used(usage))
             if StorageText.isOverLimit(usage) {

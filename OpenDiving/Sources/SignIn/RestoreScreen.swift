@@ -36,7 +36,7 @@ struct RestoreScreen: View {
         }
       }
       Button("No thanks, leave it deleted") { flow.useDifferentEmail() }
-        .buttonStyle(.bordered)
+        .brandBorderedButton()
         .disabled(flow.isRestoring)
       if flow.canRestore {
         Text(SignInFlow.restoreOfferNote)

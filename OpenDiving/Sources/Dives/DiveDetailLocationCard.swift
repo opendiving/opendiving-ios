@@ -17,6 +17,7 @@ struct DiveDetailLocationCard: View {
             } label: {
               placeLabel(trip.name, detail: trip.locations, icon: .luggage)
             }
+            .accentRow()
           }
         }
         if let center = location.diveCenter {
@@ -48,6 +49,7 @@ struct DiveDetailLocationCard: View {
               } label: {
                 placeLabel(site.name, detail: site.location, icon: .diveSite)
               }
+              .accentRow()
             }
           }
         }
