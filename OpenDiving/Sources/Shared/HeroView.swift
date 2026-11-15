@@ -8,7 +8,9 @@ import SwiftUI
 /// `detailsOnGlass`, the credit over the map and the rest on a card of glass. `leading` stands
 /// before the title and the facts — the profile's picture. A record with nowhere to put on a
 /// map, or on an instance with no map to draw, gets the band without one; a species gets its
-/// photo in place of a map.
+/// photo in place of a map. A ``HeroBackdrop/plain`` head — gear, a course, a person, which
+/// never have either — puts its details on the glass under a short band instead, as there is
+/// nothing above them to show.
 struct HeroView<Leading: View>: View {
   let content: HeroContent
   var backdrop = HeroBackdrop.map
@@ -19,6 +21,8 @@ struct HeroView<Leading: View>: View {
 
   /// How far the band is drawn above the head, out of sight until a pull-down reveals it.
   private static var pullReach: CGFloat { 400 }
+  /// The water showing above the glass on a head with nothing behind its details.
+  private static var bareBand: CGFloat { 16 }
 
   @Environment(\.heroTopInset) private var topInset
   @State private var height: CGFloat = 0
@@ -30,9 +34,13 @@ struct HeroView<Leading: View>: View {
       && (!content.points.isEmpty || !content.fixes.isEmpty || content.mapsTheWorldWhenEmpty)
   }
 
+  private var isPlain: Bool { backdrop == .plain }
+
+  private var onGlass: Bool { detailsOnGlass || isPlain }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      if detailsOnGlass {
+      if onGlass {
         creditLine
         details
           .padding(12)
@@ -48,7 +56,11 @@ struct HeroView<Leading: View>: View {
     } action: {
       detailsHeight = $0
     }
-    .frame(maxWidth: .infinity, minHeight: 280 + topInset, alignment: .bottomLeading)
+    .padding(.top, isPlain ? topInset + Self.bareBand : 0)
+    .frame(
+      maxWidth: .infinity, minHeight: isPlain ? nil : 280 + topInset,
+      alignment: .bottomLeading
+    )
     .onGeometryChange(for: CGFloat.self) {
       $0.size.height
     } action: {
@@ -105,7 +117,7 @@ struct HeroView<Leading: View>: View {
       HStack(alignment: .top, spacing: 12) {
         leading()
         // On glass the line sits under the name as a figure's value does under its label.
-        VStack(alignment: .leading, spacing: detailsOnGlass ? 0 : 6) {
+        VStack(alignment: .leading, spacing: onGlass ? 0 : 6) {
           TitleLine(
             title: content.title, isCourse: content.isCourse, rating: content.rating,
             font: .title2.bold())
@@ -148,6 +160,19 @@ extension HeroView where Leading == EmptyView {
         ],
         points: [MapPoint(name: "Blue Hole", latitude: 28.5722, longitude: 34.5372)],
         fixes: [MapPoint(name: "Exit", latitude: 28.5735, longitude: 34.5361)]))
+  }
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
+}
+
+#Preview("Nothing behind") {
+  ScrollView {
+    HeroView(
+      content: HeroContent(
+        title: "Perdix 2", facts: [Fact(text: "Shearwater · Dive computer")],
+        figures: [
+          Figure(label: "Dives", value: "112"), Figure(label: "Last used", value: "3 days ago"),
+        ]),
+      backdrop: .plain)
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

@@ -60,7 +60,7 @@ private struct CourseDetailContent: View {
       case .loaded(let course):
         ScrollView {
           LazyVStack(spacing: 16) {
-            HeroView(content: CoursePageContent.hero(course))
+            HeroView(content: CoursePageContent.hero(course), backdrop: .plain)
             Group {
               if let lastUpdated = model.page.lastUpdated {
                 LastUpdatedLine(date: lastUpdated)
