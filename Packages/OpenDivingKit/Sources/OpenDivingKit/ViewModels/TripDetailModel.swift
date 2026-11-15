@@ -8,7 +8,8 @@ import Observation
 /// A trip the phone has opened before shows at once from the account's cache, its dives,
 /// contacts and species with it, while it is fetched behind; a fetch that fails leaves it
 /// standing, under ``lastUpdated``. With no route nothing is asked for, and ``followRoute()``
-/// reads again once one appears. A 404 for the trip means the server no longer has it, and the phone forgets it.
+/// reads again once one appears. A 404 for the trip means the server no longer has it, and the
+/// phone forgets it.
 @MainActor
 @Observable
 public final class TripDetailModel: AccountStoresObserver, AccountListsObserver {
