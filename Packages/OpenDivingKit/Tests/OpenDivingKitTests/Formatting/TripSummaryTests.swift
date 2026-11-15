@@ -2,8 +2,8 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// The trip's card, hero and information card over the `trip` fixture, as the web's
-/// `tripFacts`, `tripFigures` and trip page print them.
+/// The trip's card, hero and *Info* tab over the `trip` fixture, as the web's `tripFacts`,
+/// `tripFigures` and trip page print them.
 struct TripSummaryTests {
   static func trip(_ changes: [String: Any] = [:]) throws -> TripRead {
     var object = try #require(
@@ -111,7 +111,7 @@ struct TripSummaryTests {
     #expect(headings[2].title == "No place recorded")
   }
 
-  @Test func theInformationCardNamesTheContactsItCanRead() throws {
+  @Test func theInfoTabNamesTheContactsItCanRead() throws {
     let trip = try Self.trip(["parts": parts, "contact_uuids": [centre, missing, hotel]])
     let contacts = Dictionary(
       uniqueKeysWithValues: try [
@@ -128,28 +128,5 @@ struct TripSummaryTests {
     #expect(TripSummary.diveCenters(trip, contacts: [:]) == nil)
     #expect(
       TripSummary.contactUUIDs(trip).map { $0.uuidString.lowercased() } == [hotel, centre, missing])
-  }
-
-  // MARK: - Info
-
-  @Test func recordInfoListsTheTripsFieldsWithOnePart() throws {
-    let info = TripSummary.recordInfo(try Self.trip())
-    #expect(info.map(\.heading) == [nil, "Part", nil])
-    #expect(info[0].facts == [RecordInfoFact(label: "Name", value: "Dahab 2026 (September)")])
-    #expect(
-      info[1].facts == [
-        RecordInfoFact(label: "Location", value: "Dahab, Egypt"),
-        RecordInfoFact(label: "Start date", value: "Sep 6, 2026"),
-        RecordInfoFact(label: "End date", value: nil),
-      ])
-    #expect(info[2].facts == [RecordInfoFact(label: "Notes", value: nil, isWide: true)])
-  }
-
-  @Test func recordInfoNumbersManyPartsAndKeepsARowForNone() throws {
-    let part: [String: Any] = ["candidate_count": 0]
-    let many = TripSummary.recordInfo(try Self.trip(["parts": [part, part]]))
-    #expect(many.map(\.heading) == [nil, "Part 1", "Part 2", nil])
-    let none = TripSummary.recordInfo(try Self.trip(["parts": []]))
-    #expect(none[1] == RecordInfoSection(facts: [RecordInfoFact(label: "Parts", value: nil)]))
   }
 }

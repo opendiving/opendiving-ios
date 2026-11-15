@@ -11,15 +11,6 @@ import Observation
 @MainActor
 @Observable
 public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObserver {
-  /// The *Marine life* tab's state.
-  public enum Species: Hashable, Sendable {
-    /// The site counts no species, so nothing is asked for and the tab says none were seen.
-    case none
-    case loading
-    case loaded([SpeciesLifeListEntry])
-    case failed
-  }
-
   public let siteUUID: UUID
   public private(set) var phase: DetailPhase<DiveSiteRead> = .loading
   /// When the site shown was fetched, once it is the cache's and no read of this visit's is on
@@ -31,9 +22,8 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   /// A read of the site is on its way.
   private var isReading = false
   public let dives: PagedList<DiveListItem>
-  public private(set) var species: Species = .none
-  /// Photo bytes by species uuid, as each card asks for its own.
-  public private(set) var photos: [UUID: Data] = [:]
+  public private(set) var species: SpeciesSeen = .none
+  public let photos: SpeciesCardPhotos
 
   /// The queue holds an edit of this site, which the panel shows once it lands.
   public private(set) var hasPendingEdit = false
@@ -47,12 +37,11 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   @ObservationIgnored private var skippedForRoute = false
   /// The read a queued edit landing started.
   @ObservationIgnored var reloading: Task<Void, Never>?
-  /// The photo version last asked for, by species uuid.
-  @ObservationIgnored private var photosAsked: [UUID: String] = [:]
 
   public init(session: Session, siteUUID: UUID) {
     self.session = session
     self.siteUUID = siteUUID
+    photos = SpeciesCardPhotos(session: session)
     withdrawal = ProposalWithdrawal(session: session)
     replacement = CommonsSiteReplacement(session: session)
     dives = PagedList(
@@ -72,18 +61,6 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     async let list: Void = dives.load()
     async let seen: Void = readSpecies(site)
     _ = await (list, seen)
-  }
-
-  /// The species' photo, once per version, when it has one. A photo that fails to arrive
-  /// leaves the card's no-photo backdrop.
-  public func loadPhoto(_ entry: SpeciesLifeListEntry) async {
-    guard let version = entry.photoSha256, photosAsked[entry.uuid] != version,
-      let client = try? session.routedClient()
-    else { return }
-    photosAsked[entry.uuid] = version
-    if let bytes = try? await client.speciesPhoto(entry.uuid, version: version) {
-      photos[entry.uuid] = bytes.data
-    }
   }
 
   /// Takes back the diver's proposal on the site and reads the site again.

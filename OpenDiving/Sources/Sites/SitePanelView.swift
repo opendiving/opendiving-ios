@@ -429,7 +429,7 @@ private struct SiteSpecies: View {
           speciesUUID: entry.uuid,
           content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
         )
-        .onAppear { Task { await model.loadPhoto(entry) } }
+        .onAppear { Task { await model.photos.load(entry) } }
       }
     }
   }

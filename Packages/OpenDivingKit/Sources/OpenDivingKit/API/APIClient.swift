@@ -274,6 +274,16 @@ public actor APIClient {
     try await authorizedDecoded(TripRead.self, Call(path: "trip/\(Self.wire(uuid))"))
   }
 
+  /// `GET /trip/{uuid}/species`: the species seen on the trip's own dives — the set its
+  /// `speciesCount` counts, candidates left out — each with its figures over those dives alone.
+  public func tripSpecies(
+    _ uuid: UUID, page: Int, itemsPerPage: Int = listPageSize
+  ) async throws -> PaginatedListResponse<SpeciesLifeListEntry> {
+    try await authorizedDecoded(
+      PaginatedListResponse<SpeciesLifeListEntry>.self,
+      Call(path: "trip/\(Self.wire(uuid))/species", query: Self.paging(page, itemsPerPage)))
+  }
+
   /// `GET /dive-site/{uuid}`.
   public func diveSite(_ uuid: UUID) async throws -> DiveSiteRead {
     try await authorizedDecoded(DiveSiteRead.self, Call(path: "dive-site/\(Self.wire(uuid))"))

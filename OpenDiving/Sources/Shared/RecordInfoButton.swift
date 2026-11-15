@@ -22,6 +22,6 @@ struct RecordInfoButton: View {
 
 #Preview {
   RecordInfoButton(
-    title: "Trip Information",
-    sections: [RecordInfoSection(facts: [RecordInfoFact(label: "Name", value: "Dahab")])])
+    title: "Dive Information",
+    sections: [RecordInfoSection(facts: [RecordInfoFact(label: "Dive number", value: "42")])])
 }

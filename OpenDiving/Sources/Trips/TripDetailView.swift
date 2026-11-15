@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One trip's page, pushed from the dive page and the trips list: its hero, its dives under
-/// the parts they were made on, and its *Trip Information* card.
+/// One trip's page, pushed from the dive page and the trips list: its hero, then three tabs —
+/// Info, its parts, people, dive centres and notes; Dives, under the parts they were made on;
+/// and Marine life, the species seen on them.
 struct TripDetailView: View {
   let tripUUID: UUID
   @Environment(Session.self) private var session
@@ -36,26 +37,7 @@ private struct TripDetailContent: View {
           Task { await model.load() }
         }
       case .loaded(let trip):
-        ScrollView {
-          LazyVStack(spacing: 16) {
-            HeroView(content: TripSummary.hero(trip, units: session.units), detailsOnGlass: true)
-            Group {
-              if let lastUpdated = model.lastUpdated {
-                LastUpdatedLine(date: lastUpdated)
-              }
-              if model.hasPendingEdit {
-                PendingEditLine()
-              }
-              TripDives(trip: trip, list: model.dives, units: session.units)
-              PageEndTrigger(list: model.dives)
-              LoadMoreFooter(list: model.dives)
-              TripInformationCard(trip: trip, contacts: model.contacts, people: session.people)
-            }
-            .padding(.horizontal)
-          }
-          .padding(.bottom)
-        }
-        .heroUnderTopBar { await model.refresh() }
+        TripDetailPage(trip: trip, model: model)
       }
     }
     .background(Color.pageBackground)
@@ -66,7 +48,6 @@ private struct TripDetailContent: View {
     .toolbar {
       if case .loaded(let trip) = model.phase {
         ToolbarItemGroup(placement: .topBarTrailing) {
-          RecordInfoButton(title: "Trip Information", sections: TripSummary.recordInfo(trip))
           NavigationLink {
             TripFormView(mode: .edit(trip)) { dismiss() }
           } label: {
@@ -83,6 +64,101 @@ private struct TripDetailContent: View {
 
   private var title: String {
     if case .loaded(let trip) = model.phase { trip.name } else { "Trip" }
+  }
+}
+
+private struct TripDetailPage: View {
+  let trip: TripRead
+  let model: TripDetailModel
+
+  @Environment(Session.self) private var session
+  @State private var tab = TripSection.info
+  @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
+  @State private var tabsBottom: CGFloat = 0
+  @State private var visibleHeight: CGFloat = 0
+
+  /// The stack's gap under the tabs and the page's foot.
+  private static let emptyGaps: CGFloat = 16 + 16
+  /// What a message keeps where the head leaves less of the screen.
+  private static let emptyMinHeight: CGFloat = 240
+
+  var body: some View {
+    ScrollView {
+      // Lazy, so the dives' last page asks for the next and each species card for its photo
+      // as it scrolls into reach.
+      LazyVStack(spacing: 16) {
+        HeroView(content: TripSummary.hero(trip, units: session.units), detailsOnGlass: true)
+        if model.lastUpdated != nil || model.hasPendingEdit {
+          VStack(spacing: 16) {
+            if let lastUpdated = model.lastUpdated {
+              LastUpdatedLine(date: lastUpdated)
+            }
+            if model.hasPendingEdit {
+              PendingEditLine()
+            }
+          }
+          .padding(.horizontal)
+        }
+        SectionTabs(
+          selection: $tab,
+          title: { tab in
+            switch tab {
+            case .info: tab.title
+            case .dives: DiveSiteSummary.counted(tab.title, trip.diveCount)
+            case .marineLife: DiveSiteSummary.counted(tab.title, trip.speciesCount)
+            }
+          },
+          onReselect: { withAnimation { scroll.scroll(to: reselect) } }
+        )
+        .readsTabsTop($tabsTop)
+        .onGeometryChange(for: CGFloat.self) {
+          $0.frame(in: .pageContent).maxY
+        } action: {
+          tabsBottom = $0
+        }
+        Group {
+          switch tab {
+          case .info:
+            if TripInformation.isEmpty(trip, contacts: model.contacts, people: session.people) {
+              empty(.empty(icon: .fileText, title: "Nothing else logged", message: nil))
+            } else {
+              TripInformation(trip: trip, contacts: model.contacts, people: session.people)
+            }
+          case .dives:
+            if model.dives.phase == .loaded, trip.parts.isEmpty, model.dives.items.isEmpty {
+              empty(
+                .empty(icon: .dive, title: "No dives logged for this trip yet", message: nil))
+            } else {
+              TripDives(trip: trip, list: model.dives, units: session.units)
+              PageEndTrigger(list: model.dives)
+              LoadMoreFooter(list: model.dives)
+            }
+          case .marineLife:
+            TripSpecies(model: model) { empty($0) }
+          }
+        }
+        .padding(.horizontal)
+      }
+      .coordinateSpace(.pageContent)
+      .padding(.bottom)
+    }
+    .scrollPosition($scroll)
+    // The height less the insets, whose top is the content's at rest.
+    .onScrollGeometryChange(for: CGFloat.self) {
+      $0.containerSize.height
+    } action: {
+      visibleHeight = $1
+    }
+    .tabsReselect($reselect, tabsTop: tabsTop)
+    .heroUnderTopBar { await model.refresh() }
+  }
+
+  /// In the middle of what the screen shows under the tabs, at their place at rest.
+  private func empty(_ status: ContentStatus) -> some View {
+    EmptyOrErrorView(status: status)
+      .frame(height: max(Self.emptyMinHeight, visibleHeight - tabsBottom - Self.emptyGaps))
   }
 }
 
@@ -115,10 +191,6 @@ private struct TripDives: View {
         Button("Try again") { Task { await list.load() } }
           .brandBorderedButton()
       }
-    case .loaded where trip.parts.isEmpty && list.items.isEmpty:
-      EmptyOrErrorView(
-        status: .empty(
-          icon: Self.icon, title: "No dives logged for this trip yet", message: nil))
     case .loaded where trip.parts.isEmpty:
       SectionCard(title: Self.title, icon: Self.icon) {
         Text("Every dive logged on this trip")
@@ -158,50 +230,85 @@ private struct TripDives: View {
   }
 }
 
-/// Each part's place, accommodation and dates, the people on the trip, its dive centres
-/// and its notes — drawn only when the trip has any of them, as a card with nothing in it
-/// but its heading would say nothing.
-private struct TripInformationCard: View {
+/// Each part's place, accommodation and dates, the people on the trip, its dive centres and its
+/// notes, a card for each the trip has.
+private struct TripInformation: View {
   let trip: TripRead
   let contacts: [UUID: ContactRead]
   let people: [UUID: PersonRead]
+
+  static func isEmpty(
+    _ trip: TripRead, contacts: [UUID: ContactRead], people: [UUID: PersonRead]
+  ) -> Bool {
+    trip.parts.isEmpty && PersonRowContent.rows(trip.people, people: people).isEmpty
+      && TripSummary.diveCenters(trip, contacts: contacts) == nil && trip.notes.isEmpty
+  }
 
   var body: some View {
     let parts = TripSummary.partRows(trip, contacts: contacts)
     let people = PersonRowContent.rows(trip.people, people: people)
     let centres = TripSummary.diveCenters(trip, contacts: contacts)
-    if !parts.isEmpty || !people.isEmpty || centres != nil || !trip.notes.isEmpty {
-      SectionCard(title: "Trip Information", icon: .calendar) {
-        VStack(alignment: .leading, spacing: 16) {
-          if !parts.isEmpty {
-            InfoRow(label: parts.count > 1 ? "Parts" : "Part") {
-              VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
-                  PartRowView(row: part)
-                }
-              }
-            }
-          }
-          if !people.isEmpty {
-            InfoRow(label: "People") {
-              VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(people.enumerated()), id: \.offset) { _, person in
-                  PersonRowView(content: person)
-                }
-              }
-            }
-          }
-          if let centres {
-            InfoRow(label: "Dive centers") {
-              Text(centres)
-            }
-          }
-          if !trip.notes.isEmpty {
-            InfoRow(label: "Notes") {
-              Text(trip.notes)
-            }
+    if !parts.isEmpty {
+      SectionCard(title: parts.count > 1 ? "Parts" : "Part", icon: .mapPin) {
+        VStack(alignment: .leading, spacing: 12) {
+          ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+            PartRowView(row: part)
           }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    if !people.isEmpty {
+      SectionCard(title: "People", icon: .users) {
+        VStack(alignment: .leading, spacing: 8) {
+          ForEach(Array(people.enumerated()), id: \.offset) { _, person in
+            PersonRowView(content: person)
+          }
+        }
+      }
+    }
+    if let centres {
+      SectionCard(title: "Dive Centers", icon: .building2) {
+        Text(centres)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    if !trip.notes.isEmpty {
+      SectionCard(title: "Notes", icon: .fileText) {
+        Text(trip.notes)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+  }
+}
+
+/// The species seen on the trip's dives, read whole; `empty` draws a message in the space
+/// under the tabs.
+private struct TripSpecies<Empty: View>: View {
+  let model: TripDetailModel
+  @ViewBuilder let empty: (ContentStatus) -> Empty
+
+  var body: some View {
+    switch model.species {
+    case .none:
+      empty(.empty(icon: .fish, title: "No marine life logged on this trip yet", message: nil))
+    case .loading:
+      BubbleSpinner()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+    case .failed:
+      empty(
+        .empty(
+          icon: .fish, title: "The species could not be loaded",
+          message: "Pull down to try again."))
+    case .loaded(let entries):
+      ForEach(entries) { entry in
+        CreditedSpeciesCard(
+          speciesUUID: entry.uuid,
+          content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
+        )
+        .onAppear { Task { await model.photos.load(entry) } }
       }
     }
   }
