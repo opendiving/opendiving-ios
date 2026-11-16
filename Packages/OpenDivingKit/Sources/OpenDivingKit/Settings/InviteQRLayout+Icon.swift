@@ -3,9 +3,9 @@
 /// square, (0, 0) at the icon's top-left corner.
 extension InviteQRLayout {
   /// An eye's side, of the icon's.
-  public static let iconEyeSide = 0.4
+  public static let iconEyeSide = 0.45
   /// A dot's side, of the icon's.
-  public static let iconDotSide = 0.12
+  public static let iconDotSide = 0.13
 
   /// The eyes' top-left corners, in the order of `finders`: top left, top right, bottom left.
   public static let iconEyes: [(x: Double, y: Double)] = [

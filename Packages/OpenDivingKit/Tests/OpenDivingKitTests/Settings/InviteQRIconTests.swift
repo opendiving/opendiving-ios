@@ -18,10 +18,10 @@ struct InviteQRIconTests {
   @Test func eachDotTakesTheModuleNearestWhereItSits() throws {
     let layout = try #require(InviteQRLayout(matrix: InviteQRLayoutTests.matrix(37)))
     let modules = layout.iconDotModules
-    // The die's far corner falls on the symbol's bottom-right corner, its near one just short of
-    // the alignment pattern.
+    // The die's far corner falls on the symbol's bottom-right corner, its near one where the
+    // quarter begins.
     #expect(modules[4] == .init(row: 34, column: 34))
-    #expect(modules[0] == .init(row: 24, column: 24))
+    #expect(modules[0] == .init(row: 22, column: 22))
   }
 
   @Test func aQuarterWithNoDrawnModuleLeavesTheDotsUnmatched() throws {
