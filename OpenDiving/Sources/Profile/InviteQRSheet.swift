@@ -13,7 +13,6 @@ struct InviteQRSheet: View {
 
 private struct InviteQRPane: View {
   @State private var model: InvitationsModel
-  @State private var closeFrame = CGRect.zero
   @Environment(\.dismiss) private var dismiss
 
   init(session: Session) {
@@ -24,7 +23,7 @@ private struct InviteQRPane: View {
     NavigationStack {
       Group {
         if model.hasInvitations, model.isLinkRead, let address = model.linkAddress {
-          InviteQRFold(model: model, address: address, closeFrame: closeFrame) { linkControls }
+          InviteQRFold(model: model, address: address) { linkControls }
         } else {
           ScrollView {
             VStack(spacing: 16) {
@@ -40,11 +39,6 @@ private struct InviteQRPane: View {
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Button("Close", systemImage: "xmark") { dismiss() }
-            .onGeometryChange(for: CGRect.self) {
-              $0.frame(in: .global)
-            } action: {
-              closeFrame = $0
-            }
         }
         if let address = model.linkAddress {
           ToolbarItem(placement: .topBarTrailing) {
@@ -158,8 +152,6 @@ private struct InviteQRPane: View {
 private struct InviteQRFold<Controls: View>: View {
   let model: InvitationsModel
   let address: URL
-  /// The top bar's close button, whose glyph the code's button matches in size and line.
-  let closeFrame: CGRect
   @ViewBuilder let controls: Controls
 
   @State private var scroll = ScrollPosition(edge: .top)
@@ -169,6 +161,8 @@ private struct InviteQRFold<Controls: View>: View {
   @State private var codeFrame = CGRect.zero
   @State private var toggleFrame = CGRect.zero
   @State private var headerFrame = CGRect.zero
+  /// The top bar's QR symbol, in the window, where the code ends.
+  @State private var barIconFrame = CGRect.zero
   @State private var isOpen = false
   @State private var release = FoldRelease()
   /// Counts each slide from one end to the other, for its haptic as it starts.
@@ -223,7 +217,9 @@ private struct InviteQRFold<Controls: View>: View {
     }
     .sensoryFeedback(.impact, trigger: slides)
     .toolbar {
-      FoldTitle(isOpen: isOpen, titleOpacity: 1 - Self.symbolShare(progress), close: close)
+      FoldTitle(isOpen: isOpen, symbolShare: Self.symbolShare(progress), close: close) {
+        barIconFrame = $0
+      }
     }
   }
 
@@ -287,7 +283,7 @@ private struct InviteQRFold<Controls: View>: View {
         } action: {
           headerFrame = $0
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
       VStack(spacing: 0) {
         let invitations = model.list.value?.invitations ?? []
         ForEach(invitations) { invitation in
@@ -353,13 +349,10 @@ private struct InviteQRFold<Controls: View>: View {
       .allowsHitTesting(false)
   }
 
-  /// Where the code ends: the top bar's middle, on the close button's line and the size of its
-  /// glyph, in the scroll's content, which moves under the bar as the pane scrolls.
+  /// Where the code ends: on the top bar's symbol, in the scroll's content, which moves under the
+  /// bar as the pane scrolls.
   private var iconFrame: CGRect {
-    let side = closeFrame.height
-    return CGRect(
-      x: contentFrame.width / 2 - side / 2, y: closeFrame.midY - contentFrame.minY - side / 2,
-      width: side, height: side)
+    barIconFrame.offsetBy(dx: -contentFrame.minX, dy: -contentFrame.minY)
   }
 
   private func open() {
@@ -401,27 +394,40 @@ private struct InviteQRFold<Controls: View>: View {
   }
 }
 
-/// The top bar's middle: the title while the code shows, then the code's own button, round in
-/// glass like the bar's buttons either side, whose glass the middle of the bar does not draw.
+/// The top bar's middle: the title while the code shows, then the code's own symbol under a
+/// chevron, which takes it back. The symbol is there throughout, unseen until the pane opens, so
+/// the code has somewhere to shrink to.
 private struct FoldTitle: ToolbarContent {
   let isOpen: Bool
-  let titleOpacity: Double
+  let symbolShare: Double
   let close: () -> Void
+  let onIconFrame: (CGRect) -> Void
 
   var body: some ToolbarContent {
     ToolbarItem(placement: .principal) {
-      if isOpen {
-        Button(action: close) {
-          Image(systemName: "qrcode")
-            .frame(
-              width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
-        }
-        .mapRoundButton()
-        .accessibilityLabel(InvitationsModel.showQRCode)
-      } else {
+      ZStack {
         Text("Your invite link")
           .font(.headline)
-          .opacity(titleOpacity)
+          .opacity(1 - symbolShare)
+        Button(action: close) {
+          VStack(spacing: 2) {
+            Image(systemName: "chevron.up")
+              .font(.caption2.weight(.semibold))
+              .opacity(symbolShare)
+            Image(systemName: "qrcode")
+              .opacity(isOpen ? 1 : 0)
+              .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+              } action: {
+                onIconFrame($0)
+              }
+          }
+          .foregroundStyle(.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(InvitationsModel.showQRCode)
+        .accessibilityHidden(!isOpen)
+        .allowsHitTesting(isOpen)
       }
     }
   }
