@@ -33,6 +33,8 @@ public final class TagsModel: ReloadingListObserver {
     if let entry = AccountStores.current(session)?.cache.kept(.tags, of: [TagRead].self) {
       tags = entry.value
       fetchedAt = entry.fetchedAt
+      // Its screen reads it at once: until then the copy is not yet behind a failed read.
+      isReading = true
     }
   }
 
