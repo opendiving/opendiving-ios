@@ -354,8 +354,8 @@ public final class InvitationsModel {
 
   public static let linkLoadFailed = "Couldn't load your invite link."
   public static let linkNone =
-    "A link of your own lets whoever follows it create an account here as your invitation,"
-    + " within the same allowance as the invitations you send. Show it as a QR code, or send it."
+    "A link of your own lets whoever follows it create an account here as your invitation. Show"
+    + " it as a QR code, AirDrop it, or text it to a friend."
   public static let linkCreate = "Create your invite link"
   public static let linkLive =
     "Whoever scans or follows this link can create an account here, counted as your invitation."
