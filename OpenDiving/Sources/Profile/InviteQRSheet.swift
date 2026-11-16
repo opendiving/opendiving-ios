@@ -328,7 +328,7 @@ private struct InviteQRFold<Controls: View>: View {
         ShowOlderInvitations(model: model)
           .padding(.vertical, 12)
       }
-      .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
+      .background(Color.cardFill, in: .formSection)
       if let failure = model.revokeFailure ?? model.loadMoreFailure {
         FieldMessage(failure)
           .frame(maxWidth: .infinity, alignment: .leading)
