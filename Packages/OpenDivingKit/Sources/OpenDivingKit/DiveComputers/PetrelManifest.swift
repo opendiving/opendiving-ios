@@ -2,8 +2,8 @@ import Foundation
 
 /// A Shearwater Petrel-family computer's dive index, read before any dive: pages of 32-byte
 /// records, newest first, at ``address``. Each record is big-endian — a marker, the dive number,
-/// the start (the dive's fingerprint), the end, the dive time, the depths, the dive's address
-/// from the log format's base — and the first record with neither marker ends the index.
+/// the start (the dive's fingerprint), the end, the dive time in seconds, the depths, the dive's
+/// address from the log format's base — and the first record with neither marker ends the index.
 public enum PetrelManifest {
   /// Where the index is read, one ``pageSize`` page per read; the computer serves the next page
   /// on the next read.
@@ -19,11 +19,14 @@ public enum PetrelManifest {
     public let start: Data
     /// The dive's address, from the log format's base (``PetrelIdentifier/logBase(_:)``).
     public let address: UInt32
+    /// How long the dive lasted, in seconds.
+    public let diveTime: UInt32
 
-    public init(isDeleted: Bool, start: Data, address: UInt32) {
+    public init(isDeleted: Bool, start: Data, address: UInt32, diveTime: UInt32 = 0) {
       self.isDeleted = isDeleted
       self.start = start
       self.address = address
+      self.diveTime = diveTime
     }
   }
 
@@ -43,11 +46,14 @@ public enum PetrelManifest {
       {
         let marker = UInt16(data[offset]) << 8 | UInt16(data[offset + 1])
         guard marker == PetrelManifest.live || marker == PetrelManifest.deleted else { break }
-        let address = data[(offset + 20)..<(offset + 24)].reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
+        func word(_ at: Int) -> UInt32 {
+          data[(offset + at)..<(offset + at + 4)].reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
+        }
         records.append(
           Record(
             isDeleted: marker == PetrelManifest.deleted,
-            start: Data(data[(offset + 4)..<(offset + 8)]), address: address))
+            start: Data(data[(offset + 4)..<(offset + 8)]), address: word(20),
+            diveTime: word(12)))
         offset += PetrelManifest.recordSize
       }
       self.records = records
@@ -77,10 +83,14 @@ public enum PetrelManifest {
     let stop = fingerprint.flatMap { mark in live.firstIndex { $0.start == mark } }
     let new = Array(live[..<(stop ?? live.endIndex)])
     let waits = Set(new.map(\.start).filter(waiting))
+    let downloads = new.filter { !waits.contains($0.start) }
     return Selection(
       new: new, waiting: waits,
       listing: DiveComputerListing(
-        dives: live.count, newDives: new.count { !waits.contains($0.start) }))
+        dives: live.count, newDives: downloads.count,
+        downloads: downloads.map {
+          DiveComputerListing.Download(fingerprint: $0.start, length: TimeInterval($0.diveTime))
+        }))
   }
 
   static let live: UInt16 = 0xA5C4

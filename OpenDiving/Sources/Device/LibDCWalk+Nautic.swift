@@ -83,7 +83,10 @@ nonisolated extension LibDCWalk {
           case .answered, .failed: break
           }
         }
-        learned[id] = descriptors.map { .read(sport: $0.sport(inSummary: summary)) } ?? .unread
+        learned[id] =
+          descriptors.map {
+            .read(sport: $0.sport(inSummary: summary), duration: $0.duration(inSummary: summary))
+          } ?? .unread
       }
     }
 
