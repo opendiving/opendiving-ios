@@ -175,8 +175,15 @@ private struct InviteQRFold<Controls: View>: View {
     InviteQRPaneScroll.progress(offset: geometry.offset, fold: pageHeight)
   }
 
+  /// How far the fold shows: ahead of the scroll in its middle, level with it at either end, so
+  /// the code, the list and everything between move as one and land together.
+  private var shown: Double { Self.lead(progress) }
+
   var body: some View {
-    let progress = progress
+    let scrolled = progress
+    let progress = shown
+    // The list rides the scroll; this keeps it where the fold shows it.
+    let lift = (progress - scrolled) * pageHeight
     let controlsOpacity = 1 - InviteQRSymbol.fadeShare(progress)
     ScrollView {
       VStack(spacing: 0) {
@@ -189,7 +196,7 @@ private struct InviteQRFold<Controls: View>: View {
           }
         invitations
           .frame(minHeight: geometry.visibleHeight, alignment: .top)
-          .offset(y: -invitationsLift(progress: progress))
+          .offset(y: -lift)
       }
       .coordinateSpace(.inviteQRFold)
       .onGeometryChange(for: CGRect.self) {
@@ -197,7 +204,7 @@ private struct InviteQRFold<Controls: View>: View {
       } action: {
         contentFrame = $0
       }
-      .overlay { invitesTitle(progress: progress) }
+      .overlay { invitesTitle(progress: progress, lift: lift) }
     }
     // Over the scroll rather than in it: the code goes straight from its place to the bar, while
     // the page moves away under it, and clear of the blur the bar lays over the scroll's content.
@@ -227,7 +234,7 @@ private struct InviteQRFold<Controls: View>: View {
     .sensoryFeedback(.impact, trigger: slides)
     .toolbar {
       FoldTitle(
-        address: address, isOpen: progress >= 1, titleOpacity: controlsOpacity,
+        address: address, isOpen: scrolled >= 1, titleOpacity: controlsOpacity,
         symbolShare: Self.symbolShare(progress),
         close: close,
         onIconFrame: { barIconFrame = $0 })
@@ -358,8 +365,9 @@ private struct InviteQRFold<Controls: View>: View {
 
   /// *Invites*, rising from the foot of the page to head the list and growing as it goes, its
   /// chevron going with it as it fades.
-  private func invitesTitle(progress: Double) -> some View {
-    let at = invitesCentre(progress: progress)
+  private func invitesTitle(progress: Double, lift: Double) -> some View {
+    let centre = invitesCentre(progress: progress)
+    let at = CGPoint(x: centre.x, y: centre.y - lift)
     return ZStack {
       Text(InvitationsModel.invitesToggle)
         .font(Self.headerFont)
@@ -377,21 +385,13 @@ private struct InviteQRFold<Controls: View>: View {
     .allowsHitTesting(false)
   }
 
-  /// How far ahead of the scroll the invitations rise, most at the middle of the fold and none at
-  /// either end, so the list closes on the shrinking code rather than trailing it.
-  private func invitationsLift(progress: Double) -> Double {
-    pageHeight * Self.liftShare * 4 * progress * (1 - progress)
-  }
-
-  /// Where *Invites* is centred `progress` of the way up, in the scroll's content, lifted with
-  /// the list it heads. Its place heading the list is reckoned from the layout, since the list's
-  /// lift moves what a measure of it reads.
+  /// Where *Invites* is centred `progress` of the way up, in the scroll's content before the
+  /// list's lift. Its place heading the list is reckoned from the layout, since the lift moves
+  /// what a measure of it reads.
   private func invitesCentre(progress: Double) -> CGPoint {
     let heading = pageHeight + Self.invitationsTop + headerFrame.height / 2
     return CGPoint(
-      x: toggleFrame.midX,
-      y: toggleFrame.midY + (heading - toggleFrame.midY) * progress
-        - invitationsLift(progress: progress))
+      x: toggleFrame.midX, y: toggleFrame.midY + (heading - toggleFrame.midY) * progress)
   }
 
   /// *Invites*' size `progress` of the way up, of its size heading the list.
@@ -401,9 +401,9 @@ private struct InviteQRFold<Controls: View>: View {
   }
 
   /// How far the description and buttons stand from their place in the page: rising slower than
-  /// the page, they are centred between the code and *Invites* as they finish fading.
+  /// the page, they are centred between the whole code's foot and *Invites* as they finish fading.
   private var controlsDrift: Double {
-    let fade = InviteQRSymbol.fadeShare(progress)
+    let fade = InviteQRSymbol.fadeShare(shown)
     guard fade > 0, controlsHeight > 0 else { return 0 }
     let end = InviteQRSymbol.fadeEnd
     // From the content to the scroll view, now and with the pane at rest.
@@ -412,7 +412,9 @@ private struct InviteQRFold<Controls: View>: View {
     let centre = codeFrame.maxY + 16 + controlsHeight / 2
     let invitesTop =
       invitesCentre(progress: end).y - invitesScale(progress: end) * headerFrame.height / 2
-    let between = (codePath(progress: end).maxY + invitesTop + atRest - end * pageHeight) / 2
+    let codeBottom = InviteQRCode.inkBottom(
+      in: codePath(progress: end), address: address.absoluteString, morph: end)
+    let between = (codeBottom + invitesTop + atRest - end * pageHeight) / 2
     let rest = centre + atRest
     return rest + (between - rest) * fade - (centre + now)
   }
@@ -453,8 +455,13 @@ private struct InviteQRFold<Controls: View>: View {
 
   /// The room above *Invites* heading the list.
   private static var invitationsTop: Double { 8 }
-  /// The invitations' lead on the scroll at the middle of the fold, of the page's height.
-  private static var liftShare: Double { 0.25 }
+  /// The fold's lead on the scroll at its middle, of the whole way.
+  private static var leadShare: Double { 0.2 }
+
+  /// `progress` with the fold's lead: monotonic, and level at 0 and 1.
+  private static func lead(_ progress: Double) -> Double {
+    progress + leadShare * 4 * progress * (1 - progress)
+  }
   private static var toggleFont: Font { .subheadline.weight(.semibold) }
   private static var headerFont: Font { .title2.bold() }
 

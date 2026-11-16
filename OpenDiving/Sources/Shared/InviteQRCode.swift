@@ -72,6 +72,16 @@ struct InviteQRCode: View {
     return layout
   }
 
+  /// Where the code's ink ends below, drawn in `frame` `morph` of the way to its icon: the foot of
+  /// its bottom eye, above the quiet zone, or the frame's foot with no symbol to measure.
+  static func inkBottom(in frame: CGRect, address: String, morph: Double) -> Double {
+    guard let layout = cachedLayout(address) else { return frame.maxY }
+    let extent = Double(layout.size) + InviteQRSymbol.quietZone * 2
+    let atRest = (Double(layout.size) + InviteQRSymbol.quietZone) / extent
+    let share = InviteQRSymbol.shapeShare(morph)
+    return frame.minY + frame.height * (atRest + (1 - atRest) * share)
+  }
+
   /// An address of `address`'s length, whose symbol is the size of its own.
   nonisolated static func standIn(for address: String) -> String {
     String(repeating: "x", count: address.count)
@@ -141,6 +151,10 @@ struct InviteQRSymbol: View {
   /// How far what the code sheds has faded, over the first two fifths of the fold; whatever else
   /// leaves as the code folds fades with it.
   nonisolated static func fadeShare(_ morph: Double) -> Double { min(morph / fadeEnd, 1) }
+  /// How far the eyes and dots have taken the icon's shape: ahead of the fold, three quarters of
+  /// the way at its middle.
+  nonisolated static func shapeShare(_ morph: Double) -> Double { 1 - (1 - morph) * (1 - morph) }
+
   /// Where in the fold what the code sheds has gone.
   nonisolated static let fadeEnd = 0.4
   /// The size what the code sheds shrinks to as it goes, of its own; what fades with it shrinks
@@ -177,7 +191,7 @@ struct InviteQRSymbol: View {
 
       // The eyes and dots take the icon's shape early, closing the air between them while what
       // the code sheds is still fading between them.
-      let shape = 1 - (1 - morph) * (1 - morph)
+      let shape = Self.shapeShare(morph)
       let place = {
         (row: Double, column: Double, side: Double, icon: (x: Double, y: Double), iconSide: Double)
         in
