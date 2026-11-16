@@ -322,7 +322,7 @@ private struct InviteQRFold<Controls: View>: View {
             .padding(.vertical, 10)
           if invitation.id != invitations.last?.id || model.list.value?.hasMore == true {
             Divider()
-              .padding(.leading, 16)
+              .padding(.horizontal, 16)
           }
         }
         ShowOlderInvitations(model: model)
