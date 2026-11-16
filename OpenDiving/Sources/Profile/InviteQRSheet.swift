@@ -178,18 +178,18 @@ private struct InviteQRFold<Controls: View>: View {
           } action: {
             pageHeight = $0
           }
-        invitations(isOpen: progress >= 1)
+        invitations(progress: progress)
           .frame(minHeight: geometry.visibleHeight, alignment: .top)
       }
       .coordinateSpace(.inviteQRFold)
       .overlay(alignment: .topLeading) { code(progress: progress) }
     }
+    .scrollIndicators(.hidden)
     .scrollPosition($scroll)
-    .scrollTargetBehavior(FoldSettling(fold: pageHeight, inset: geometry.inset))
+    .scrollTargetBehavior(FoldSettling(fold: pageHeight))
     .onScrollGeometryChange(for: FoldGeometry.self) {
       FoldGeometry(
-        offset: $0.contentOffset.y + $0.contentInsets.top, inset: $0.contentInsets.top,
-        visibleHeight: $0.containerSize.height)
+        offset: $0.contentOffset.y + $0.contentInsets.top, visibleHeight: $0.containerSize.height)
     } action: {
       geometry = $1
     }
@@ -244,13 +244,15 @@ private struct InviteQRFold<Controls: View>: View {
     .padding(.bottom, 8)
   }
 
-  private func invitations(isOpen: Bool) -> some View {
+  private func invitations(progress: Double) -> some View {
     VStack(spacing: 16) {
       Button(action: close) {
         VStack(spacing: 6) {
+          // Arrives with the icon: at rest on the code it would show in the safe area below.
           Image(systemName: "chevron.up")
             .font(.footnote.weight(.semibold))
             .accentRow()
+            .opacity(progress)
           // Where the code ends up as the icon.
           Color.clear
             .frame(width: Self.iconSide, height: Self.iconSide)
@@ -265,7 +267,7 @@ private struct InviteQRFold<Controls: View>: View {
       }
       .buttonStyle(.plain)
       .accessibilityLabel(InvitationsModel.showQRCode)
-      .allowsHitTesting(isOpen)
+      .allowsHitTesting(progress >= 1)
       VStack(spacing: 0) {
         let invitations = model.list.value?.invitations ?? []
         ForEach(invitations) { invitation in
@@ -312,7 +314,7 @@ private struct InviteQRFold<Controls: View>: View {
   }
 
   private func open() {
-    withAnimation(.smooth) { scroll.scrollTo(y: pageHeight - geometry.inset) }
+    withAnimation(.smooth) { scroll.scrollTo(y: pageHeight) }
   }
 
   private func close() {
@@ -327,25 +329,22 @@ private struct InviteQRFold<Controls: View>: View {
   }
 }
 
-/// The fold's scroll, counted from the top of the content rather than from the scroll view's own
-/// origin, which sits the top bar's inset above it.
+/// The fold's scroll, counted from the top of the content as a scroll target is, rather than from
+/// the scroll view's own origin, which sits the top bar's inset above it.
 private struct FoldGeometry: Equatable {
   var offset = 0.0
-  var inset = 0.0
   var visibleHeight = 0.0
 }
 
-/// Rests a scroll on the QR code or on the invitations, never between them.
+/// Rests a scroll on the QR code or on the invitations, never between them. A target is counted
+/// from the top of the content, below the top bar's inset.
 private struct FoldSettling: ScrollTargetBehavior {
   let fold: Double
-  let inset: Double
 
   func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
     guard fold > 0 else { return }
-    let resting = InviteQRPaneScroll.restingOffset(
-      start: context.originalTarget.rect.minY + inset, proposed: target.rect.minY + inset,
-      fold: fold)
-    target.rect.origin.y = resting - inset
+    target.rect.origin.y = InviteQRPaneScroll.restingOffset(
+      start: context.originalTarget.rect.minY, proposed: target.rect.minY, fold: fold)
   }
 }
 
