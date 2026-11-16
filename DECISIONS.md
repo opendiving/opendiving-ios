@@ -207,13 +207,13 @@ skipping every failure, which lets the fingerprint pass a stalled dive.
 
 ## An Ocean transfer that times out reopens the link and resumes
 
-A timeout while the watch says free, on a link the busy read still finds, and no other app's
-handshake broke it, is reconnected as libdc-swift's own sync reconnects: the walk closes the device,
-waits four seconds, opens it again and carries on from that transfer, with the identity, the record
-and the listing it already has. It reopens at most three times in a walk, and past that a timeout is
-handled as the entry above says. Every device the walk opens shares one resume buffer, so a dive
-carries on from the bytes already received. Rejected: stopping at the first timeout; streaming the
-dive again from its start at each reopen.
+A timeout while the watch says free, and no other app's handshake broke it, is reconnected as
+libdc-swift's own sync reconnects, but where a walk the diver started finds no link in the busy read
+(below): the walk closes the device, waits four seconds, opens it again and carries on from that
+transfer, with the identity, the record and the listing it already has. It reopens at most three
+times in a walk, and past that a timeout is handled as the entry above says. Every device the walk
+opens shares one resume buffer, so a dive carries on from the bytes already received. Rejected:
+stopping at the first timeout; streaming the dive again from its start at each reopen.
 
 ## A download the diver started waits for a lost link
 
