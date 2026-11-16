@@ -162,7 +162,7 @@ private struct InviteQRFold<Controls: View>: View {
   @State private var codeFrame = CGRect.zero
   @State private var toggleFrame = CGRect.zero
   @State private var headerFrame = CGRect.zero
-  /// The top bar's QR symbol, in the window, where the code ends.
+  /// The top bar's icon, in the window, where the code ends.
   @State private var barIconFrame = CGRect.zero
   @State private var chevronFrame = CGRect.zero
   @State private var controlsHeight = 0.0
@@ -171,20 +171,20 @@ private struct InviteQRFold<Controls: View>: View {
   /// Counts each switch between the code and the invitations, for its haptic.
   @State private var slides = 0
 
-  private var progress: Double {
+  /// How far the scroll has come from the code to the invitations, from 0 to 1.
+  private var scrolled: Double {
     InviteQRPaneScroll.progress(offset: geometry.offset, fold: pageHeight)
   }
 
   /// How far the fold shows: ahead of the scroll in its middle, level with it at either end, so
   /// the code, the list and everything between move as one and land together.
-  private var shown: Double { Self.lead(progress) }
+  private var shown: Double { Self.lead(scrolled) }
 
   var body: some View {
-    let scrolled = progress
-    let progress = shown
+    let shown = shown
     // The list rides the scroll; this keeps it where the fold shows it.
-    let lift = (progress - scrolled) * pageHeight
-    let controlsOpacity = 1 - InviteQRSymbol.fadeShare(progress)
+    let lift = (shown - scrolled) * pageHeight
+    let controlsOpacity = 1 - InviteQRSymbol.fadeShare(shown)
     ScrollView {
       VStack(spacing: 0) {
         page(opacity: controlsOpacity)
@@ -204,11 +204,11 @@ private struct InviteQRFold<Controls: View>: View {
       } action: {
         contentFrame = $0
       }
-      .overlay { invitesTitle(progress: progress, lift: lift) }
+      .overlay { invitesTitle(progress: shown, lift: lift) }
     }
     // Over the scroll rather than in it: the code goes straight from its place to the bar, while
     // the page moves away under it, and clear of the blur the bar lays over the scroll's content.
-    .overlay(alignment: .topLeading) { code(progress: progress) }
+    .overlay(alignment: .topLeading) { code(progress: shown) }
     .onGeometryChange(for: CGRect.self) {
       $0.frame(in: .global)
     } action: {
@@ -235,14 +235,13 @@ private struct InviteQRFold<Controls: View>: View {
     .toolbar {
       FoldTitle(
         address: address, isOpen: scrolled >= 1, titleOpacity: controlsOpacity,
-        symbolShare: Self.symbolShare(progress),
-        close: close,
+        chevronOpacity: Self.chevronShare(shown), close: close,
         onIconFrame: { barIconFrame = $0 })
     }
   }
 
   private func page(opacity: Double) -> some View {
-    VStack(spacing: 16) {
+    VStack(spacing: Self.pageSpacing) {
       if let lastUpdated = model.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
           .opacity(opacity)
@@ -272,7 +271,7 @@ private struct InviteQRFold<Controls: View>: View {
       Button(action: open) {
         VStack(spacing: 2) {
           // Drawn by `invitesTitle(progress:)`, which carries it up to head the list.
-          Text(InvitationsModel.invitesToggle)
+          Text(InvitationsModel.invitesTitle)
             .font(Self.toggleFont)
             .foregroundStyle(.clear)
             .onGeometryChange(for: CGRect.self) {
@@ -304,7 +303,7 @@ private struct InviteQRFold<Controls: View>: View {
 
   private var invitations: some View {
     VStack(spacing: 12) {
-      Text(InvitationsModel.invitesToggle)
+      Text(InvitationsModel.invitesTitle)
         .font(Self.headerFont)
         .foregroundStyle(.clear)
         .accessibilityAddTraits(.isHeader)
@@ -360,7 +359,7 @@ private struct InviteQRFold<Controls: View>: View {
     let atRest = codeFrame.offsetBy(
       dx: contentFrame.minX - scrollFrame.minX, dy: contentTopAtRest - scrollFrame.minY)
     let inBar = barIconFrame.offsetBy(dx: -scrollFrame.minX, dy: -scrollFrame.minY)
-    return Self.interpolate(atRest, inBar, progress)
+    return atRest.interpolated(to: inBar, by: progress)
   }
 
   /// *Invites*, rising from the foot of the page to head the list and growing as it goes, its
@@ -369,7 +368,7 @@ private struct InviteQRFold<Controls: View>: View {
     let centre = invitesCentre(progress: progress)
     let at = CGPoint(x: centre.x, y: centre.y - lift)
     return ZStack {
-      Text(InvitationsModel.invitesToggle)
+      Text(InvitationsModel.invitesTitle)
         .font(Self.headerFont)
         .foregroundStyle(.primary)
         .fixedSize()
@@ -409,7 +408,7 @@ private struct InviteQRFold<Controls: View>: View {
     // From the content to the scroll view, now and with the pane at rest.
     let now = contentFrame.minY - scrollFrame.minY
     let atRest = now + geometry.offset
-    let centre = codeFrame.maxY + 16 + controlsHeight / 2
+    let centre = codeFrame.maxY + Self.pageSpacing + controlsHeight / 2
     let invitesTop =
       invitesCentre(progress: end).y - invitesScale(progress: end) * headerFrame.height / 2
     let codeBottom = InviteQRCode.inkBottom(
@@ -453,6 +452,8 @@ private struct InviteQRFold<Controls: View>: View {
       switching: InviteQRPaneScroll.switches(from: start, to: target, fold: pageHeight))
   }
 
+  /// Between the page's lines: the date, the code, its description and buttons.
+  private static var pageSpacing: Double { 16 }
   /// The room above *Invites* heading the list.
   private static var invitationsTop: Double { 8 }
   /// The fold's lead on the scroll at its middle, of the whole way.
@@ -462,20 +463,15 @@ private struct InviteQRFold<Controls: View>: View {
   private static func lead(_ progress: Double) -> Double {
     progress + leadShare * 4 * progress * (1 - progress)
   }
+
   private static var toggleFont: Font { .subheadline.weight(.semibold) }
   private static var headerFont: Font { .title2.bold() }
 
   /// How far the bar's chevron has come in: over the last two fifths of the way.
-  private static func symbolShare(_ progress: Double) -> Double {
+  private static func chevronShare(_ progress: Double) -> Double {
     min(max((progress - 0.6) / 0.4, 0), 1)
   }
 
-  private static func interpolate(_ from: CGRect, _ to: CGRect, _ share: Double) -> CGRect {
-    let mix = { (a: Double, b: Double) in a + (b - a) * share }
-    return CGRect(
-      x: mix(from.minX, to.minX), y: mix(from.minY, to.minY),
-      width: mix(from.width, to.width), height: mix(from.height, to.height))
-  }
 }
 
 /// The top bar's middle: the title while the code shows, then the code's icon under a chevron,
@@ -485,7 +481,7 @@ private struct FoldTitle: ToolbarContent {
   let address: URL
   let isOpen: Bool
   let titleOpacity: Double
-  let symbolShare: Double
+  let chevronOpacity: Double
   let close: () -> Void
   let onIconFrame: (CGRect) -> Void
 
@@ -511,7 +507,7 @@ private struct FoldTitle: ToolbarContent {
             Image(systemName: "chevron.up")
               .font(FoldChevron.font)
               .foregroundStyle(.primary)
-              .opacity(symbolShare)
+              .opacity(chevronOpacity)
               .alignmentGuide(.top) { $0[.bottom] + FoldChevron.gap }
           }
           // A bar button's reach, centred on the icon so it keeps its line, and tall enough to
@@ -570,8 +566,8 @@ private final class FoldRelease {
   var isSliding = false
 }
 
-/// Moves the fold's scroll from one offset to another over a sheet's slide, a step a frame, easing
-/// out from the pace a released finger leaves it at.
+/// Moves the fold's scroll from one offset to another over a sheet's slide, a step a frame,
+/// easing out as a sheet settles.
 private final class FoldSlider {
   private static let duration = 0.35
 
@@ -612,7 +608,7 @@ private final class FoldSlider {
 }
 
 extension CoordinateSpaceProtocol where Self == NamedCoordinateSpace {
-  /// The fold's whole scrolled content, where the code and the icon it shrinks into are placed.
+  /// The fold's whole scrolled content, where the page's and the list's parts are measured.
   nonisolated fileprivate static var inviteQRFold: Self { .named("inviteQRFold") }
 }
 

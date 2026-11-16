@@ -363,7 +363,7 @@ public final class InvitationsModel {
   public static let linkAddressLabel = "Invite link address"
   public static let linkCopied = "Link copied"
   public static let qrLabel = "QR code of your invite link"
-  public static let invitesToggle = "Invites"
+  public static let invitesTitle = "Invites"
   public static let showQRCode = "Show your invite link's QR code"
   public static let resetTitle = "Reset your invite link"
   public static let resetMessage =

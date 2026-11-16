@@ -146,8 +146,6 @@ struct InviteQRSymbol: View {
   private static let darkInk = Color(red: 233 / 255, green: 239 / 255, blue: 244 / 255)
   private static let darkPupil = Color(red: 60 / 255, green: 198 / 255, blue: 192 / 255)
 
-  static func ink(dark: Bool) -> Color { dark ? darkInk : lightInk }
-
   /// How far what the code sheds has faded, over the first two fifths of the fold; whatever else
   /// leaves as the code folds fades with it.
   nonisolated static func fadeShare(_ morph: Double) -> Double { min(morph / fadeEnd, 1) }
@@ -168,7 +166,7 @@ struct InviteQRSymbol: View {
     Canvas { context, size in
       let extent = Double(layout.size) + Self.quietZone * 2
       let unit = size.width / extent
-      let ink = Self.ink(dark: isDark)
+      let ink = isDark ? Self.darkInk : Self.lightInk
       let pupil = isDark ? Self.darkPupil : Self.lightPupil
       // What only the code has fades over the first part of the fold, shrinking towards the
       // code's centre as it goes.
@@ -195,14 +193,14 @@ struct InviteQRSymbol: View {
       let place = {
         (row: Double, column: Double, side: Double, icon: (x: Double, y: Double), iconSide: Double)
         in
-        Self.mix(
-          CGRect(
-            x: (column + Self.quietZone) * unit, y: (row + Self.quietZone) * unit,
-            width: side * unit, height: side * unit),
-          CGRect(
+        CGRect(
+          x: (column + Self.quietZone) * unit, y: (row + Self.quietZone) * unit,
+          width: side * unit, height: side * unit
+        ).interpolated(
+          to: CGRect(
             x: icon.x * size.width, y: icon.y * size.height, width: iconSide * size.width,
             height: iconSide * size.height),
-          shape)
+          by: shape)
       }
       // The code's finders, 7 modules a side, give way to the icon's proportions.
       let ring = Self.mix(1 / 7, InviteQRLayout.iconRingWidth, shape)
@@ -239,7 +237,7 @@ struct InviteQRSymbol: View {
               x: (Double($0.column) + Self.quietZone) * unit,
               y: (Double($0.row) + Self.quietZone) * unit, width: unit, height: unit)
           } ?? CGRect(x: to.midX, y: to.midY, width: 0, height: 0)
-        let rect = Self.mix(from, to, shape)
+        let rect = from.interpolated(to: to, by: shape)
         let radius =
           rect.width * Self.mix(isDark ? 0.44 : 0.25, InviteQRLayout.iconDotRadius, shape)
         iconDots.addPath(Self.rounded(rect, radius: radius))
@@ -324,13 +322,6 @@ struct InviteQRSymbol: View {
 
   private static func mix(_ from: Double, _ to: Double, _ share: Double) -> Double {
     from + (to - from) * share
-  }
-
-  private static func mix(_ from: CGRect, _ to: CGRect, _ share: Double) -> CGRect {
-    let mix = { (a: Double, b: Double) in a + (b - a) * share }
-    return CGRect(
-      x: mix(from.minX, to.minX), y: mix(from.minY, to.minY),
-      width: mix(from.width, to.width), height: mix(from.height, to.height))
   }
 
   private static func circle(x: Double, y: Double, radius: Double) -> Path {
