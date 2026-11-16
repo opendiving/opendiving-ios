@@ -783,6 +783,50 @@ struct DiveComputerModelTests {
         == kept.merged(DownloadPace(perDiveSecond: 420.0 / 5400, perDive: 210)))
   }
 
+  /// While the walk waits for a lost link no time left shows, and the dive in flight across the
+  /// wait is not timed, so the pace kept is the dives' before it.
+  @Test func aLostLinkHidesTheTimeLeftAndTimesNoDiveAcrossIt() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    let kept = DownloadPace(perDiveSecond: 0.1)
+    record.downloadPace = kept
+    try computers(session).save(record)
+    let listing = DiveComputerListing(
+      dives: 11, newDives: 2,
+      downloads: [
+        .init(fingerprint: F.fingerprint(3), length: 1800),
+        .init(fingerprint: F.fingerprint(2), length: 3600),
+      ])
+    let dives = Array(F.perdixDownload.prefix(2))
+    link.scripts = [
+      [
+        .identified(F.perdix), .listing(listing), .dive(dives[0]), .linkLost, .linkBack,
+        .dive(dives[1]), .finished(.init(.complete)),
+      ]
+    ]
+    let clock = MovingClock(F.moment)
+    let model = model(session, link, clock: clock)
+    link.holdBefore = 2
+    model.connect(try await scanned(model))
+    await held(link)
+    await until { model.listing != nil }
+
+    clock.pass(120)
+    await next(link, holding: 4) { model.linkLost }
+    #expect(model.timeLeftText(at: clock.now) == nil)
+
+    clock.pass(1000)
+    await next(link, holding: 5) { !model.linkLost }
+    #expect(model.timeLeftText(at: clock.now) == "About 4 minutes left")
+    await next(link, holding: nil)
+    await model.settled()
+    #expect(
+      computers(session).record(family: F.perdix.family, serial: F.perdix.serial)?.downloadPace
+        == kept.merged(DownloadPace(perDiveSecond: 120.0 / 1800, perDive: 120)))
+  }
+
   /// A computer's first download has no pace to go by: it reads as estimating until its first
   /// dive is timed, and as nothing once every dive it listed is in.
   @Test func aFirstDownloadEstimatesUntilItsFirstDiveIsTimed() async throws {

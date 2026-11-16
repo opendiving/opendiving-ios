@@ -9,7 +9,8 @@ import Foundation
 /// reckoned from the rate that progress has moved at. With neither, there is no estimate.
 ///
 /// A dive is timed from the listing or the entry before it to its delivery, and is not timed where
-/// the computer said it was busy, or another app's handshake broke a transfer, meanwhile.
+/// the computer said it was busy, another app's handshake broke a transfer or the link was lost,
+/// meanwhile.
 struct DownloadEstimate: Sendable {
   /// The pace kept from the computer's earlier walks.
   var kept: DownloadPace?
@@ -47,8 +48,8 @@ struct DownloadEstimate: Sendable {
     interrupted = false
   }
 
-  /// The computer said it was busy, or another app broke a transfer: the entry in flight is not
-  /// timed.
+  /// The computer said it was busy, another app broke a transfer or the link was lost: the entry
+  /// in flight is not timed.
   mutating func interrupt() {
     interrupted = true
   }

@@ -293,10 +293,10 @@ Before any dive is read, the Perdix's index and each new Ocean entry's summary g
 length, so each dive still to come costs its length at the computer's pace: seconds of transfer per
 second of dive, this walk's once it has timed a dive, else the one kept on the pairing, where each
 walk's is averaged in. A dive of no known length costs the pace per dive; with neither, no estimate
-shows. A dive during which the computer said it was busy, or another app broke a transfer, is not
-timed. Rejected: bytes, which the Ocean's listing carries but `suunto_nautic_device_list` drops,
-and the Perdix's index holds only at an offset nothing has confirmed; a pace per family, which a
-computer's sample rate and the phone's link both move.
+shows. A dive during which the computer said it was busy, another app broke a transfer or the link
+was lost is not timed. Rejected: bytes, which the Ocean's listing carries but
+`suunto_nautic_device_list` drops, and the Perdix's index holds only at an offset nothing has
+confirmed; a pace per family, which a computer's sample rate and the phone's link both move.
 
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
