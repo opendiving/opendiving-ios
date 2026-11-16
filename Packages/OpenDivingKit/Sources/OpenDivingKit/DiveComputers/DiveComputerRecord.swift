@@ -21,6 +21,9 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   /// For the Nautic family: the sport each logbook entry's summary named when it was last listed,
   /// so a walk reads a summary only for an entry it has not met.
   public var nauticSports: [NauticEntrySport]?
+  /// How fast its dives came over to this phone, from its earlier walks: what a download's time
+  /// left is first reckoned from. The phone's, as the pairing is.
+  public var downloadPace: DownloadPace?
   /// *Download automatically*: the phone keeps a standing connection request for it
   /// (``DiveComputerWatch``). The phone's, as the pairing is.
   public var downloadsAutomatically: Bool
@@ -61,6 +64,7 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
     hardware = computer.hardware
     peripheral = computer.peripheral
     nauticSports = computer.nauticSports
+    downloadPace = computer.downloadPace
     downloadsAutomatically = computer.downloadsAutomatically ?? true
     fingerprint = progress?.fingerprint
     lastDownloaded = progress?.lastDownloaded

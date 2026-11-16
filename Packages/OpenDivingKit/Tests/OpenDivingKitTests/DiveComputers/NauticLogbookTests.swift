@@ -44,6 +44,15 @@ struct NauticLogbookTests {
       NauticDescriptors(Data()).sport(inSummary: try captured("summary-1792852533-run")) == nil)
   }
 
+  @Test func theSummariesSayHowLongTheEntryLasted() throws {
+    let descriptors = NauticDescriptors(try captured("descriptors"))
+    let lasted = try ["1793610559-scuba", "1793433197-scuba", "1793016109-scuba", "1792852533-run"]
+      .map { descriptors.duration(inSummary: try captured("summary-\($0)")) }
+    // Header.Duration is milliseconds, scaled by its `<MOD>x/1000`.
+    #expect(lasted == [3675.101, 4334.062, 4966.908, 2178.378])
+    #expect(descriptors.duration(inSummary: Data()) == nil)
+  }
+
   /// SBEM records: an id, 16-bit past a byte, a length, the value.
   private func sbem(_ records: [(Int, Data)]) -> Data {
     records.reduce(Data("SBEM0103".utf8)) { bytes, record in
@@ -134,7 +143,8 @@ struct NauticLogbookTests {
     #expect(selection.entries.map(\.id) == Array(ids.prefix(4)))
     #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
     let sports: [NauticEntrySport] = ids.map(sport)
-    let expected = DiveComputerListing(dives: 15, newDives: 3, sports: sports)
+    let expected = DiveComputerListing(
+      dives: 15, newDives: 3, sports: sports, downloads: downloads(ids.prefix(3)))
     #expect(selection.listing == expected)
   }
 
@@ -158,8 +168,35 @@ struct NauticLogbookTests {
     #expect(selection.entries.map(\.fate) == [.waiting, .download, .download, .skip])
     #expect(selection.entries.map(\.counted) == [true, true, true, false])
     let expected = DiveComputerListing(
-      dives: 15, newDives: 2, sports: ids.map(sport))
+      dives: 15, newDives: 2, sports: ids.map(sport), downloads: downloads(ids[1...2]))
     #expect(selection.listing == expected)
+  }
+
+  /// The entries a walk downloads, of no known length.
+  private func downloads(_ ids: some Sequence<UInt32>) -> [DiveComputerListing.Download] {
+    ids.map { .init(fingerprint: NauticSelection.fingerprint($0), length: nil) }
+  }
+
+  /// A length a summary gave, this walk's or one the record kept, goes with the entry's download
+  /// and stays with its sport. An empty summary's entry, downloaded but not counted, is not one
+  /// the time left waits for.
+  @Test func eachDownloadCarriesTheLengthItsSummaryGave() {
+    let remembered = [NauticEntrySport(id: ids[2], sport: 51, duration: 3000)]
+    var summaries = learned(ids.prefix(2))
+    summaries[ids[0]] = .read(sport: 51, duration: 3675)
+    summaries[ids[1]] = .empty
+    summaries[run] = .read(sport: 3, duration: 2178)
+    let selection = NauticSelection(
+      ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: remembered,
+      learned: summaries)
+    #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
+    #expect(
+      selection.listing.downloads.map(\.fingerprint)
+        == downloads([ids[0], ids[2]]).map(\.fingerprint))
+    #expect(selection.listing.downloads.map(\.length) == [3675, 3000])
+    #expect(
+      selection.listing.sports?.first == NauticEntrySport(id: ids[0], sport: 51, duration: 3675))
+    #expect(selection.listing.sports?.contains { $0.id == ids[2] && $0.duration == 3000 } == true)
   }
 
   @Test func anEntryOfNoKnownSportIsADiveAndAnEmptySummaryIsNone() {

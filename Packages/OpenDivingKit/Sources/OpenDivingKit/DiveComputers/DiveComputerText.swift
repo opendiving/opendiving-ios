@@ -118,6 +118,20 @@ public enum DiveComputerText {
     "Downloading \(dive) of \(total) new " + (total == 1 ? "dive" : "dives")
   }
 
+  /// While a download has dives to come and nothing yet to reckon their time by.
+  public static let estimatingTimeLeft = "Estimating time left…"
+
+  /// *About 4 minutes left*, *About 1 hour 10 minutes left*, *Less than a minute left*.
+  public static func timeLeft(_ seconds: TimeInterval) -> String {
+    guard seconds >= 60 else { return "Less than a minute left" }
+    let minutes = Int((seconds / 60).rounded())
+    func units(_ n: Int, _ unit: String) -> String { "\(n) \(unit)" + (n == 1 ? "" : "s") }
+    guard minutes >= 60 else { return "About \(units(minutes, "minute")) left" }
+    let rest = minutes % 60
+    return "About \(units(minutes / 60, "hour"))" + (rest == 0 ? "" : " \(units(rest, "minute"))")
+      + " left"
+  }
+
   /// *No new dives since 12 October.*
   public static func nothingNew(since: Date, in zone: TimeZone = .current) -> String {
     "No new dives since \(day(since, in: zone))."

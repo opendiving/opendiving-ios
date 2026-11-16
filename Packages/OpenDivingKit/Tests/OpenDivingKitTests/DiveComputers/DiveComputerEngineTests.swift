@@ -20,7 +20,7 @@ final class FakeNotifier: DiveComputerNotifier {
 }
 
 /// A clock a test moves on.
-private final class MovingClock: Sendable {
+final class MovingClock: Sendable {
   private let moment: Mutex<Date>
 
   init(_ start: Date) { moment = Mutex(start) }

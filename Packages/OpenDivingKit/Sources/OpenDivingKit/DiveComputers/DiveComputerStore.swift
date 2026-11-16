@@ -112,6 +112,16 @@ public struct DiveComputerStore: Sendable {
     try paired.write(moved, name: record.id)
   }
 
+  /// Keeps a walk's pace so far over `kept`, the pace the computer had when the walk began
+  /// (``DownloadPace/merged(_:)``), writing the pairing alone, as ``follow(_:to:)`` does. Written
+  /// again at each dive, the last write is the walk's whole pace merged once.
+  func remember(_ pace: DownloadPace, over kept: DownloadPace?, for id: String) throws {
+    guard paired.contains(id) else { return }
+    guard var computer = paired.read(id) else { throw DiveComputerStoreError.unreadableRecord }
+    computer.downloadPace = kept.map { $0.merged(pace) } ?? pace
+    try paired.write(computer, name: id)
+  }
+
   /// *Forget this dive computer*: removes the pairing and every account's progress with it, and
   /// nothing on any server. Progress left behind would resume a computer the phone has forgotten.
   public func forget(_ record: DiveComputerRecord) {

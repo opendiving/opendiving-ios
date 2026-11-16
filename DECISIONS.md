@@ -287,6 +287,17 @@ central to report powered on: made with the link at a process's first walk, it r
 until then. Rejected: 15 minutes after every walk, which makes a computer switched off mid-download
 cost a quarter of an hour; an immediate retry, which spins on a computer still off.
 
+## A download's time left is reckoned by dive length, at a pace kept per computer
+
+Before any dive is read, the Perdix's index and each new Ocean entry's summary give the dive's
+length, so each dive still to come costs its length at the computer's pace: seconds of transfer per
+second of dive, this walk's once it has timed a dive, else the one kept on the pairing, where each
+walk's is averaged in. A dive of no known length costs the pace per dive; with neither, no estimate
+shows. A dive during which the computer said it was busy, or another app broke a transfer, is not
+timed. Rejected: bytes, which the Ocean's listing carries but `suunto_nautic_device_list` drops,
+and the Perdix's index holds only at an offset nothing has confirmed; a pace per family, which a
+computer's sample rate and the phone's link both move.
+
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a

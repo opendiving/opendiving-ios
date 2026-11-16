@@ -435,24 +435,30 @@ public final class DiveComputerEngine {
         if walk.watched || store.record(family: found.family, serial: found.serial) != nil {
           pair(found, computer: walk.computer, store: store, marked: marked)
         }
-        keeper.identified(
-          record: store.record(family: found.family, serial: found.serial)?.id, zone: nil)
+        let paired = store.record(family: found.family, serial: found.serial)
+        keeper.identified(record: paired?.id, zone: nil)
+        // Read before the walk keeps a pace of its own, which a later identity must not read back.
+        if walk.estimate.measured == nil { walk.estimate.kept = paired?.downloadPace }
       case .watchZone(let zone):
         watchZone = zone
         keeper.identified(record: nil, zone: zone)
       case .busy(.reported):
         walk.computerBusy = true
+        walk.estimate.interrupt()
       case .busy(.free):
         walk.computerBusy = false
       // Held until a dive arrives, not cleared at each retry, which another app's handshakes
       // break every ten seconds or so.
       case .busy(.otherApp):
         walk.otherAppHandshaking = true
+        walk.estimate.interrupt()
       // What the computer said of its busy state stands for the link it said it on; the walk asks
-      // again over the next. Another app's breaking stays until a dive arrives.
+      // again over the next. Another app's breaking stays until a dive arrives, and the dive in
+      // flight is not timed.
       case .linkLost:
         walk.linkLost = true
         walk.computerBusy = false
+        walk.estimate.interrupt()
         handOverIfAway()
       case .linkBack:
         walk.linkLost = false
@@ -460,6 +466,7 @@ public final class DiveComputerEngine {
       case .listing(let found):
         walk.listing = found
         walk.computerBusy = false
+        walk.estimate.listed(found, at: now())
         walk.listedFromFingerprint =
           !all
           && walk.identity.flatMap { store.record(family: $0.family, serial: $0.serial) }?
@@ -472,6 +479,7 @@ public final class DiveComputerEngine {
         reportsProgress = true
         walk.walkProgress =
           maximum > 0 ? min(1, max(0, Double(current) / Double(maximum))) : nil
+        if let fraction = walk.walkProgress { walk.estimate.progressed(fraction, at: now()) }
         if walk.listing == nil { walk.phase = .downloading }
       case .dive(let dive):
         newest = newest ?? dive.fingerprint
@@ -479,6 +487,13 @@ public final class DiveComputerEngine {
         walk.identity = walk.identity ?? dive.identity
         walk.divesDownloaded = dives.count
         walk.otherAppHandshaking = false
+        walk.estimate.delivered(dive.fingerprint, at: now())
+        // At each dive, so a walk that never reaches its end — the link lost, the app ended —
+        // still leaves the pace of what it timed.
+        if let identity = walk.identity, let pace = walk.estimate.measured {
+          try? store.remember(
+            pace, over: walk.estimate.kept, for: DiveComputerRecord(identity: identity).id)
+        }
         if let listing = walk.listing, !reportsProgress, listing.newDives > 0 {
           walk.walkProgress = min(1, Double(dives.count) / Double(listing.newDives))
         }
@@ -490,6 +505,7 @@ public final class DiveComputerEngine {
         diveKept?()
       case .skipped(let fingerprint):
         newest = newest ?? fingerprint
+        walk.estimate.skipped(fingerprint, at: now())
         if let identity = walk.identity,
           waitingDives.contains(DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint))
         {
@@ -701,7 +717,8 @@ public final class DiveComputerEngine {
   /// computer gave it, where the phone saw it, the entries' sports.
   ///
   /// What the diver sets while the walk runs — *Download automatically*, the order's answer —
-  /// is read from the store as it stands, so the walk's save does not undo it.
+  /// and the pace the walk kept are read from the store as it stands, so the walk's save does not
+  /// undo them.
   private func remembered(
     _ record: DiveComputerRecord?, identity: DiveComputerIdentity, computer: FoundComputer,
     sports: [NauticEntrySport]?, marked: Bool, in store: DiveComputerStore
@@ -710,6 +727,7 @@ public final class DiveComputerEngine {
     if let current = store.record(family: identity.family, serial: identity.serial) {
       kept.downloadsAutomatically = current.downloadsAutomatically
       kept.awaitsOrder = current.awaitsOrder
+      kept.downloadPace = current.downloadPace
     }
     kept.vendor = identity.vendor
     kept.product = identity.product

@@ -236,6 +236,8 @@ struct InvitationsModelTests {
     #expect(model.list.value?.invitations.count == 3)
     #expect(model.link?.token == InvitationsServer.token(0))
     #expect(model.isLinkRead)
+    // Neither copy says how old it is before the reads the screen starts at once.
+    #expect(model.lastUpdated == nil)
     await model.load()
     #expect(model.list.value?.invitations.count == 3)
     #expect(model.link?.token == InvitationsServer.token(0))
