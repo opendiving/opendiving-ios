@@ -514,7 +514,10 @@ private struct FoldTitle: ToolbarContent {
               .opacity(symbolShare)
               .alignmentGuide(.top) { $0[.bottom] + FoldChevron.gap }
           }
-          .contentShape(.rect.inset(by: -12))
+          // A bar button's reach, centred on the icon so it keeps its line, and tall enough to
+          // take in the chevron.
+          .frame(width: 48, height: 48)
+          .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(InvitationsModel.showQRCode)
