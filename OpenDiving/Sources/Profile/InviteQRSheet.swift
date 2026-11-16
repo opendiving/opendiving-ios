@@ -165,6 +165,7 @@ private struct InviteQRFold<Controls: View>: View {
   /// The top bar's QR symbol, in the window, where the code ends.
   @State private var barIconFrame = CGRect.zero
   @State private var chevronFrame = CGRect.zero
+  @State private var controlsHeight = 0.0
   @State private var release = FoldRelease()
   @State private var slider = FoldSlider()
   /// Counts each switch between the code and the invitations, for its haptic.
@@ -232,15 +233,11 @@ private struct InviteQRFold<Controls: View>: View {
     }
   }
 
-  /// Keeps what fades from the page where it stood as the page scrolls away from under it.
-  private var heldInPlace: Double { min(max(geometry.offset, 0), pageHeight) }
-
   private func page(opacity: Double) -> some View {
     VStack(spacing: 16) {
       if let lastUpdated = model.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
           .opacity(opacity)
-          .offset(y: heldInPlace)
       }
       // Where the code sits at rest, drawn by `code(progress:)` over the scroll.
       Color.clear
@@ -254,8 +251,14 @@ private struct InviteQRFold<Controls: View>: View {
       VStack(spacing: 16) {
         controls
       }
+      .onGeometryChange(for: Double.self) {
+        $0.size.height
+      } action: {
+        controlsHeight = $0
+      }
+      .scaleEffect(1 - (1 - InviteQRSymbol.fadeScale) * (1 - opacity))
+      .offset(y: controlsDrift)
       .opacity(opacity)
-      .offset(y: heldInPlace)
       .allowsHitTesting(opacity > 0)
       Spacer(minLength: 24)
       Button(action: open) {
@@ -355,18 +358,13 @@ private struct InviteQRFold<Controls: View>: View {
   /// *Invites*, rising from the foot of the page to head the list and growing as it goes, its
   /// chevron going with it as it fades.
   private func invitesTitle(progress: Double) -> some View {
-    let scale =
-      headerFrame.height > 0 ? toggleFrame.height / headerFrame.height : 1
-    let from = CGPoint(x: toggleFrame.midX, y: toggleFrame.midY)
-    let to = CGPoint(x: headerFrame.midX, y: headerFrame.midY)
-    let at = CGPoint(
-      x: from.x + (to.x - from.x) * progress, y: from.y + (to.y - from.y) * progress)
+    let at = invitesCentre(progress: progress)
     return ZStack {
       Text(InvitationsModel.invitesToggle)
         .font(Self.headerFont)
         .foregroundStyle(.primary)
         .fixedSize()
-        .scaleEffect(scale + (1 - scale) * progress)
+        .scaleEffect(invitesScale(progress: progress))
         .position(at)
       Image(systemName: "chevron.down")
         .font(FoldChevron.font)
@@ -376,6 +374,36 @@ private struct InviteQRFold<Controls: View>: View {
     }
     .accessibilityHidden(true)
     .allowsHitTesting(false)
+  }
+
+  /// Where *Invites* is centred `progress` of the way up, in the scroll's content.
+  private func invitesCentre(progress: Double) -> CGPoint {
+    CGPoint(
+      x: toggleFrame.midX + (headerFrame.midX - toggleFrame.midX) * progress,
+      y: toggleFrame.midY + (headerFrame.midY - toggleFrame.midY) * progress)
+  }
+
+  /// *Invites*' size `progress` of the way up, of its size heading the list.
+  private func invitesScale(progress: Double) -> Double {
+    let start = headerFrame.height > 0 ? toggleFrame.height / headerFrame.height : 1
+    return start + (1 - start) * progress
+  }
+
+  /// How far the description and buttons stand from their place in the page: rising slower than
+  /// the page, they are centred between the code and *Invites* as they finish fading.
+  private var controlsDrift: Double {
+    let fade = InviteQRSymbol.fadeShare(progress)
+    guard fade > 0, controlsHeight > 0 else { return 0 }
+    let end = InviteQRSymbol.fadeEnd
+    // From the content to the scroll view, now and with the pane at rest.
+    let now = contentFrame.minY - scrollFrame.minY
+    let atRest = now + geometry.offset
+    let centre = codeFrame.maxY + 16 + controlsHeight / 2
+    let invitesTop =
+      invitesCentre(progress: end).y - invitesScale(progress: end) * headerFrame.height / 2
+    let between = (codePath(progress: end).maxY + invitesTop + atRest - end * pageHeight) / 2
+    let rest = centre + atRest
+    return rest + (between - rest) * fade - (centre + now)
   }
 
   private func open() {

@@ -140,7 +140,12 @@ struct InviteQRSymbol: View {
 
   /// How far what the code sheds has faded, over the first two fifths of the fold; whatever else
   /// leaves as the code folds fades with it.
-  nonisolated static func fadeShare(_ morph: Double) -> Double { min(morph * 2.5, 1) }
+  nonisolated static func fadeShare(_ morph: Double) -> Double { min(morph / fadeEnd, 1) }
+  /// Where in the fold what the code sheds has gone.
+  nonisolated static let fadeEnd = 0.4
+  /// The size what the code sheds shrinks to as it goes, of its own; what fades with it shrinks
+  /// alike.
+  nonisolated static let fadeScale = 0.65
 
   var body: some View {
     let isDark = colorScheme == .dark
@@ -154,7 +159,7 @@ struct InviteQRSymbol: View {
       // What only the code has fades over the first part of the fold, shrinking towards the
       // code's centre as it goes.
       let fade = Self.fadeShare(morph)
-      let shrink = 1 - 0.35 * fade
+      let shrink = 1 - (1 - Self.fadeScale) * fade
       var code = context
       code.opacity = 1 - fade
       code.translateBy(x: size.width / 2, y: size.height / 2)
