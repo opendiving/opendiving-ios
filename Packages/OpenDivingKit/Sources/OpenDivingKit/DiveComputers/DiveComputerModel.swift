@@ -31,6 +31,17 @@ public final class DiveComputerModel {
 
   public typealias Outcome = DiveComputerWalk.Outcome
 
+  /// What a paired computer's page draws of the diver's walk.
+  public enum PageWalk: Hashable, Sendable {
+    /// No walk of this computer to show: the download buttons alone.
+    case none
+    /// A walk of this computer in flight, whose sections stand in for the buttons.
+    case running
+    /// A finished walk of this computer: its outcome's sentence above the buttons, which stay,
+    /// the page's own *Download all dives* standing for the outcome's.
+    case finished(Outcome)
+  }
+
   /// One computer the scan found, as its row shows it.
   public struct Row: Hashable, Sendable, Identifiable {
     public let computer: FoundComputer
@@ -502,6 +513,14 @@ public final class DiveComputerModel {
   /// Whether a paired computer's page can start a download of it now.
   public func canDownload(_ record: DiveComputerRecord) -> Bool {
     record.peripheral != nil && !isBusy && blocker == nil && availability == .on
+  }
+
+  /// What `record`'s page draws of the diver's walk.
+  public func pageWalk(_ record: DiveComputerRecord) -> PageWalk {
+    guard let walk, walk.isOf(record) else { return .none }
+    if isBusy { return .running }
+    if phase == .finished, let outcome { return .finished(outcome) }
+    return .none
   }
 
   /// *Download all dives*, after *No new dives*: the same computer again, with no fingerprint.
