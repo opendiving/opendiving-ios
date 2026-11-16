@@ -172,15 +172,24 @@ struct InviteQRSymbol: View {
             height: iconSide * size.height),
           morph)
       }
+      // The code's finders, 7 modules a side, give way to the icon's proportions.
+      let ring = Self.mix(1 / 7, InviteQRLayout.iconRingWidth, morph)
+      let pupilSide = Self.mix(3 / 7, InviteQRLayout.iconPupilSide, morph)
+      let outerRadius = Self.mix(2.3 / 7, InviteQRLayout.iconEyeRadius, morph)
+      let holeRadius = Self.mix(1.5 / 7, InviteQRLayout.iconHoleRadius, morph)
+      let pupilRadius = Self.mix(1 / 7, InviteQRLayout.iconPupilRadius, morph)
       var rings = Path()
       var pupils = Path()
       for (finder, eye) in zip(layout.finders, InviteQRLayout.iconEyes) {
         let outer = place(
           Double(finder.row), Double(finder.column), 7, eye, InviteQRLayout.iconEyeSide)
-        let step = outer.width / 7
-        rings.addPath(Self.rounded(outer, radius: step * 2.3))
-        rings.addPath(Self.rounded(outer.insetBy(dx: step, dy: step), radius: step * 1.5))
-        pupils.addPath(Self.rounded(outer.insetBy(dx: step * 2, dy: step * 2), radius: step))
+        let side = outer.width
+        let hole = outer.insetBy(dx: side * ring, dy: side * ring)
+        let pupilInset = side * (1 - pupilSide) / 2
+        rings.addPath(Self.rounded(outer, radius: side * outerRadius))
+        rings.addPath(Self.rounded(hole, radius: side * holeRadius))
+        pupils.addPath(
+          Self.rounded(outer.insetBy(dx: pupilInset, dy: pupilInset), radius: side * pupilRadius))
       }
       context.fill(rings, with: .color(ink), style: FillStyle(eoFill: true))
       context.fill(pupils, with: .color(pupil.mix(with: ink, by: morph)))
@@ -199,7 +208,8 @@ struct InviteQRSymbol: View {
               y: (Double($0.row) + Self.quietZone) * unit, width: unit, height: unit)
           } ?? CGRect(x: to.midX, y: to.midY, width: 0, height: 0)
         let rect = Self.mix(from, to, morph)
-        let radius = isDark ? rect.width * 0.44 : rect.width * (0.25 - 0.05 * morph)
+        let radius =
+          rect.width * Self.mix(isDark ? 0.44 : 0.25, InviteQRLayout.iconDotRadius, morph)
         iconDots.addPath(Self.rounded(rect, radius: radius))
       }
       context.fill(iconDots, with: .color(ink))
@@ -279,6 +289,10 @@ struct InviteQRSymbol: View {
 
   private static func rounded(_ rect: CGRect, radius: Double) -> Path {
     Path(roundedRect: rect, cornerRadius: min(radius, rect.width / 2), style: .circular)
+  }
+
+  private static func mix(_ from: Double, _ to: Double, _ share: Double) -> Double {
+    from + (to - from) * share
   }
 
   private static func mix(_ from: CGRect, _ to: CGRect, _ share: Double) -> CGRect {

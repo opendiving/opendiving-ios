@@ -227,7 +227,8 @@ private struct InviteQRFold<Controls: View>: View {
     .toolbar {
       FoldTitle(
         address: address, isOpen: progress >= 1, titleOpacity: titleOpacity(progress: progress),
-        symbolShare: Self.symbolShare(progress), close: close,
+        symbolShare: Self.symbolShare(progress),
+        close: close,
         onTitleFrame: { titleFrame = $0 }, onIconFrame: { barIconFrame = $0 })
     }
   }
@@ -265,7 +266,7 @@ private struct InviteQRFold<Controls: View>: View {
               toggleFrame = $0
             }
           Image(systemName: "chevron.down")
-            .font(.footnote.weight(.semibold))
+            .font(FoldChevron.font)
             .opacity(opacity)
         }
         .foregroundStyle(.primary)
@@ -440,23 +441,26 @@ private struct FoldTitle: ToolbarContent {
           } action: {
             onTitleFrame($0)
           }
+        // The icon alone sits on the line of the bar's buttons; the chevron rides above it.
         Button(action: close) {
-          VStack(spacing: 2) {
-            Image(systemName: "chevron.up")
-              .font(.caption2.weight(.semibold))
-              .opacity(symbolShare)
-            InviteQRCode(
-              address: address.absoluteString, label: InvitationsModel.showQRCode, morph: 1
-            )
-            .frame(width: 20, height: 20)
-            .opacity(isOpen ? 1 : 0)
-            .onGeometryChange(for: CGRect.self) {
-              $0.frame(in: .global)
-            } action: {
-              onIconFrame($0)
-            }
+          InviteQRCode(
+            address: address.absoluteString, label: InvitationsModel.showQRCode, morph: 1
+          )
+          .frame(width: 20, height: 20)
+          .opacity(isOpen ? 1 : 0)
+          .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+          } action: {
+            onIconFrame($0)
           }
-          .foregroundStyle(.primary)
+          .overlay(alignment: .top) {
+            Image(systemName: "chevron.up")
+              .font(FoldChevron.font)
+              .foregroundStyle(.primary)
+              .opacity(symbolShare)
+              .alignmentGuide(.top) { $0[.bottom] + FoldChevron.gap }
+          }
+          .contentShape(.rect.inset(by: -12))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(InvitationsModel.showQRCode)
@@ -465,6 +469,15 @@ private struct FoldTitle: ToolbarContent {
       }
     }
   }
+}
+
+/// The chevrons either end of the fold: under *Invites* at the foot of the page, and over the
+/// icon in the bar, at the same gap from what they point the way to.
+private enum FoldChevron {
+  static var font: Font { .footnote.weight(.semibold) }
+  /// Between the bar's icon and the chevron over it: the gap under *Invites*, whose line keeps
+  /// room below the letters on top of the stack's spacing.
+  nonisolated static let gap = 5.0
 }
 
 /// The fold's scroll, counted from the top of the content as a scroll target is, rather than from

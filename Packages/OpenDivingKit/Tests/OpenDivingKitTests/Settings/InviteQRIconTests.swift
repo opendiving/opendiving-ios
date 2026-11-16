@@ -18,10 +18,9 @@ struct InviteQRIconTests {
   @Test func eachDotTakesTheModuleNearestWhereItSits() throws {
     let layout = try #require(InviteQRLayout(matrix: InviteQRLayoutTests.matrix(37)))
     let modules = layout.iconDotModules
-    // The die's far corner falls on the symbol's bottom-right corner, its near one where the
-    // quarter begins.
-    #expect(modules[4] == .init(row: 34, column: 34))
-    #expect(modules[0] == .init(row: 22, column: 22))
+    // Each takes the module under its own centre, which here is dark.
+    #expect(modules[0] == .init(row: 23, column: 23))
+    #expect(modules[4] == .init(row: 33, column: 33))
   }
 
   @Test func aQuarterWithNoDrawnModuleLeavesTheDotsUnmatched() throws {
