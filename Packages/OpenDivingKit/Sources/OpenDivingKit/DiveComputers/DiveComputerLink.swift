@@ -41,12 +41,14 @@ public protocol DiveComputerLink: AnyObject {
   /// as soon as it is identified, with none of its entries listed or read, and the stream ends
   /// ``DiveComputerDownloadEnd/Kind/unpaired``.
   ///
-  /// With `waitsForLink`, a computer that drops the link mid-walk is waited for rather than ending
-  /// the walk: the stream yields ``DiveComputerDownloadEvent/linkLost``, and the walk reopens the
-  /// computer about every four seconds while the app is in the foreground
+  /// With `waitsForLink`, a computer of a family the app walks itself — the Perdix's, and the
+  /// Ocean's where its name carries the serial — that drops the link mid-walk is waited for
+  /// rather than ending the walk: the stream yields ``DiveComputerDownloadEvent/linkLost``, and
+  /// the walk reopens the computer about every four seconds while the app is in the foreground
   /// (``setForeground(_:)``), and in the background only at ``linkReturned()``, until it opens —
   /// yielding ``DiveComputerDownloadEvent/linkBack`` and carrying on from the transfer it lost —
-  /// or the walk is cancelled. Without it, a lost link ends the walk.
+  /// or the walk is cancelled. Without it, or for a family libdivecomputer walks, a lost link ends
+  /// the walk.
   func download(
     _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,

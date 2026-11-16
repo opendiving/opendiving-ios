@@ -34,8 +34,9 @@ import Observation
 /// **A walk nobody watches ends** after ``automaticWaitLimit`` without a dive arriving, with what
 /// it kept.
 ///
-/// **A walk the diver started waits for a lost link.** In the foreground the link reopens the
-/// computer itself until it is back or the diver cancels. Behind, the walk is handed to the
+/// **A walk the diver started waits for a lost link**, of a family the link walks itself
+/// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:keep:)``). In the
+/// foreground the link reopens the computer itself until it is back or the diver cancels. Behind, the walk is handed to the
 /// watch's connection request (``DiveComputerWatch/handOver(_:)``), so iOS connects the computer
 /// when it is back and the walk carries on; back in front first, the walk reopens it again. A walk
 /// nobody watches ends on a lost link, its next connection being the watch's to arm.
