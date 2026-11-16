@@ -68,6 +68,23 @@ jobs:
       - name: Validate the goldens
         run: divejson validate Packages/OpenDivingKit/Tests/OpenDivingKitTests/Fixtures/DiveComputers/*.divejson
 
+  # The Kit's recorded request and response bodies, each held to the operation it belongs to in
+  # the API's document, built from opendiving-api's `main` at the time of the run. A body the
+  # document does not allow is a warning on a pull request and fails in the merge queue; see
+  # DECISIONS.md, "The Kit's fixtures are held to the API's main, and fail only in the queue".
+  api-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: opendiving/opendiving-api/.github/actions/client-bodies@main
+        with:
+          list: Packages/OpenDivingKit/api-bodies.json
+
   # The dive reader and libdc-swift name one libdivecomputer commit: the app links the reader
   # against libdc-swift's copy, so the two pins in project.yml move together.
   libdivecomputer-pins:

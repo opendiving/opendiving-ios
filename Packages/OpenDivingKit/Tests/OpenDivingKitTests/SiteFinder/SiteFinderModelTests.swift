@@ -36,7 +36,7 @@ struct SiteFinderModelTests {
   private static let placeRow =
     #"{"kind":"place","latitude":28.4963633,"longitude":34.5145652,"#
     + #""location":"Dahab, South Sinai, Egypt","name":"Dahab","attribution":"[OSM](https://osm.org)","#
-    + #""country":"Egypt","region":"South Sinai","source":"photon","source_id":"N1","#
+    + #""country":"Egypt","region":"South Sinai","source":"osm","source_id":"N1","#
     + #""bbox_south":null,"bbox_north":null,"bbox_west":null,"bbox_east":null,"#
     + #""distance_m":12000,"sites_nearby":15}"#
 

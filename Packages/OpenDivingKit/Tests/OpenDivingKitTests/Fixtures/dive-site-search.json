@@ -53,7 +53,7 @@
       "attribution": "[Data © OpenStreetMap contributors, ODbL 1.0.](https://osm.org/copyright)",
       "country": "United States",
       "region": "Colorado",
-      "source": "photon",
+      "source": "osm",
       "source_id": "R112233",
       "bbox_south": 38.4,
       "bbox_north": 38.5,

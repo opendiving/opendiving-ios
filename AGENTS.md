@@ -24,7 +24,8 @@ change over.
   and no regenerate.
 - `Packages/OpenDivingKit` is the Kit: `Sources/OpenDivingKit` and `Tests/OpenDivingKitTests`, by
   SwiftPM's convention. Test fixtures go in `Tests/OpenDivingKitTests/Fixtures`, which the
-  manifest already copies whole.
+  manifest already copies whole. Each JSON fixture is listed in `Packages/OpenDivingKit/api-bodies.json`
+  against the API operation it belongs to, which is what CI holds it to.
 
 ## What goes where
 
