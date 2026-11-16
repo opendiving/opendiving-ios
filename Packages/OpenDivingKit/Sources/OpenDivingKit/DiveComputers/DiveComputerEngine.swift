@@ -391,7 +391,8 @@ public final class DiveComputerEngine {
         }
         let paired = store.record(family: found.family, serial: found.serial)
         keeper.identified(record: paired?.id, zone: nil)
-        walk.estimate.kept = paired?.downloadPace
+        // Read before the walk keeps a pace of its own, which a later identity must not read back.
+        if walk.estimate.measured == nil { walk.estimate.kept = paired?.downloadPace }
       case .watchZone(let zone):
         watchZone = zone
         keeper.identified(record: nil, zone: zone)
@@ -430,6 +431,12 @@ public final class DiveComputerEngine {
         walk.divesDownloaded = dives.count
         walk.otherAppHandshaking = false
         walk.estimate.delivered(dive.fingerprint, at: now())
+        // At each dive, so a walk that never reaches its end — the link lost, the app ended —
+        // still leaves the pace of what it timed.
+        if let identity = walk.identity, let pace = walk.estimate.measured {
+          try? store.remember(
+            pace, over: walk.estimate.kept, for: DiveComputerRecord(identity: identity).id)
+        }
         if let listing = walk.listing, !reportsProgress, listing.newDives > 0 {
           walk.walkProgress = min(1, Double(dives.count) / Double(listing.newDives))
         }
@@ -464,10 +471,6 @@ public final class DiveComputerEngine {
       return
     }
     let identity = walk.identity
-    // Before the record is read, so every save after this one carries the pace.
-    if let identity, let pace = walk.estimate.measured {
-      try? store.remember(pace, for: DiveComputerRecord(identity: identity).id)
-    }
     let record = identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
     let advances = end.kind == .complete && end.emptyReads == 0
     let sports = walk.listing?.sports

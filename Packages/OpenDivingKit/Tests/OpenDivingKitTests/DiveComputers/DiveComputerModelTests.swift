@@ -766,6 +766,10 @@ struct DiveComputerModelTests {
     await next(link, holding: 3) { model.divesDownloaded == 1 }
     // The first dive took 120 s for 1800 s of dive: 240 s for the next one's 3600.
     #expect(model.timeLeftText(at: clock.now) == "About 4 minutes left")
+    // Kept already, so a walk that breaks off here still leaves it.
+    #expect(
+      computers(session).record(family: F.perdix.family, serial: F.perdix.serial)?.downloadPace
+        == kept.merged(DownloadPace(perDiveSecond: 120.0 / 1800, perDive: 120)))
 
     clock.pass(300)
     await next(link, holding: nil)
