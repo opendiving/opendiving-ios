@@ -93,6 +93,8 @@ public final class InvitationsModel {
         isLinkRead = true
         linkFetchedAt = entry.fetchedAt
       }
+      // The link is read once the list is: until then its copy is not yet behind a failed read.
+      isReadingLink = linkFetchedAt != nil
     }
   }
 
@@ -114,7 +116,10 @@ public final class InvitationsModel {
   public func load() async {
     await list.load()
     if list.isAbsent { forgetLink() }
-    guard list.value != nil else { return }
+    guard list.value != nil else {
+      isReadingLink = false
+      return
+    }
     await loadLink()
   }
 

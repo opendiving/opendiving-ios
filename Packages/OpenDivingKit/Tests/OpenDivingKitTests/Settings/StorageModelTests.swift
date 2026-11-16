@@ -71,11 +71,12 @@ struct StorageModelTests {
     let connectivity = SettingsConnectivity()
     let model = try await model(server, connectivity: connectivity, in: directory)
     #expect(model.usage?.divesWithFilesCount == 9)
-    let shown = try #require(model.lastUpdated)
+    // Not before the read the screen starts at once, which would flash it in only to take it out.
+    #expect(model.lastUpdated == nil)
     connectivity.isRouteAvailable = false
     await model.load()
     #expect(model.usage?.divesWithFilesCount == 9)
-    #expect(model.lastUpdated == shown)
+    #expect(model.lastUpdated != nil)
 
     connectivity.isRouteAvailable = true
     await model.load()

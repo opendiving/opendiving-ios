@@ -46,6 +46,8 @@ public final class OptionalList<Value: Sendable> {
     if let entry = AccountStores.current(session)?.cache.kept(setting, of: Value.self) {
       value = entry.value
       fetchedAt = entry.fetchedAt
+      // Its screen reads it at once: until then the copy is not yet behind a failed read.
+      isReading = true
     }
   }
 
