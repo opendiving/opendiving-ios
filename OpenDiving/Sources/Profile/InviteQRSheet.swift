@@ -164,8 +164,7 @@ private struct InviteQRFold<Controls: View>: View {
   @State private var headerFrame = CGRect.zero
   /// The top bar's QR symbol, in the window, where the code ends.
   @State private var barIconFrame = CGRect.zero
-  /// The top bar's title, in the window, which the code fades out as it reaches it.
-  @State private var titleFrame = CGRect.zero
+  @State private var chevronFrame = CGRect.zero
   @State private var release = FoldRelease()
   @State private var slider = FoldSlider()
   /// Counts each switch between the code and the invitations, for its haptic.
@@ -177,7 +176,7 @@ private struct InviteQRFold<Controls: View>: View {
 
   var body: some View {
     let progress = progress
-    let controlsOpacity = max(1 - progress * 2, 0)
+    let controlsOpacity = 1 - InviteQRSymbol.fadeShare(progress)
     ScrollView {
       VStack(spacing: 0) {
         page(opacity: controlsOpacity)
@@ -226,10 +225,10 @@ private struct InviteQRFold<Controls: View>: View {
     .sensoryFeedback(.impact, trigger: slides)
     .toolbar {
       FoldTitle(
-        address: address, isOpen: progress >= 1, titleOpacity: titleOpacity(progress: progress),
+        address: address, isOpen: progress >= 1, titleOpacity: controlsOpacity,
         symbolShare: Self.symbolShare(progress),
         close: close,
-        onTitleFrame: { titleFrame = $0 }, onIconFrame: { barIconFrame = $0 })
+        onIconFrame: { barIconFrame = $0 })
     }
   }
 
@@ -267,7 +266,12 @@ private struct InviteQRFold<Controls: View>: View {
             }
           Image(systemName: "chevron.down")
             .font(FoldChevron.font)
-            .opacity(opacity)
+            .foregroundStyle(.clear)
+            .onGeometryChange(for: CGRect.self) {
+              $0.frame(in: .inviteQRFold)
+            } action: {
+              chevronFrame = $0
+            }
         }
         .foregroundStyle(.primary)
         .padding(.horizontal, 24)
@@ -343,31 +347,30 @@ private struct InviteQRFold<Controls: View>: View {
     return Self.interpolate(atRest, inBar, progress)
   }
 
-  /// *Invites*, rising from the foot of the page to head the list and growing as it goes.
+  /// *Invites*, rising from the foot of the page to head the list and growing as it goes, its
+  /// chevron going with it as it fades.
   private func invitesTitle(progress: Double) -> some View {
     let scale =
       headerFrame.height > 0 ? toggleFrame.height / headerFrame.height : 1
     let from = CGPoint(x: toggleFrame.midX, y: toggleFrame.midY)
     let to = CGPoint(x: headerFrame.midX, y: headerFrame.midY)
-    return Text(InvitationsModel.invitesToggle)
-      .font(Self.headerFont)
-      .foregroundStyle(.primary)
-      .fixedSize()
-      .scaleEffect(scale + (1 - scale) * progress)
-      .position(
-        x: from.x + (to.x - from.x) * progress, y: from.y + (to.y - from.y) * progress
-      )
-      .accessibilityHidden(true)
-      .allowsHitTesting(false)
-  }
-
-  /// The title's opacity: whole while the code sits in the page, nothing once the code's top edge
-  /// reaches the title's foot, in step with the scroll between.
-  private func titleOpacity(progress: Double) -> Double {
-    let gapAtRest = scrollFrame.minY + codePath(progress: 0).minY - titleFrame.maxY
-    guard gapAtRest > 0 else { return 1 - Self.symbolShare(progress) }
-    let codeTop = scrollFrame.minY + codePath(progress: progress).minY
-    return min(max((codeTop - titleFrame.maxY) / gapAtRest, 0), 1)
+    let at = CGPoint(
+      x: from.x + (to.x - from.x) * progress, y: from.y + (to.y - from.y) * progress)
+    return ZStack {
+      Text(InvitationsModel.invitesToggle)
+        .font(Self.headerFont)
+        .foregroundStyle(.primary)
+        .fixedSize()
+        .scaleEffect(scale + (1 - scale) * progress)
+        .position(at)
+      Image(systemName: "chevron.down")
+        .font(FoldChevron.font)
+        .foregroundStyle(.primary)
+        .opacity(1 - InviteQRSymbol.fadeShare(progress))
+        .position(x: at.x, y: at.y + chevronFrame.midY - toggleFrame.midY)
+    }
+    .accessibilityHidden(true)
+    .allowsHitTesting(false)
   }
 
   private func open() {
@@ -427,7 +430,6 @@ private struct FoldTitle: ToolbarContent {
   let titleOpacity: Double
   let symbolShare: Double
   let close: () -> Void
-  let onTitleFrame: (CGRect) -> Void
   let onIconFrame: (CGRect) -> Void
 
   var body: some ToolbarContent {
@@ -436,11 +438,6 @@ private struct FoldTitle: ToolbarContent {
         Text("Your invite link")
           .font(.headline)
           .opacity(titleOpacity)
-          .onGeometryChange(for: CGRect.self) {
-            $0.frame(in: .global)
-          } action: {
-            onTitleFrame($0)
-          }
         // The icon alone sits on the line of the bar's buttons; the chevron rides above it.
         Button(action: close) {
           InviteQRCode(
