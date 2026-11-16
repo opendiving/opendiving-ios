@@ -189,6 +189,7 @@ private struct InviteQRFold<Controls: View>: View {
           }
         invitations
           .frame(minHeight: geometry.visibleHeight, alignment: .top)
+          .offset(y: -invitationsLift(progress: progress))
       }
       .coordinateSpace(.inviteQRFold)
       .onGeometryChange(for: CGRect.self) {
@@ -327,7 +328,7 @@ private struct InviteQRFold<Controls: View>: View {
       }
     }
     .padding([.horizontal, .bottom])
-    .padding(.top, 8)
+    .padding(.top, Self.invitationsTop)
   }
 
   /// The code, moving from its place at rest straight to the top bar's middle as the pane scrolls
@@ -376,11 +377,21 @@ private struct InviteQRFold<Controls: View>: View {
     .allowsHitTesting(false)
   }
 
-  /// Where *Invites* is centred `progress` of the way up, in the scroll's content.
+  /// How far ahead of the scroll the invitations rise, most at the middle of the fold and none at
+  /// either end, so the list closes on the shrinking code rather than trailing it.
+  private func invitationsLift(progress: Double) -> Double {
+    pageHeight * Self.liftShare * 4 * progress * (1 - progress)
+  }
+
+  /// Where *Invites* is centred `progress` of the way up, in the scroll's content, lifted with
+  /// the list it heads. Its place heading the list is reckoned from the layout, since the list's
+  /// lift moves what a measure of it reads.
   private func invitesCentre(progress: Double) -> CGPoint {
-    CGPoint(
-      x: toggleFrame.midX + (headerFrame.midX - toggleFrame.midX) * progress,
-      y: toggleFrame.midY + (headerFrame.midY - toggleFrame.midY) * progress)
+    let heading = pageHeight + Self.invitationsTop + headerFrame.height / 2
+    return CGPoint(
+      x: toggleFrame.midX,
+      y: toggleFrame.midY + (heading - toggleFrame.midY) * progress
+        - invitationsLift(progress: progress))
   }
 
   /// *Invites*' size `progress` of the way up, of its size heading the list.
@@ -435,9 +446,15 @@ private struct InviteQRFold<Controls: View>: View {
       return
     }
     release.target = nil
-    slide(to: target, switching: abs(target - start) > 1)
+    slide(
+      to: target,
+      switching: InviteQRPaneScroll.switches(from: start, to: target, fold: pageHeight))
   }
 
+  /// The room above *Invites* heading the list.
+  private static var invitationsTop: Double { 8 }
+  /// The invitations' lead on the scroll at the middle of the fold, of the page's height.
+  private static var liftShare: Double { 0.25 }
   private static var toggleFont: Font { .subheadline.weight(.semibold) }
   private static var headerFont: Font { .title2.bold() }
 

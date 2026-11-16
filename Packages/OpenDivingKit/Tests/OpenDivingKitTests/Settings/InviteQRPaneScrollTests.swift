@@ -8,18 +8,32 @@ struct InviteQRPaneScrollTests {
   @Test func aDragDownFromTheQRCodeReachesTheInvitationsOncePastTheThreshold() {
     #expect(InviteQRPaneScroll.restingOffset(start: 0, proposed: 59, fold: fold) == 0)
     #expect(InviteQRPaneScroll.restingOffset(start: 0, proposed: 60, fold: fold) == fold)
-    #expect(InviteQRPaneScroll.restingOffset(start: 0, proposed: 900, fold: fold) == 900)
   }
 
   @Test func aDragUpFromTheInvitationsReachesTheQRCodeOncePastTheThreshold() {
     #expect(InviteQRPaneScroll.restingOffset(start: fold, proposed: 541, fold: fold) == fold)
     #expect(InviteQRPaneScroll.restingOffset(start: fold, proposed: 540, fold: fold) == 0)
-    #expect(InviteQRPaneScroll.restingOffset(start: 1400, proposed: 300, fold: fold) == 0)
   }
 
   @Test func aScrollWithinTheInvitationsRestsWhereItWasHeaded() {
     #expect(InviteQRPaneScroll.restingOffset(start: 1400, proposed: 700, fold: fold) == 700)
     #expect(InviteQRPaneScroll.restingOffset(start: fold, proposed: 1200, fold: fold) == 1200)
+  }
+
+  @Test func oneGestureSwitchesOrScrollsTheInvitationsNeverBoth() {
+    // A flick off the code that would carry into the list stops at its top.
+    #expect(InviteQRPaneScroll.restingOffset(start: 0, proposed: 900, fold: fold) == fold)
+    // A scroll up the list that would carry on to the code stops at the list's top.
+    #expect(InviteQRPaneScroll.restingOffset(start: 1400, proposed: 300, fold: fold) == fold)
+    #expect(InviteQRPaneScroll.restingOffset(start: 1400, proposed: 590, fold: fold) == fold)
+  }
+
+  @Test func onlyACrossingBetweenTheCodeAndTheInvitationsIsASwitch() {
+    #expect(InviteQRPaneScroll.switches(from: 0, to: fold, fold: fold))
+    #expect(InviteQRPaneScroll.switches(from: fold, to: 0, fold: fold))
+    #expect(!InviteQRPaneScroll.switches(from: 1400, to: fold, fold: fold))
+    #expect(!InviteQRPaneScroll.switches(from: 30, to: 0, fold: fold))
+    #expect(!InviteQRPaneScroll.switches(from: fold, to: 1200, fold: fold))
   }
 
   @Test func aScrollThatDoesNotMoveRestsAtTheNearerEnd() {
