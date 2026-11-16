@@ -37,6 +37,8 @@ final class FakeDiveComputerLink: DiveComputerLink {
   private var held: CheckedContinuation<Void, Never>?
   /// Tests waiting, through ``untilHeld()``, for the next hold.
   private var holdWaiters: [CheckedContinuation<Void, Never>] = []
+  /// A release that came before the download in flight reached its hold, which it then passes.
+  private var releasedEarly = false
 
   func availability() -> AsyncStream<DiveComputerAvailability> {
     AsyncStream {
@@ -66,6 +68,7 @@ final class FakeDiveComputerLink: DiveComputerLink {
     let script = scripts.isEmpty ? [] : scripts[min(downloads, scripts.count - 1)]
     let download = downloads
     downloads += 1
+    releasedEarly = false
     waitingTests.append(waiting)
     opened.append((computer, pairedOnly, waitsForLink))
     let (stream, continuation) = AsyncStream.makeStream(of: DiveComputerDownloadEvent.self)
@@ -83,11 +86,15 @@ final class FakeDiveComputerLink: DiveComputerLink {
           }
         }
         if index == script.count - 1 && holdBeforeEnd || index == holdBefore {
-          await withCheckedContinuation {
-            held = $0
-            let waiters = holdWaiters
-            holdWaiters = []
-            for waiter in waiters { waiter.resume() }
+          if releasedEarly {
+            releasedEarly = false
+          } else {
+            await withCheckedContinuation {
+              held = $0
+              let waiters = holdWaiters
+              holdWaiters = []
+              for waiter in waiters { waiter.resume() }
+            }
           }
         }
         if case .finished = event, cancelledDownloads.contains(download) {
@@ -109,9 +116,15 @@ final class FakeDiveComputerLink: DiveComputerLink {
       product: record.product)
   }
 
+  /// Lets the held download go on; sent before it holds, it lets the next hold pass, so a test
+  /// that waited on what the download yielded rather than on the hold never leaves it standing.
   func release() {
-    held?.resume()
-    held = nil
+    guard let held else {
+      releasedEarly = true
+      return
+    }
+    held.resume()
+    self.held = nil
   }
 
   var isHeld: Bool { held != nil }

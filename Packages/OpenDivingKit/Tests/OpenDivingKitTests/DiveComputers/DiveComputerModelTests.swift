@@ -154,7 +154,7 @@ struct DiveComputerModelTests {
     link.holdBeforeEnd = true
     model.connect(row)
     #expect(watcher.take() == [.observe(false), .disarm(F.perdixFound.id)])
-    for _ in 0..<1000 where !link.isHeld { await Task.yield() }
+    await link.untilHeld()
     #expect(watcher.take().isEmpty)
     link.release()
     await model.settled()
@@ -238,7 +238,8 @@ struct DiveComputerModelTests {
     link.holdBeforeEnd = true
     link.scripts = [FakeDiveComputerLink.script(F.perdix, Array(F.perdixDownload.prefix(2)))]
     model.connect(try #require(model.rows.first))
-    for _ in 0..<1000 where !link.isHeld || model.divesDownloaded < 2 { await Task.yield() }
+    await link.untilHeld()
+    await until { model.divesDownloaded == 2 }
     #expect(model.phase == .downloading)
     #expect(model.downloadingText == "Downloading dive 3")
     #expect(model.progress == 0.25)
@@ -642,7 +643,7 @@ struct DiveComputerModelTests {
     let engine = engine(later, link)
     let model = DiveComputerModel(engine: engine, zone: F.helsinki)
     model.connect(try await scanned(model))
-    for _ in 0..<1000 where !link.isHeld { await Task.yield() }
+    await link.untilHeld()
 
     server.signIn(as: ImportServer.accountB)
     try await later.loadAccount()
@@ -658,9 +659,10 @@ struct DiveComputerModelTests {
     #expect(computers(later, ImportServer.accountB).records().map(\.fingerprint) == [nil])
   }
 
-  /// Waits until the fake holds, however busy the main actor is with other suites.
+  /// Waits until the fake holds, however busy the main actor is with other suites: by the hold
+  /// itself, not a count of turns, after which a release would reach nothing and the hold stand.
   private func held(_ link: FakeDiveComputerLink) async {
-    await until { link.isHeld }
+    await link.untilHeld()
   }
 
   /// Waits until the model has taken in what the fake yielded, which it reads on its own task.
@@ -676,18 +678,6 @@ struct DiveComputerModelTests {
     link.release()
     if index != nil { await held(link) }
     await until(condition)
-  }
-
-  /// ``next(_:holding:until:)`` without counting turns, for a test whose fake must reach each hold
-  /// whatever else the suite runs beside it: it waits for the hold itself, then for `condition`,
-  /// which the events before the hold make true.
-  private func step(
-    _ link: FakeDiveComputerLink, holding index: Int, until condition: () -> Bool
-  ) async {
-    link.holdBefore = index
-    link.release()
-    await link.untilHeld()
-    while !condition() { await Task.yield() }
   }
 
   @Test func aListingFromTheFingerprintCountsTheNewDivesAndNumbersTheDownload() async throws {
@@ -1202,8 +1192,8 @@ struct DiveComputerModelTests {
     link.holdBefore = 4
     let model = model(session, link)
     model.connect(try await scanned(model))
-    await link.untilHeld()
-    while !model.linkLost { await Task.yield() }
+    await held(link)
+    await until { model.linkLost }
     #expect(link.opened.map(\.waitsForLink) == [true])
     #expect(model.phase == .connecting)
     #expect(!model.computerBusy)
@@ -1212,19 +1202,18 @@ struct DiveComputerModelTests {
     let record = try #require(model.paired.first?.record)
     #expect(model.status(record) == "Waiting for this computer to reconnect")
 
-    await step(link, holding: 9) { model.linkLost && model.divesDownloaded == 1 }
+    await next(link, holding: 9) { model.linkLost && model.divesDownloaded == 1 }
     #expect(model.phase == .downloading)
     #expect(model.waitingText == lost)
     #expect(DiveComputerButtonContent(model).accessibilityValue == lost)
     #expect(model.status(record) == "Waiting for this computer to reconnect")
 
-    await step(link, holding: 10) { !model.linkLost }
+    await next(link, holding: 10) { !model.linkLost }
     #expect(
       model.waitingText
         == "This computer is busy. Closing other apps that use it lets the download go on.")
     #expect(model.status(record) == "Waiting until this computer is free")
-    link.holdBefore = nil
-    link.release()
+    await next(link, holding: nil)
     await model.settled()
     #expect(model.outcome?.sentence == "2 dives downloaded.")
   }
@@ -1381,7 +1370,7 @@ struct DiveComputerModelTests {
     await model.settled()
     link.holdBeforeEnd = true
     model.download(perdix, all: false)
-    for _ in 0..<1000 where !link.isHeld { await Task.yield() }
+    await link.untilHeld()
     #expect(model.pageWalk(perdix) == .running)
     #expect(model.pageWalk(ocean) == .none)
     #expect(!model.canDownload(perdix))

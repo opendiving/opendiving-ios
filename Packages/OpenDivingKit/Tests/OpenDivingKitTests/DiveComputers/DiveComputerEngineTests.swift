@@ -265,12 +265,11 @@ struct DiveComputerEngineTests {
 
   // MARK: - A lost link
 
-  /// Waits until the fake holds after yielding the lost link, then until the engine has taken it
-  /// in. Neither wait counts turns: a suite run in parallel can take any number, and a release sent
-  /// before the hold would release nothing.
+  /// Waits for the fake's hold after the lost link, however many turns that takes, since a release
+  /// sent before it would reach nothing; then until the engine has taken the lost link in.
   private func heldLost(_ walk: DiveComputerWalk) async {
     await link.untilHeld()
-    while !walk.linkLost { await Task.yield() }
+    await until { walk.linkLost }
   }
 
   /// A Perdix whose *Download automatically* is off, so only a hand-over arms it.
@@ -498,7 +497,7 @@ struct DiveComputerEngineTests {
     link.holdBeforeEnd = true
     let engine = engine(session)
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     // A second connection waits its turn.
     watcher.send(.connected(F.oceanFound.id))
     #expect(link.downloads == 1)
@@ -547,7 +546,7 @@ struct DiveComputerEngineTests {
     var kept = 0
     engine.diveKept = { kept += 1 }
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     await until { kept == 3 }
     let walk = try #require(downloads(session).walks().first)
     #expect(walk.dives.count == 3)
@@ -854,7 +853,7 @@ struct DiveComputerEngineTests {
     #expect(model.phase == .scanning)
 
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     #expect(model.phase == .idle)
     link.release()
     await engine.settled()
@@ -879,7 +878,7 @@ struct DiveComputerEngineTests {
     #expect(link.scans == 1)
 
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     watcher.send(.connected(F.oceanFound.id))
     link.holdBeforeEnd = false
     link.release()
