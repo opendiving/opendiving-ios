@@ -35,6 +35,8 @@ final class FakeDiveComputerLink: DiveComputerLink {
   /// The downloads, by index, a cancel reached.
   private var cancelledDownloads: Set<Int> = []
   private var held: CheckedContinuation<Void, Never>?
+  /// Tests waiting, through ``untilHeld()``, for the next hold.
+  private var holdWaiters: [CheckedContinuation<Void, Never>] = []
 
   func availability() -> AsyncStream<DiveComputerAvailability> {
     AsyncStream {
@@ -81,7 +83,12 @@ final class FakeDiveComputerLink: DiveComputerLink {
           }
         }
         if index == script.count - 1 && holdBeforeEnd || index == holdBefore {
-          await withCheckedContinuation { held = $0 }
+          await withCheckedContinuation {
+            held = $0
+            let waiters = holdWaiters
+            holdWaiters = []
+            for waiter in waiters { waiter.resume() }
+          }
         }
         if case .finished = event, cancelledDownloads.contains(download) {
           continuation.yield(.finished(.init(.cancelled)))
@@ -108,6 +115,13 @@ final class FakeDiveComputerLink: DiveComputerLink {
   }
 
   var isHeld: Bool { held != nil }
+
+  /// Returns once the fake holds, however many turns that takes: a release sent before it would
+  /// release nothing and leave the hold that follows standing for good.
+  func untilHeld() async {
+    guard held == nil else { return }
+    await withCheckedContinuation { holdWaiters.append($0) }
+  }
 
   /// Ends the download in flight as cancelled, a hold included.
   func cancelDownload() {

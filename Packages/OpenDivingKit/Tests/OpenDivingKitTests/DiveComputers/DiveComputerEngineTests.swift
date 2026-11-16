@@ -265,6 +265,14 @@ struct DiveComputerEngineTests {
 
   // MARK: - A lost link
 
+  /// Waits until the fake holds after yielding the lost link, then until the engine has taken it
+  /// in. Neither wait counts turns: a suite run in parallel can take any number, and a release sent
+  /// before the hold would release nothing.
+  private func heldLost(_ walk: DiveComputerWalk) async {
+    await link.untilHeld()
+    while !walk.linkLost { await Task.yield() }
+  }
+
   /// A Perdix whose *Download automatically* is off, so only a hand-over arms it.
   private func pairUnwatched(_ session: Session) throws {
     var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
@@ -292,7 +300,7 @@ struct DiveComputerEngineTests {
     let engine = engine(session)
     _ = watcher.take()
     let walk = try #require(engine.start(F.perdixFound, all: false))
-    await until { walk.linkLost }
+    await heldLost(walk)
     #expect(link.opened.map(\.waitsForLink) == [true])
     #expect(watcher.take() == [])
     #expect(link.returns == 0)
@@ -323,7 +331,7 @@ struct DiveComputerEngineTests {
     let engine = engine(session)
     _ = watcher.take()
     let walk = try #require(engine.start(F.perdixFound, all: false))
-    await until { walk.linkLost }
+    await heldLost(walk)
 
     engine.foregroundChanged(false)
     #expect(link.foregrounds.last == false)
@@ -353,7 +361,7 @@ struct DiveComputerEngineTests {
     let engine = engine(session)
     _ = watcher.take()
     let walk = try #require(engine.start(F.perdixFound, all: false))
-    await until { walk.linkLost }
+    await heldLost(walk)
     engine.foregroundChanged(false)
     watcher.send(.state(.on, detail: "poweredOn"))
     #expect(watcher.take() == [.start, .arm(F.perdixFound.id, after: 0)])
@@ -380,7 +388,7 @@ struct DiveComputerEngineTests {
     link.holdBefore = 4
     let engine = engine(session)
     let walk = try #require(engine.start(F.perdixFound, all: false))
-    await until { walk.linkLost }
+    await heldLost(walk)
     engine.foregroundChanged(false)
     watcher.send(.state(.on, detail: "poweredOn"))
     #expect(watcher.take().last == .arm(F.perdixFound.id, after: 0))
@@ -400,7 +408,7 @@ struct DiveComputerEngineTests {
     let handOvers = root.appendingPathComponent("dive-computer-hand-overs.json")
     let first = engine(session, handOvers: handOvers)
     let walk = try #require(first.start(F.perdixFound, all: false))
-    await until { walk.linkLost }
+    await heldLost(walk)
     first.foregroundChanged(false)
     watcher.send(.state(.on, detail: "poweredOn"))
     #expect(watcher.take().last == .arm(F.perdixFound.id, after: 0))

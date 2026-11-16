@@ -678,6 +678,18 @@ struct DiveComputerModelTests {
     await until(condition)
   }
 
+  /// ``next(_:holding:until:)`` without counting turns, for a test whose fake must reach each hold
+  /// whatever else the suite runs beside it: it waits for the hold itself, then for `condition`,
+  /// which the events before the hold make true.
+  private func step(
+    _ link: FakeDiveComputerLink, holding index: Int, until condition: () -> Bool
+  ) async {
+    link.holdBefore = index
+    link.release()
+    await link.untilHeld()
+    while !condition() { await Task.yield() }
+  }
+
   @Test func aListingFromTheFingerprintCountsTheNewDivesAndNumbersTheDownload() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
@@ -1190,8 +1202,8 @@ struct DiveComputerModelTests {
     link.holdBefore = 4
     let model = model(session, link)
     model.connect(try await scanned(model))
-    await held(link)
-    await until { model.linkLost }
+    await link.untilHeld()
+    while !model.linkLost { await Task.yield() }
     #expect(link.opened.map(\.waitsForLink) == [true])
     #expect(model.phase == .connecting)
     #expect(!model.computerBusy)
@@ -1200,18 +1212,19 @@ struct DiveComputerModelTests {
     let record = try #require(model.paired.first?.record)
     #expect(model.status(record) == "Waiting for this computer to reconnect")
 
-    await next(link, holding: 9) { model.linkLost && model.divesDownloaded == 1 }
+    await step(link, holding: 9) { model.linkLost && model.divesDownloaded == 1 }
     #expect(model.phase == .downloading)
     #expect(model.waitingText == lost)
     #expect(DiveComputerButtonContent(model).accessibilityValue == lost)
     #expect(model.status(record) == "Waiting for this computer to reconnect")
 
-    await next(link, holding: 10) { !model.linkLost }
+    await step(link, holding: 10) { !model.linkLost }
     #expect(
       model.waitingText
         == "This computer is busy. Closing other apps that use it lets the download go on.")
     #expect(model.status(record) == "Waiting until this computer is free")
-    await next(link, holding: nil)
+    link.holdBefore = nil
+    link.release()
     await model.settled()
     #expect(model.outcome?.sentence == "2 dives downloaded.")
   }
