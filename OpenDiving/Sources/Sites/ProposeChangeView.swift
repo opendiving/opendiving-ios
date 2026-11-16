@@ -66,7 +66,8 @@ private struct ChangeFields: View {
         message: { model.message($0) })
       SiteEntryTypesSection(values: $model.values)
       CommonsAttestationSection(
-        attestation: CommonsAttestations.change, ticked: $model.ticked, message: $model.message)
+        attestation: CommonsAttestations.change, ticked: $model.ticked, message: $model.message,
+        showProposer: $model.showProposer)
     }
     .background(TapEndsTyping())
   }

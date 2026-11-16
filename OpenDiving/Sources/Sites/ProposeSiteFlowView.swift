@@ -215,7 +215,8 @@ private struct ReviewStep: View {
         Text("What Would Not")
       }
       CommonsAttestationSection(
-        attestation: CommonsAttestations.newSite, ticked: $model.ticked, message: $model.message)
+        attestation: CommonsAttestations.newSite, ticked: $model.ticked, message: $model.message,
+        showProposer: $model.showProposer)
     }
     .background(TapEndsTyping())
     .pinnedToBottom {

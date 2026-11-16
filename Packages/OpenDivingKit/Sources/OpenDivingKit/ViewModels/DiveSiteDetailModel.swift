@@ -24,6 +24,10 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   public let dives: PagedList<DiveListItem>
   public private(set) var species: SpeciesSeen = .none
   public let photos: SpeciesCardPhotos
+  /// A Commons record's history where the server edits the Commons: empty until this visit's
+  /// read lands, and empty when it fails. Kept in no cache, so a name taken off, renamed or
+  /// deleted is gone on the next open.
+  public private(set) var history: [DiveSiteHistoryEntryRead] = []
 
   /// The queue holds an edit of this site, which the panel shows once it lands.
   public private(set) var hasPendingEdit = false
@@ -60,7 +64,8 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     guard case .loaded(let site) = phase else { return }
     async let list: Void = dives.load()
     async let seen: Void = readSpecies(site)
-    _ = await (list, seen)
+    async let changes: Void = readHistory(site)
+    _ = await (list, seen, changes)
   }
 
   /// Takes back the diver's proposal on the site and reads the site again.
@@ -93,6 +98,7 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     let speciesStale = stale || species == .failed
     async let list: Void = dives.rereadIfStale()
     if speciesStale { await readSpecies(site) }
+    if stale { await readHistory(site) }
     await list
   }
 
@@ -163,6 +169,22 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
   func accountListsChanged() {
     guard phase.isLoaded else { return }
     reloading = Task { await readSite() }
+  }
+
+  /// Read whole, as the web reads it, once the server has said it edits the Commons.
+  private func readHistory(_ site: DiveSiteRead) async {
+    guard site.isCommons else { return }
+    await session.loadServerInfo()
+    guard session.isCommonsPrimary else { return }
+    let siteUUID = siteUUID
+    do {
+      let client = try session.routedClient()
+      history = try await APIClient.allPages { page, itemsPerPage in
+        try await client.diveSiteHistory(siteUUID, page: page, itemsPerPage: itemsPerPage)
+      }
+    } catch {
+      history = []
+    }
   }
 
   /// Read whole, as the web reads it: a site's species are a list worth seeing entire.

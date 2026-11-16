@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Everything about one dive site, as the sites map's panel shows it under the site's mark, name
 /// and location, in three tabs across the panel's width: *Info*, with what stands on it (a
-/// proposal, a Commons match, an edit waiting to land), every field it records and its notes;
-/// *Marine life*, the species seen on its dives; and *My dives*, every dive there.
+/// proposal, a Commons match, an edit waiting to land), every field it records, its notes and a
+/// Commons record's history; *Marine life*, the species seen on its dives; and *My dives*, every dive there.
 struct SitePanelView: View {
   let siteUUID: UUID
   /// The site, each time it is read.
@@ -140,6 +140,10 @@ private struct SitePanelContent: View {
           .background(Color.cardFill, in: .formSection)
       }
     }
+    if !model.history.isEmpty {
+      SiteHistoryCard(
+        rows: model.history.map { DiveSiteHistoryRow($0, units: session.units) })
+    }
   }
 
   private var loaded: DiveSiteRead? {
@@ -235,6 +239,53 @@ private struct CommonsMatchNotice: View {
     .padding(12)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color.cardFill, in: .formSection)
+  }
+}
+
+/// A Commons record's history, newest first: what each accepted proposal added or changed, and
+/// when, with the name of who made it where one is shown.
+private struct SiteHistoryCard: View {
+  let rows: [DiveSiteHistoryRow]
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      SectionTitle(title: DiveSiteHistoryRow.title, icon: .history)
+      VStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+          if index > 0 {
+            Divider().padding(.leading, 16)
+          }
+          HistoryEntry(row: row)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Color.cardFill, in: .formSection)
+    }
+  }
+}
+
+/// One entry: who and when, then each detail's label over its old and new value.
+private struct HistoryEntry: View {
+  let row: DiveSiteHistoryRow
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      (Text(row.title).fontWeight(.medium) + Text(" · " + row.date).foregroundStyle(.secondary))
+        .font(.subheadline)
+      ForEach(row.details, id: \.label) { detail in
+        VStack(alignment: .leading, spacing: 2) {
+          Text(detail.label)
+            .font(.subheadline)
+          Text(detail.value)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+      }
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 11)
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
