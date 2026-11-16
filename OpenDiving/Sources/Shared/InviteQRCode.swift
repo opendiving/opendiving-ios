@@ -147,9 +147,15 @@ struct InviteQRSymbol: View {
       let unit = size.width / extent
       let ink = Self.ink(dark: isDark)
       let pupil = isDark ? Self.darkPupil : Self.lightPupil
-      // What only the code has fades over the first part of the fold.
+      // What only the code has fades over the first part of the fold, shrinking towards the
+      // code's centre as it goes.
+      let fade = min(morph * 2.5, 1)
+      let shrink = 1 - 0.2 * fade
       var code = context
-      code.opacity = max(1 - morph * 2.5, 0)
+      code.opacity = 1 - fade
+      code.translateBy(x: size.width / 2, y: size.height / 2)
+      code.scaleBy(x: shrink, y: shrink)
+      code.translateBy(x: -size.width / 2, y: -size.height / 2)
       code.scaleBy(x: unit, y: unit)
       code.translateBy(x: Self.quietZone, y: Self.quietZone)
       code.fill(
