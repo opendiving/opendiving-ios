@@ -296,6 +296,17 @@ public actor APIClient {
       [DiveSiteCommonsMatchRead].self, Call(path: "dive-site/\(Self.wire(uuid))/commons-matches"))
   }
 
+  /// `GET /dive-site/{uuid}/history`: a Commons record's accepted changes, newest first. Empty
+  /// for the diver's own site; only an instance that edits the Commons answers it.
+  public func diveSiteHistory(_ uuid: UUID, page: Int, itemsPerPage: Int = listPageSize)
+    async throws -> PaginatedListResponse<DiveSiteHistoryEntryRead>
+  {
+    try await authorizedDecoded(
+      PaginatedListResponse<DiveSiteHistoryEntryRead>.self,
+      Call(
+        path: "dive-site/\(Self.wire(uuid))/history", query: Self.paging(page, itemsPerPage)))
+  }
+
   /// `GET /dive-site-proposals`: the diver's own proposals, newest first, only those in `status`
   /// where it names one. Only an instance that edits the Commons answers it.
   public func diveSiteProposals(

@@ -64,6 +64,15 @@ private struct ProposalsContent: View {
     }
     .task { await any.load() }
     .proposalWithdrawalAlert(model.withdrawal)
+    .alert(
+      DiveSiteProposalSummary.showProposerRefused,
+      isPresented: Binding(
+        get: { model.choiceFailure != nil }, set: { if !$0 { model.choiceFailure = nil } })
+    ) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(model.choiceFailure ?? "")
+    }
   }
 }
 
@@ -116,8 +125,8 @@ private struct ProposalTabs: View {
   }
 }
 
-/// The site, opening it on the map, then the kind and the date, the outcome with any reason, and
-/// *Withdraw* on one that waits.
+/// The site, opening it on the map, then the kind and the date, the outcome with any reason,
+/// *Withdraw* on one that waits, and the switch on one that can show the diver's name.
 private struct ProposalCard: View {
   let row: DiveSiteProposalSummary.Row
   let model: DiveSiteProposalsModel
@@ -145,6 +154,17 @@ private struct ProposalCard: View {
       if let proposal = row.withdrawable {
         ProposalWithdrawButton(
           proposal: proposal, withdrawal: model.withdrawal, withdraw: model.withdraw)
+      }
+      if row.showProposer != nil {
+        Toggle(
+          DiveSiteProposalSummary.showProposerLabel,
+          isOn: Binding(
+            get: { model.showsProposer(row) },
+            set: { shown in Task { await model.showProposer(row.proposal, shown) } })
+        )
+        .font(.subheadline)
+        .tint(.brandTeal)
+        .disabled(model.choosing != nil)
       }
     }
     .padding(12)

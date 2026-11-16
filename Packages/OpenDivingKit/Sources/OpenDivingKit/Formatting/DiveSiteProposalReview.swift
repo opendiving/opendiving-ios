@@ -16,7 +16,8 @@ public struct DiveSiteProposalReview: Hashable, Sendable {
   /// What stays out of the record, and what becomes of what goes in.
   public static let notPublished = [
     "Your notes and your tags stay private, and so do your dives. Who proposed the site is never "
-      + "published.",
+      + "published, and no other diver sees your name unless you turn on "
+      + "\(DiveSiteProposalSummary.showProposerLabel) below.",
     "A reviewer reads the above with your name, and may correct it before accepting. An accepted "
       + "record is public and stays, whatever becomes of your account. If it is declined, the "
       + "site stays yours and private, and you are told why.",

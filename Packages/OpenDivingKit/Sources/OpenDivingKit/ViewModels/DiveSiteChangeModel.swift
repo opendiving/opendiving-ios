@@ -10,6 +10,9 @@ public final class DiveSiteChangeModel: ReloadingListObserver {
   public var values: DiveSiteFormValues
   public var message = ""
   public var ticked = false
+  /// Whether other divers read the diver's name beside it in the site's history; off unless
+  /// turned on.
+  public var showProposer = false
   public private(set) var isSending = false
   /// Why nothing was sent, or why the server refused it.
   public private(set) var sendError: String?
@@ -61,7 +64,8 @@ public final class DiveSiteChangeModel: ReloadingListObserver {
       try await session.requireClient().proposeDiveSite(
         siteUUID,
         DiveSiteProposalCreate(
-          attestation: CommonsAttestations.change, message: message, members: change))
+          attestation: CommonsAttestations.change, message: message, members: change,
+          showProposer: showProposer))
     } catch {
       sendError = APIError(error).message
       return false

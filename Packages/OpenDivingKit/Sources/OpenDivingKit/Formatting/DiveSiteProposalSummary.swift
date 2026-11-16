@@ -20,6 +20,10 @@ public enum DiveSiteProposalSummary {
     public var reason: String?
     /// The proposal a *Withdraw* takes back; nil on one that cannot be.
     public var withdrawable: UUID?
+    public var proposal: UUID
+    /// Whether the diver's name is shown beside it in the site's history; nil on one declined or
+    /// withdrawn, which can never put a name there and so carries no switch.
+    public var showProposer: Bool?
   }
 
   /// How the form for the diver's own site offers the choice between private and public.
@@ -44,6 +48,13 @@ public enum DiveSiteProposalSummary {
   }
 
   public static let waitingForReview = "Waiting for review"
+  /// The toggle in the propose flows and the switch in *Your Proposals* say the same thing.
+  public static let showProposerLabel = "Show my name to other divers"
+  public static let showProposerExplained =
+    "Divers signed in here will see your name in the site's history, beside what you proposed. "
+    + "If a reviewer corrects it, the correction is listed apart, under the reviewer's name. You "
+    + "can change this later in Your Proposals."
+  public static let showProposerRefused = "Whether your name is shown could not be changed"
   public static let visibilityTitle = "Visibility"
   public static let publicExplained =
     "Public proposes this site to OpenDiving Commons: saving shows you what would be published, "
@@ -58,7 +69,8 @@ public enum DiveSiteProposalSummary {
   public static let changeExplained =
     "Everyone goes on seeing this site as it is until a reviewer accepts the change. An accepted "
     + "change is public and stays, whatever becomes of your account, and it is published without "
-    + "your name."
+    + "your name. Other divers see your name beside it in the site's history only if you turn on "
+    + "\(showProposerLabel)."
   public static let changesNothing = "This changes nothing on the Commons site."
   public static let replacedMessage =
     "This site was replaced with a Commons site, so nothing of it can be changed here."
@@ -106,8 +118,15 @@ public enum DiveSiteProposalSummary {
       kind: kindLabel(proposal.kind),
       date: date ?? DateText.diveDate(proposal.createdAt),
       outcome: outcomeLabel(proposal.status), reason: reason(proposal.reason),
-      withdrawable: proposal.status == DiveSiteProposalStatus.waiting ? proposal.uuid : nil)
+      withdrawable: proposal.status == DiveSiteProposalStatus.waiting ? proposal.uuid : nil,
+      proposal: proposal.uuid,
+      showProposer: canShowProposer.contains(proposal.status) ? proposal.showProposer : nil)
   }
+
+  /// Only a waiting or an accepted proposal can put a name in a site's history.
+  private static let canShowProposer: Set<String> = [
+    DiveSiteProposalStatus.waiting, DiveSiteProposalStatus.accepted,
+  ]
 
   private static func waitingMessage(kind: String) -> String {
     kind == DiveSiteProposalKind.change

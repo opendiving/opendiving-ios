@@ -14,7 +14,7 @@ struct ProposalScreensTests {
   private static let proposal =
     #"{"uuid":"01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0d","kind":"new_site","status":"waiting","#
     + #""reason":null,"site":{"uuid":"01a0a521-28c5-7e34-a572-4d7324f5033b","name":"Tiger Reef"},"#
-    + #""created_at":"2026-10-30T08:15:02.114522Z","decided_at":null}"#
+    + #""created_at":"2026-10-30T08:15:02.114522Z","decided_at":null,"show_proposer":false}"#
 
   private static func config(primary: Bool?) -> StubTransport.Response {
     let member = primary.map { #","commons_primary":\#($0)"# } ?? ""
@@ -94,5 +94,42 @@ struct ProposalScreensTests {
     let notice = try #require(site.proposal.flatMap(DiveSiteProposalSummary.notice))
     #expect(notice.title == "Waiting for review")
     #expect(notice.withdrawable != nil)
+  }
+
+  @Test func theListIsGivenTheSwitchOnAWaitingRow() async throws {
+    let session = await session(primary: true)
+    let model = DiveSiteProposalsModel(session: session)
+    await model.list(.proposed).load()
+    let row = DiveSiteProposalSummary.row(try #require(model.list(.proposed).items.first))
+    #expect(row.showProposer == false)
+    #expect(!model.showsProposer(row))
+  }
+
+  @Test func aCommonsRecordsPanelIsGivenItsHistoryOnThePrimary() async throws {
+    let uuid = try #require(UUID(uuidString: "01a0a521-28c5-7e34-a572-4d7324f5033b"))
+    let wire = uuid.uuidString.lowercased()
+    let entry =
+      #"{"uuid":"01a16d20-1a2b-7c3d-8e4f-5a6b7c8d9e01","kind":"changed","#
+      + #""created_at":"2026-11-16T10:00:00Z","made_by":"Ann Diver","#
+      + #""details":[{"field":"depth_to","old":30,"new":32.5}]}"#
+    for primary in [true, false] {
+      let session = Session.stub(
+        transport: StubTransport(routes: [
+          "GET config": Self.config(primary: primary),
+          "GET health": .json(#"{"status":"healthy"}"#),
+          "GET dive-site/\(wire)": .json(
+            F.site.replacingOccurrences(
+              of: #""owner":"account""#, with: #""owner":"opendivingcommons""#)),
+          "GET dive-site/\(wire)/history": F.page(entry),
+          "GET dives": F.emptyPage,
+        ]))
+      let model = DiveSiteDetailModel(session: session, siteUUID: uuid)
+      await model.load()
+      let rows = model.history.map { DiveSiteHistoryRow($0, units: session.units) }
+      #expect(rows.map(\.title) == (primary ? ["Changed by Ann Diver"] : []))
+      #expect(
+        host(SitePanelView(siteUUID: uuid, onRead: { _ in }, onOpen: { _ in }), session: session)
+          != nil)
+    }
   }
 }

@@ -36,6 +36,19 @@ struct RequestFixtureTests {
       DiveSiteProposalCreate.self, "request-dive-site-proposal-create")
     #expect(proposal.attestation == CommonsAttestations.newSite)
     #expect(proposal.members == nil)
+    #expect(!proposal.showProposer)
+  }
+
+  @Test func aProposalShowingTheDiversNameSaysSo() throws {
+    let proposal = try sendsItsFixture(
+      DiveSiteProposalCreate.self, "request-dive-site-proposal-shown")
+    #expect(proposal.showProposer)
+  }
+
+  @Test func aProposalsChoiceIsItsOwnBody() throws {
+    let update = try sendsItsFixture(
+      DiveSiteProposalUpdate.self, "request-dive-site-proposal-update")
+    #expect(!update.showProposer)
   }
 
   @Test func aProposedChangeNamesWhatItWantsDifferent() throws {

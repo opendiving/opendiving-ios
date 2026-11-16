@@ -20,6 +20,9 @@ public final class DiveSiteProposalFlow: ReloadingListObserver {
   public private(set) var canGoBack = false
   public var message = ""
   public var ticked = false
+  /// Whether other divers read the diver's name beside it in the site's history; off unless
+  /// turned on.
+  public var showProposer = false
   public private(set) var isSending = false
   /// Why the proposal was not taken.
   public private(set) var sendError: String?
@@ -94,7 +97,8 @@ public final class DiveSiteProposalFlow: ReloadingListObserver {
     do {
       try await session.requireClient().proposeDiveSite(
         site.uuid,
-        DiveSiteProposalCreate(attestation: CommonsAttestations.newSite, message: message))
+        DiveSiteProposalCreate(
+          attestation: CommonsAttestations.newSite, message: message, showProposer: showProposer))
     } catch {
       sendError = APIError(error).message
       return false
