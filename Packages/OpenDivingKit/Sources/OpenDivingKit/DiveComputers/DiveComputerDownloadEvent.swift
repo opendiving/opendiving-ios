@@ -10,6 +10,12 @@ public enum DiveComputerDownloadEvent: Hashable, Sendable {
   /// ``DiveComputerBusy/otherApp`` each time another app's handshake broke a transfer. At any
   /// point of the walk, from a family that can tell.
   case busy(DiveComputerBusy)
+  /// The computer dropped the link during a walk that waits for it to come back
+  /// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:keep:)``), and again
+  /// after each reopen that did not open it.
+  case linkLost
+  /// A reopen after ``linkLost`` opened the computer, and the walk carries on.
+  case linkBack
   /// The walk's count, once, after ``identified(_:)`` and before the first dive or skip, from a
   /// family the app lists before it downloads.
   case listing(DiveComputerListing)

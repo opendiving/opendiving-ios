@@ -11,6 +11,9 @@ final class LibDCDiveComputerLink: DiveComputerLink {
   private let manager: CoreBluetoothManager?
   private let session: LibDCDeviceSession
   private var cancel = CancelFlag()
+  /// The app's place in front or behind is the process's, so it carries over between walks; what a
+  /// walk waits for is cleared at each.
+  private let lostLink = LostLinkWait()
   private var state: (CBManagerState, CBManagerAuthorization) = (.unknown, .notDetermined)
   private var watchers: [UUID: AsyncStream<DiveComputerAvailability>.Continuation] = [:]
   private var stateSubscription: AnyCancellable?
@@ -122,7 +125,7 @@ final class LibDCDiveComputerLink: DiveComputerLink {
   }
 
   func download(
-    _ computer: FoundComputer, pairedOnly: Bool,
+    _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     keep: @escaping @Sendable (DownloadedDive) -> Void
@@ -133,12 +136,15 @@ final class LibDCDiveComputerLink: DiveComputerLink {
     self.cancel = cancel
     let session = session
     let waits = manager != nil
+    _ = lostLink.takeReturn()
+    let lostLink = waitsForLink ? self.lostLink : nil
     Task {
       let waited = waits ? await bluetoothReady(within: Self.bluetoothWait) : nil
       session.queue.async {
         session.download(
-          computer, pairedOnly: pairedOnly, cancel: cancel, waitedForBluetooth: waited,
-          lookup: lookup, waiting: waiting, keep: keep, into: continuation)
+          computer, pairedOnly: pairedOnly, cancel: cancel, lostLink: lostLink,
+          waitedForBluetooth: waited, lookup: lookup, waiting: waiting, keep: keep,
+          into: continuation)
       }
     }
     return stream
@@ -165,6 +171,14 @@ final class LibDCDiveComputerLink: DiveComputerLink {
 
   func cancelDownload() {
     cancel.set(true)
+  }
+
+  func setForeground(_ foreground: Bool) {
+    lostLink.setForeground(foreground)
+  }
+
+  func linkReturned() {
+    lostLink.returned()
   }
 
   /// The name the computer advertises, rebuilt from its record — its product, then its serial

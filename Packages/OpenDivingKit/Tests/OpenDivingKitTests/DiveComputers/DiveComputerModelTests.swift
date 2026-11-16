@@ -1169,6 +1169,53 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.sentence == "2 dives downloaded.")
   }
 
+  /// While the walk waits for a lost link, connecting or downloading, its line stands in for the
+  /// counter and for the busy lines, and goes at the return; the computer's busy answer goes with
+  /// the link, and another app's breaking shows again after.
+  @Test func aLostLinkShowsItsLineUntilTheComputerIsBack() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    let dives = F.oceanDownload
+    link.scripts = [
+      [
+        .identified(F.ocean), .watchZone(F.helsinki), .busy(.reported), .linkLost, .linkBack,
+        .listing(.init(dives: 2, newDives: 2)), .dive(dives[0]), .busy(.otherApp), .linkLost,
+        .linkBack, .dive(dives[1]), .finished(.init(.complete)),
+      ]
+    ]
+    let lost =
+      "The connection to this computer was lost. The download continues when it is back in range"
+      + " with its Bluetooth on."
+    link.holdBefore = 4
+    let model = model(session, link)
+    model.connect(try await scanned(model))
+    await held(link)
+    await until { model.linkLost }
+    #expect(link.opened.map(\.waitsForLink) == [true])
+    #expect(model.phase == .connecting)
+    #expect(!model.computerBusy)
+    #expect(model.waitingText == lost)
+    #expect(DiveComputerButtonContent(model).accessibilityValue == lost)
+    let record = try #require(model.paired.first?.record)
+    #expect(model.status(record) == "Waiting for this computer to reconnect")
+
+    await next(link, holding: 9) { model.linkLost && model.divesDownloaded == 1 }
+    #expect(model.phase == .downloading)
+    #expect(model.waitingText == lost)
+    #expect(DiveComputerButtonContent(model).accessibilityValue == lost)
+    #expect(model.status(record) == "Waiting for this computer to reconnect")
+
+    await next(link, holding: 10) { !model.linkLost }
+    #expect(
+      model.waitingText
+        == "This computer is busy. Closing other apps that use it lets the download go on.")
+    #expect(model.status(record) == "Waiting until this computer is free")
+    await next(link, holding: nil)
+    await model.settled()
+    #expect(model.outcome?.sentence == "2 dives downloaded.")
+  }
+
   /// The walk is handed the dives of the archives waiting under its own mark; a refused reading
   /// carries no uuid there, so it is downloaded again.
   @Test func aDiveWaitingUnderTheWalksMarkReachesTheWalkAsWaiting() async throws {

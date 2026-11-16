@@ -24,6 +24,11 @@ import Foundation
 /// **It follows the computer**: a request is keyed by the hint its record holds now, so a hint
 /// that moves withdraws the old request and arms the new one.
 ///
+/// **It holds a download the diver started** (``handOver(_:)``): a computer whose walk lost its
+/// link while the app is behind is armed at once, whatever *Download automatically* says, until
+/// that request completes, the walk ends or it is taken back. A hand-over is kept on disk, so a
+/// process iOS launches for that connection walks the computer whatever its wait.
+///
 /// Everything it does and hears is written to ``DiveComputerWatchLog``.
 @MainActor
 public final class DiveComputerWatch {
@@ -73,23 +78,34 @@ public final class DiveComputerWatch {
   private var recordByPeripheral: [UUID: String] = [:]
   private var scanning = false
   private var advertised: Set<DiveComputerAdvertisement> = []
-  /// A paired computer connected: whether a walk takes the connection. Set by the engine.
-  var onConnected: ((UUID, DiveComputerRecord) -> Bool)?
+  /// The records whose computer is armed for a download the diver started, kept in
+  /// ``handOversFile`` where there is one.
+  private var handOvers: Set<String>
+  private let handOversFile: URL?
+  /// A paired computer connected: whether a walk takes the connection, and whether it was a
+  /// hand-over's. Set by the engine.
+  var onConnected: ((UUID, DiveComputerRecord, Bool) -> Bool)?
   /// Seconds after a visit until the next request to a record's computer may complete. Set by the
   /// engine, which keeps each computer's walk ends; ``revisitDelay`` without one.
   var revisitWait: ((String) -> Int)?
 
   /// `pairings` reads the phone's paired computers; `makeWatcher` makes the watcher, or nil while
-  /// the app may not use Bluetooth.
+  /// the app may not use Bluetooth; `handOvers` is the file the hand-overs are kept in, none
+  /// keeping them for the process alone.
   public init(
     log: DiveComputerWatchLog, pairings: @escaping () -> [DiveComputerRecord],
-    makeWatcher: @escaping () -> (any DiveComputerWatcher)?,
+    makeWatcher: @escaping () -> (any DiveComputerWatcher)?, handOvers: URL? = nil,
     now: @escaping () -> Date = Date.init
   ) {
     self.log = log
     self.pairings = pairings
     self.makeWatcher = makeWatcher
     self.now = now
+    handOversFile = handOvers
+    self.handOvers =
+      handOvers.flatMap { try? Data(contentsOf: $0) }.flatMap {
+        try? JSONDecoder().decode(Set<String>.self, from: $0)
+      } ?? []
   }
 
   /// The process began, whoever launched it — a scene-based app is told neither way: arms what
@@ -118,15 +134,48 @@ public final class DiveComputerWatch {
   }
 
   /// The walk ended — as the link reports it, or nil where it left before opening the computer:
-  /// the request is armed again after the computer's wait.
+  /// the request is armed again after the computer's wait, and a hand-over for it ends.
   public func downloadEnded(_ peripheral: UUID, _ end: DiveComputerDownloadEnd.Kind?) {
     log.write(
       "walk ended \(label(peripheral)): " + (end.map { "\($0)" } ?? "before opening the computer"))
     yielded.remove(peripheral)
     failed.remove(peripheral)
     reload()
+    if let id = recordByPeripheral[peripheral] { setHandedOver(id, false) }
     visit(peripheral)
     arm()
+  }
+
+  /// The walk of the peripheral lost its link while the app is behind: its computer is armed at
+  /// once, so iOS connects it when it is back. False where no paired record names it.
+  public func handOver(_ peripheral: UUID) -> Bool {
+    reload()
+    guard let id = recordByPeripheral[peripheral] else { return false }
+    setHandedOver(id, true)
+    yielded.remove(peripheral)
+    failed.remove(peripheral)
+    log.write("handed over \(label(peripheral)): a download waits for it")
+    arm()
+    return true
+  }
+
+  /// The app came back to the front before the hand-over's request completed: the walk reopens
+  /// the computer itself again, and the request is withdrawn.
+  public func takeBack(_ peripheral: UUID) {
+    guard let id = recordByPeripheral[peripheral], handOvers.contains(id) else { return }
+    setHandedOver(id, false)
+    yielded.insert(peripheral)
+    log.write("taken back \(label(peripheral)): the walk reopens it")
+    arm()
+  }
+
+  private func setHandedOver(_ id: String, _ handedOver: Bool) {
+    guard handOvers.contains(id) != handedOver else { return }
+    if handedOver { handOvers.insert(id) } else { handOvers.remove(id) }
+    guard let handOversFile, let data = try? JSONEncoder().encode(handOvers) else { return }
+    try? FileManager.default.createDirectory(
+      at: handOversFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? data.write(to: handOversFile, options: .atomic)
   }
 
   /// The Dive Computers screen is scanning: what each dive computer nearby advertises is logged,
@@ -166,7 +215,9 @@ public final class DiveComputerWatch {
   }
 
   private func arm() {
-    let watched = records.values.filter { $0.downloadsAutomatically && $0.peripheral != nil }
+    let watched = records.values.filter {
+      ($0.downloadsAutomatically || handOvers.contains($0.id)) && $0.peripheral != nil
+    }
     if watcher == nil {
       guard !watched.isEmpty || scanning, let made = makeWatcher() else { return }
       watcher = made
@@ -188,7 +239,7 @@ public final class DiveComputerWatch {
     for (peripheral, record) in wanted.sorted(by: { $0.value.id < $1.value.id })
     where armed[peripheral] == nil && !closing.contains(peripheral) && !failed.contains(peripheral)
     {
-      let delay = remaining(record.id)
+      let delay = handOvers.contains(record.id) ? 0 : remaining(record.id)
       armed[peripheral] = Request(record: record.id, delay: delay)
       log.write("armed \(label(peripheral)) after \(delay) s")
       watcher.arm(peripheral, after: delay)
@@ -276,9 +327,11 @@ public final class DiveComputerWatch {
   private func completed(_ peripheral: UUID) {
     guard !closing.contains(peripheral), !yielded.contains(peripheral) else { return }
     armed[peripheral] = nil
-    if let record = recordByPeripheral[peripheral].flatMap({ records[$0] }),
-      onConnected?(peripheral, record) == true
-    {
+    let record = recordByPeripheral[peripheral].flatMap { records[$0] }
+    let handedOver = record.map { handOvers.contains($0.id) } ?? false
+    // A hand-over is one request, for one connection.
+    if let record { setHandedOver(record.id, false) }
+    if let record, onConnected?(peripheral, record, handedOver) == true {
       yielded.insert(peripheral)
       log.write("walking \(label(peripheral))")
       watcher?.disarm(peripheral)

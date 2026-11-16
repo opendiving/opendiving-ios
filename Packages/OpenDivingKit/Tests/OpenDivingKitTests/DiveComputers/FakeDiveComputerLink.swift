@@ -23,8 +23,13 @@ final class FakeDiveComputerLink: DiveComputerLink {
   private(set) var sportsRemembered: [[NauticEntrySport]?] = []
   /// The test of a dive the phone need not take again each download was handed.
   private(set) var waitingTests: [@Sendable (DiveComputerIdentity, Data) -> Bool] = []
-  /// The computer each download opened, and whether it asked for a paired one only.
-  private(set) var opened: [(computer: FoundComputer, pairedOnly: Bool)] = []
+  /// The computer each download opened, whether it asked for a paired one only, and whether it
+  /// waits for a lost link.
+  private(set) var opened: [(computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool)] = []
+  /// Each foreground state the engine handed over, in order.
+  private(set) var foregrounds: [Bool] = []
+  /// How often the engine said the computer a walk waits for is back.
+  private(set) var returns = 0
   /// A cancel reached some download.
   private(set) var cancelled = false
   /// The downloads, by index, a cancel reached.
@@ -51,7 +56,7 @@ final class FakeDiveComputerLink: DiveComputerLink {
   }
 
   func download(
-    _ computer: FoundComputer, pairedOnly: Bool,
+    _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     keep: @escaping @Sendable (DownloadedDive) -> Void
@@ -60,7 +65,7 @@ final class FakeDiveComputerLink: DiveComputerLink {
     let download = downloads
     downloads += 1
     waitingTests.append(waiting)
-    opened.append((computer, pairedOnly))
+    opened.append((computer, pairedOnly, waitsForLink))
     let (stream, continuation) = AsyncStream.makeStream(of: DiveComputerDownloadEvent.self)
     Task {
       for (index, event) in script.enumerated() {
@@ -109,6 +114,14 @@ final class FakeDiveComputerLink: DiveComputerLink {
     cancelled = true
     if downloads > 0 { cancelledDownloads.insert(downloads - 1) }
     release()
+  }
+
+  func setForeground(_ foreground: Bool) {
+    foregrounds.append(foreground)
+  }
+
+  func linkReturned() {
+    returns += 1
   }
 
   /// A download that lists first: the identity, the listing, the dives, the end, with no
