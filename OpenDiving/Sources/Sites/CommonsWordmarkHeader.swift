@@ -1,21 +1,28 @@
 import SwiftUI
 
-/// The OpenDiving Commons mark over its name, as the sign-in screen heads itself with the brand's.
+/// The OpenDiving Commons mark with its name on two lines to its right, the two as tall as each
+/// other.
 struct CommonsWordmarkHeader: View {
-  var markSide: CGFloat = 72
+  /// Scaled with the text size up to where the pair still fits a phone's width.
+  @ScaledMetric private var height: CGFloat
+  private let baseHeight: CGFloat
 
-  @ScaledMetric(relativeTo: .title) private var wordmarkHeight: CGFloat = 24
+  init(height: CGFloat = 80) {
+    baseHeight = height
+    _height = ScaledMetric(wrappedValue: height, relativeTo: .title)
+  }
 
   var body: some View {
-    VStack(spacing: 12) {
-      CommonsMark(side: markSide, relativeTo: .title)
+    HStack(spacing: 16) {
+      CommonsMark(side: baseHeight, relativeTo: .title)
       // The web's wordmark face, Outfit Bold, as outlines: the app carries no copy of the font.
       Image("CommonsWordmark")
         .resizable()
         .scaledToFit()
-        .frame(maxHeight: wordmarkHeight)
+        .frame(height: height)
         .foregroundStyle(Color.primary.opacity(0.75))
     }
+    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     .frame(maxWidth: .infinity)
     .padding(.top, 12)
     .accessibilityElement(children: .ignore)
@@ -27,7 +34,7 @@ struct CommonsWordmarkHeader: View {
 #Preview {
   VStack(spacing: 32) {
     CommonsWordmarkHeader()
-    CommonsWordmarkHeader(markSide: 48)
+    CommonsWordmarkHeader(height: 64)
   }
   .padding()
 }

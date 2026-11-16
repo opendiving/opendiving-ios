@@ -86,7 +86,7 @@ private struct ProposalTabs: View {
     let list = model.list(tab)
     ScrollView {
       LazyVStack(spacing: 16) {
-        CommonsWordmarkHeader(markSide: 48)
+        CommonsWordmarkHeader(height: 64)
         SectionTabs(selection: $tab, showsIcons: false)
         Group {
           switch list.phase {
