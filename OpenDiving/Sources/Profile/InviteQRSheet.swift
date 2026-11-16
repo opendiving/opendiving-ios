@@ -232,11 +232,15 @@ private struct InviteQRFold<Controls: View>: View {
     }
   }
 
+  /// Keeps what fades from the page where it stood as the page scrolls away from under it.
+  private var heldInPlace: Double { min(max(geometry.offset, 0), pageHeight) }
+
   private func page(opacity: Double) -> some View {
     VStack(spacing: 16) {
       if let lastUpdated = model.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
           .opacity(opacity)
+          .offset(y: heldInPlace)
       }
       // Where the code sits at rest, drawn by `code(progress:)` over the scroll.
       Color.clear
@@ -251,6 +255,7 @@ private struct InviteQRFold<Controls: View>: View {
         controls
       }
       .opacity(opacity)
+      .offset(y: heldInPlace)
       .allowsHitTesting(opacity > 0)
       Spacer(minLength: 24)
       Button(action: open) {

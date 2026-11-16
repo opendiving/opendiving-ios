@@ -113,13 +113,13 @@ struct InviteQRCode: View {
   }
 }
 
-/// The symbol, drawn with its quiet zone. Light: ink modules merged into soft shapes on white,
-/// with coral pupils. Dark: light dots on the surface behind it, an inverted symbol, which the
-/// iPhone's camera reads, with teal pupils. The mark is coral in both.
+/// The symbol, drawn with its quiet zone on the surface behind it. Light: ink modules merged
+/// into soft shapes, with coral pupils. Dark: light dots, an inverted symbol, which the iPhone's
+/// camera reads, with teal pupils. The mark is coral in both.
 ///
 /// Folding into its icon (`morph` above 0), the finders shrink into the icon's eyes and five of
-/// the bottom-right quarter's modules into its dots, in ink, while the rest of the code, the
-/// pupils' colour and the white behind it fade.
+/// the bottom-right quarter's modules into its dots, in ink, while the rest of the code and the
+/// pupils' colour fade.
 struct InviteQRSymbol: View {
   let layout: InviteQRLayout
   var morph = 0.0
@@ -227,7 +227,6 @@ struct InviteQRSymbol: View {
       }
       context.fill(iconDots, with: .color(ink))
     }
-    .background(isDark ? Color.clear : Color.white.opacity(1 - morph))
     .clipShape(.rect(cornerRadius: 12 * (1 - morph)))
   }
 
