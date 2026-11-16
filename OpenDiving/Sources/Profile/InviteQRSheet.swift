@@ -158,6 +158,7 @@ private struct InviteQRFold<Controls: View>: View {
   @State private var geometry = FoldGeometry()
   @State private var pageHeight = 0.0
   @State private var contentFrame = CGRect.zero
+  @State private var scrollFrame = CGRect.zero
   @State private var codeFrame = CGRect.zero
   @State private var toggleFrame = CGRect.zero
   @State private var headerFrame = CGRect.zero
@@ -195,8 +196,15 @@ private struct InviteQRFold<Controls: View>: View {
       } action: {
         contentFrame = $0
       }
-      .overlay(alignment: .topLeading) { code(progress: progress) }
       .overlay { invitesTitle(progress: progress) }
+    }
+    // Over the scroll rather than in it: the code goes straight from its place to the bar, while
+    // the page moves away under it, and clear of the blur the bar lays over the scroll's content.
+    .overlay(alignment: .topLeading) { code(progress: progress) }
+    .onGeometryChange(for: CGRect.self) {
+      $0.frame(in: .global)
+    } action: {
+      scrollFrame = $0
     }
     .scrollIndicators(.hidden)
     .scrollPosition($scroll)
@@ -230,7 +238,7 @@ private struct InviteQRFold<Controls: View>: View {
         LastUpdatedLine(date: lastUpdated)
           .opacity(opacity)
       }
-      // Where the code is drawn at the top, by `code(progress:)` above the scroll's content.
+      // Where the code sits at rest, drawn by `code(progress:)` over the scroll.
       Color.clear
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: 256)
@@ -309,11 +317,11 @@ private struct InviteQRFold<Controls: View>: View {
     .padding(.top, 8)
   }
 
-  /// The code, moving from its place in the page to the top bar's middle as the pane scrolls,
-  /// crossing to the symbol over the last stretch, until the bar's own button takes its place.
+  /// The code, moving from its place at rest straight to the top bar's middle as the pane scrolls,
+  /// crossing to the symbol over the last stretch, until the bar's own symbol takes its place.
   @ViewBuilder private func code(progress: Double) -> some View {
     if progress < 1 {
-      let frame = Self.interpolate(codeFrame, iconFrame, progress)
+      let frame = codePath(progress: progress)
       let symbol = Self.symbolShare(progress)
       ZStack {
         InviteQRCode(address: address.absoluteString, label: InvitationsModel.qrLabel)
@@ -330,6 +338,16 @@ private struct InviteQRFold<Controls: View>: View {
       .offset(x: frame.minX, y: frame.minY)
       .allowsHitTesting(false)
     }
+  }
+
+  /// The code's frame in the scroll view, `progress` of the way from where it sits with the pane
+  /// at rest on it to the bar's symbol.
+  private func codePath(progress: Double) -> CGRect {
+    let contentTopAtRest = contentFrame.minY + geometry.offset
+    let atRest = codeFrame.offsetBy(
+      dx: contentFrame.minX - scrollFrame.minX, dy: contentTopAtRest - scrollFrame.minY)
+    let inBar = barIconFrame.offsetBy(dx: -scrollFrame.minX, dy: -scrollFrame.minY)
+    return Self.interpolate(atRest, inBar, progress)
   }
 
   /// *Invites*, rising from the foot of the page to head the list and growing as it goes.
@@ -350,19 +368,12 @@ private struct InviteQRFold<Controls: View>: View {
       .allowsHitTesting(false)
   }
 
-  /// Where the code ends: on the top bar's symbol, in the scroll's content, which moves under the
-  /// bar as the pane scrolls.
-  private var iconFrame: CGRect {
-    barIconFrame.offsetBy(dx: -contentFrame.minX, dy: -contentFrame.minY)
-  }
-
   /// The title's opacity: whole while the code sits in the page, nothing once the code's top edge
   /// reaches the title's foot, in step with the scroll between.
   private func titleOpacity(progress: Double) -> Double {
-    let contentTopAtRest = contentFrame.minY + geometry.offset
-    let gapAtRest = contentTopAtRest + codeFrame.minY - titleFrame.maxY
+    let gapAtRest = scrollFrame.minY + codePath(progress: 0).minY - titleFrame.maxY
     guard gapAtRest > 0 else { return 1 - Self.symbolShare(progress) }
-    let codeTop = contentFrame.minY + Self.interpolate(codeFrame, iconFrame, progress).minY
+    let codeTop = scrollFrame.minY + codePath(progress: progress).minY
     return min(max((codeTop - titleFrame.maxY) / gapAtRest, 0), 1)
   }
 
