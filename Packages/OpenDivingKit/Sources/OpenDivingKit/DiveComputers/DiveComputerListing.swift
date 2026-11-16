@@ -25,8 +25,8 @@ public struct DiveComputerListing: Hashable, Sendable {
   /// For the Nautic family, what each listed entry's summary said of its sport, for the record
   /// to keep (``DiveComputerRecord/nauticSports``); nil for a family whose entries are all dives.
   public let sports: [NauticEntrySport]?
-  /// The entries the walk downloads, newest first, which the walk's time left is reckoned over.
-  /// Empty for a family that does not say.
+  /// The counted entries the walk downloads, newest first, which the walk's time left is reckoned
+  /// over. Empty for a family that does not say.
   public let downloads: [Download]
 
   public init(

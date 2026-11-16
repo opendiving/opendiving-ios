@@ -88,7 +88,9 @@ public struct NauticSelection: Hashable, Sendable {
       dives: counted.count { $0 },
       newDives: entries.count { $0.counted && $0.fate == .download },
       sports: read,
-      downloads: entries.filter { $0.fate == .download }.map {
+      // An uncounted entry is left out: its download most often answers empty and yields nothing,
+      // which would leave it to come for the rest of the walk.
+      downloads: entries.filter { $0.counted && $0.fate == .download }.map {
         DiveComputerListing.Download(
           fingerprint: Self.fingerprint($0.id), length: lengths[$0.id] ?? nil)
       })

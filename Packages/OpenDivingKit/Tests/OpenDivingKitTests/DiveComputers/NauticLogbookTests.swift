@@ -178,7 +178,8 @@ struct NauticLogbookTests {
   }
 
   /// A length a summary gave, this walk's or one the record kept, goes with the entry's download
-  /// and stays with its sport; an empty summary's entry is downloaded with none.
+  /// and stays with its sport. An empty summary's entry, downloaded but not counted, is not one
+  /// the time left waits for.
   @Test func eachDownloadCarriesTheLengthItsSummaryGave() {
     let remembered = [NauticEntrySport(id: ids[2], sport: 51, duration: 3000)]
     var summaries = learned(ids.prefix(2))
@@ -188,9 +189,11 @@ struct NauticLogbookTests {
     let selection = NauticSelection(
       ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: remembered,
       learned: summaries)
+    #expect(selection.entries.map(\.fate) == [.download, .download, .download, .skip])
     #expect(
-      selection.listing.downloads.map(\.fingerprint) == downloads(ids.prefix(3)).map(\.fingerprint))
-    #expect(selection.listing.downloads.map(\.length) == [3675, nil, 3000])
+      selection.listing.downloads.map(\.fingerprint)
+        == downloads([ids[0], ids[2]]).map(\.fingerprint))
+    #expect(selection.listing.downloads.map(\.length) == [3675, 3000])
     #expect(
       selection.listing.sports?.first == NauticEntrySport(id: ids[0], sport: 51, duration: 3675))
     #expect(selection.listing.sports?.contains { $0.id == ids[2] && $0.duration == 3000 } == true)
