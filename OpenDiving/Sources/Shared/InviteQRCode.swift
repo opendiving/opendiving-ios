@@ -10,6 +10,8 @@ import UIKit
 struct InviteQRCode: View {
   let address: String
   let label: String
+  /// How far the code has folded into its icon: 0 the code, 1 the icon.
+  var morph = 0.0
 
   @State private var isShielded = UIApplication.shared.applicationState != .active
   /// In the background, where the system snapshots the app: the code leaves at once, whatever
@@ -20,19 +22,19 @@ struct InviteQRCode: View {
 
   var body: some View {
     ZStack {
-      if let layout = Self.layout(Self.standIn(for: address)) {
-        InviteQRSymbol(layout: layout)
+      if let layout = Self.cachedLayout(Self.standIn(for: address)) {
+        InviteQRSymbol(layout: layout, morph: morph)
           .blur(radius: 8)
-          .clipShape(.rect(cornerRadius: 12))
+          .clipShape(.rect(cornerRadius: 12 * (1 - morph)))
           .opacity(isShielded ? 1 : 0)
           .animation(Self.fade, value: isShielded)
           .accessibilityHidden(true)
       }
-      if !isAway, let layout = Self.layout(address) {
+      if !isAway, let layout = Self.cachedLayout(address) {
         // Blurred out under the stand-in, which reads as the code itself blurring.
-        InviteQRSymbol(layout: layout)
+        InviteQRSymbol(layout: layout, morph: morph)
           .blur(radius: isShielded ? 8 : 0)
-          .clipShape(.rect(cornerRadius: 12))
+          .clipShape(.rect(cornerRadius: 12 * (1 - morph)))
           .opacity(isShielded ? 0 : 1)
           .animation(Self.fade, value: isShielded)
           .accessibilityElement()
@@ -58,6 +60,26 @@ struct InviteQRCode: View {
     .onReceive(NotificationCenter.default.publisher(for: UIScene.didActivateNotification)) {
       _ in isShielded = false
     }
+  }
+
+  private static var layouts: [String: InviteQRLayout] = [:]
+
+  /// `layout(_:)`, kept: a code folding into its icon draws every frame.
+  private static func cachedLayout(_ text: String) -> InviteQRLayout? {
+    if let layout = layouts[text] { return layout }
+    let layout = Self.layout(text)
+    layouts[text] = layout
+    return layout
+  }
+
+  /// Where the code's ink ends below, drawn in `frame` `morph` of the way to its icon: the foot of
+  /// its bottom eye, above the quiet zone, or the frame's foot with no symbol to measure.
+  static func inkBottom(in frame: CGRect, address: String, morph: Double) -> Double {
+    guard let layout = cachedLayout(address) else { return frame.maxY }
+    let extent = Double(layout.size) + InviteQRSymbol.quietZone * 2
+    let atRest = (Double(layout.size) + InviteQRSymbol.quietZone) / extent
+    let share = InviteQRSymbol.shapeShare(morph)
+    return frame.minY + frame.height * (atRest + (1 - atRest) * share)
   }
 
   /// An address of `address`'s length, whose symbol is the size of its own.
@@ -101,11 +123,16 @@ struct InviteQRCode: View {
   }
 }
 
-/// The symbol, drawn with its quiet zone. Light: ink modules merged into soft shapes on white,
-/// with coral pupils. Dark: light dots on the surface behind it, an inverted symbol, which the
-/// iPhone's camera reads, with teal pupils. The mark is coral in both.
+/// The symbol, drawn with its quiet zone on the surface behind it. Light: ink modules merged
+/// into soft shapes, with coral pupils. Dark: light dots, an inverted symbol, which the iPhone's
+/// camera reads, with teal pupils. The mark is coral in both.
+///
+/// Folding into its icon (`morph` above 0), the finders shrink into the icon's eyes and five of
+/// the bottom-right quarter's modules into its dots, in ink, while the rest of the code and the
+/// pupils' colour fade.
 struct InviteQRSymbol: View {
   let layout: InviteQRLayout
+  var morph = 0.0
 
   @Environment(\.colorScheme) private var colorScheme
 
@@ -119,28 +146,110 @@ struct InviteQRSymbol: View {
   private static let darkInk = Color(red: 233 / 255, green: 239 / 255, blue: 244 / 255)
   private static let darkPupil = Color(red: 60 / 255, green: 198 / 255, blue: 192 / 255)
 
+  /// How far what the code sheds has faded, over the first two fifths of the fold; whatever else
+  /// leaves as the code folds fades with it.
+  nonisolated static func fadeShare(_ morph: Double) -> Double { min(morph / fadeEnd, 1) }
+  /// How far the eyes and dots have taken the icon's shape: ahead of the fold, three quarters of
+  /// the way at its middle.
+  nonisolated static func shapeShare(_ morph: Double) -> Double { 1 - (1 - morph) * (1 - morph) }
+
+  /// Where in the fold what the code sheds has gone.
+  nonisolated static let fadeEnd = 0.4
+  /// The size what the code sheds shrinks to as it goes, of its own; what fades with it shrinks
+  /// alike.
+  nonisolated static let fadeScale = 0.65
+
   var body: some View {
     let isDark = colorScheme == .dark
+    let dots = morph > 0 ? layout.iconDotModules : []
+    let moving = Set(dots.compactMap(\.self))
     Canvas { context, size in
       let extent = Double(layout.size) + Self.quietZone * 2
-      context.scaleBy(x: size.width / extent, y: size.height / extent)
-      context.translateBy(x: Self.quietZone, y: Self.quietZone)
+      let unit = size.width / extent
       let ink = isDark ? Self.darkInk : Self.lightInk
-      context.fill(isDark ? dots : fluidModules, with: .color(ink))
-      context.fill(rings, with: .color(ink), style: FillStyle(eoFill: true))
-      context.fill(alignmentDots, with: .color(ink))
-      context.fill(pupils, with: .color(isDark ? Self.darkPupil : Self.lightPupil))
+      let pupil = isDark ? Self.darkPupil : Self.lightPupil
+      // What only the code has fades over the first part of the fold, shrinking towards the
+      // code's centre as it goes.
+      let fade = Self.fadeShare(morph)
+      let shrink = 1 - (1 - Self.fadeScale) * fade
+      var code = context
+      code.opacity = 1 - fade
+      code.translateBy(x: size.width / 2, y: size.height / 2)
+      code.scaleBy(x: shrink, y: shrink)
+      code.translateBy(x: -size.width / 2, y: -size.height / 2)
+      code.scaleBy(x: unit, y: unit)
+      code.translateBy(x: Self.quietZone, y: Self.quietZone)
+      code.fill(
+        isDark ? dotsPath(skipping: moving) : fluidModules(skipping: moving), with: .color(ink))
+      code.fill(alignmentRings, with: .color(ink), style: FillStyle(eoFill: true))
+      code.fill(alignmentDots, with: .color(ink))
       if let mark = layout.mark {
-        drawMark(mark, in: &context)
+        drawMark(mark, in: &code)
       }
+
+      // The eyes and dots take the icon's shape early, closing the air between them while what
+      // the code sheds is still fading between them.
+      let shape = Self.shapeShare(morph)
+      let place = {
+        (row: Double, column: Double, side: Double, icon: (x: Double, y: Double), iconSide: Double)
+        in
+        CGRect(
+          x: (column + Self.quietZone) * unit, y: (row + Self.quietZone) * unit,
+          width: side * unit, height: side * unit
+        ).interpolated(
+          to: CGRect(
+            x: icon.x * size.width, y: icon.y * size.height, width: iconSide * size.width,
+            height: iconSide * size.height),
+          by: shape)
+      }
+      // The code's finders, 7 modules a side, give way to the icon's proportions.
+      let ring = Self.mix(1 / 7, InviteQRLayout.iconRingWidth, shape)
+      let pupilSide = Self.mix(3 / 7, InviteQRLayout.iconPupilSide, shape)
+      let outerRadius = Self.mix(2.3 / 7, InviteQRLayout.iconEyeRadius, shape)
+      let holeRadius = Self.mix(1.5 / 7, InviteQRLayout.iconHoleRadius, shape)
+      let pupilRadius = Self.mix(1 / 7, InviteQRLayout.iconPupilRadius, shape)
+      var rings = Path()
+      var pupils = Path()
+      for (finder, eye) in zip(layout.finders, InviteQRLayout.iconEyes) {
+        let outer = place(
+          Double(finder.row), Double(finder.column), 7, eye, InviteQRLayout.iconEyeSide)
+        let side = outer.width
+        let hole = outer.insetBy(dx: side * ring, dy: side * ring)
+        let pupilInset = side * (1 - pupilSide) / 2
+        rings.addPath(Self.rounded(outer, radius: side * outerRadius))
+        rings.addPath(Self.rounded(hole, radius: side * holeRadius))
+        pupils.addPath(
+          Self.rounded(outer.insetBy(dx: pupilInset, dy: pupilInset), radius: side * pupilRadius))
+      }
+      context.fill(rings, with: .color(ink), style: FillStyle(eoFill: true))
+      context.fill(pupils, with: .color(pupil.mix(with: ink, by: morph)))
+
+      var iconDots = Path()
+      for (module, dot) in zip(dots, InviteQRLayout.iconDots) {
+        let to = CGRect(
+          x: dot.x * size.width, y: dot.y * size.height,
+          width: InviteQRLayout.iconDotSide * size.width,
+          height: InviteQRLayout.iconDotSide * size.height)
+        // A dot the quarter has no module for grows in where it sits.
+        let from =
+          module.map {
+            CGRect(
+              x: (Double($0.column) + Self.quietZone) * unit,
+              y: (Double($0.row) + Self.quietZone) * unit, width: unit, height: unit)
+          } ?? CGRect(x: to.midX, y: to.midY, width: 0, height: 0)
+        let rect = from.interpolated(to: to, by: shape)
+        let radius =
+          rect.width * Self.mix(isDark ? 0.44 : 0.25, InviteQRLayout.iconDotRadius, shape)
+        iconDots.addPath(Self.rounded(rect, radius: radius))
+      }
+      context.fill(iconDots, with: .color(ink))
     }
-    .background(isDark ? Color.clear : .white)
-    .clipShape(.rect(cornerRadius: 12))
+    .clipShape(.rect(cornerRadius: 12 * (1 - morph)))
   }
 
-  private var fluidModules: Path {
+  private func fluidModules(skipping moving: Set<InviteQRLayout.Module>) -> Path {
     var path = Path()
-    for module in layout.drawnModules {
+    for module in layout.drawnModules where !moving.contains(module) {
       let corners = layout.roundedCorners(row: module.row, column: module.column)
       let radius = { (corner: InviteQRLayout.Corners) in corners.contains(corner) ? 0.5 : 0 }
       path.addPath(
@@ -153,24 +262,19 @@ struct InviteQRSymbol: View {
     return path
   }
 
-  private var dots: Path {
+  private func dotsPath(skipping moving: Set<InviteQRLayout.Module>) -> Path {
     var path = Path()
-    for module in layout.drawnModules {
+    for module in layout.drawnModules where !moving.contains(module) {
       path.addPath(
         Self.circle(x: Double(module.column) + 0.5, y: Double(module.row) + 0.5, radius: 0.44))
     }
     return path
   }
 
-  /// The finders' outer rings and the alignment patterns' rings, each a shape less its hole.
-  private var rings: Path {
+  /// The alignment patterns' rings, each a shape less its hole; the finders are drawn apart, as
+  /// they become the icon's eyes.
+  private var alignmentRings: Path {
     var path = Path()
-    for finder in layout.finders {
-      let x = Double(finder.column)
-      let y = Double(finder.row)
-      path.addPath(Self.square(x: x, y: y, side: 7, radius: 2.3))
-      path.addPath(Self.square(x: x + 1, y: y + 1, side: 5, radius: 1.5))
-    }
     for alignment in layout.alignments {
       let x = Double(alignment.column) - 2
       let y = Double(alignment.row) - 2
@@ -186,15 +290,6 @@ struct InviteQRSymbol: View {
       path.addPath(
         Self.circle(x: Double(alignment.column) + 0.5, y: Double(alignment.row) + 0.5, radius: 0.55)
       )
-    }
-    return path
-  }
-
-  private var pupils: Path {
-    var path = Path()
-    for finder in layout.finders {
-      path.addPath(
-        Self.square(x: Double(finder.column) + 2, y: Double(finder.row) + 2, side: 3, radius: 1))
     }
     return path
   }
@@ -219,6 +314,14 @@ struct InviteQRSymbol: View {
     Path(
       roundedRect: CGRect(x: x, y: y, width: side, height: side), cornerRadius: radius,
       style: .circular)
+  }
+
+  private static func rounded(_ rect: CGRect, radius: Double) -> Path {
+    Path(roundedRect: rect, cornerRadius: min(radius, rect.width / 2), style: .circular)
+  }
+
+  private static func mix(_ from: Double, _ to: Double, _ share: Double) -> Double {
+    from + (to - from) * share
   }
 
   private static func circle(x: Double, y: Double, radius: Double) -> Path {

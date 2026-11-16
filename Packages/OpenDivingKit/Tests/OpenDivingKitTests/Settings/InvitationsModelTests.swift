@@ -33,6 +33,13 @@ struct InvitationsModelTests {
     #expect(harness.server.invitationRoutes.filter { $0 == "GET user/invitations" }.count == 3)
   }
 
+  @Test func thePaneRevealsInvitationsOnlyOnceThereAreSome() async throws {
+    let none = await model(try await InvitationsHarness(count: 0))
+    #expect(none.list.value != nil)
+    #expect(!none.hasInvitations)
+    #expect(await model(try await InvitationsHarness(count: 1)).hasInvitations)
+  }
+
   @Test func noInvitationAppearsTwiceAfterASendOrOneMadeElsewhere() async throws {
     let harness = try await InvitationsHarness(count: 30)
     let model = await model(harness)
