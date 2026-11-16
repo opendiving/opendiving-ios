@@ -150,7 +150,7 @@ struct InviteQRSymbol: View {
       // What only the code has fades over the first part of the fold, shrinking towards the
       // code's centre as it goes.
       let fade = min(morph * 2.5, 1)
-      let shrink = 1 - 0.2 * fade
+      let shrink = 1 - 0.35 * fade
       var code = context
       code.opacity = 1 - fade
       code.translateBy(x: size.width / 2, y: size.height / 2)
@@ -166,6 +166,9 @@ struct InviteQRSymbol: View {
         drawMark(mark, in: &code)
       }
 
+      // The eyes and dots take the icon's shape early, closing the air between them while what
+      // the code sheds is still fading between them.
+      let shape = 1 - (1 - morph) * (1 - morph)
       let place = {
         (row: Double, column: Double, side: Double, icon: (x: Double, y: Double), iconSide: Double)
         in
@@ -176,14 +179,14 @@ struct InviteQRSymbol: View {
           CGRect(
             x: icon.x * size.width, y: icon.y * size.height, width: iconSide * size.width,
             height: iconSide * size.height),
-          morph)
+          shape)
       }
       // The code's finders, 7 modules a side, give way to the icon's proportions.
-      let ring = Self.mix(1 / 7, InviteQRLayout.iconRingWidth, morph)
-      let pupilSide = Self.mix(3 / 7, InviteQRLayout.iconPupilSide, morph)
-      let outerRadius = Self.mix(2.3 / 7, InviteQRLayout.iconEyeRadius, morph)
-      let holeRadius = Self.mix(1.5 / 7, InviteQRLayout.iconHoleRadius, morph)
-      let pupilRadius = Self.mix(1 / 7, InviteQRLayout.iconPupilRadius, morph)
+      let ring = Self.mix(1 / 7, InviteQRLayout.iconRingWidth, shape)
+      let pupilSide = Self.mix(3 / 7, InviteQRLayout.iconPupilSide, shape)
+      let outerRadius = Self.mix(2.3 / 7, InviteQRLayout.iconEyeRadius, shape)
+      let holeRadius = Self.mix(1.5 / 7, InviteQRLayout.iconHoleRadius, shape)
+      let pupilRadius = Self.mix(1 / 7, InviteQRLayout.iconPupilRadius, shape)
       var rings = Path()
       var pupils = Path()
       for (finder, eye) in zip(layout.finders, InviteQRLayout.iconEyes) {
@@ -213,9 +216,9 @@ struct InviteQRSymbol: View {
               x: (Double($0.column) + Self.quietZone) * unit,
               y: (Double($0.row) + Self.quietZone) * unit, width: unit, height: unit)
           } ?? CGRect(x: to.midX, y: to.midY, width: 0, height: 0)
-        let rect = Self.mix(from, to, morph)
+        let rect = Self.mix(from, to, shape)
         let radius =
-          rect.width * Self.mix(isDark ? 0.44 : 0.25, InviteQRLayout.iconDotRadius, morph)
+          rect.width * Self.mix(isDark ? 0.44 : 0.25, InviteQRLayout.iconDotRadius, shape)
         iconDots.addPath(Self.rounded(rect, radius: radius))
       }
       context.fill(iconDots, with: .color(ink))
