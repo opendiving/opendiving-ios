@@ -73,6 +73,7 @@ struct DiveSiteChangeTests {
     #expect(sent["external_ids"] == .array([]))
     let body = try JSONValue.parse(try #require(transport.requests.last?.httpBody))
     #expect(body["attestation"] == .string(CommonsAttestations.change))
+    #expect(body["show_proposer"] == nil)
   }
 
   @Test func aBlankPlaceClearsIt() throws {

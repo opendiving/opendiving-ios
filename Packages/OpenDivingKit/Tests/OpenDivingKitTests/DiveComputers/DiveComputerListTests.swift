@@ -405,6 +405,10 @@ struct DiveComputerListTests {
     #expect(
       DiveComputerStatus.line(record, walk: walk, archives: [], held: [])
         == "Waiting until this computer is free")
+    walk.linkLost = true
+    #expect(
+      DiveComputerStatus.line(record, walk: walk, archives: [], held: [])
+        == "Waiting for this computer to reconnect")
     _ = engine
   }
 

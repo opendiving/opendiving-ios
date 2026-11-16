@@ -70,6 +70,23 @@ struct DiveSiteProposalSummaryTests {
     #expect(rows.dropFirst().allSatisfy { $0.withdrawable == nil })
   }
 
+  @Test func onlyAWaitingOrAnAcceptedRowCarriesTheSwitch() throws {
+    let rows = try rows()
+    #expect(rows.map(\.showProposer) == [false, nil, true, nil])
+    #expect(rows[0].proposal == UUID(uuidString: Self.uuid))
+  }
+
+  @Test func theDialogsSayWhatTheNameIsFor() {
+    #expect(DiveSiteProposalSummary.showProposerLabel == "Show my name to other divers")
+    #expect(
+      DiveSiteProposalSummary.changeExplained.hasSuffix(
+        "Other divers see your name beside it in the site's history only if you turn on "
+          + "Show my name to other divers."))
+    #expect(
+      DiveSiteProposalReview.notPublished[0].hasSuffix(
+        "no other diver sees your name unless you turn on Show my name to other divers below."))
+  }
+
   @Test func aKindOrAStatusThisBuildHasNotHeardOfReadsAsSent() throws {
     var page = try KitFixture.text("dive-site-proposals-page")
     page = page.replacingOccurrences(of: #""kind": "new_site""#, with: #""kind": "merge""#)

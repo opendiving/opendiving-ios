@@ -33,6 +33,13 @@ import Observation
 ///
 /// **A walk nobody watches ends** after ``automaticWaitLimit`` without a dive arriving, with what
 /// it kept.
+///
+/// **A walk the diver started waits for a lost link**, of a family the link walks itself
+/// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:keep:)``). In the
+/// foreground the link reopens the computer itself until it is back or the diver cancels. Behind, the walk is handed to the
+/// watch's connection request (``DiveComputerWatch/handOver(_:)``), so iOS connects the computer
+/// when it is back and the walk carries on; back in front first, the walk reopens it again. A walk
+/// nobody watches ends on a lost link, its next connection being the watch's to arm.
 @MainActor
 @Observable
 public final class DiveComputerEngine {
@@ -103,6 +110,10 @@ public final class DiveComputerEngine {
   @ObservationIgnored var uploading: Task<Void, Never>?
   @ObservationIgnored var uploadAgain = false
   @ObservationIgnored private var moments: Task<Void, Never>?
+  /// The app is in the foreground, where a walk waiting for a lost link reopens it itself.
+  @ObservationIgnored private var foreground = true
+  /// The peripheral of the walk handed to the watch while it waits for a lost link.
+  @ObservationIgnored private var handedOver: UUID?
 
   /// How long the watch's zone stands for a dive: a diver waits about a day to fly, so a dive
   /// younger than this was in the zone the watch shows now, and an older one may not have been.
@@ -139,8 +150,8 @@ public final class DiveComputerEngine {
     // Before the marks, which read an account's whole records as progress alone; here rather
     // than on a session change, so a cold start offline can download.
     DiveComputerStore.adoptAccountRecords(store: session.store)
-    watch?.onConnected = { [weak self] peripheral, record in
-      self?.connected(peripheral, record: record) ?? false
+    watch?.onConnected = { [weak self] peripheral, record, handedOver in
+      self?.connected(peripheral, record: record, handedOver: handedOver) ?? false
     }
     watch?.revisitWait = { [walkEnds] id in
       walkEnds.read()[id]?.wait ?? DiveComputerWatch.revisitDelay
@@ -151,8 +162,36 @@ public final class DiveComputerEngine {
   public var link: any DiveComputerLink {
     if let madeLink { return madeLink }
     let made = makeLink()
+    made.setForeground(foreground)
     madeLink = made
     return made
+  }
+
+  /// The app moved to the foreground or behind it. Behind, a walk waiting for a lost link is
+  /// handed to the watch; in front, it is taken back, and the link reopens the computer itself.
+  public func foregroundChanged(_ foreground: Bool) {
+    guard foreground != self.foreground else { return }
+    self.foreground = foreground
+    madeLink?.setForeground(foreground)
+    if foreground {
+      takeBack()
+    } else {
+      handOverIfAway()
+    }
+  }
+
+  /// Hands the walk waiting for a lost link to the watch, while the app is behind.
+  private func handOverIfAway() {
+    guard !foreground, handedOver == nil, let walk, walk.watched, walk.linkLost,
+      let peripheral = runningPeripheral, watch?.handOver(peripheral) == true
+    else { return }
+    handedOver = peripheral
+  }
+
+  private func takeBack() {
+    guard let peripheral = handedOver else { return }
+    handedOver = nil
+    watch?.takeBack(peripheral)
   }
 
   // MARK: - The process
@@ -197,9 +236,15 @@ public final class DiveComputerEngine {
   // MARK: - Starting walks
 
   /// A paired computer connected to the watch's request. Returns whether a walk takes the
-  /// connection — now, or once the walk in flight ends — rather than the watch closing it.
-  func connected(_ peripheral: UUID, record: DiveComputerRecord) -> Bool {
-    if let ended = walkEnds.read()[record.id],
+  /// connection — the walk waiting for it, now, or once the walk in flight ends — rather than the
+  /// watch closing it. A hand-over's connection starts a walk whatever the wait after the last.
+  func connected(_ peripheral: UUID, record: DiveComputerRecord, handedOver: Bool = false) -> Bool {
+    if runningPeripheral == peripheral, walk?.linkLost == true {
+      self.handedOver = nil
+      link.linkReturned()
+      return true
+    }
+    if !handedOver, let ended = walkEnds.read()[record.id],
       now().timeIntervalSince(ended.at) < Double(ended.wait)
     {
       return false
@@ -306,6 +351,7 @@ public final class DiveComputerEngine {
       watch?.downloadEnded(queued.peripheral, end)
       running = nil
       runningPeripheral = nil
+      handedOver = nil
       if walk === queued.walk { walk = nil }
       // After the next walk has started, so the screen sees whether one did.
       next()
@@ -379,8 +425,8 @@ public final class DiveComputerEngine {
       if walk.listing == nil { walk.phase = .downloading }
     }
     let events = link.download(
-      walk.computer, pairedOnly: !walk.watched, lookup: lookup, waiting: notAgain,
-      keep: { keeper.keep($0) })
+      walk.computer, pairedOnly: !walk.watched, waitsForLink: walk.watched, lookup: lookup,
+      waiting: notAgain, keep: { keeper.keep($0) })
     for await event in events {
       switch event {
       case .identified(let found):
@@ -406,6 +452,17 @@ public final class DiveComputerEngine {
       case .busy(.otherApp):
         walk.otherAppHandshaking = true
         walk.estimate.interrupt()
+      // What the computer said of its busy state stands for the link it said it on; the walk asks
+      // again over the next. Another app's breaking stays until a dive arrives, and the dive in
+      // flight is not timed.
+      case .linkLost:
+        walk.linkLost = true
+        walk.computerBusy = false
+        walk.estimate.interrupt()
+        handOverIfAway()
+      case .linkBack:
+        walk.linkLost = false
+        takeBack()
       case .listing(let found):
         walk.listing = found
         walk.computerBusy = false

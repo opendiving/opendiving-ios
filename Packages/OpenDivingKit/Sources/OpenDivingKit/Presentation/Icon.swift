@@ -36,6 +36,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case globe
   case graduationCap = "graduation-cap"
   case hardDrive = "hard-drive"
+  case history
   case idCard = "id-card"
   case imageOff = "image-off"
   case keyRound = "key-round"

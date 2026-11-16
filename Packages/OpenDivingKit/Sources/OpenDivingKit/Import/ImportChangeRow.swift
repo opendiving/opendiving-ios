@@ -313,22 +313,22 @@ public enum ImportChangeRow: Hashable, Sendable {
 }
 
 extension ImportChangeValue {
-  fileprivate subscript(key: String) -> ImportChangeValue {
+  subscript(key: String) -> ImportChangeValue {
     if case .object(let members) = self { members[key] ?? .null } else { .null }
   }
 
-  fileprivate var text: String? {
+  var text: String? {
     if case .string(let value) = self { value } else { nil }
   }
 
-  fileprivate var number: Double? {
+  var number: Double? {
     if case .number(let value) = self { value } else { nil }
   }
 
   fileprivate var integer: Int? { number.flatMap { Int(exactly: $0) } }
 
   /// As the API sent it, for a value nothing here has words for.
-  fileprivate var asSent: String {
+  var asSent: String {
     switch self {
     case .null: return "—"
     case .bool(let value): return String(value)

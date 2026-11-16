@@ -242,6 +242,14 @@ public final class PagedList<Item: Codable & Sendable> {
     if phase == .loaded, error != .noRoute { pageError = error }
   }
 
+  /// Puts `item` in place of the row with its id: an answer the screen had from a write of its
+  /// own.
+  func replace(_ item: Item) where Item: Identifiable {
+    guard let index = fetched.firstIndex(where: { $0.id == item.id }) else { return }
+    fetched[index] = item
+    showFetched()
+  }
+
   /// The kept pages alone, asking nothing: what a screen shows while it works out what to ask.
   func showKept() {
     showCached()

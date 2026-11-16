@@ -1,0 +1,57 @@
+{
+  "data": [
+    {
+      "uuid": "01a16d20-1a2b-7c3d-8e4f-5a6b7c8d9e01",
+      "kind": "changed",
+      "created_at": "2026-11-16T23:40:11.502113Z",
+      "made_by": "Rita Reviewer",
+      "details": [
+        { "field": "name", "old": "Tiger Reef", "new": "Tiger Reef North" }
+      ]
+    },
+    {
+      "uuid": "01a16d20-1a2b-7c3d-8e4f-5a6b7c8d9e02",
+      "kind": "changed",
+      "created_at": "2026-11-16T23:40:11.502113Z",
+      "made_by": "Ann Diver",
+      "details": [
+        { "field": "other_names", "old": [], "new": ["Tiger", "Nemr"] },
+        { "field": "latitude", "old": 28.5722, "new": 28.5731 },
+        { "field": "longitude", "old": 34.5372, "new": 34.5372 },
+        { "field": "location_name", "old": null, "new": "Dahab" },
+        {
+          "field": "external_ids",
+          "old": [],
+          "new": [{ "registry": "wikidata", "identifier": "Q42" }]
+        },
+        { "field": "depth_from", "old": null, "new": 5.0 },
+        { "field": "depth_to", "old": 30.0, "new": 32.5 },
+        { "field": "water_type", "old": "salt", "new": "fresh" },
+        { "field": "altitude", "old": 0, "new": 12 },
+        { "field": "entry_types", "old": ["shore"], "new": ["shore", "boat"] }
+      ]
+    },
+    {
+      "uuid": "01a16d20-1a2b-7c3d-8e4f-5a6b7c8d9e03",
+      "kind": "changed",
+      "created_at": "2026-11-10T08:00:00Z",
+      "made_by": null,
+      "details": [
+        { "field": "latitude", "old": null, "new": 28.5722 },
+        { "field": "longitude", "old": null, "new": 34.5372 },
+        { "field": "visibility", "old": null, "new": { "metres": 20 } }
+      ]
+    },
+    {
+      "uuid": "01a16d20-1a2b-7c3d-8e4f-5a6b7c8d9e04",
+      "kind": "added",
+      "created_at": "2026-11-01T08:00:00Z",
+      "made_by": "Ann Diver",
+      "details": []
+    }
+  ],
+  "total_count": 4,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 100
+}

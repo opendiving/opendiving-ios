@@ -13,6 +13,8 @@ public struct DiveSiteProposalRead: Codable, Hashable, Sendable, Identifiable {
   public let site: DiveSiteProposalSite
   public let createdAt: DiveTimestamp
   public let decidedAt: DiveTimestamp?
+  /// Whether other divers read the diver's name beside it in the site's history.
+  public let showProposer: Bool
 }
 
 public struct DiveSiteProposalSite: Codable, Hashable, Sendable {

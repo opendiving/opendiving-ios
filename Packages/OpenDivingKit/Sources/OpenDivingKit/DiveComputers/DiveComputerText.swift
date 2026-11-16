@@ -36,6 +36,7 @@ public enum DiveComputerText {
   public static let automaticOff = "Automatic download is off"
   public static let lastUnfinished = "The last download did not finish"
   public static let waitingUntilFree = "Waiting until this computer is free"
+  public static let waitingToReconnect = "Waiting for this computer to reconnect"
 
   /// Under the list once more than one computer is paired.
   public static let orderFooter =
@@ -159,6 +160,11 @@ public enum DiveComputerText {
   /// it is free of such an app, so the line names what frees it instead.
   public static let busyOtherApp =
     "This computer is busy. Closing other apps that use it lets the download go on."
+
+  /// While a walk waits for a computer that dropped the link, connecting or downloading.
+  public static let linkLost =
+    "The connection to this computer was lost. The download continues when it is back in range"
+    + " with its Bluetooth on."
 
   /// *3 dives waiting to upload.*: every new dive was downloaded before and waits on the phone
   /// to be imported.

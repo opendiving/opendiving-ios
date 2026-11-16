@@ -153,9 +153,9 @@ struct DiveComputerLinkTests {
     }
   }
 
-  /// A cancel or a lost link stops the walk at once; any other failure no other app's handshake
-  /// broke asks whether the watch is busy first, and while it is the transfer is tried again
-  /// whatever it is.
+  /// A cancel or a lost link stops a walk nobody watches at once; any other failure no other app's
+  /// handshake broke asks whether the watch is busy first, and while it is the transfer is tried
+  /// again whatever it is.
   @Test func aFailedTransferAsksWhetherTheWatchIsBusyUnlessTheLinkIsGone() {
     let fetches: [LibDCWalk.NauticFetch] = [
       .listing, .summary, .download(counted: true), .download(counted: false),
@@ -183,8 +183,8 @@ struct DiveComputerLinkTests {
 
   /// A summary, the descriptors or a download another app's handshake broke is waited out and
   /// tried again on the same connection, however often and whatever the failure, before the watch
-  /// is asked and without counting a retry or a reopen; a cancel or a lost link still stops the
-  /// walk, and the listing fails as any other failure does.
+  /// is asked and without counting a retry or a reopen; a cancel or a lost link still stops a walk
+  /// nobody watches, and the listing fails as any other failure does.
   @Test func aTransferAnotherAppBrokeIsWaitedOutOnTheSameConnection() {
     let fetches: [LibDCWalk.NauticFetch] = [
       .summary, .download(counted: true), .download(counted: false),
@@ -212,6 +212,53 @@ struct DiveComputerLinkTests {
       .listing, status: DC_STATUS_TIMEOUT, otherApp: true, busy: nil, freeFailures: 0,
       reconnects: 0)
     #expect(listing == .readBusy)
+  }
+
+  /// In a walk the diver started, a lost link is waited for and the transfer tried again, whatever
+  /// the transfer, another app and the counts; a cancel still stops it, and a timeout on a link
+  /// that answers still asks whether the watch is busy, then reopens as in any walk.
+  @Test func aLostLinkIsWaitedForInAWalkTheDiverStarted() {
+    let fetches: [LibDCWalk.NauticFetch] = [
+      .listing, .summary, .download(counted: true), .download(counted: false),
+    ]
+    for fetch in fetches {
+      for status in [DC_STATUS_IO, DC_STATUS_NODEVICE] {
+        for otherApp in [false, true] {
+          let next = LibDCWalk.nauticNext(
+            fetch, status: status, otherApp: otherApp, busy: nil, freeFailures: 3, reconnects: 3,
+            waitsForLink: true)
+          #expect(next == .awaitLink)
+        }
+      }
+      let cancelled = LibDCWalk.nauticNext(
+        fetch, status: DC_STATUS_CANCELLED, otherApp: false, busy: nil, freeFailures: 0,
+        reconnects: 0, waitsForLink: true)
+      #expect(cancelled == .stop(DC_STATUS_CANCELLED))
+      let unasked = LibDCWalk.nauticNext(
+        fetch, status: DC_STATUS_TIMEOUT, otherApp: false, busy: nil, freeFailures: 0,
+        reconnects: 0, waitsForLink: true)
+      #expect(unasked == .readBusy)
+      let free = LibDCWalk.nauticNext(
+        fetch, status: DC_STATUS_TIMEOUT, otherApp: false, busy: false, freeFailures: 1,
+        reconnects: 0, waitsForLink: true)
+      #expect(free == .reconnect)
+    }
+    #expect(LibDCWalk.losesLink(DC_STATUS_IO))
+    #expect(LibDCWalk.losesLink(DC_STATUS_NODEVICE))
+    #expect(!LibDCWalk.losesLink(DC_STATUS_TIMEOUT))
+    #expect(!LibDCWalk.losesLink(DC_STATUS_CANCELLED))
+  }
+
+  /// The wait starts in front, follows the app, and hands a walk the computer's return once.
+  @Test func aLostLinkWaitFollowsTheAppAndTakesAReturnOnce() {
+    let wait = LostLinkWait()
+    #expect(wait.inForeground)
+    wait.setForeground(false)
+    #expect(!wait.inForeground)
+    #expect(!wait.takeReturn())
+    wait.returned()
+    #expect(wait.takeReturn())
+    #expect(!wait.takeReturn())
   }
 
   /// A timeout while the watch says free reopens the device at once, whatever the transfer and

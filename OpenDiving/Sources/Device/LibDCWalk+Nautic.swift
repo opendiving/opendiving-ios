@@ -14,10 +14,12 @@ import OpenDivingKit
 /// waited out and tried again on the same connection for as long as it takes. Every other transfer
 /// that fails, but on a cancel or a lost link, asks the watch whether it is busy, and while it is,
 /// waits and tries the same transfer again
-/// (``nauticNext(_:status:otherApp:busy:freeFailures:reconnects:)``). One that times out while the
-/// watch says free closes the device, opens it again and carries on from that transfer
-/// (``reconnect()``), the dive's received bytes kept in the resume buffer; each transfer is a line
-/// in the download's log.
+/// (``nauticNext(_:status:otherApp:busy:freeFailures:reconnects:waitsForLink:)``). One that times
+/// out while the watch says free closes the device, opens it again and carries on from that
+/// transfer (``reconnect()``). A lost link — a transfer, a busy read or a reopen that fails on the
+/// link — is waited out in a walk the diver started (``waitForLink(after:)``) and that transfer
+/// tried again, and ends any other walk. The dive's received bytes are kept in the resume buffer
+/// over each; each transfer is a line in the download's log.
 nonisolated extension LibDCWalk {
   func walkNautic(serial: String) -> DiveComputerDownloadEnd {
     var firmware = nauticFirmware()
@@ -177,6 +179,8 @@ nonisolated extension LibDCWalk {
     case retry
     /// Close the device, open it again and try the same transfer on it.
     case reconnect
+    /// The link is lost: wait for the computer, then try the same transfer on it.
+    case awaitLink
     /// Give it up and go on: a summary reads as unread, a download leaves its entry out.
     case passOver
     /// The walk ends on this status.
@@ -191,9 +195,11 @@ nonisolated extension LibDCWalk {
 
   /// After one attempt that answered `status`: `otherApp` is whether another app's handshake broke
   /// it, `busy` is nil until the watch was asked, then whether it said busy, `freeFailures` counts
-  /// the attempts, this one included, that failed while it said free, across reopens, and
-  /// `reconnects` the reopens the walk has made. A cancel or a lost link stops the walk at once. A
-  /// summary, the descriptors or a download another app broke is waited out and tried again without
+  /// the attempts, this one included, that failed while it said free, across reopens,
+  /// `reconnects` the reopens the walk has made, and `waitsForLink` whether the walk is one the
+  /// diver started. A cancel stops the walk at once. So does a lost link, but in a walk the diver
+  /// started, which waits for the computer and tries the transfer again. A summary, the
+  /// descriptors or a download another app broke is waited out and tried again without
   /// asking or counting, however often: the walk cannot tell when that app lets go. A failure while
   /// busy is waited out and tried again without counting. While free, a timeout reopens the device,
   /// at once, while the walk has reopens left (``reconnects(after:made:)``). Otherwise the listing
@@ -203,11 +209,12 @@ nonisolated extension LibDCWalk {
   /// other failure, which repeats, leaves the entry out.
   static func nauticNext(
     _ fetch: NauticFetch, status: dc_status_t, otherApp: Bool, busy: Bool?, freeFailures: Int,
-    reconnects: Int
+    reconnects: Int, waitsForLink: Bool = false
   ) -> NauticNext {
     switch status {
     case DC_STATUS_SUCCESS: return .take
-    case DC_STATUS_CANCELLED, DC_STATUS_IO, DC_STATUS_NODEVICE: return .stop(status)
+    case DC_STATUS_CANCELLED: return .stop(status)
+    case DC_STATUS_IO, DC_STATUS_NODEVICE: return waitsForLink ? .awaitLink : .stop(status)
     default: break
     }
     if otherApp, fetch != .listing { return .awaitOtherApp }
@@ -231,8 +238,8 @@ nonisolated extension LibDCWalk {
   }
 
   /// One transfer over the open device's handle and a fresh buffer, tried again as
-  /// ``nauticNext(_:status:otherApp:busy:freeFailures:reconnects:)`` says, each attempt logged
-  /// under `label`.
+  /// ``nauticNext(_:status:otherApp:busy:freeFailures:reconnects:waitsForLink:)`` says, each
+  /// attempt logged under `label`.
   private func fetchWhileBusy(
     _ fetch: NauticFetch, _ label: String,
     _ call: (_ handle: OpaquePointer, _ buffer: OpaquePointer) -> dc_status_t
@@ -250,12 +257,12 @@ nonisolated extension LibDCWalk {
           + "\(LibDCDeviceSession.milliseconds(since: began)) ms")
       var next = Self.nauticNext(
         fetch, status: status, otherApp: otherApp, busy: nil, freeFailures: freeFailures,
-        reconnects: reconnects)
+        reconnects: reconnects, waitsForLink: lostLink != nil)
       if next == .readBusy {
         let busy: Bool
         switch busyWait() {
         case .stop(let stopped): return .stop(stopped)
-        // The busy read reopened the device: the transfer is tried on it, uncounted.
+        // The busy read opened the device again: the transfer is tried on it, uncounted.
         case .reconnected: continue
         case .waited: busy = true
         case .free:
@@ -264,7 +271,7 @@ nonisolated extension LibDCWalk {
         }
         next = Self.nauticNext(
           fetch, status: status, otherApp: otherApp, busy: busy, freeFailures: freeFailures,
-          reconnects: reconnects)
+          reconnects: reconnects, waitsForLink: lostLink != nil)
       }
       switch next {
       case .take: return .answered(bytes)
@@ -278,6 +285,8 @@ nonisolated extension LibDCWalk {
       case .retry: continue
       case .reconnect:
         if let stopped = reconnect() { return .stop(stopped) }
+      case .awaitLink:
+        if let stopped = waitForLink(after: status) { return .stop(stopped) }
       case .passOver: return .failed(status)
       case .stop(let stopped): return .stop(stopped)
       case .readBusy: return .stop(status)
@@ -290,7 +299,8 @@ nonisolated extension LibDCWalk {
     case free
     /// It said it was busy, and has since said it is free.
     case waited
-    /// Its subscribe or unsubscribe timed out, and the device was opened again.
+    /// Its subscribe or unsubscribe timed out, or it lost the link, and the device was opened
+    /// again.
     case reconnected
     case stop(dc_status_t)
   }
@@ -299,7 +309,8 @@ nonisolated extension LibDCWalk {
   /// second so a cancel ends it at the next. A watch with no such resource, or that refuses it,
   /// is not waited for. Subscribed and unsubscribed between transfers, since a subscription is
   /// not valid while a download runs; an unsubscribe that fails ends the walk. Either that times
-  /// out reopens the device while the walk has reopens left.
+  /// out reopens the device while the walk has reopens left. A subscribe, a wait or an unsubscribe
+  /// that fails on the link is a lost link, which a walk the diver started waits out.
   private func busyWait() -> BusyWait {
     guard let handle = device?.pointee.device else { return .stop(DC_STATUS_NODEVICE) }
     let began = Date.now
@@ -311,13 +322,17 @@ nonisolated extension LibDCWalk {
       log(
         "busy read \(LibDCNames.status(status)) \(LibDCDeviceSession.milliseconds(since: began)) ms"
       )
-      guard Self.reconnects(after: status, made: reconnects) else { return .free }
-      return reconnect().map { .stop($0) } ?? .reconnected
+      return reopened(after: status) ?? .free
     }
     let busy = Self.isBusy(subscription.initialValue)
     log(
       "busy read \(busy ? "busy" : "free") \(LibDCDeviceSession.milliseconds(since: began)) ms")
     let stopped = busy ? waitForFree(handle, subscription) : nil
+    // The link is gone, and the unsubscribe with it.
+    if let stopped, lostLink != nil, Self.losesLink(stopped) {
+      log("busy wait \(LibDCNames.status(stopped))")
+      return reopened(after: stopped) ?? .stop(stopped)
+    }
     if busy, stopped == nil {
       log("busy wait free after \(LibDCDeviceSession.milliseconds(since: began)) ms")
     }
@@ -327,11 +342,20 @@ nonisolated extension LibDCWalk {
       let status = Self.explorerStatus(error)
       log("busy unsubscribe \(LibDCNames.status(status))")
       if let stopped { return .stop(stopped) }
-      guard Self.reconnects(after: status, made: reconnects) else { return .stop(status) }
-      return reconnect().map { .stop($0) } ?? .reconnected
+      return reopened(after: status) ?? .stop(status)
     }
     if let stopped { return .stop(stopped) }
     return busy ? .waited : .free
+  }
+
+  /// A busy read that failed on `status`, the device opened again: after a lost link in a walk
+  /// that waits for it, or a timeout while the walk has reopens left. Nil where neither applies.
+  private func reopened(after status: dc_status_t) -> BusyWait? {
+    if lostLink != nil, Self.losesLink(status) {
+      return waitForLink(after: status).map { .stop($0) } ?? .reconnected
+    }
+    guard Self.reconnects(after: status, made: reconnects) else { return nil }
+    return reconnect().map { .stop($0) } ?? .reconnected
   }
 
   /// The status an explorer call failed on; a failure that names none reads as a lost link.

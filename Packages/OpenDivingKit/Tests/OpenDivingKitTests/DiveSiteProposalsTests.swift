@@ -211,6 +211,71 @@ struct DiveSiteProposalsTests {
     #expect(model.list.items.first?.status == DiveSiteProposalStatus.withdrawn)
   }
 
+  /// The proposals list over a server that answers the switch with `choice`, or, given none,
+  /// with the first row as the body asked.
+  private func choiceTransport(_ choice: StubTransport.Response? = nil) throws -> StubTransport {
+    let page = try KitFixture.text("dive-site-proposals-page")
+    let first = try KitFixture.decode(
+      PaginatedListResponse<DiveSiteProposalRead>.self, "dive-site-proposals-page"
+    ).data[0]
+    return StubTransport { request in
+      switch request.route {
+      case "PATCH dive-site-proposal/\(Self.proposal)":
+        if let choice { return choice }
+        let body = try APICoding.decoder().decode(
+          DiveSiteProposalUpdate.self, from: request.httpBody ?? Data())
+        let answer =
+          try JSONSerialization.jsonObject(
+            with: APICoding.encoder().encode(first)) as! [String: Any]
+        var shown = answer
+        shown["show_proposer"] = body.showProposer
+        return .json(
+          String(decoding: try JSONSerialization.data(withJSONObject: shown), as: UTF8.self))
+      case "GET dive-site-proposals": return .json(page)
+      default: return .json(#"{"detail":"Not Found"}"#, status: 404)
+      }
+    }
+  }
+
+  @Test func theSwitchSendsTheChoiceAndTheRowShowsTheAnswer() async throws {
+    let transport = try choiceTransport()
+    let model = DiveSiteProposalsModel(session: Session.stub(transport: transport))
+    await model.list.load()
+    let row = DiveSiteProposalSummary.row(try #require(model.list.items.first))
+    #expect(!model.showsProposer(row))
+
+    await model.showProposer(row.proposal, true)
+    let request = try #require(
+      transport.requests.first { $0.route == "PATCH dive-site-proposal/\(Self.proposal)" })
+    #expect(try JSONValue.parse(try #require(request.httpBody))["show_proposer"] == .bool(true))
+    #expect(model.list.items.first?.showProposer == true)
+    #expect(model.showsProposer(DiveSiteProposalSummary.row(model.list.items[0])))
+    #expect(model.choiceFailure == nil)
+    #expect(model.choosing == nil)
+  }
+
+  @Test func aRefusedChoicePutsTheSwitchBackAndSaysWhy() async throws {
+    let transport = try choiceTransport(.json(#"{"detail":"Try later."}"#, status: 500))
+    let model = DiveSiteProposalsModel(session: Session.stub(transport: transport))
+    await model.list.load()
+    let row = DiveSiteProposalSummary.row(try #require(model.list.items.first))
+
+    await model.showProposer(row.proposal, true)
+    #expect(model.choiceFailure == "Try later.")
+    #expect(!model.showsProposer(DiveSiteProposalSummary.row(model.list.items[0])))
+    #expect(transport.requests.filter { $0.route == "GET dive-site-proposals" }.count == 1)
+  }
+
+  @Test func aConflictingChoiceReadsTheListAgain() async throws {
+    let transport = try choiceTransport(Self.conflict)
+    let model = DiveSiteProposalsModel(session: Session.stub(transport: transport))
+    await model.list.load()
+
+    await model.showProposer(UUID(uuidString: Self.proposal)!, true)
+    #expect(model.choiceFailure == "This proposal has already been decided.")
+    #expect(transport.requests.filter { $0.route == "GET dive-site-proposals" }.count == 2)
+  }
+
   @Test func aWithdrawOnTheSitesPageReachesTheListOverTheSameAccount() async throws {
     let world = try OutboxWorld()
     try await world.load()
