@@ -128,6 +128,21 @@ struct DiveSiteProposalFlowTests {
     #expect(body["attestation"] == .string(CommonsAttestations.newSite))
     #expect(body["message"] == .string("Dived here for years."))
     #expect(body["members"] == nil)
+    #expect(body["show_proposer"] == nil)
+  }
+
+  @Test func turningOnTheNameSendsIt() async throws {
+    let (flow, transport) = try flow([
+      Self.matchesRoute: .json("[]"), Self.proposeRoute: try proposal(),
+    ])
+    await flow.load()
+    #expect(!flow.showProposer)
+    flow.showProposer = true
+    flow.ticked = true
+    #expect(await flow.send())
+    let request = try #require(transport.requests.first { $0.route == Self.proposeRoute })
+    let body = try JSONValue.parse(try #require(request.httpBody))
+    #expect(body["show_proposer"] == .bool(true))
   }
 
   @Test func aRefusedSendStaysOnTheStepWithTheServersSentence() async throws {

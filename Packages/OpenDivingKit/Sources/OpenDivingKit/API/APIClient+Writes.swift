@@ -147,6 +147,17 @@ extension APIClient {
         body: Self.json(DiveSiteReplace(commonsSite: record))))
   }
 
+  /// `PATCH /dive-site-proposal/{uuid}`: whether other divers read the diver's name beside what
+  /// the proposal changes in the site's history. A 409 on one declined or withdrawn.
+  public func updateDiveSiteProposal(_ uuid: UUID, _ update: DiveSiteProposalUpdate) async throws
+    -> DiveSiteProposalRead
+  {
+    try await authorizedDecoded(
+      DiveSiteProposalRead.self,
+      Call(
+        method: "PATCH", path: "dive-site-proposal/\(Self.wire(uuid))", body: Self.json(update)))
+  }
+
   /// `DELETE /dive-site-proposal/{uuid}`: takes back a proposal while it waits; a 409 on one
   /// already decided or withdrawn.
   public func withdrawDiveSiteProposal(_ uuid: UUID) async throws {

@@ -1,12 +1,14 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What every proposal ends on: an optional word for the reviewer, then the proposer's own tick
-/// on the words the API stores. The deed is a row of its own, so following it ticks nothing.
+/// What every proposal ends on: an optional word for the reviewer, whether other divers see the
+/// proposer's name in the site's history, then the proposer's own tick on the words the API
+/// stores. The deed is a row of its own, so following it ticks nothing.
 struct CommonsAttestationSection: View {
   let attestation: String
   @Binding var ticked: Bool
   @Binding var message: String
+  @Binding var showProposer: Bool
 
   var body: some View {
     Section {
@@ -17,6 +19,12 @@ struct CommonsAttestationSection: View {
       .lineLimit(2...6)
     } header: {
       Text("A Word for the Reviewer")
+    }
+    Section {
+      Toggle(DiveSiteProposalSummary.showProposerLabel, isOn: $showProposer)
+        .tint(.brandTeal)
+    } footer: {
+      Text(DiveSiteProposalSummary.showProposerExplained)
     }
     Section {
       Toggle(isOn: $ticked) {
@@ -35,8 +43,10 @@ struct CommonsAttestationSection: View {
 #Preview {
   @Previewable @State var ticked = false
   @Previewable @State var message = ""
+  @Previewable @State var showProposer = false
   Form {
     CommonsAttestationSection(
-      attestation: CommonsAttestations.newSite, ticked: $ticked, message: $message)
+      attestation: CommonsAttestations.newSite, ticked: $ticked, message: $message,
+      showProposer: $showProposer)
   }
 }
