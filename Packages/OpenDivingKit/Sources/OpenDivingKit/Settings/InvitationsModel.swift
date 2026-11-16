@@ -269,6 +269,9 @@ public final class InvitationsModel {
 
   public var canLoadMore: Bool { list.value?.hasMore == true && !isLoadingMore }
 
+  /// Whether there are invitations for the invite link pane to reveal below its QR code.
+  public var hasInvitations: Bool { list.value?.invitations.isEmpty == false }
+
   /// *Show older invitations*: the next page, after what is shown.
   public func loadMore() async {
     guard let loaded = list.value, loaded.hasMore, !isLoadingMore else { return }
@@ -360,6 +363,8 @@ public final class InvitationsModel {
   public static let linkAddressLabel = "Invite link address"
   public static let linkCopied = "Link copied"
   public static let qrLabel = "QR code of your invite link"
+  public static let invitesToggle = "Invites"
+  public static let showQRCode = "Show your invite link's QR code"
   public static let resetTitle = "Reset your invite link"
   public static let resetMessage =
     "The link you have now stops working for anyone who has it, and a new link and QR code take"

@@ -201,64 +201,14 @@ private struct SentInvitationsSection: View {
           .foregroundStyle(.secondary)
       }
       ForEach(model.list.value?.invitations ?? []) { invitation in
-        row(invitation)
+        InvitationRow(model: model, invitation: invitation)
       }
-      if model.list.value?.hasMore == true {
-        if model.isLoadingMore {
-          BubbleSpinner()
-            .frame(maxWidth: .infinity)
-        } else {
-          Button(InvitationsModel.showOlder) { Task { await model.loadMore() } }
-            .needsServer()
-            .accentRow()
-            .frame(maxWidth: .infinity)
-        }
-      }
+      ShowOlderInvitations(model: model)
     } header: {
       Text("Invitations")
     } footer: {
       if let failure = model.revokeFailure ?? model.loadMoreFailure {
         FieldMessage(failure)
-      }
-    }
-  }
-
-  private func row(_ invitation: InvitationRead) -> some View {
-    HStack(spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        FlowLayout(spacing: 6) {
-          Text(InvitationsModel.title(invitation))
-          if let badge = InvitationsModel.badge(invitation) {
-            BadgeView(badge, style: invitation.acceptedAt != nil ? .teal : .outline)
-          }
-        }
-        Text(InvitationsModel.details(invitation))
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      if model.revoking == invitation.uuid {
-        BubbleSpinner()
-      } else if InvitationsModel.canRevoke(invitation) {
-        Button(role: .destructive) {
-          model.confirmingRevoke = invitation
-        } label: {
-          Image(systemName: "trash").dangerRow()
-        }
-        .accessibilityLabel("Revoke the invitation to \(invitation.email ?? "")")
-        .buttonStyle(.borderless)
-        .disabled(model.revoking != nil)
-        .needsServer()
-        .rowConfirmation(
-          InvitationsModel.revokeTitle, for: invitation,
-          confirming: Bindable(model).confirmingRevoke
-        ) { invitation in
-          Button(InvitationsModel.revokeButton, role: .destructive) {
-            Task { await model.confirmRevoke(invitation) }
-          }
-        } message: { invitation in
-          Text(InvitationsModel.revokeMessage(invitation))
-        }
       }
     }
   }
