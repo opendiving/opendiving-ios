@@ -1299,6 +1299,43 @@ struct DiveComputerModelTests {
     #expect(link.fingerprintsSet == set)
   }
 
+  /// A computer's page draws a running walk of it in place of its download buttons, and a
+  /// finished one as its outcome above them, which another computer's page does not draw.
+  @Test func aComputersPageDrawsItsWalkInPlaceOfTheButtonsAndItsOutcomeAboveThem() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
+      FakeDiveComputerLink.script(F.perdix, []),
+    ]
+    let perdix = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    let ocean = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
+    try computers(session).save(perdix)
+    try computers(session).save(ocean)
+    let model = model(session, link)
+    await model.appeared()
+    await model.watch()
+    #expect(model.pageWalk(perdix) == .none)
+
+    model.download(perdix, all: false)
+    await model.settled()
+    link.holdBeforeEnd = true
+    model.download(perdix, all: false)
+    for _ in 0..<1000 where !link.isHeld { await Task.yield() }
+    #expect(model.pageWalk(perdix) == .running)
+    #expect(model.pageWalk(ocean) == .none)
+    #expect(!model.canDownload(perdix))
+
+    link.release()
+    await model.settled()
+    let outcome = try #require(model.outcome)
+    #expect(outcome.kind == .nothingNew)
+    #expect(outcome.offersDownloadAll)
+    #expect(model.pageWalk(perdix) == .finished(outcome))
+    #expect(model.canDownload(perdix))
+    #expect(model.pageWalk(ocean) == .none)
+  }
+
   private func startedAt(_ session: Session, _ archive: DownloadArchive) throws -> [String?] {
     let downloads = DownloadStore(
       store: session.store, origin: ImportServer.origin, account: ImportServer.accountA)

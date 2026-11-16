@@ -30,21 +30,14 @@ struct DiveComputerPage: View {
       } footer: {
         Text(DiveComputerText.downloadAutomaticallyFooter)
       }
-      if model.isBusy || model.phase == .finished, model.walk?.isOf(record) == true {
+      switch model.pageWalk(record) {
+      case .running:
         DiveComputerWalkSections(model: model)
-      } else {
-        Section {
-          Button(DiveComputerText.downloadNew) { model.download(record, all: false) }
-            .accentRow()
-            .disabled(!model.canDownload(record))
-          Button(DiveComputerText.downloadAll) { model.download(record, all: true) }
-            .accentRow()
-            .disabled(!model.canDownload(record))
-        } footer: {
-          if let blocker = model.blocker {
-            Text(blocker)
-          }
-        }
+      case .finished(let outcome):
+        Section { Text(outcome.sentence) }
+        downloadButtons
+      case .none:
+        downloadButtons
       }
       Section {
         ForEach(content.facts) { fact in
@@ -59,6 +52,21 @@ struct DiveComputerPage: View {
     }
     .navigationTitle(content.title)
     .navigationBarTitleDisplayMode(.inline)
+  }
+
+  private var downloadButtons: some View {
+    Section {
+      Button(DiveComputerText.downloadNew) { model.download(record, all: false) }
+        .accentRow()
+        .disabled(!model.canDownload(record))
+      Button(DiveComputerText.downloadAll) { model.download(record, all: true) }
+        .accentRow()
+        .disabled(!model.canDownload(record))
+    } footer: {
+      if let blocker = model.blocker {
+        Text(blocker)
+      }
+    }
   }
 }
 
