@@ -168,7 +168,7 @@ private struct InviteQRFold<Controls: View>: View {
   @State private var titleFrame = CGRect.zero
   @State private var release = FoldRelease()
   @State private var slider = FoldSlider()
-  /// Counts each slide from one end to the other, for its haptic as it starts.
+  /// Counts each switch between the code and the invitations, for its haptic.
   @State private var slides = 0
 
   private var progress: Double {
@@ -226,7 +226,7 @@ private struct InviteQRFold<Controls: View>: View {
     .sensoryFeedback(.impact, trigger: slides)
     .toolbar {
       FoldTitle(
-        isOpen: progress >= 1, titleOpacity: titleOpacity(progress: progress),
+        address: address, isOpen: progress >= 1, titleOpacity: titleOpacity(progress: progress),
         symbolShare: Self.symbolShare(progress), close: close,
         onTitleFrame: { titleFrame = $0 }, onIconFrame: { barIconFrame = $0 })
     }
@@ -317,23 +317,15 @@ private struct InviteQRFold<Controls: View>: View {
     .padding(.top, 8)
   }
 
-  /// The code, moving from its place at rest straight to the top bar's middle as the pane scrolls,
-  /// crossing to the symbol over the last stretch, until the bar's own symbol takes its place.
+  /// The code, moving from its place at rest straight to the top bar's middle as the pane scrolls
+  /// and folding into its icon as it goes, until the bar's own icon takes its place.
   @ViewBuilder private func code(progress: Double) -> some View {
     if progress < 1 {
       let frame = codePath(progress: progress)
-      let symbol = Self.symbolShare(progress)
-      ZStack {
-        InviteQRCode(address: address.absoluteString, label: InvitationsModel.qrLabel)
-          .opacity(1 - symbol)
-          .accessibilityHidden(progress >= 0.5)
-        Image(systemName: "qrcode")
-          .resizable()
-          .scaledToFit()
-          .foregroundStyle(.primary)
-          .opacity(symbol)
-          .accessibilityHidden(true)
-      }
+      InviteQRCode(
+        address: address.absoluteString, label: InvitationsModel.qrLabel, morph: progress
+      )
+      .accessibilityHidden(progress >= 0.5)
       .frame(width: frame.width, height: frame.height)
       .offset(x: frame.minX, y: frame.minY)
       .allowsHitTesting(false)
@@ -378,23 +370,24 @@ private struct InviteQRFold<Controls: View>: View {
   }
 
   private func open() {
-    slides += 1
-    slide(to: pageHeight)
+    slide(to: pageHeight, switching: true)
   }
 
   private func close() {
-    slides += 1
-    slide(to: 0)
+    slide(to: 0, switching: true)
   }
 
   /// Steps the scroll frame by frame, rather than animating it, which reports only where it ends
-  /// and leaves the code and *Invites* nothing to follow on the way.
-  private func slide(to target: Double) {
+  /// and leaves the code and *Invites* nothing to follow on the way. A switch's haptic comes as
+  /// the invitations start to rise, and as the code lands back in place.
+  private func slide(to target: Double, switching: Bool) {
+    if switching, target > 0 { slides += 1 }
     release.isSliding = true
     slider.slide(from: geometry.offset, to: target) { offset in
       scroll.scrollTo(y: offset)
     } done: {
       release.isSliding = false
+      if switching, target == 0 { slides += 1 }
     }
   }
 
@@ -405,14 +398,13 @@ private struct InviteQRFold<Controls: View>: View {
       return
     }
     release.target = nil
-    if abs(target - start) > 1 { slides += 1 }
-    slide(to: target)
+    slide(to: target, switching: abs(target - start) > 1)
   }
 
   private static var toggleFont: Font { .subheadline.weight(.semibold) }
   private static var headerFont: Font { .title2.bold() }
 
-  /// How far the code has crossed to the symbol: over the last two fifths of the way.
+  /// How far the bar's chevron has come in: over the last two fifths of the way.
   private static func symbolShare(_ progress: Double) -> Double {
     min(max((progress - 0.6) / 0.4, 0), 1)
   }
@@ -425,10 +417,11 @@ private struct InviteQRFold<Controls: View>: View {
   }
 }
 
-/// The top bar's middle: the title while the code shows, then the code's own symbol under a
-/// chevron, which takes it back. The symbol is there throughout, unseen until the pane opens, so
-/// the code has somewhere to shrink to.
+/// The top bar's middle: the title while the code shows, then the code's icon under a chevron,
+/// which takes it back. The icon is there throughout, unseen until the pane opens, so the code has
+/// somewhere to fold into.
 private struct FoldTitle: ToolbarContent {
+  let address: URL
   let isOpen: Bool
   let titleOpacity: Double
   let symbolShare: Double
@@ -452,13 +445,16 @@ private struct FoldTitle: ToolbarContent {
             Image(systemName: "chevron.up")
               .font(.caption2.weight(.semibold))
               .opacity(symbolShare)
-            Image(systemName: "qrcode")
-              .opacity(isOpen ? 1 : 0)
-              .onGeometryChange(for: CGRect.self) {
-                $0.frame(in: .global)
-              } action: {
-                onIconFrame($0)
-              }
+            InviteQRCode(
+              address: address.absoluteString, label: InvitationsModel.showQRCode, morph: 1
+            )
+            .frame(width: 20, height: 20)
+            .opacity(isOpen ? 1 : 0)
+            .onGeometryChange(for: CGRect.self) {
+              $0.frame(in: .global)
+            } action: {
+              onIconFrame($0)
+            }
           }
           .foregroundStyle(.primary)
         }
