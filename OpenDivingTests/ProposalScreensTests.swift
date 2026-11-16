@@ -53,13 +53,22 @@ struct ProposalScreensTests {
   @Test func theListIsGivenTheSiteTheOutcomeAndAWithdraw() async throws {
     let session = await session(primary: true)
     let model = DiveSiteProposalsModel(session: session)
-    await model.list.load()
-    let row = DiveSiteProposalSummary.row(try #require(model.list.items.first))
+    await model.list(.proposed).load()
+    let row = DiveSiteProposalSummary.row(try #require(model.list(.proposed).items.first))
     #expect(row.siteName == "Tiger Reef")
     #expect(row.kind == "New site")
     #expect(row.outcome == "Waiting for review")
     #expect(row.withdrawable != nil)
     #expect(host(YourProposalsView(), session: session) != nil)
+  }
+
+  @Test func eachTabNamesItsStatusAndNoTabIsWithdrawn() {
+    #expect(DiveSiteProposalTab.allCases.map(\.title) == ["Proposed", "Accepted", "Declined"])
+    #expect(
+      DiveSiteProposalTab.allCases.map(\.status) == [
+        DiveSiteProposalStatus.waiting, DiveSiteProposalStatus.accepted,
+        DiveSiteProposalStatus.declined,
+      ])
   }
 
   @Test func theSitesPageIsGivenTheNoticeOfAWaitingSite() async throws {

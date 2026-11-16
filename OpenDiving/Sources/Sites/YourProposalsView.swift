@@ -1,59 +1,118 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Your Proposals*, pushed from the sites map: what the diver has proposed for OpenDiving
-/// Commons and what became of it, a page at a time.
+/// *Your Proposals*, pushed from the sites map, under the OpenDiving Commons mark: to a diver who
+/// has proposed nothing, what the Commons is and how to propose a site; to one who has, what
+/// waits, what was accepted and what was declined, a tab each, with the introduction behind *i*.
 struct YourProposalsView: View {
   static let title = "Your Proposals"
 
   @Environment(Session.self) private var session
 
   var body: some View {
-    ProposalList(model: DiveSiteProposalsModel(session: session))
-      .navigationTitle(Self.title)
-      .navigationBarTitleDisplayMode(.inline)
+    ProposalsContent(model: DiveSiteProposalsModel(session: session))
   }
 }
 
-private struct ProposalList: View {
+nonisolated extension DiveSiteProposalTab: TabSection {}
+
+private struct ProposalsContent: View {
   @State private var model: DiveSiteProposalsModel
+  @State private var tab = DiveSiteProposalTab.proposed
+  @State private var showsIntro = false
+  @State private var adding = false
 
   init(model: DiveSiteProposalsModel) {
     _model = State(initialValue: model)
   }
 
   var body: some View {
-    let list = model.list
+    let any = model.any
     Group {
-      switch list.phase {
+      switch any.phase {
       case .idle, .loading:
         EmptyOrErrorView(status: .loading)
       case .failed(let error):
         EmptyOrErrorView(status: .failed(message: error.message)) {
-          Task { await list.load() }
+          Task { await any.load() }
         }
-      case .loaded where list.items.isEmpty:
-        EmptyOrErrorView(
-          status: .empty(
-            icon: .landmark, title: "No proposals yet",
-            message: "What you propose for OpenDiving Commons shows here."))
+      case .loaded where any.items.isEmpty:
+        CommonsIntroPage { adding = true }
       case .loaded:
-        ScrollView {
-          LazyVStack(spacing: 12) {
+        ProposalTabs(model: model, tab: $tab) { adding = true }
+      }
+    }
+    .background(Color(.systemGroupedBackground))
+    .navigationTitle(YourProposalsView.title)
+    .navigationBarTitleDisplayMode(.inline)
+    // The title names the page in the back button's history; the mark heads it on screen.
+    .toolbar(removing: .title)
+    .toolbar {
+      if any.phase == .loaded, !any.items.isEmpty {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button {
+            showsIntro = true
+          } label: {
+            Label("About OpenDiving Commons", systemImage: "info.circle")
+          }
+        }
+      }
+    }
+    .sheet(isPresented: $showsIntro) { CommonsIntroSheet() }
+    .navigationDestination(isPresented: $adding) {
+      DiveSiteFormView(mode: .create, visibility: .public)
+    }
+    .task { await any.load() }
+    .proposalWithdrawalAlert(model.withdrawal)
+  }
+}
+
+/// The mark over the tabs, then the chosen tab's proposals.
+private struct ProposalTabs: View {
+  let model: DiveSiteProposalsModel
+  @Binding var tab: DiveSiteProposalTab
+  let add: () -> Void
+
+  var body: some View {
+    let list = model.list(tab)
+    ScrollView {
+      LazyVStack(spacing: 16) {
+        CommonsWordmarkHeader(markSide: 48)
+        SectionTabs(selection: $tab, showsIcons: false)
+        Group {
+          switch list.phase {
+          case .idle, .loading:
+            BubbleSpinner()
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, 24)
+          case .failed(let error):
+            EmptyOrErrorView(status: .failed(message: error.message)) {
+              Task { await list.load() }
+            }
+          case .loaded where list.items.isEmpty:
+            ContentUnavailableView {
+              Label(tab.emptyTitle, icon: .landmark)
+            } description: {
+              Text(CommonsIntro.emptyMessage)
+            } actions: {
+              Button(CommonsIntro.addAction, systemImage: "plus", action: add)
+                .brandProminentButton()
+            }
+            .padding(.top, 24)
+          case .loaded:
             ForEach(list.items) { proposal in
               ProposalCard(row: DiveSiteProposalSummary.row(proposal), model: model)
                 .onAppear { Task { await list.loadMore(after: proposal) } }
             }
             LoadMoreFooter(list: list)
           }
-          .padding()
         }
+        .padding(.horizontal)
       }
+      .padding(.bottom)
     }
-    .background(Color(.systemGroupedBackground))
-    .bubbleRefreshable { await list.refresh() }
-    .task { await list.load() }
-    .proposalWithdrawalAlert(model.withdrawal)
+    .bubbleRefreshable { await model.refresh() }
+    .task(id: tab) { await list.load() }
   }
 }
 
@@ -94,9 +153,24 @@ private struct ProposalCard: View {
   }
 }
 
-#Preview {
+#Preview("Proposals") {
+  let page =
+    #"{"data":[{"uuid":"01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0d","kind":"new_site","#
+    + #""status":"waiting","reason":null,"site":{"uuid":"01a0a521-28c5-7e34-a572-4d7324f5033b","#
+    + #""name":"Tiger Reef"},"created_at":"2026-11-02T23:40:11.502113Z","decided_at":null}],"#
+    + #""total_count":1,"has_more":false,"page":1,"items_per_page":50}"#
   NavigationStack {
     YourProposalsView()
   }
-  .environment(Session.stub(transport: StubTransport(routes: [:])))
+  .environment(
+    Session.stub(transport: StubTransport(routes: ["GET dive-site-proposals": .json(page)])))
+}
+
+#Preview("None yet") {
+  let empty = #"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":1}"#
+  NavigationStack {
+    YourProposalsView()
+  }
+  .environment(
+    Session.stub(transport: StubTransport(routes: ["GET dive-site-proposals": .json(empty)])))
 }

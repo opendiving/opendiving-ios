@@ -56,6 +56,8 @@ struct DiveSiteFormView: View {
   let mode: RecordFormMode<DiveSiteRead>
   /// A new site's pin, where the site finder was pressed.
   var pin: DeviceLocation?
+  /// What a new site's choice starts on: public from *Your Proposals*.
+  var visibility = DiveSiteProposalSummary.Visibility.private
   /// The site was deleted from the form, which leaves the panel it was opened from nothing to show.
   var onDeleted: () -> Void = {}
   /// The site became a Commons record in the propose flow, and its panel gives way to the record's.
@@ -72,7 +74,7 @@ struct DiveSiteFormView: View {
       form(
         RecordSheetModel(
           outbox: OutboxModel(session: session), values: DiveSiteFormValues(pinnedAt: pin)),
-        lookup: PositionLookup(pinnedAt: pin))
+        lookup: PositionLookup(pinnedAt: pin), visibility: visibility)
     case .edit(let site):
       editing(site, failedItem: nil)
     case .failed(let item, let uuid):
@@ -116,12 +118,13 @@ struct DiveSiteFormView: View {
 
   private func form(
     _ model: RecordSheetModel<DiveSiteFormValues>, site: DiveSiteRead? = nil,
-    offersChoice: Bool = true, lookup: PositionLookup = PositionLookup()
+    offersChoice: Bool = true, lookup: PositionLookup = PositionLookup(),
+    visibility: DiveSiteProposalSummary.Visibility = .private
   ) -> some View {
     DiveSiteSheetForm(
       model: model, lookup: lookup, units: RecordEntryUnits(session: session),
       map: MapStyleModel(session: session), session: session, isPushed: true, site: site,
-      offersChoice: offersChoice && onLanded == nil, onLanded: onLanded,
+      offersChoice: offersChoice && onLanded == nil, visibility: visibility, onLanded: onLanded,
       onCreated: { _ in }, onDeleted: onDeleted, onReplaced: onReplaced)
   }
 }
@@ -136,6 +139,7 @@ private struct DiveSiteSheetForm: View {
   /// The site as the server read it, on an edit.
   var site: DiveSiteRead?
   var offersChoice = true
+  @State var visibility = DiveSiteProposalSummary.Visibility.private
   var handBack = SiteProposalHandBack()
   var onLanded: ((DiveSiteLanding) -> Void)?
   var onCommonsSite: ((DiveSiteLookupItem) -> Void)?
@@ -143,7 +147,6 @@ private struct DiveSiteSheetForm: View {
   var onDeleted: () -> Void = {}
   var onReplaced: (UUID) -> Void = { _ in }
 
-  @State private var visibility = DiveSiteProposalSummary.Visibility.private
   /// What the save named, once it has queued and the form is staying for it.
   @State private var saved: RecordRef?
   @State private var isLanding = false
