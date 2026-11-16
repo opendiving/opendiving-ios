@@ -50,6 +50,18 @@ Swift's `"\(28.0)"`, a tie-to-even `%.0f` and `rounded()` each print a plausible
 disagrees with the web. Rejected: `FormatStyle` and `MeasurementFormatter`, which localise
 correctly and would contradict the web on the same account. Change one side, change both.
 
+## The Kit's fixtures are held to the API's main, and fail only in the queue
+
+`api-contract` judges every fixture against the schema of the operation `api-bodies.json` names,
+with the API repository's own checker, which builds the document from opendiving-api's `main` at
+the time of the run: a published copy trails the merge it describes, and the hosted instance's
+leaves out the operations of features it has off. A response may lack a member, so the Kit can
+trail the API, but every member it holds must be one the schema allows, values included. A body the
+document does not allow is a warning on a pull request and a failure in the merge queue, because a
+pull request built on an API one that has not merged mismatches until that one lands; in the queue
+it has. Rejected: failing on pull requests too; pinning an API commit here, which cannot name an
+unmerged one and makes each move of the pin conflict with the next.
+
 ## A request body is a type of its own, never a `*Read` sent back
 
 Every write schema the API has forbids unknown fields, and its read schemas carry members no write
