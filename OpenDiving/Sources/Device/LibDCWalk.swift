@@ -8,8 +8,9 @@ import OpenDivingKit
 /// family that logs instants, then each dive's bytes parsed as they arrive, and the outcome. Its
 /// instance is the userdata of libdivecomputer's callbacks, all of which run on the session's queue
 /// but the progress poll's. An Ocean walk may close the device and open it again
-/// (``reconnect()``); ``device`` is whichever is open, and nil once the walk closed one it could
-/// not reopen.
+/// (``reconnect()``), and a walk the diver started reopens a computer that dropped the link
+/// (``waitForLink(after:)``); ``device`` is whichever is open, and nil once the walk closed one it
+/// could not reopen.
 ///
 /// A Shearwater Petrel-family computer and a Suunto Nautic-family watch are walked by the app
 /// itself — listed, counted, then downloaded dive by dive (`LibDCWalk+Petrel.swift`,
@@ -24,6 +25,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// attempt; the session frees it after the last device is closed.
   let resume: OpaquePointer?
   let cancel: CancelFlag
+  /// Where a lost link is waited for: a walk the diver started. Nil, a lost link ends the walk.
+  let lostLink: LostLinkWait?
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
   /// Whether a dive is one the phone need not take again, which a walk that lists leaves out.
   let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool
@@ -58,6 +61,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   init(
     computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>,
     session: LibDCDeviceSession, resume: OpaquePointer?, cancel: CancelFlag,
+    lostLink: LostLinkWait?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     keep: @escaping @Sendable (DownloadedDive) -> Void, pairedOnly: Bool,
@@ -68,6 +72,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     self.session = session
     self.resume = resume
     self.cancel = cancel
+    self.lostLink = lostLink
     self.lookup = lookup
     self.waiting = waiting
     self.keep = keep
@@ -117,7 +122,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     // By the open device's own family, which decides what its handle is.
     switch dc_device_get_type(handle) {
     case DC_FAMILY_SHEARWATER_PETREL:
-      return walkPetrel(handle)
+      return walkPetrel()
     case DC_FAMILY_SUUNTO_NAUTIC:
       // A watch whose name carries no serial has no identity before the library's walk gives one.
       guard let serial = computer.advertisedSerial else { return walkLibrary(device, handle) }
@@ -156,16 +161,13 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   /// Closes the device, waits about four seconds and opens it again through the session, until it
   /// opens or the walk's reopens are spent: nil once open, else the status the walk ends on. The
   /// identity, the record and the listing are the walk's and carry over. A cancel ends the wait at
-  /// once, and the open, which cannot be interrupted, once it returns.
+  /// once, and the open, which cannot be interrupted, once it returns. An open that fails is a lost
+  /// link, which a walk the diver started waits out without spending its reopens.
   func reconnect() -> dc_status_t? {
     var status = DC_STATUS_NODEVICE
     while reconnects < Self.reconnectLimit {
       reconnects += 1
-      if let device {
-        if let handle = device.pointee.device { release(handle) }
-        session.close(device)
-        self.device = nil
-      }
+      closeDevice()
       for _ in 0..<40 {
         if cancel.isSet { return DC_STATUS_CANCELLED }
         usleep(100_000)
@@ -173,13 +175,74 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       log("reopen \(reconnects) of \(Self.reconnectLimit)")
       let (opened, reopened) = session.open(computer)
       status = opened
-      guard let reopened else { continue }
+      guard let reopened else {
+        if lostLink != nil { return waitForLink(after: opened) }
+        continue
+      }
       device = reopened
       guard let handle = reopened.pointee.device else { continue }
       adopt(handle)
       return cancel.isSet ? DC_STATUS_CANCELLED : nil
     }
     return status
+  }
+
+  /// Whether a transfer that answered `status` failed on the link: the computer gone, or the
+  /// bridge's I/O to it.
+  static func losesLink(_ status: dc_status_t) -> Bool {
+    status == DC_STATUS_IO || status == DC_STATUS_NODEVICE
+  }
+
+  /// The seconds between a lost link's reopens while the app is in the foreground.
+  static let lostLinkReopenWait = 4
+
+  /// The link failed on `status`. A walk the diver started closes the device and waits for the
+  /// computer: in the foreground it opens it again about every four seconds, behind only once the
+  /// computer has connected to the watch's request (``LostLinkWait``), until it opens or the walk
+  /// is cancelled, without spending ``reconnectLimit``. Nil once open, the resume buffer attached
+  /// to the new device; else the status the walk ends on, `status` itself for a walk that does not
+  /// wait.
+  func waitForLink(after status: dc_status_t) -> dc_status_t? {
+    guard let lostLink else { return status }
+    closeDevice()
+    log("link lost \(LibDCNames.status(status)), waiting for the computer")
+    events.yield(.linkLost)
+    var reopens = 0
+    while true {
+      var waited = 0
+      while !lostLink.takeReturn() {
+        if cancel.isSet { return DC_STATUS_CANCELLED }
+        if lostLink.inForeground {
+          if waited >= Self.lostLinkReopenWait * 10 { break }
+          waited += 1
+        }
+        usleep(100_000)
+      }
+      reopens += 1
+      log("reopen \(reopens) after the lost link" + (lostLink.inForeground ? "" : ", behind"))
+      let (_, reopened) = session.open(computer)
+      if let reopened {
+        device = reopened
+        if let handle = reopened.pointee.device {
+          adopt(handle)
+          if cancel.isSet { return DC_STATUS_CANCELLED }
+          log("link back")
+          events.yield(.linkBack)
+          return nil
+        }
+        closeDevice()
+      }
+      // Again, so a walk behind is handed to the watch's request again.
+      events.yield(.linkLost)
+    }
+  }
+
+  /// Unhooks and closes the open device, if any.
+  private func closeDevice() {
+    guard let device else { return }
+    if let handle = device.pointee.device { release(handle) }
+    session.close(device)
+    self.device = nil
   }
 
   /// A line in the download's log.

@@ -250,6 +250,10 @@ struct DiveComputerStoreTests {
     #expect(
       DiveComputerText.busyOtherApp
         == "This computer is busy. Closing other apps that use it lets the download go on.")
+    #expect(
+      DiveComputerText.linkLost
+        == "The connection to this computer was lost. The download continues when it is back in"
+        + " range with its Bluetooth on.")
     #expect(DiveComputerText.alreadyWaiting(2) == "2 dives waiting to upload.")
     #expect(DiveComputerText.couldNotDownload(1) == "1 dive couldn't be downloaded.")
     #expect(DiveComputerText.couldNotDownload(2) == "2 dives couldn't be downloaded.")

@@ -6,13 +6,16 @@ import OpenDivingKit
 /// with the whole manifest read first, so the count comes before the first dive: the identity by
 /// identifier, every manifest page, then each new record's dive but those the phone need not take
 /// again. One connection, since a Perdix 3 answers a second manifest read on it with an
-/// all-zero index.
+/// all-zero index — but where the computer drops the link in a walk the diver started, which is
+/// waited out (``waitForLink(after:)``): the transfer it lost is made again on the next, the
+/// manifest read again from its first page, and with no resume buffer an interrupted dive read
+/// again from its start.
 nonisolated extension LibDCWalk {
-  func walkPetrel(_ handle: OpaquePointer) -> DiveComputerDownloadEnd {
+  func walkPetrel() -> DiveComputerDownloadEnd {
     let fingerprint: Data?
     let base: UInt32
     let identity: DiveComputerIdentity
-    switch petrelIdentity(handle) {
+    switch petrelIdentityOverLostLinks() {
     case .failure(let failure): return petrelEnd(failure.status)
     case .success(let found):
       identity = identify(serial: found.serial, firmware: found.firmware, hardware: found.hardware)
@@ -22,15 +25,21 @@ nonisolated extension LibDCWalk {
     }
 
     var records: [PetrelManifest.Record] = []
-    while true {
+    var reading = true
+    while reading {
+      guard let handle = device?.pointee.device else { return petrelEnd(DC_STATUS_NODEVICE) }
       let (status, bytes) = Self.buffered {
         shearwaterCommonDownload(
           handle, $0, PetrelManifest.address, UInt32(PetrelManifest.pageSize), 0, nil)
       }
-      guard status == DC_STATUS_SUCCESS else { return petrelEnd(status) }
+      guard status == DC_STATUS_SUCCESS else {
+        if let stopped = petrelLost(status) { return petrelEnd(stopped) }
+        records = []
+        continue
+      }
       let page = PetrelManifest.Page(bytes)
       records += page.records
-      if !page.continues { break }
+      reading = page.continues
     }
 
     let selection = PetrelManifest.select(records, fingerprint: fingerprint) {
@@ -44,14 +53,41 @@ nonisolated extension LibDCWalk {
         events.yield(.skipped(fingerprint: record.start))
         continue
       }
-      let (status, bytes) = Self.buffered {
-        shearwaterCommonDownload(handle, $0, base &+ record.address, Self.petrelDiveSize, 1, nil)
+      var bytes = Data()
+      while true {
+        guard let handle = device?.pointee.device else { return petrelEnd(DC_STATUS_NODEVICE) }
+        let (status, read) = Self.buffered {
+          shearwaterCommonDownload(handle, $0, base &+ record.address, Self.petrelDiveSize, 1, nil)
+        }
+        if status == DC_STATUS_SUCCESS {
+          bytes = read
+          break
+        }
+        if let stopped = petrelLost(status) { return petrelEnd(stopped) }
       }
-      guard status == DC_STATUS_SUCCESS else { return petrelEnd(status) }
       // The start the dive's own header carries, as libdivecomputer's walk hands it on.
       guard dive(bytes, fingerprint: Data(bytes.dropFirst(12).prefix(4))) else { break }
     }
     return petrelEnd(DC_STATUS_SUCCESS)
+  }
+
+  /// The identity, read again on the next connection where the link is lost.
+  private func petrelIdentityOverLostLinks() -> Result<PetrelIdentity, PetrelFailure> {
+    while true {
+      guard let handle = device?.pointee.device else {
+        return .failure(PetrelFailure(DC_STATUS_NODEVICE))
+      }
+      let read = petrelIdentity(handle)
+      guard case .failure(let failure) = read else { return read }
+      if let stopped = petrelLost(failure.status) { return .failure(PetrelFailure(stopped)) }
+    }
+  }
+
+  /// A transfer that failed on `status`: nil once a lost link is back and the transfer is to be
+  /// made again on the new connection, else the status the walk ends on.
+  private func petrelLost(_ status: dc_status_t) -> dc_status_t? {
+    guard Self.losesLink(status) else { return status }
+    return waitForLink(after: status)
   }
 
   /// The most a dive's download may read, libdivecomputer's `DIVE_SIZE`: the computer stops at

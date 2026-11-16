@@ -7,8 +7,9 @@ import Synchronization
 
 /// Each download's device, opened for one walk and closed after it, confined to one serial
 /// queue: libdivecomputer's calls block for as long as the computer takes to answer, and its
-/// callbacks run on the thread that called it. An Ocean walk that times out closes and reopens it
-/// (``LibDCWalk``), so the device closed at the end is whichever the walk holds open then.
+/// callbacks run on the thread that called it. A walk that times out or loses the link may close
+/// and reopen it (``LibDCWalk``), so the device closed at the end is whichever the walk holds open
+/// then.
 ///
 /// The device is opened through the bridge's C entry, not libdc-swift's `openBLEDevice`, which
 /// records every device it opens in `UserDefaults`; and the dives are walked by ``LibDCWalk``, not
@@ -28,9 +29,11 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
   }
 
   /// Opens the computer, walks it, and closes it, logging each step to a log started afresh, and
-  /// how long the walk waited for Bluetooth where it did.
+  /// how long the walk waited for Bluetooth where it did. With `lostLink`, a walk that loses the
+  /// link waits for the computer to come back (``LibDCWalk/waitForLink(after:)``).
   func download(
-    _ computer: FoundComputer, pairedOnly: Bool, cancel: CancelFlag, waitedForBluetooth: Int?,
+    _ computer: FoundComputer, pairedOnly: Bool, cancel: CancelFlag, lostLink: LostLinkWait?,
+    waitedForBluetooth: Int?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
     keep: @escaping @Sendable (DownloadedDive) -> Void,
@@ -53,7 +56,8 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     defer { if let resume { dc_buffer_free(resume) } }
     let walk = LibDCWalk(
       computer: computer, device: device, session: self, resume: resume, cancel: cancel,
-      lookup: lookup, waiting: waiting, keep: keep, pairedOnly: pairedOnly, events: events)
+      lostLink: lostLink, lookup: lookup, waiting: waiting, keep: keep, pairedOnly: pairedOnly,
+      events: events)
     let end = walk.run()
     log.write("end \(end.kind)")
     events.yield(.finished(end))

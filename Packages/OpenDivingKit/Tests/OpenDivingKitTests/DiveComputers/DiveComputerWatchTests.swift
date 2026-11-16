@@ -157,7 +157,7 @@ final class DiveComputerWatchTests {
     records = [record(F.perdix, perdix), record(F.ocean, ocean)]
     let watch = watch()
     var offered: [String] = []
-    watch.onConnected = { _, record in
+    watch.onConnected = { _, record, _ in
       offered.append(record.id)
       return record.family == .shearwaterPetrel
     }
@@ -189,7 +189,7 @@ final class DiveComputerWatchTests {
     records = [record(F.ocean, ocean)]
     let watch = watch()
     var offered = 0
-    watch.onConnected = { _, _ in
+    watch.onConnected = { _, _, _ in
       offered += 1
       return true
     }

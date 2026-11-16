@@ -129,6 +129,8 @@ public final class DiveComputerModel {
   public var computerBusy: Bool { walk?.computerBusy ?? false }
   /// Another app's handshake broke a transfer since the walk started or last delivered a dive.
   public var otherAppHandshaking: Bool { walk?.otherAppHandshaking ?? false }
+  /// The computer dropped the link, and the walk waits for it to come back.
+  public var linkLost: Bool { walk?.linkLost ?? false }
   /// The listing counts from the stored fingerprint, rather than the whole computer.
   public var listedFromFingerprint: Bool { walk?.listedFromFingerprint ?? false }
   public var outcome: Outcome? { askingHeld ? nil : walk?.outcome }
@@ -185,12 +187,14 @@ public final class DiveComputerModel {
     return identity == nil ? DiveComputerText.connecting : DiveComputerText.reading
   }
 
-  /// *This computer is busy…*, while connecting or downloading from a computer that is: closing
-  /// other apps lets the download go on, once another app's handshake broke a transfer and until
-  /// a dive arrives; else, while the computer says it is busy, the download starts when it is
-  /// free, or once a dive has downloaded, continues.
+  /// While connecting or downloading: *The connection to this computer was lost…* while the walk
+  /// waits for a lost link; else *This computer is busy…* from a computer that is: closing other
+  /// apps lets the download go on, once another app's handshake broke a transfer and until a dive
+  /// arrives; else, while the computer says it is busy, the download starts when it is free, or
+  /// once a dive has downloaded, continues.
   public var waitingText: String? {
     guard phase == .connecting || phase == .downloading else { return nil }
+    if linkLost { return DiveComputerText.linkLost }
     if otherAppHandshaking { return DiveComputerText.busyOtherApp }
     guard computerBusy else { return nil }
     return divesDownloaded > 0 ? DiveComputerText.busyContinues : DiveComputerText.busy

@@ -20,7 +20,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
   lazy var watch = DiveComputerWatch(
     log: .device,
     pairings: { DiveComputerStore.pairings(applicationSupport: .applicationSupportDirectory) },
-    makeWatcher: { CoreBluetoothDiveComputerWatcher.make() })
+    makeWatcher: { CoreBluetoothDiveComputerWatcher.make() },
+    handOvers: URL.applicationSupportDirectory.appendingPathComponent(
+      "dive-computer-hand-overs.json"))
 
   lazy var engine = DiveComputerEngine(
     session: session, makeLink: { LibDCDiveComputerLink() }, generator: DiveComputerView.generator,
@@ -69,12 +71,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
   @objc private func becameActive() {
     watch.note("active")
+    engine.foregroundChanged(true)
     ending?.cancel()
     ending = nil
   }
 
   @objc private func enteredBackground() {
     watch.note("background")
+    engine.foregroundChanged(false)
     guard endsInBackground, ending == nil else { return }
     ending = Task { [watch] in
       let background = ApplicationBackgroundExecution()

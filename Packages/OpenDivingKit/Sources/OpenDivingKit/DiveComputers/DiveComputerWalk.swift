@@ -44,7 +44,7 @@ public final class DiveComputerWalk: Identifiable {
   public nonisolated let id = UUID()
   public let computer: FoundComputer
   /// The diver started it from the screen and is watching: it may ask the time-zone question,
-  /// and waits on a busy computer for as long as the diver does.
+  /// and waits on a busy computer or a lost link for as long as the diver does.
   public let watched: Bool
   /// *Download all dives*: no fingerprint is set.
   public let all: Bool
@@ -67,6 +67,8 @@ public final class DiveComputerWalk: Identifiable {
   public internal(set) var computerBusy = false
   /// Another app's handshake broke a transfer since the walk started or last delivered a dive.
   public internal(set) var otherAppHandshaking = false
+  /// The computer dropped the link, and the walk waits for it to come back.
+  public internal(set) var linkLost = false
   /// The listing counts from the stored fingerprint, rather than the whole computer.
   public internal(set) var listedFromFingerprint = false
   public internal(set) var outcome: Outcome?
@@ -95,26 +97,29 @@ public final class DiveComputerWalk: Identifiable {
       min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
   }
 
-  /// The seconds left of the download at `date`, while it downloads and the computer is not
-  /// waiting on another app; nil where nothing yet gives an estimate.
+  /// The seconds left of the download at `date`, while it downloads and the computer is neither
+  /// lost nor waiting on another app; nil where nothing yet gives an estimate.
   public func timeLeft(at date: Date) -> TimeInterval? {
-    guard phase == .downloading, !computerBusy, !otherAppHandshaking else { return nil }
+    guard phase == .downloading, !linkLost, !computerBusy, !otherAppHandshaking else { return nil }
     return estimate.remaining(at: date)
   }
 
   /// The walk is downloading what an estimate would count down, and nothing gives one yet: the
   /// computer's first download, before its first dive has been timed.
   public func isEstimating(at date: Date) -> Bool {
-    guard phase == .downloading, !computerBusy, !otherAppHandshaking else { return false }
+    guard phase == .downloading, !linkLost, !computerBusy, !otherAppHandshaking else {
+      return false
+    }
     return estimate.hasLeft && estimate.remaining(at: date) == nil
   }
 
-  /// The computer's line in the list while the walk is in flight: *Waiting until this computer
-  /// is free* while it is busy, else where the walk stands. Nil at the time-zone question and
-  /// once finished.
+  /// The computer's line in the list while the walk is in flight: *Waiting for this computer to
+  /// reconnect* while it waits for a lost link, *Waiting until this computer is free* while it is
+  /// busy, else where the walk stands. Nil at the time-zone question and once finished.
   public var statusLine: String? {
     switch phase {
     case .connecting, .downloading:
+      if linkLost { return DiveComputerText.waitingToReconnect }
       if computerBusy || otherAppHandshaking { return DiveComputerText.waitingUntilFree }
       return phase == .connecting ? DiveComputerText.connecting : downloadingText
     case .askingTimeZone, .finished:

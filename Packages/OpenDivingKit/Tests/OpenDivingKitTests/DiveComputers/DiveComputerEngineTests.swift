@@ -76,7 +76,7 @@ struct DiveComputerEngineTests {
     _ session: Session, now: Date = DiveComputerFixtures.moment,
     clock: MovingClock? = nil,
     waitLimit: Duration = DiveComputerEngine.automaticWaitLimit,
-    loadAccount: @escaping () async -> Void = {}
+    loadAccount: @escaping () async -> Void = {}, handOvers: URL? = nil
   ) -> DiveComputerEngine {
     let root = root
     let time: @Sendable () -> Date
@@ -84,7 +84,7 @@ struct DiveComputerEngineTests {
     let watch = DiveComputerWatch(
       log: DiveComputerWatchLog(file: watchLog),
       pairings: { DiveComputerStore.pairings(applicationSupport: root) },
-      makeWatcher: { [watcher] in watcher }, now: time)
+      makeWatcher: { [watcher] in watcher }, handOvers: handOvers, now: time)
     let link = link
     let engine = DiveComputerEngine(
       session: session, makeLink: { link }, generator: F.generator, watch: watch,
@@ -263,6 +263,187 @@ struct DiveComputerEngineTests {
     #expect(watcher.take().last == .arm(F.perdixFound.id, after: DiveComputerWatch.revisitDelay))
   }
 
+  // MARK: - A lost link
+
+  /// Waits for the fake's hold after the lost link, however many turns that takes, since a release
+  /// sent before it would reach nothing; then until the engine has taken the lost link in.
+  private func heldLost(_ walk: DiveComputerWalk) async {
+    await link.untilHeld()
+    await until { walk.linkLost }
+  }
+
+  /// A Perdix whose *Download automatically* is off, so only a hand-over arms it.
+  private func pairUnwatched(_ session: Session) throws {
+    var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    record.downloadsAutomatically = false
+    try computers(session).save(record)
+  }
+
+  /// The diver's Perdix walk, dropping the link after its first dive and held there until the
+  /// return.
+  private func lostAfterTheFirstDive() {
+    link.scripts = [
+      [
+        .identified(F.perdix), .listing(.init(dives: 2, newDives: 2)),
+        .dive(F.perdixDownload[0]), .linkLost, .linkBack, .dive(F.perdixDownload[1]),
+        .finished(.init(.complete)),
+      ]
+    ]
+    link.holdBefore = 4
+  }
+
+  @Test func inFrontTheLinkReopensTheComputerItselfAndTheWalkCarriesOn() async throws {
+    let session = try await session()
+    try pairUnwatched(session)
+    lostAfterTheFirstDive()
+    let engine = engine(session)
+    _ = watcher.take()
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await heldLost(walk)
+    #expect(link.opened.map(\.waitsForLink) == [true])
+    #expect(watcher.take() == [])
+    #expect(link.returns == 0)
+
+    link.release()
+    await engine.settled()
+    #expect(!walk.linkLost)
+    #expect(walk.outcome?.kind == .kept)
+    #expect(walk.divesDownloaded == 2)
+  }
+
+  @Test func aWalkNobodyStartedDoesNotWaitForALostLink() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    let engine = engine(session)
+    watcher.send(.connected(F.perdixFound.id))
+    await engine.settled()
+    #expect(link.opened.map(\.waitsForLink) == [false])
+  }
+
+  @Test func behindTheWalkIsHandedToTheWatchWhateverTheSwitchAndItsConnectionReopens()
+    async throws
+  {
+    let session = try await session()
+    try pairUnwatched(session)
+    lostAfterTheFirstDive()
+    let engine = engine(session)
+    _ = watcher.take()
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await heldLost(walk)
+
+    engine.foregroundChanged(false)
+    #expect(link.foregrounds.last == false)
+    // Nothing was watched, so the hand-over makes the central.
+    #expect(watcher.take() == [.start])
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(watcher.take() == [.arm(F.perdixFound.id, after: 0)])
+    #expect(watchLines().contains { $0.hasPrefix("handed over Shearwater Perdix 3") })
+
+    // iOS connects the computer: the walk reopens it, the watch's connection closed.
+    watcher.send(.connected(F.perdixFound.id))
+    #expect(link.returns == 1)
+    #expect(watcher.take() == [.disarm(F.perdixFound.id)])
+    link.release()
+    await engine.settled()
+    #expect(walk.outcome?.kind == .kept)
+    #expect(walk.divesDownloaded == 2)
+    #expect(notifier.posted.count == 1)
+    // The hand-over was one request: the switch being off, nothing is armed after the walk.
+    #expect(watcher.take() == [])
+  }
+
+  @Test func backInFrontBeforeTheComputerReturnsTheRequestIsWithdrawn() async throws {
+    let session = try await session()
+    try pairUnwatched(session)
+    lostAfterTheFirstDive()
+    let engine = engine(session)
+    _ = watcher.take()
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await heldLost(walk)
+    engine.foregroundChanged(false)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(watcher.take() == [.start, .arm(F.perdixFound.id, after: 0)])
+
+    engine.foregroundChanged(true)
+    #expect(link.foregrounds.last == true)
+    #expect(watcher.take() == [.disarm(F.perdixFound.id)])
+    #expect(watchLines().contains { $0.hasPrefix("taken back Shearwater Perdix 3") })
+    link.release()
+    await engine.settled()
+    #expect(link.returns == 0)
+    #expect(walk.outcome?.kind == .kept)
+  }
+
+  @Test func aCancelDuringTheWaitKeepsTheDivesDownloaded() async throws {
+    let session = try await session()
+    try pairUnwatched(session)
+    link.scripts = [
+      [
+        .identified(F.perdix), .listing(.init(dives: 2, newDives: 2)),
+        .dive(F.perdixDownload[0]), .linkLost, .finished(.init(.complete)),
+      ]
+    ]
+    link.holdBefore = 4
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await heldLost(walk)
+    engine.foregroundChanged(false)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(watcher.take().last == .arm(F.perdixFound.id, after: 0))
+
+    engine.cancel(walk)
+    await engine.settled()
+    #expect(walk.outcome?.sentence == "The download was cancelled. 1 dive downloaded.")
+    #expect(server.atOnce.count == 1)
+    // The walk's end ends the hand-over with it.
+    #expect(watcher.take() == [.disarm(F.perdixFound.id)])
+  }
+
+  @Test func aHandOverOutlivesTheProcessAndItsConnectionWalksWhateverTheWait() async throws {
+    let session = try await session()
+    try pairUnwatched(session)
+    lostAfterTheFirstDive()
+    let handOvers = root.appendingPathComponent("dive-computer-hand-overs.json")
+    let first = engine(session, handOvers: handOvers)
+    let walk = try #require(first.start(F.perdixFound, all: false))
+    await heldLost(walk)
+    first.foregroundChanged(false)
+    watcher.send(.state(.on, detail: "poweredOn"))
+    #expect(watcher.take().last == .arm(F.perdixFound.id, after: 0))
+    // The process ends here, mid-walk; an earlier walk ended a minute ago.
+    WalkEnds(applicationSupport: root).ended(
+      DiveComputerRecord(identity: F.perdix).id, at: F.moment.addingTimeInterval(-60),
+      brokeOff: false)
+
+    let next = FakeDiveComputerWatcher()
+    let watch = DiveComputerWatch(
+      log: DiveComputerWatchLog(file: watchLog),
+      pairings: { [root] in DiveComputerStore.pairings(applicationSupport: root) },
+      makeWatcher: { next }, handOvers: handOvers, now: { F.moment })
+    let later = FakeDiveComputerLink()
+    later.scripts = [FakeDiveComputerLink.script(F.perdix, [F.perdixDownload[1]])]
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { later }, generator: F.generator, watch: watch,
+      notifier: notifier, wake: wake,
+      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
+      zone: F.helsinki)
+    watch.launched()
+    next.send(.restored(F.perdixFound.id, .pending))
+    next.send(.state(.on, detail: "poweredOn"))
+    engine.launched()
+    // The restored request is kept, though the computer is not watched.
+    #expect(next.take() == [.start])
+
+    next.send(.connected(F.perdixFound.id))
+    await engine.settled()
+    #expect(later.opened.map(\.pairedOnly) == [true])
+    // Taken once: nothing is armed again for a computer whose switch is off.
+    #expect(next.take() == [.disarm(F.perdixFound.id)])
+    link.release()
+    await first.settled()
+  }
+
   @Test func theRowOfBreakOffsIsKeptForTheNextProcess() async throws {
     let session = try await session()
     try pair(session, F.perdix, at: F.perdixFound.id)
@@ -316,7 +497,7 @@ struct DiveComputerEngineTests {
     link.holdBeforeEnd = true
     let engine = engine(session)
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     // A second connection waits its turn.
     watcher.send(.connected(F.oceanFound.id))
     #expect(link.downloads == 1)
@@ -365,7 +546,7 @@ struct DiveComputerEngineTests {
     var kept = 0
     engine.diveKept = { kept += 1 }
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     await until { kept == 3 }
     let walk = try #require(downloads(session).walks().first)
     #expect(walk.dives.count == 3)
@@ -672,7 +853,7 @@ struct DiveComputerEngineTests {
     #expect(model.phase == .scanning)
 
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     #expect(model.phase == .idle)
     link.release()
     await engine.settled()
@@ -697,7 +878,7 @@ struct DiveComputerEngineTests {
     #expect(link.scans == 1)
 
     watcher.send(.connected(F.perdixFound.id))
-    await until { link.isHeld }
+    await link.untilHeld()
     watcher.send(.connected(F.oceanFound.id))
     link.holdBeforeEnd = false
     link.release()

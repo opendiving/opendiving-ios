@@ -207,13 +207,25 @@ skipping every failure, which lets the fingerprint pass a stalled dive.
 
 ## An Ocean transfer that times out reopens the link and resumes
 
-A timeout while the watch says free, and no other app's handshake broke it, is a lost link, as
-libdc-swift's own sync treats it: the walk closes the device, waits four seconds, opens it again and
-carries on from that transfer, with the identity, the record and the listing it already has. It
-reopens at most three times in a walk, and past that a timeout is handled as the entry above says.
-Every device the walk opens shares one resume buffer, so a dive carries on from the bytes already
-received. Rejected: stopping at the first timeout; streaming the dive again from its start at each
-reopen.
+A timeout while the watch says free, and no other app's handshake broke it, is reconnected as
+libdc-swift's own sync reconnects, but where a walk the diver started finds no link in the busy read
+(below): the walk closes the device, waits four seconds, opens it again and carries on from that
+transfer, with the identity, the record and the listing it already has. It reopens at most three
+times in a walk, and past that a timeout is handled as the entry above says. Every device the walk
+opens shares one resume buffer, so a dive carries on from the bytes already received. Rejected:
+stopping at the first timeout; streaming the dive again from its start at each reopen.
+
+## A download the diver started waits for a lost link
+
+A computer that drops the link mid-download, its logbook opened or its Bluetooth off, fails a
+transfer `DC_STATUS_IO` or `DC_STATUS_NODEVICE`, or times out where the busy read then finds no
+link. A walk the diver started closes the device and, in the foreground, opens it again every four
+seconds until it opens or the diver cancels, then tries that transfer again: the resume buffer
+carries an Ocean dive on, and a Perdix dive is read again. Behind, it waits for the watch's request,
+armed at once whatever *Download automatically* says and kept on disk: iOS suspends an app behind,
+and only a connection wakes it. A walk nobody watches ends instead: the watch tries it again a
+minute later, and a waiting walk would hold every other computer's. Rejected: a wait of two minutes,
+then failing; keeping the screen awake.
 
 ## Another app's handshake on the Ocean reads as busy
 
@@ -229,11 +241,11 @@ app, which the link does not show; patching the pinned fork.
 
 ## The app walks the Perdix and the Ocean itself
 
-A download names the computer's dives and the new ones before the first is read.
-`dc_device_foreach` gives no total before its first dive and downloads an Ocean entry before its
-sport is known, and a Perdix 3 answers a second manifest read on one connection with zeros, so no
-list of the app's can precede it. Both families are walked by the app on one connection, an Ocean's
-reopened only after a timeout: the Ocean through the fork's public by-id calls, the Perdix through
+A download names the computer's dives and the new ones before the first is read. `dc_device_foreach`
+gives no total before its first dive and downloads an Ocean entry before its sport is known, and a
+Perdix 3 answers a second manifest read on one connection with zeros, so no list of the app's can
+precede it. Both families are walked by the app on one connection, reopened only after an Ocean's
+timeout or a lost link: the Ocean through the fork's public by-id calls, the Perdix through
 `shearwater_common_rdbi` and `shearwater_common_download`, libdivecomputer internals declared in
 `ShearwaterCommon.swift`. Those are safe only while `project.yml` pins libdc-swift exactly; re-read
 their prototypes at every pin move. Every live manifest record is taken, where libdivecomputer's
@@ -281,10 +293,10 @@ Before any dive is read, the Perdix's index and each new Ocean entry's summary g
 length, so each dive still to come costs its length at the computer's pace: seconds of transfer per
 second of dive, this walk's once it has timed a dive, else the one kept on the pairing, where each
 walk's is averaged in. A dive of no known length costs the pace per dive; with neither, no estimate
-shows. A dive during which the computer said it was busy, or another app broke a transfer, is not
-timed. Rejected: bytes, which the Ocean's listing carries but `suunto_nautic_device_list` drops,
-and the Perdix's index holds only at an offset nothing has confirmed; a pace per family, which a
-computer's sample rate and the phone's link both move.
+shows. A dive during which the computer said it was busy, another app broke a transfer or the link
+was lost is not timed. Rejected: bytes, which the Ocean's listing carries but
+`suunto_nautic_device_list` drops, and the Perdix's index holds only at an offset nothing has
+confirmed; a pace per family, which a computer's sample rate and the phone's link both move.
 
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
