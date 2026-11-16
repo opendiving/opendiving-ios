@@ -163,8 +163,10 @@ private struct InviteQRFold<Controls: View>: View {
   @State private var headerFrame = CGRect.zero
   /// The top bar's QR symbol, in the window, where the code ends.
   @State private var barIconFrame = CGRect.zero
-  @State private var isOpen = false
+  /// The top bar's title, in the window, which the code fades out as it reaches it.
+  @State private var titleFrame = CGRect.zero
   @State private var release = FoldRelease()
+  @State private var slider = FoldSlider()
   /// Counts each slide from one end to the other, for its haptic as it starts.
   @State private var slides = 0
 
@@ -205,21 +207,20 @@ private struct InviteQRFold<Controls: View>: View {
     } action: {
       geometry = $1
     }
-    .onChange(of: progress) {
-      if progress >= 1 {
-        isOpen = true
-      } else if progress <= 0 {
-        isOpen = false
-      }
-    }
     .onScrollPhaseChange { old, new in
-      if old == .interacting, new != .interacting { slideOnRelease() }
+      if new == .interacting {
+        slider.stop()
+        release.isSliding = false
+      } else if old == .interacting {
+        slideOnRelease()
+      }
     }
     .sensoryFeedback(.impact, trigger: slides)
     .toolbar {
-      FoldTitle(isOpen: isOpen, symbolShare: Self.symbolShare(progress), close: close) {
-        barIconFrame = $0
-      }
+      FoldTitle(
+        isOpen: progress >= 1, titleOpacity: titleOpacity(progress: progress),
+        symbolShare: Self.symbolShare(progress), close: close,
+        onTitleFrame: { titleFrame = $0 }, onIconFrame: { barIconFrame = $0 })
     }
   }
 
@@ -311,7 +312,7 @@ private struct InviteQRFold<Controls: View>: View {
   /// The code, moving from its place in the page to the top bar's middle as the pane scrolls,
   /// crossing to the symbol over the last stretch, until the bar's own button takes its place.
   @ViewBuilder private func code(progress: Double) -> some View {
-    if !isOpen {
+    if progress < 1 {
       let frame = Self.interpolate(codeFrame, iconFrame, progress)
       let symbol = Self.symbolShare(progress)
       ZStack {
@@ -355,14 +356,35 @@ private struct InviteQRFold<Controls: View>: View {
     barIconFrame.offsetBy(dx: -contentFrame.minX, dy: -contentFrame.minY)
   }
 
+  /// The title's opacity: whole while the code sits in the page, nothing once the code's top edge
+  /// reaches the title's foot, in step with the scroll between.
+  private func titleOpacity(progress: Double) -> Double {
+    let contentTopAtRest = contentFrame.minY + geometry.offset
+    let gapAtRest = contentTopAtRest + codeFrame.minY - titleFrame.maxY
+    guard gapAtRest > 0 else { return 1 - Self.symbolShare(progress) }
+    let codeTop = contentFrame.minY + Self.interpolate(codeFrame, iconFrame, progress).minY
+    return min(max((codeTop - titleFrame.maxY) / gapAtRest, 0), 1)
+  }
+
   private func open() {
     slides += 1
-    withAnimation(Self.slide) { scroll.scrollTo(y: pageHeight) }
+    slide(to: pageHeight)
   }
 
   private func close() {
     slides += 1
-    withAnimation(Self.slide) { scroll.scrollTo(edge: .top) }
+    slide(to: 0)
+  }
+
+  /// Steps the scroll frame by frame, rather than animating it, which reports only where it ends
+  /// and leaves the code and *Invites* nothing to follow on the way.
+  private func slide(to target: Double) {
+    release.isSliding = true
+    slider.slide(from: geometry.offset, to: target) { offset in
+      scroll.scrollTo(y: offset)
+    } done: {
+      release.isSliding = false
+    }
   }
 
   /// Carries a released drag to the end it settles on at a slide's pace, which the scroll's own
@@ -373,13 +395,11 @@ private struct InviteQRFold<Controls: View>: View {
     }
     release.target = nil
     if abs(target - start) > 1 { slides += 1 }
-    withAnimation(Self.slide) { scroll.scrollTo(y: target) }
+    slide(to: target)
   }
 
   private static var toggleFont: Font { .subheadline.weight(.semibold) }
   private static var headerFont: Font { .title2.bold() }
-  /// A sheet's slide, rather than a scroll's glide, once a finger lets go or a button is tapped.
-  private static var slide: Animation { .spring(duration: 0.35, bounce: 0) }
 
   /// How far the code has crossed to the symbol: over the last two fifths of the way.
   private static func symbolShare(_ progress: Double) -> Double {
@@ -399,8 +419,10 @@ private struct InviteQRFold<Controls: View>: View {
 /// the code has somewhere to shrink to.
 private struct FoldTitle: ToolbarContent {
   let isOpen: Bool
+  let titleOpacity: Double
   let symbolShare: Double
   let close: () -> Void
+  let onTitleFrame: (CGRect) -> Void
   let onIconFrame: (CGRect) -> Void
 
   var body: some ToolbarContent {
@@ -408,7 +430,12 @@ private struct FoldTitle: ToolbarContent {
       ZStack {
         Text("Your invite link")
           .font(.headline)
-          .opacity(1 - symbolShare)
+          .opacity(titleOpacity)
+          .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+          } action: {
+            onTitleFrame($0)
+          }
         Button(action: close) {
           VStack(spacing: 2) {
             Image(systemName: "chevron.up")
@@ -448,7 +475,7 @@ private struct FoldSettling: ScrollTargetBehavior {
   let release: FoldRelease
 
   func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-    guard fold > 0 else { return }
+    guard fold > 0, !release.isSliding else { return }
     let start = context.originalTarget.rect.minY
     target.rect.origin.y = InviteQRPaneScroll.restingOffset(
       start: start, proposed: target.rect.minY, fold: fold)
@@ -462,6 +489,49 @@ private struct FoldSettling: ScrollTargetBehavior {
 private final class FoldRelease {
   var start: Double?
   var target: Double?
+  /// While the fold steps the scroll itself, whose every step the target would otherwise settle.
+  var isSliding = false
+}
+
+/// Moves the fold's scroll from one offset to another over a sheet's slide, a step a frame, easing
+/// out from the pace a released finger leaves it at.
+private final class FoldSlider {
+  private static let duration = 0.35
+
+  private var link: CADisplayLink?
+  private var from = 0.0
+  private var to = 0.0
+  private var start = 0.0
+  private var step: ((Double) -> Void)?
+  private var done: (() -> Void)?
+
+  func slide(
+    from: Double, to: Double, step: @escaping (Double) -> Void, done: @escaping () -> Void
+  ) {
+    stop()
+    self.from = from
+    self.to = to
+    self.step = step
+    self.done = done
+    start = CACurrentMediaTime()
+    let link = CADisplayLink(target: self, selector: #selector(tick))
+    link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+    link.add(to: .main, forMode: .common)
+    self.link = link
+  }
+
+  func stop() {
+    link?.invalidate()
+    link = nil
+  }
+
+  @objc private func tick(_ link: CADisplayLink) {
+    let share = min((link.targetTimestamp - start) / Self.duration, 1)
+    step?(from + (to - from) * (1 - pow(1 - share, 3)))
+    guard share >= 1 else { return }
+    stop()
+    done?()
+  }
 }
 
 extension CoordinateSpaceProtocol where Self == NamedCoordinateSpace {
