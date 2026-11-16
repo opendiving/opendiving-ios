@@ -13,8 +13,10 @@ struct CommonsWordmarkHeader: View {
   }
 
   var body: some View {
-    HStack(spacing: 16) {
-      CommonsMark(side: baseHeight, relativeTo: .title)
+    HStack(spacing: 6) {
+      // The bubbles fill 20 of the mark's 24 units across its height, and about 17 across its
+      // width, so a mark this much taller than the name draws them as tall as it is.
+      CommonsMark(side: baseHeight * 1.2, relativeTo: .title)
       // The web's wordmark face, Outfit Bold, as outlines: the app carries no copy of the font.
       Image("CommonsWordmark")
         .resizable()
