@@ -73,6 +73,7 @@ public final class DiveComputerWalk: Identifiable {
   /// The zone the time-zone question offers first: the watch's where this walk reported one,
   /// else the phone's.
   public internal(set) var suggestedZone: TimeZone
+  var estimate = DownloadEstimate()
 
   init(
     computer: FoundComputer, watched: Bool, all: Bool, record: String? = nil, zone: TimeZone
@@ -92,6 +93,13 @@ public final class DiveComputerWalk: Identifiable {
     guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
     return DiveComputerText.downloading(
       min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
+  }
+
+  /// The seconds left of the download at `date`, while it downloads and the computer is not
+  /// waiting on another app; nil where nothing yet gives an estimate.
+  public func timeLeft(at date: Date) -> TimeInterval? {
+    guard phase == .downloading, !computerBusy, !otherAppHandshaking else { return nil }
+    return estimate.remaining(at: date)
   }
 
   /// The computer's line in the list while the walk is in flight: *Waiting until this computer

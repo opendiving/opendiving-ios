@@ -150,6 +150,13 @@ public final class DiveComputerModel {
     return walk?.downloadingText
   }
 
+  /// *About 4 minutes left*, while downloading where the walk can reckon it
+  /// (``DiveComputerWalk/timeLeft(at:)``).
+  public func timeLeftText(at date: Date) -> String? {
+    guard phase == .downloading else { return nil }
+    return walk?.timeLeft(at: date).map(DiveComputerText.timeLeft)
+  }
+
   /// *3 new dives out of 11 on this computer*, or *11 dives on this computer* where the download
   /// set no fingerprint: while downloading after a listing.
   public var countsText: String? {

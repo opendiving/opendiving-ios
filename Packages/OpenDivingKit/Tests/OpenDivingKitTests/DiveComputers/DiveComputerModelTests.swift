@@ -34,11 +34,14 @@ struct DiveComputerModelTests {
 
   private func engine(
     _ session: Session, _ link: FakeDiveComputerLink = FakeDiveComputerLink(),
-    now: Date = DiveComputerFixtures.moment, watch: DiveComputerWatch? = nil
+    now: Date = DiveComputerFixtures.moment, clock: MovingClock? = nil,
+    watch: DiveComputerWatch? = nil
   ) -> DiveComputerEngine {
+    let time: @Sendable () -> Date
+    if let clock { time = { clock.now } } else { time = { now } }
     let engine = DiveComputerEngine(
       session: session, makeLink: { link }, generator: F.generator, watch: watch,
-      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { now },
+      workFolder: root.appendingPathComponent("Work", isDirectory: true), now: time,
       zone: F.helsinki)
     engine.accountLoaded()
     return engine
@@ -46,9 +49,10 @@ struct DiveComputerModelTests {
 
   private func model(
     _ session: Session, _ link: FakeDiveComputerLink, now: Date = DiveComputerFixtures.moment,
-    watch: DiveComputerWatch? = nil
+    clock: MovingClock? = nil, watch: DiveComputerWatch? = nil
   ) -> DiveComputerModel {
-    DiveComputerModel(engine: engine(session, link, now: now, watch: watch), zone: F.helsinki)
+    DiveComputerModel(
+      engine: engine(session, link, now: now, clock: clock, watch: watch), zone: F.helsinki)
   }
 
   /// The archives kept to import for `account`, oldest first.
@@ -725,6 +729,52 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.sentence == "2 dives downloaded.")
     #expect(model.progress == 1)
     #expect(link.fingerprintsSet == [nil, F.fingerprint(1)])
+  }
+
+  /// The time left starts from the pace the computer's earlier walks kept, moves to the walk's
+  /// own once a dive is timed, and the walk's pace is kept with the earlier one.
+  @Test func theTimeLeftIsReckonedFromTheKeptPaceThenTheWalksAndTheWalksIsKept() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    let kept = DownloadPace(perDiveSecond: 0.1)
+    record.downloadPace = kept
+    try computers(session).save(record)
+    let listing = DiveComputerListing(
+      dives: 11, newDives: 2,
+      downloads: [
+        .init(fingerprint: F.fingerprint(3), length: 1800),
+        .init(fingerprint: F.fingerprint(2), length: 3600),
+      ])
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: listing, Array(F.perdixDownload.prefix(2)))
+    ]
+    let clock = MovingClock(F.moment)
+    let model = model(session, link, clock: clock)
+    link.holdBefore = 1
+    model.connect(try await scanned(model))
+    await held(link)
+    #expect(model.timeLeftText(at: clock.now) == nil)
+
+    await next(link, holding: 2) { model.listing != nil }
+    #expect(model.timeLeftText(at: clock.now) == "About 9 minutes left")
+    clock.pass(60)
+    #expect(model.timeLeftText(at: clock.now) == "About 8 minutes left")
+
+    clock.pass(60)
+    await next(link, holding: 3) { model.divesDownloaded == 1 }
+    // The first dive took 120 s for 1800 s of dive: 240 s for the next one's 3600.
+    #expect(model.timeLeftText(at: clock.now) == "About 4 minutes left")
+
+    clock.pass(300)
+    await next(link, holding: nil)
+    await model.settled()
+    #expect(model.timeLeftText(at: clock.now) == nil)
+    let stored = computers(session).record(family: F.perdix.family, serial: F.perdix.serial)
+    #expect(
+      stored?.downloadPace
+        == kept.merged(DownloadPace(perDiveSecond: 420.0 / 5400, perDive: 210)))
   }
 
   @Test func aListingWithNoFingerprintCountsTheComputersDivesAndNeverPassesTheTotal() async throws {

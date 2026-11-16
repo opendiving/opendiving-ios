@@ -12,6 +12,8 @@ struct PairedComputer: Codable, Hashable, Sendable {
   var peripheral: UUID?
   /// Optional so that a file written before it existed still decodes.
   var nauticSports: [NauticEntrySport]?
+  /// Optional for the same reason.
+  var downloadPace: DownloadPace?
   /// Optional for the same reason; a pairing that has none is on.
   var downloadsAutomatically: Bool?
 
@@ -24,6 +26,7 @@ struct PairedComputer: Codable, Hashable, Sendable {
     hardware = record.hardware
     peripheral = record.peripheral
     nauticSports = record.nauticSports
+    downloadPace = record.downloadPace
     downloadsAutomatically = record.downloadsAutomatically
   }
 }

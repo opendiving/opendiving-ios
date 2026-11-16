@@ -13,8 +13,9 @@ public struct NauticSelection: Hashable, Sendable {
   /// What a walk learned of one entry's summary.
   public enum Summary: Hashable, Sendable {
     /// Read: the sport it names against the descriptors, or nil where it names none or does not
-    /// fit them (``NauticDescriptors/sport(inSummary:)``).
-    case read(sport: Int?)
+    /// fit them (``NauticDescriptors/sport(inSummary:)``), and how long the entry lasted where it
+    /// says (``NauticDescriptors/duration(inSummary:)``).
+    case read(sport: Int?, duration: Double? = nil)
     /// Answered with no bytes.
     case empty
     /// Not fetched.
@@ -62,14 +63,15 @@ public struct NauticSelection: Hashable, Sendable {
     learned: [UInt32: Summary], waiting: (UInt32) -> Bool = { _ in false }
   ) {
     let known = Dictionary(
-      (remembered ?? []).map { ($0.id, $0.sport) }, uniquingKeysWith: { first, _ in first })
+      (remembered ?? []).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let summaries: [Summary] = ids.map { id in
-      if let sport = known[id] { return .read(sport: sport) }
+      if let entry = known[id] { return .read(sport: entry.sport, duration: entry.duration) }
       return learned[id] ?? .unread
     }
     let stop = fingerprint.flatMap { mark in ids.firstIndex { Self.fingerprint($0) == mark } }
     let newCount = stop ?? ids.count
-    let entries = zip(ids, summaries).prefix(newCount).map { id, summary in
+    let new = zip(ids, summaries).prefix(newCount)
+    let entries = new.map { id, summary in
       let fate = Self.fate(summary)
       return Entry(
         id: id, fate: fate == .download && waiting(id) ? .waiting : fate,
@@ -77,12 +79,18 @@ public struct NauticSelection: Hashable, Sendable {
     }
     self.entries = entries
     let counted = summaries.map(Self.counts)
+    let read = zip(ids, summaries).compactMap { id, summary -> NauticEntrySport? in
+      guard case .read(let sport, let duration) = summary else { return nil }
+      return NauticEntrySport(id: id, sport: sport, duration: duration)
+    }
+    let lengths = Dictionary(read.map { ($0.id, $0.duration) }, uniquingKeysWith: { a, _ in a })
     listing = DiveComputerListing(
       dives: counted.count { $0 },
       newDives: entries.count { $0.counted && $0.fate == .download },
-      sports: zip(ids, summaries).compactMap { id, summary in
-        guard case .read(let sport) = summary else { return nil }
-        return NauticEntrySport(id: id, sport: sport)
+      sports: read,
+      downloads: entries.filter { $0.fate == .download }.map {
+        DiveComputerListing.Download(
+          fingerprint: Self.fingerprint($0.id), length: lengths[$0.id] ?? nil)
       })
   }
 
@@ -93,7 +101,7 @@ public struct NauticSelection: Hashable, Sendable {
 
   private static func counts(_ summary: Summary) -> Bool {
     switch summary {
-    case .read(let sport): sport.map(NauticSport.diving.contains) ?? true
+    case .read(let sport, _): sport.map(NauticSport.diving.contains) ?? true
     case .empty: false
     case .unread: true
     }
@@ -101,7 +109,7 @@ public struct NauticSelection: Hashable, Sendable {
 
   private static func fate(_ summary: Summary) -> Fate {
     switch summary {
-    case .read(let sport?) where !NauticSport.diving.contains(sport): .skip
+    case .read(let sport?, _) where !NauticSport.diving.contains(sport): .skip
     default: .download
     }
   }

@@ -193,8 +193,16 @@ struct DiveComputerWalkSections: View {
           }
         }
         if let progress = model.progress {
-          ProgressView(value: progress)
-            .tint(Color.accentText)
+          // In the bar's row, so a download with no estimate yet draws no empty one.
+          VStack(alignment: .leading, spacing: 6) {
+            ProgressView(value: progress)
+              .tint(Color.accentText)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+              if let timeLeft = model.timeLeftText(at: context.date) {
+                Text(timeLeft).font(.caption).foregroundStyle(.secondary)
+              }
+            }
+          }
         }
         Button("Cancel", role: .cancel) { model.cancel() }
           .accentRow()

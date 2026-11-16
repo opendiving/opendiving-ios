@@ -2,11 +2,11 @@ import Foundation
 
 /// A Suunto Nautic-family logbook entry's `/Descriptors`, which say how its `/Summary` is laid
 /// out: what each record's group holds, field by field, and each field's format. The layout can
-/// move between firmware versions, so the sport is found by its path rather than at an offset.
+/// move between firmware versions, so a field is found by its path rather than at an offset.
 ///
 /// Both are SBEM streams, read by ``SBEMRecords``. A descriptor is a record of id 0: a two-byte
-/// little-endian descriptor id, then lines `<PTH>path`, `<FRM>format`, or `<GRP>a,b,c` listing
-/// the fields of a group. A summary record's id names a group, and its value is the group's
+/// little-endian descriptor id, then lines `<PTH>path`, `<FRM>format`, `<MOD>x/1000` scaling the
+/// raw value, or `<GRP>a,b,c` listing the fields of a group. A summary record's id names a group, and its value is the group's
 /// fields in order.
 public struct NauticDescriptors: Sendable {
   public static func path(_ entry: UInt32) -> String { "/Logbook/byId/\(entry)/Descriptors" }
@@ -15,6 +15,8 @@ public struct NauticDescriptors: Sendable {
   private struct Field: Sendable {
     let path: String?
     let format: String
+    /// What the raw value is divided by, from a `<MOD>x/1000` line: 1 where there is none.
+    let divisor: Double
   }
 
   private var fields: [Int: Field] = [:]
@@ -28,14 +30,20 @@ public struct NauticDescriptors: Sendable {
       let text = String(decoding: value.dropFirst(2), as: UTF8.self)
       var path: String?
       var format: String?
+      var divisor = 1.0
       for line in text.split(whereSeparator: { $0 == "\n" || $0 == "\0" }) {
         if line.hasPrefix("<PTH>") { path = String(line.dropFirst(5)) }
         if line.hasPrefix("<FRM>") { format = String(line.dropFirst(5)) }
+        if line.hasPrefix("<MOD>x/"),
+          let by = Double(line.dropFirst(7).prefix { $0 != "," }), by > 0
+        {
+          divisor = by
+        }
         if line.hasPrefix("<GRP>") {
           groups[key] = line.dropFirst(5).split(separator: ",").compactMap { Int($0) }
         }
       }
-      if let format { fields[key] = Field(path: path, format: format) }
+      if let format { fields[key] = Field(path: path, format: format, divisor: divisor) }
     }
   }
 
@@ -44,8 +52,20 @@ public struct NauticDescriptors: Sendable {
   /// field, and where any record does not fit these descriptors — its id names no group, or
   /// its group's fields do not fill its bytes exactly — since then the offset cannot be trusted.
   public func sport(inSummary summary: Data) -> Int? {
+    value(at: "Header.ActivityType", inSummary: summary).flatMap { Int(exactly: $0) }
+  }
+
+  /// How long the entry lasted, in seconds: the field whose path ends `Header.Duration`, read as
+  /// ``sport(inSummary:)`` reads the sport. Nil where it is missing, or zero or less.
+  public func duration(inSummary summary: Data) -> TimeInterval? {
+    value(at: "Header.Duration", inSummary: summary).flatMap { $0 > 0 ? $0 : nil }
+  }
+
+  /// The number at the first field whose path is `path` or ends `.` and `path`, scaled by its
+  /// `<MOD>`; nil under the same conditions ``sport(inSummary:)`` gives.
+  private func value(at path: String, inSummary summary: Data) -> Double? {
     guard let records = Self.records(summary) else { return nil }
-    var sport: Int?
+    var found: Double?
     for (id, value) in records {
       guard let group = groups[id] else { return nil }
       var offset = value.startIndex
@@ -53,14 +73,16 @@ public struct NauticDescriptors: Sendable {
         guard let field = fields[key], let size = Self.size(field.format, value[offset...])
         else { return nil }
         guard offset + size <= value.endIndex else { return nil }
-        if sport == nil, field.path.map(Self.isActivityType) == true {
-          sport = Self.integer(field.format, value[offset..<(offset + size)])
+        if found == nil, let named = field.path, named == path || named.hasSuffix("." + path) {
+          found = Self.number(field.format, value[offset..<(offset + size)]).map {
+            $0 / field.divisor
+          }
         }
         offset += size
       }
       guard offset == value.endIndex else { return nil }
     }
-    return sport
+    return found
   }
 
   /// The watch's hardware, `Seal_RevA3`: the label of the only value of the enumeration at the
@@ -77,10 +99,6 @@ public struct NauticDescriptors: Sendable {
   }
 
   private static let onlyValue = "enum:0="
-
-  private static func isActivityType(_ path: String) -> Bool {
-    path == "Header.ActivityType" || path.hasSuffix(".Header.ActivityType")
-  }
 
   private static let sizes: [String: Int] = [
     "local64": 8, "int64": 8, "uint64": 8, "float64": 8, "int32": 4, "uint32": 4, "float32": 4,
@@ -99,17 +117,19 @@ public struct NauticDescriptors: Sendable {
     return nil
   }
 
-  /// A little-endian integer field's value; nil for a format that is no integer.
-  private static func integer(_ format: String, _ bytes: Data.SubSequence) -> Int? {
+  /// A little-endian number field's value; nil for a format that is no number.
+  private static func number(_ format: String, _ bytes: Data.SubSequence) -> Double? {
     let base = format.prefix { $0 != "," }
     let unsigned = bytes.reversed().reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
     let bits = UInt64(bytes.count * 8)
     switch base {
-    case "uint8", "uint16", "uint32": return Int(unsigned)
+    case "uint8", "uint16", "uint32": return Double(unsigned)
     case "int8", "int16", "int32":
       let sign = UInt64(1) << (bits - 1)
-      return unsigned & sign == 0 ? Int(unsigned) : Int(unsigned) - Int(sign << 1)
-    default: return base.hasPrefix("enum") ? Int(unsigned) : nil
+      return Double(unsigned & sign == 0 ? Int64(unsigned) : Int64(unsigned) - Int64(sign << 1))
+    case "float32": return Double(Float(bitPattern: UInt32(unsigned)))
+    case "float64": return Double(bitPattern: unsigned)
+    default: return base.hasPrefix("enum") ? Double(unsigned) : nil
     }
   }
 
