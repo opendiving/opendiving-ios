@@ -26,8 +26,12 @@ struct DownloadEstimateTests {
   @Test func withNothingKeptAndNothingTimedThereIsNoEstimate() {
     var estimate = DownloadEstimate()
     #expect(estimate.remaining(at: start) == nil)
+    #expect(!estimate.hasLeft)
     estimate.listed(listing, at: start)
     #expect(estimate.remaining(at: at(10)) == nil)
+    #expect(estimate.hasLeft)
+    for byte: UInt8 in 1...3 { estimate.delivered(mark(byte), at: at(10)) }
+    #expect(!estimate.hasLeft)
   }
 
   @Test func theKeptPaceGivesAnEstimateBeforeTheFirstDive() {
@@ -88,6 +92,7 @@ struct DownloadEstimateTests {
     var estimate = DownloadEstimate(kept: DownloadPace(perDiveSecond: 0.1))
     estimate.progressed(0.25, at: start)
     #expect(estimate.remaining(at: start) == nil)
+    #expect(estimate.hasLeft)
     estimate.progressed(0.5, at: at(60))
     #expect(estimate.remaining(at: at(60)) == 120)
     #expect(estimate.remaining(at: at(100)) == 80)

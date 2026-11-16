@@ -117,6 +117,9 @@ public enum DiveComputerText {
     "Downloading \(dive) of \(total) new " + (total == 1 ? "dive" : "dives")
   }
 
+  /// While a download has dives to come and nothing yet to reckon their time by.
+  public static let estimatingTimeLeft = "Estimating time left…"
+
   /// *About 4 minutes left*, *About 1 hour 10 minutes left*, *Less than a minute left*.
   public static func timeLeft(_ seconds: TimeInterval) -> String {
     guard seconds >= 60 else { return "Less than a minute left" }

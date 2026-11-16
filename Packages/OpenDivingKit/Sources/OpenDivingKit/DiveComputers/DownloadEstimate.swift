@@ -85,6 +85,13 @@ struct DownloadEstimate: Sendable {
     downloads.first { $0.fingerprint == fingerprint }?.length
   }
 
+  /// Something is left that an estimate would count down: a listed dive not yet delivered or
+  /// skipped, or progress short of the end.
+  var hasLeft: Bool {
+    if let lastProgress, lastProgress.fraction < 1 { return true }
+    return downloads.contains { !seen.contains($0.fingerprint) }
+  }
+
   /// The seconds left at `date`, nil where nothing gives an estimate.
   func remaining(at date: Date) -> TimeInterval? {
     if let progressed = remainingByProgress(at: date) { return progressed }

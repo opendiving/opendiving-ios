@@ -151,10 +151,11 @@ public final class DiveComputerModel {
   }
 
   /// *About 4 minutes left*, while downloading where the walk can reckon it
-  /// (``DiveComputerWalk/timeLeft(at:)``).
+  /// (``DiveComputerWalk/timeLeft(at:)``), and *Estimating time left…* until it can.
   public func timeLeftText(at date: Date) -> String? {
-    guard phase == .downloading else { return nil }
-    return walk?.timeLeft(at: date).map(DiveComputerText.timeLeft)
+    guard phase == .downloading, let walk else { return nil }
+    if let seconds = walk.timeLeft(at: date) { return DiveComputerText.timeLeft(seconds) }
+    return walk.isEstimating(at: date) ? DiveComputerText.estimatingTimeLeft : nil
   }
 
   /// *3 new dives out of 11 on this computer*, or *11 dives on this computer* where the download

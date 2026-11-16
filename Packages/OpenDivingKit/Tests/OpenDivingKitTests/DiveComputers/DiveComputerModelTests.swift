@@ -777,6 +777,40 @@ struct DiveComputerModelTests {
         == kept.merged(DownloadPace(perDiveSecond: 420.0 / 5400, perDive: 210)))
   }
 
+  /// A computer's first download has no pace to go by: it reads as estimating until its first
+  /// dive is timed, and as nothing once every dive it listed is in.
+  @Test func aFirstDownloadEstimatesUntilItsFirstDiveIsTimed() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let listing = DiveComputerListing(
+      dives: 2, newDives: 2,
+      downloads: [
+        .init(fingerprint: F.fingerprint(3), length: 1800),
+        .init(fingerprint: F.fingerprint(2), length: 3600),
+      ])
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: listing, Array(F.perdixDownload.prefix(2)))
+    ]
+    let clock = MovingClock(F.moment)
+    let model = model(session, link, clock: clock)
+    link.holdBefore = 2
+    model.connect(try await scanned(model))
+    await held(link)
+    await until { model.listing != nil }
+    #expect(model.timeLeftText(at: clock.now) == "Estimating time left…")
+
+    clock.pass(120)
+    await next(link, holding: 3) { model.divesDownloaded == 1 }
+    #expect(model.timeLeftText(at: clock.now) == "About 4 minutes left")
+
+    clock.pass(240)
+    await next(link, holding: 4) { model.divesDownloaded == 2 }
+    #expect(model.timeLeftText(at: clock.now) == nil)
+    await next(link, holding: nil)
+    await model.settled()
+  }
+
   @Test func aListingWithNoFingerprintCountsTheComputersDivesAndNeverPassesTheTotal() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()

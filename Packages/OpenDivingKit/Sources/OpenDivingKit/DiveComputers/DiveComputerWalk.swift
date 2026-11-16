@@ -102,6 +102,13 @@ public final class DiveComputerWalk: Identifiable {
     return estimate.remaining(at: date)
   }
 
+  /// The walk is downloading what an estimate would count down, and nothing gives one yet: the
+  /// computer's first download, before its first dive has been timed.
+  public func isEstimating(at date: Date) -> Bool {
+    guard phase == .downloading, !computerBusy, !otherAppHandshaking else { return false }
+    return estimate.hasLeft && estimate.remaining(at: date) == nil
+  }
+
   /// The computer's line in the list while the walk is in flight: *Waiting until this computer
   /// is free* while it is busy, else where the walk stands. Nil at the time-zone question and
   /// once finished.
