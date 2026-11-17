@@ -3,15 +3,15 @@ import SwiftUI
 /// The OpenDiving Commons logo, its layers on one frame: the mark's filled bubble with a coral C
 /// where its bottom-right bubble was, a coral O where its top bubble was, and the rest of each word.
 /// The outlines are variable Outfit, the web's wordmark face, which the app carries no copy of:
-/// the O at weight 605 and the C at 728, each as tall as the bubble it stands for and as thick as its
-/// ring, *penDiving* at 570 and *ommons* at 648, both at the face's own spacing; the C is turned 22°
-/// anticlockwise about its bubble's centre, with 0.112 em more space after it.
+/// the O at weight 605 and the C at 722, each as tall as the bubble it stands for and about as thick
+/// as its ring, *penDiving* at 600 spaced 0.043 em and *ommons* at 648 spaced 0.078 em; the C is
+/// turned 22° anticlockwise about its bubble's centre, with 0.124 em more space after it.
 enum CommonsLogo {
   /// The frame every layer is drawn on, in the outlines' units, a hundredth of the mark's 24-unit
   /// grid.
-  static let frame = CGRect(x: -870, y: -999, width: 7947, height: 1999)
+  static let frame = CGRect(x: -870, y: -999, width: 8530, height: 1999)
   /// The filled bubble, the C and *ommons*: the part that becomes the navigation bar's title.
-  static let bar = CGRect(x: -870, y: -68, width: 6436, height: 1068)
+  static let bar = CGRect(x: -870, y: -68, width: 7009, height: 1068)
   /// The units across the mark's three bubbles, top to bottom: a logo `height` points tall is drawn
   /// at `height / markHeight` points a unit.
   static let markHeight: CGFloat = 2000
