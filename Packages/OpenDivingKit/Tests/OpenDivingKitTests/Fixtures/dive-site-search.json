@@ -13,7 +13,7 @@
       "location": { "name": "Dahab, South Sinai, Egypt", "latitude": 28.4963633, "longitude": 34.5145652, "bbox_south": null, "bbox_north": null, "bbox_west": null, "bbox_east": null },
       "external_ids": [],
       "water_type": "salt",
-      "altitude": 0,
+      "altitude_m": 0,
       "entry_types": ["shore"],
       "distance_m": 4210.5,
       "match": "exact",
