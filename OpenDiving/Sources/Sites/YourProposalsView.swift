@@ -85,9 +85,9 @@ private struct ProposalsContent: View {
   }
 }
 
-/// The mark over the tabs, then the chosen tab's proposals. Scrolled up, the mark and *Commons*
-/// fly into the navigation bar as its title while *OpenDiving* fades on the way, and the tabs stay
-/// pinned under the bar.
+/// The logo over the tabs, then the chosen tab's proposals. Scrolled up, the logo's second line, its
+/// filled bubble, C and *ommons*, flies into the navigation bar as its title while *OpenDiving* fades
+/// on the way, and the tabs stay pinned under the bar.
 private struct ProposalTabs: View {
   let model: DiveSiteProposalsModel
   @Binding var tab: DiveSiteProposalTab
@@ -104,27 +104,23 @@ private struct ProposalTabs: View {
   @State private var travel: CGFloat = 0
   @State private var scrollFrame = CGRect.zero
   @State private var contentFrame = CGRect.zero
-  /// In the page's content, where they stand with it at rest.
-  @State private var mark = CGRect.zero
-  @State private var word = CGRect.zero
+  /// In the page's content, where it stands with the page at rest.
+  @State private var logo = CGRect.zero
   /// On screen.
-  @State private var barMark = CGRect.zero
-  @State private var barWord = CGRect.zero
+  @State private var barTitle = CGRect.zero
 
   var body: some View {
     let list = model.list(tab)
     ScrollView {
       LazyVStack(spacing: Self.gap, pinnedViews: [.sectionHeaders]) {
-        CommonsWordmarkHeader(
-          height: 64, in: Self.content, onMarkFrame: { mark = $0 }, onWordFrame: { word = $0 }
-        )
-        // The flying copy stands in for it from the first point of the scroll.
-        .opacity(progress > 0 ? 0 : 1)
-        .onGeometryChange(for: CGFloat.self) {
-          $0.size.height
-        } action: {
-          travel = $0 + Self.gap
-        }
+        CommonsWordmarkHeader(in: Self.content) { logo = $0 }
+          // The flying copy stands in for it from the first point of the scroll.
+          .opacity(progress > 0 ? 0 : 1)
+          .onGeometryChange(for: CGFloat.self) {
+            $0.size.height
+          } action: {
+            travel = $0 + Self.gap
+          }
         Section {
           Group {
             switch list.phase {
@@ -191,7 +187,7 @@ private struct ProposalTabs: View {
     .overlay(alignment: .topLeading) { flyingName }
     .toolbar {
       ToolbarItem(placement: .principal) {
-        CommonsBarTitle(onMarkFrame: { barMark = $0 }, onWordFrame: { barWord = $0 })
+        CommonsBarTitle { barTitle = $0 }
           .opacity(progress >= 1 ? 1 : 0)
       }
     }
@@ -205,32 +201,18 @@ private struct ProposalTabs: View {
     return min(max(Double(offset / travel), 0), 1)
   }
 
-  /// The mark, *OpenDiving* and *Commons* `progress` of the way from where the head stands at rest
-  /// to the bar's title, *OpenDiving* fading as it goes.
+  /// The logo's second line `progress` of the way from where it stands at rest to the bar's title,
+  /// the rest of the logo going with it as it fades.
   @ViewBuilder private var flyingName: some View {
     let share = progress
-    if share > 0, share < 1, barWord != .zero {
-      let markFrame = atRest(mark).interpolated(to: onScroll(barMark), by: share)
-      let wordFrame = atRest(word).interpolated(to: onScroll(barWord), by: share)
-      let openDiving = CommonsName.openDivingFrame(commons: wordFrame)
-      ZStack(alignment: .topLeading) {
-        // At the default text size, so the mark is drawn at the size given rather than scaled.
-        CommonsMark(side: markFrame.width)
-          .environment(\.dynamicTypeSize, .large)
-          .offset(x: markFrame.minX, y: markFrame.minY)
-        Image("Wordmark")
-          .resizable()
-          .frame(width: openDiving.width, height: openDiving.height)
-          .opacity(1 - share)
-          .offset(x: openDiving.minX, y: openDiving.minY)
-        Image("CommonsWord")
-          .resizable()
-          .frame(width: wordFrame.width, height: wordFrame.height)
-          .offset(x: wordFrame.minX, y: wordFrame.minY)
-      }
-      .foregroundStyle(Color.primary.opacity(0.75))
-      .allowsHitTesting(false)
-      .accessibilityHidden(true)
+    if share > 0, share < 1, barTitle != .zero {
+      let line = CommonsLogo.barFrame(in: atRest(logo)).interpolated(
+        to: onScroll(barTitle), by: share)
+      let frame = CommonsLogo.frame(barAt: line)
+      CommonsLogoLayers(size: frame.size, openDiving: 1 - share)
+        .offset(x: frame.minX, y: frame.minY)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
   }
 
