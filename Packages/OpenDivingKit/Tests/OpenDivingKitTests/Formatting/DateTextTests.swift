@@ -80,6 +80,56 @@ struct DateTextTests {
     #expect(DateText.dateRange(start: nil, end: day("2024-06-08")) == "Jun 8, 2024")
   }
 
+  // MARK: Today and yesterday, which the web does not say
+
+  @Test func theDaysAroundTodayReadAsWords() {
+    let today = day("2026-11-18")
+    #expect(DateText.date(day("2026-11-18"), relativeTo: today) == "Today")
+    #expect(DateText.date(day("2026-11-17"), relativeTo: today) == "Yesterday")
+    #expect(DateText.date(day("2026-11-16"), relativeTo: today) == "Nov 16, 2026")
+    #expect(DateText.date(day("2026-11-19"), relativeTo: today) == "Nov 19, 2026")
+    #expect(DateText.date(day("2026-12-31"), relativeTo: day("2027-01-01")) == "Yesterday")
+    #expect(DateText.date(day("2026-11-18"), relativeTo: nil) == "Nov 18, 2026")
+  }
+
+  @Test func aDivesDayIsSetAgainstThePhonesToday() {
+    let today = day("2026-11-18")
+    #expect(
+      DateText.diveDateTime(start("2026-11-18T10:04:00+02:00"), relativeTo: today)
+        == "Today, 10:04")
+    #expect(DateText.diveDateTime(start("2026-11-17"), relativeTo: today) == "Yesterday")
+    #expect(DateText.diveDate(start("2026-11-17T23:30:00-05:00"), relativeTo: today) == "Yesterday")
+  }
+
+  @Test func aServerTimestampsDayIsSetAgainstNowInTheSameZone() {
+    let instant = Date(timeIntervalSince1970: 1_794_895_200)  // 2026-11-17T06:00:00Z
+    let now = Date(timeIntervalSince1970: 1_794_952_800)  // 2026-11-17T22:00:00Z
+    let utc = TimeZone(identifier: "UTC")!
+    let kiritimati = TimeZone(identifier: "Pacific/Kiritimati")!  // UTC+14
+    #expect(DateText.dateTime(instant, in: utc, relativeTo: now) == "Today, 06:00")
+    #expect(DateText.dateTime(instant, in: kiritimati, relativeTo: now) == "Yesterday, 20:00")
+    #expect(DateText.date(instant, in: utc, relativeTo: now) == "Today")
+    #expect(DateText.dateTime(instant, in: utc, relativeTo: nil) == "Nov 17, 2026, 06:00")
+  }
+
+  @Test func aRangeSaysTodayAtEitherEnd() {
+    let today = day("2026-11-18")
+    #expect(
+      DateText.dateRange(start: day("2026-11-10"), end: day("2026-11-18"), relativeTo: today)
+        == "Nov 10 - Today")
+    #expect(
+      DateText.dateRange(start: day("2026-11-17"), end: day("2026-11-25"), relativeTo: today)
+        == "Yesterday - Nov 25, 2026")
+    #expect(
+      DateText.dateRange(start: day("2026-11-18"), end: nil, relativeTo: today) == "Today")
+  }
+
+  @Test func inASentenceTheWordIsLowercased() {
+    #expect(DateText.inSentence("Today, 10:04") == "today, 10:04")
+    #expect(DateText.inSentence("Yesterday") == "yesterday")
+    #expect(DateText.inSentence("Nov 16, 2026") == "Nov 16, 2026")
+  }
+
   /// `date-time.test.ts:428-440`.
   @Test(
     arguments: [(2700, "45min"), (5400, "1h 30min"), (7200, "2h"), (59.6 * 60, "1h")]

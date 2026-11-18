@@ -31,7 +31,7 @@ public struct ImportDiveCard: Sendable, Identifiable {
       guard let dive = row.dive, let content = DiveCardContent.dive(row, units: units) else {
         return nil
       }
-      let name = content.title + ", " + DateText.diveDateTime(dive.startTime)
+      let name = content.title + ", " + DateText.inSentence(DateText.diveDateTime(dive.startTime))
       let isNew = row.outcome == "new"
       return ImportDiveCard(
         id: index, content: content,

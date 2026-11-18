@@ -85,16 +85,19 @@ public enum PendingText {
   ) -> String {
     switch item.operation {
     case .createDive(let body), .logDive(_, let body):
-      return "Dive \(body.diveNumber), \(DateText.diveDateTime(body.startTime))"
+      return "Dive \(body.diveNumber), "
+        + DateText.inSentence(DateText.diveDateTime(body.startTime))
     case .updateDive(let ref, _):
       guard case .server(let uuid) = ref, let shown = dive(uuid) else {
         return "Changes to a dive"
       }
       return
-        "Changes to dive \(shown.diveNumber), \(DateText.diveDateTime(shown.startTime))"
+        "Changes to dive \(shown.diveNumber), "
+        + DateText.inSentence(DateText.diveDateTime(shown.startTime))
     case .deleteDive(let ref):
       guard case .server(let uuid) = ref, let shown = dive(uuid) else { return "A deleted dive" }
-      return "Deleted dive \(shown.diveNumber), \(DateText.diveDateTime(shown.startTime))"
+      return "Deleted dive \(shown.diveNumber), "
+        + DateText.inSentence(DateText.diveDateTime(shown.startTime))
     case .createDiveSite(let body): return named("Dive site", body.name)
     case .updateDiveSite(_, let body):
       return body.name.map { named("Changes to dive site", $0) } ?? "Changes to a dive site"
@@ -151,7 +154,7 @@ public enum PendingText {
 
   /// *Queued Oct 25, 2026, 14:02*.
   public static func queued(_ at: Date, in timeZone: TimeZone = .current) -> String {
-    "Queued " + DateText.dateTime(at, in: timeZone)
+    "Queued " + DateText.inSentence(DateText.dateTime(at, in: timeZone))
   }
 
   /// What a write moved from another account's stores left out: *Logged before your account
@@ -190,14 +193,14 @@ public enum PendingText {
 
   /// A draft by its start, or *Untitled draft*, as the web lists it.
   public static func draftTitle(_ write: DiveDraftWrite) -> String {
-    write.values.startTime.map(DateText.diveDateTime) ?? "Untitled draft"
+    write.values.startTime.map { DateText.diveDateTime($0) } ?? "Untitled draft"
   }
 
   /// *Changed Oct 25, 2026, 14:02*, and whether the change is still to reach the server.
   public static func draftChanged(_ entry: DiveDraftEntry, in timeZone: TimeZone = .current)
     -> String
   {
-    let changed = "Changed " + DateText.dateTime(entry.changedAt, in: timeZone)
+    let changed = "Changed " + DateText.inSentence(DateText.dateTime(entry.changedAt, in: timeZone))
     return entry.hasPendingChange ? changed + ", waiting to sync" : changed
   }
 

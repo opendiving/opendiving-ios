@@ -54,8 +54,8 @@ public struct CertificationPageContent: Hashable, Sendable {
     rows = [
       row("Certification number", certification.certificationNumber),
       row("Course", courseName, certification.courseUuid.map(Row.Link.course)),
-      row("Certified on", certification.certifiedOn.map(DateText.date)),
-      row("Expires on", certification.expiresOn.map(DateText.date)),
+      row("Certified on", certification.certifiedOn.map { DateText.date($0) }),
+      row("Expires on", certification.expiresOn.map { DateText.date($0) }),
       row("Dive center", contactName),
       row("Instructor", instructorName, certification.instructorUuid.map(Row.Link.person)),
       row("Instructor number", certification.instructorNumber),

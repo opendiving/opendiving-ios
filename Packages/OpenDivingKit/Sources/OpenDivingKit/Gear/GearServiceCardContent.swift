@@ -55,7 +55,9 @@ public enum GearServiceCardContent {
       schedule.intervalHours.map { "every " + GearServiceText.countOf($0, .hour) },
     ].compactMap { $0 }
     let last =
-      schedule.lastServiceOn.map { " · last done " + DateText.date($0) } ?? " · never serviced"
+      schedule.lastServiceOn.map {
+        " · last done " + DateText.inSentence(DateText.date($0, relativeTo: today))
+      } ?? " · never serviced"
     let active = schedule.isActive
     return ScheduleRow(
       id: schedule.uuid, kind: GearServiceKinds.label(schedule.kind), label: shown(schedule.label),
@@ -82,7 +84,8 @@ public enum GearServiceCardContent {
       id: record.uuid, kind: GearServiceKinds.label(record.kind), label: shown(record.label),
       date: date, servicedBy: by.isEmpty ? nil : by.joined(separator: " · "),
       notes: record.notes.isEmpty ? nil : record.notes,
-      name: GearServiceKinds.kindAndLabel(kind: record.kind, label: record.label) + " on " + date)
+      name: GearServiceKinds.kindAndLabel(kind: record.kind, label: record.label) + " on "
+        + DateText.date(record.servicedOn, relativeTo: nil))
   }
 
   /// Whether a schedule or a service for `gearItem` waits to be sent — a new one, or a change —

@@ -18,7 +18,7 @@ public struct CalendarDateWheels: Hashable, Sendable {
     opensOn = day.map { max($0, rangeStart ?? $0) }
     earliest = rangeStart
     note =
-      rangeStart.map { "Starts \(DateText.date($0))" }
-      ?? rangeEnd.map { "Ends \(DateText.date($0))" }
+      rangeStart.map { "Starts \(DateText.inSentence(DateText.date($0)))" }
+      ?? rangeEnd.map { "Ends \(DateText.inSentence(DateText.date($0)))" }
   }
 }

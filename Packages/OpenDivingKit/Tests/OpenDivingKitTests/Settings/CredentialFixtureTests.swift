@@ -50,6 +50,14 @@ struct CredentialFixtureTests {
       ])
   }
 
+  @Test func anAPIKeyUsedTheDayBeforeNowSaysSoInItsSentence() throws {
+    let key = try KitFixture.decode([APIKeyRead].self, "api-keys")[0]
+    let now = try #require(DiveTimestamp(wireValue: "2026-11-09T12:00:00Z")?.instant)
+    #expect(
+      APIKeysModel.details(key, now: now, in: .gmt)
+        == "Created Sep 1, 2026 · Last used yesterday · Expired Oct 1, 2026")
+  }
+
   @Test func permissionsGroupByContentWithTheirActionsInOrder() throws {
     let offered = try KitFixture.decode([String].self, "api-key-permissions")
     let groups = PermissionGroup.groups(offered)

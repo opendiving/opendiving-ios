@@ -136,7 +136,8 @@ public enum ImportChangeRow: Hashable, Sendable {
   }
 
   private static let when: Format = { value, _ in
-    value.text.flatMap(DiveTimestamp.init(wireValue:)).map(DateText.diveDateTime) ?? value.asSent
+    value.text.flatMap(DiveTimestamp.init(wireValue:)).map { DateText.diveDateTime($0) }
+      ?? value.asSent
   }
 
   private static let depth = measured { UnitFormat.depth($0, $1) }

@@ -25,20 +25,20 @@ public struct CheckinSheetContent: Hashable, Sendable {
     portrait = sheet.portrait
     let details = sheet.details
     about = [
-      Figure.row("Date of birth", details.dateOfBirth.map(DateText.date)),
+      Figure.row("Date of birth", details.dateOfBirth.map { DateText.date($0, relativeTo: nil) }),
       Figure.row("Phone", details.phone),
       Figure.row("Email", details.email),
     ].compactMap { $0 }
     diving = [
       Figure.row("Dives logged", String(sheet.totalDives)),
       Figure.row("Max depth", UnitFormat.depth(sheet.maxDepth, sheet.units)),
-      Figure.row("Last dive", sheet.lastDiveStart.map(DateText.diveDate)),
+      Figure.row("Last dive", sheet.lastDiveStart.map { DateText.diveDate($0, relativeTo: today) }),
     ].compactMap { $0 }
     insurance = details.insurancePolicies.map { policy in
       [
         Figure.row("Provider", policy.provider),
         Figure.row("Policy number", policy.number),
-        Figure.row("Expires", policy.expiresOn.map(DateText.date)),
+        Figure.row("Expires", policy.expiresOn.map { DateText.date($0, relativeTo: today) }),
       ].compactMap { $0 }
     }.filter { !$0.isEmpty }
     emergencyContacts = details.emergencyContacts.map { contact in
@@ -49,6 +49,8 @@ public struct CheckinSheetContent: Hashable, Sendable {
       ].compactMap { $0 }
     }.filter { !$0.isEmpty }
     cards = sheet.cards.map { CheckinCardContent($0, today: today) }
-    lastUpdated = "Last updated " + DateText.dateTime(sheet.updatedAt, in: timeZone)
+    lastUpdated =
+      "Last updated "
+      + DateText.inSentence(DateText.dateTime(sheet.updatedAt, in: timeZone))
   }
 }
