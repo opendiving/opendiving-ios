@@ -40,7 +40,7 @@ struct SiteFinderSheet: View {
             Button {
               dismiss()
             } label: {
-              Image(Icon.x)
+              Image(loaded: .x)
             }
             .accessibilityLabel("Cancel")
             .mapBarButton()
