@@ -20,17 +20,17 @@ public enum GearItemPageContent {
     if let next = GearServiceText.nextService(
       item.service, diveCount: item.diveCount, diveTime: item.diveTime, today: today)
     {
-      figures.append(Figure(label: "Next service", value: nextService(next)))
+      figures.append(Figure(label: "Next service", value: nextService(next, today: today)))
     }
     return HeroContent(
       title: item.name, facts: subtitle.map { Fact(text: $0) }, figures: figures)
   }
 
   /// *Next service*'s figure: *Overdue*, the date, or *In 3 dives*, *In 12 hours of diving*.
-  static func nextService(_ next: GearServiceText.NextService) -> String {
+  static func nextService(_ next: GearServiceText.NextService, today: CalendarDate) -> String {
     switch next {
     case .overdue: "Overdue"
-    case .date(let on): DateText.date(on)
+    case .date(let on): DateText.date(on, relativeTo: today)
     case .dives(let remaining): "In " + GearServiceText.countOf(remaining, .dive)
     case .hours(let remaining): "In " + GearServiceText.countOf(remaining, .hour)
     }

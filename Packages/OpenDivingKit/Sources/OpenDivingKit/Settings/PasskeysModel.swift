@@ -94,7 +94,11 @@ public final class PasskeysModel {
     return "Added " + DateText.inSentence(day(passkey.createdAt, timeZone)) + " · " + used
   }
 
-  nonisolated static func day(_ timestamp: DiveTimestamp, _ timeZone: TimeZone) -> String {
-    timestamp.instant.map { DateText.date($0, in: timeZone) } ?? DateText.diveDate(timestamp)
+  nonisolated static func day(
+    _ timestamp: DiveTimestamp, _ timeZone: TimeZone, relativeTo now: Date? = Date()
+  ) -> String {
+    timestamp.instant.map { DateText.date($0, in: timeZone, relativeTo: now) }
+      ?? DateText.diveDate(
+        timestamp, relativeTo: now.map { CalendarDate.today(in: timeZone, now: $0) })
   }
 }

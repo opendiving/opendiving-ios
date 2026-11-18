@@ -234,12 +234,14 @@ public final class APIKeysModel {
   nonisolated public static func details(
     _ key: APIKeyRead, now: Date, in timeZone: TimeZone = .current
   ) -> String {
-    let created = "Created " + PasskeysModel.day(key.createdAt, timeZone)
-    let used = key.lastUsedAt.map { "Last used " + PasskeysModel.day($0, timeZone) } ?? "Never used"
+    func day(_ timestamp: DiveTimestamp) -> String {
+      DateText.inSentence(PasskeysModel.day(timestamp, timeZone, relativeTo: now))
+    }
+    let created = "Created " + day(key.createdAt)
+    let used = key.lastUsedAt.map { "Last used " + day($0) } ?? "Never used"
     let expires =
-      key.expiresAt.map {
-        (key.isExpired(at: now) ? "Expired " : "Expires ") + PasskeysModel.day($0, timeZone)
-      } ?? "No expiry"
+      key.expiresAt.map { (key.isExpired(at: now) ? "Expired " : "Expires ") + day($0) }
+      ?? "No expiry"
     return [created, used, expires].joined(separator: " · ")
   }
 }

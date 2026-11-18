@@ -390,7 +390,7 @@ public final class InvitationsModel {
   ) -> String? {
     guard !invitation.fromInviteLink else { return nil }
     if let accepted = invitation.acceptedAt {
-      return "Accepted " + PasskeysModel.day(accepted, timeZone)
+      return "Accepted " + DateText.inSentence(PasskeysModel.day(accepted, timeZone))
     }
     return invitation.revokedAt == nil ? pending : revoked
   }
@@ -403,7 +403,7 @@ public final class InvitationsModel {
     if invitation.fromInviteLink {
       return PasskeysModel.day(invitation.acceptedAt ?? invitation.createdAt, timeZone)
     }
-    return "Invited " + PasskeysModel.day(invitation.createdAt, timeZone)
+    return "Invited " + DateText.inSentence(PasskeysModel.day(invitation.createdAt, timeZone))
   }
 
   /// Only a typed row that could still be used can be revoked.
