@@ -34,8 +34,10 @@ public struct CheckinCardContent: Hashable, Sendable, Identifiable {
     rows = [
       Figure.row("Certification number", certification.certificationNumber),
       Figure.row("Course", card.courseName),
-      Figure.row("Certified on", certification.certifiedOn.map(DateText.date)),
-      Figure.row("Expires on", certification.expiresOn.map(DateText.date)),
+      Figure.row(
+        "Certified on", certification.certifiedOn.map { DateText.date($0, relativeTo: today) }),
+      Figure.row(
+        "Expires on", certification.expiresOn.map { DateText.date($0, relativeTo: today) }),
       Figure.row("Dive center", card.diveCenterName),
       Figure.row("Instructor", card.instructorName),
       Figure.row("Instructor number", certification.instructorNumber),

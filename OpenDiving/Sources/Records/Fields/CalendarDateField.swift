@@ -80,7 +80,7 @@ private struct CalendarDateSheet: View {
 
   var body: some View {
     let picked = CalendarDateField.calendarDate(day)
-    WheelSheet(title: label, value: picked.map(DateText.date) ?? "", note: note) {
+    WheelSheet(title: label, value: picked.map { DateText.date($0) } ?? "", note: note) {
       onDone(picked)
     } wheels: {
       DatePicker(label, selection: $day, in: earliest..., displayedComponents: .date)

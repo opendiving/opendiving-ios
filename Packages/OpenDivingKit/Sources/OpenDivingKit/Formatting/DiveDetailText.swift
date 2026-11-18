@@ -91,7 +91,7 @@ public enum DiveDetailText {
   public static func neighborLabel(_ direction: String, number: Int, start: DiveTimestamp)
     -> String
   {
-    "\(direction): #\(number), " + DateText.diveDate(start)
+    "\(direction): #\(number), " + DateText.inSentence(DateText.diveDate(start))
   }
 
   /// Below this the unattributed remainder is rounding, not a gap worth a sentence.

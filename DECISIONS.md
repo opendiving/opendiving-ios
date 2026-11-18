@@ -48,7 +48,9 @@ under `Formatting/` reads a `Locale`, and a test fails if anything does. Numbers
 through `NumberText`, which reproduces JavaScript's `String(n)`, `toFixed` and `Math.round`:
 Swift's `"\(28.0)"`, a tie-to-even `%.0f` and `rounded()` each print a plausible figure that
 disagrees with the web. Rejected: `FormatStyle` and `MeasurementFormatter`, which localise
-correctly and would contradict the web on the same account. Change one side, change both.
+correctly and would contradict the web on the same account. Change one side, change both. The
+one exception is the owner's call: a date on the phone's today or yesterday reads `Today` or
+`Yesterday`, where the web prints the date.
 
 ## The Kit's fixtures are held to the API's main, and fail only in the queue
 

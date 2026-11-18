@@ -47,7 +47,7 @@ public enum CoursePageContent {
     [
       VocabularyLabels.certificationAgency(
         certification.agency, other: certification.agencyOther),
-      certification.certifiedOn.map(DateText.date),
+      certification.certifiedOn.map { DateText.date($0) },
     ].compactMap { $0 }.joined(separator: " · ")
   }
 

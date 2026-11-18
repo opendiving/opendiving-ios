@@ -21,8 +21,8 @@ public enum TripText {
   /// 2021` for a part with one date, nil for a part with none.
   public static func partDates(start: CalendarDate?, end: CalendarDate?) -> String? {
     switch (start, end) {
-    case (let start?, nil): "From " + DateText.date(start)
-    case (nil, let end?): "Until " + DateText.date(end)
+    case (let start?, nil): "From " + DateText.inSentence(DateText.date(start))
+    case (nil, let end?): "Until " + DateText.inSentence(DateText.date(end))
     default: DateText.dateRange(start: start, end: end)
     }
   }

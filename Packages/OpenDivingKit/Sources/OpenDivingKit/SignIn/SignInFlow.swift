@@ -474,7 +474,9 @@ public final class SignInFlow {
     }
   }
 
+  /// Always the date: it is printed after *on*, where `today` would not read.
   private static func day(_ timestamp: DiveTimestamp) -> String {
-    timestamp.instant.map { DateText.date($0) } ?? DateText.diveDate(timestamp)
+    timestamp.instant.map { DateText.date($0, relativeTo: nil) }
+      ?? DateText.diveDate(timestamp, relativeTo: nil)
   }
 }

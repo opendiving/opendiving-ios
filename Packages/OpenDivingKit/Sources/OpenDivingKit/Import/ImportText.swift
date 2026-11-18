@@ -271,7 +271,7 @@ public enum ImportText {
       let value = proposed ? offered : account
       return value?.isEmpty == false ? value : nil
     case .dateOfBirth(let account, let offered):
-      return (proposed ? offered : account).map(DateText.date)
+      return (proposed ? offered : account).map { DateText.date($0) }
     case .emergencyContacts(let account, let offered):
       let line = (proposed ? offered : account)
         .map { joined([$0.name, $0.phone, $0.relationship]) }.joined(separator: "; ")
@@ -279,7 +279,10 @@ public enum ImportText {
     case .insurancePolicies(let account, let offered):
       let line = (proposed ? offered : account)
         .map {
-          joined([$0.provider, $0.number, $0.expiresOn.map { "expires " + DateText.date($0) }])
+          joined([
+            $0.provider, $0.number,
+            $0.expiresOn.map { "expires " + DateText.inSentence(DateText.date($0)) },
+          ])
         }
         .joined(separator: "; ")
       return line.isEmpty ? nil : line
