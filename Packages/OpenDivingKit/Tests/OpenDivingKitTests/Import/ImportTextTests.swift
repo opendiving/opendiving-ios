@@ -83,6 +83,15 @@ struct ImportTextTests {
     #expect(ImportText.appliedLine(utc)?.hasPrefix("Written to your logbook on Nov ") == true)
   }
 
+  @Test func aReviewEndingTodaySaysSoAndAnImportDoneTodayGivesItsDate() {
+    let wire = ISO8601DateFormatter().string(from: Date())
+    let now = DiveTimestamp(wireValue: wire)
+    #expect(ImportText.reviewLine(expiresAt: now).contains(" until today, "))
+    let applied = ImportText.appliedLine(now)
+    #expect(applied?.hasPrefix("Written to your logbook on ") == true)
+    #expect(applied?.contains("oday") == false)
+  }
+
   @Test func theButtonCountsWhatIsWrittenAndNeverClaimsTheNegative() throws {
     #expect(ImportText.buttonLabel([try row("new")]) == "Import 1 dive")
     #expect(

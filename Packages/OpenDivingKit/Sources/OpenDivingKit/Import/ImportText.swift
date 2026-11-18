@@ -89,17 +89,19 @@ public enum ImportText {
   /// Under a pending import's heading.
   public static func reviewLine(expiresAt: DiveTimestamp?) -> String {
     let finish = "Your logbook changes when you import. You can finish this on any device"
-    return expiresAt.map { finish + " until " + when($0) + "." } ?? finish + "."
+    return expiresAt.map { finish + " until " + DateText.inSentence(when($0)) + "." } ?? finish
+      + "."
   }
 
-  /// Under an applied import's heading.
+  /// Under an applied import's heading: always the date, which follows *on*.
   public static func appliedLine(_ appliedAt: DiveTimestamp?) -> String? {
-    appliedAt.map { "Written to your logbook on " + when($0) + "." }
+    appliedAt.map { "Written to your logbook on " + when($0, relativeTo: nil) + "." }
   }
 
-  /// A server's timestamp on the phone's clock.
-  public static func when(_ timestamp: DiveTimestamp) -> String {
-    timestamp.instant.map { DateText.dateTime($0) } ?? DateText.diveDateTime(timestamp)
+  /// A server's timestamp on the phone's clock; `relativeTo` as ``DateText`` takes it.
+  public static func when(_ timestamp: DiveTimestamp, relativeTo now: Date? = Date()) -> String {
+    timestamp.instant.map { DateText.dateTime($0, relativeTo: now) }
+      ?? DateText.diveDateTime(timestamp, relativeTo: now.map { CalendarDate.today(now: $0) })
   }
 
   /// Each file the import could not read, by name, with why.
