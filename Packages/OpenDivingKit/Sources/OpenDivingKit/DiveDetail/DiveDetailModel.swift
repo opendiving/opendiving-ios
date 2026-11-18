@@ -76,6 +76,15 @@ public final class DiveDetailModel: AccountStoresObserver {
     await load(diveUUID)
   }
 
+  /// Pull-to-refresh: the dive and what it names again. The dive on screen stays there, pager
+  /// and all, until the answer lands, and when the refresh fails.
+  public func refresh() async {
+    guard case .loaded(let shown) = phase, shown.uuid == diveUUID, !isStepping else {
+      return await load()
+    }
+    await load(diveUUID, refreshing: true)
+  }
+
   /// Steps to a neighbouring dive in place.
   public func show(_ uuid: UUID) async {
     guard uuid != diveUUID else { return }
@@ -88,14 +97,15 @@ public final class DiveDetailModel: AccountStoresObserver {
     return try? await client.speciesPhoto(uuid, version: version).data
   }
 
-  private func load(_ uuid: UUID) async {
+  /// `refreshing` reads again the dive on screen, leaving it as it is meanwhile.
+  private func load(_ uuid: UUID, refreshing: Bool = false) async {
     generation += 1
     let generation = generation
     diveUUID = uuid
-    neighbors = nil
+    if !refreshing { neighbors = nil }
     refreshError = nil
-    let fromCache = showCached(uuid)
-    if !fromCache {
+    let onScreen = refreshing || showCached(uuid)
+    if !onScreen {
       if case .loaded = phase { isStepping = true } else { phase = .loading }
     }
     isReading = true
@@ -120,7 +130,7 @@ public final class DiveDetailModel: AccountStoresObserver {
           AccountStores.current(session)?.forgetDive(uuid)
         }
         gone(APIError(error))
-      } else if fromCache {
+      } else if onScreen {
         refreshError = APIError(error)
       } else {
         phase = .failed(APIError(error))
@@ -129,7 +139,7 @@ public final class DiveDetailModel: AccountStoresObserver {
     }
     guard generation == self.generation else { return }
     skippedForRoute = false
-    if !fromCache { (trip, course, contact) = (nil, nil, nil) }
+    if !onScreen { (trip, course, contact) = (nil, nil, nil) }
     fetchedAt = nil
     isReading = false
     let answeredAt = Date()
