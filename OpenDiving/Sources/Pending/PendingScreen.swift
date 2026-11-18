@@ -6,7 +6,8 @@ import SwiftUI
 /// this build cannot read, what is done but said once, the files waiting to import and the
 /// downloads waiting to upload, each with where it stands.
 ///
-/// Signed in it ends in *Sync now*, which leaves the files to *Upload* on the Import screen. Signed
+/// Signed in it ends in *Sync now*, which sends the writes and the downloads and leaves the files
+/// to *Upload* on the Import screen. Signed
 /// out — a sheet off the email screen, over the stores of the account last loaded here — it says
 /// that signing in syncs.
 struct PendingScreen: View {
@@ -31,10 +32,12 @@ struct PendingScreen: View {
   }
 
   private var downloadRows: [WaitingDownload] {
-    engine.map { WaitingDownload.rows(archives: $0.archives, held: $0.held) } ?? []
+    engine.map {
+      WaitingDownload.rows(archives: $0.archives, held: $0.held, lastTries: $0.lastTries)
+    } ?? []
   }
 
-  private var isSyncing: Bool { outbox.isFlushing }
+  private var isSyncing: Bool { outbox.isFlushing || engine?.isUploading == true }
 
   var body: some View {
     List {
@@ -63,6 +66,7 @@ struct PendingScreen: View {
         Section {
           Button {
             outbox.syncNow()
+            engine?.upload()
           } label: {
             if isSyncing {
               HStack {
@@ -234,6 +238,11 @@ struct PendingScreen: View {
             Text(row.stage)
               .font(.caption)
               .foregroundStyle(row.refused ? Color.danger : Color.secondary)
+            if let lastTry = row.lastTry {
+              Text(lastTry)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
             if let archive = row.archive {
               HStack(spacing: 16) {
                 if archive.refusal != nil, signedIn {

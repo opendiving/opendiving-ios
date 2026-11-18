@@ -99,6 +99,17 @@ public enum DiveComputerText {
   /// A download's stage on *Waiting to Sync* while it waits to go up.
   public static let waitingToUploadStage = "Waiting to upload"
 
+  /// Beneath a download that waits, what its last upload met, as a queued write's row says it:
+  /// *Last try: the server answered 503*. `nil` is a failure that is not the API's.
+  public static func lastTry(_ error: APIError?) -> String {
+    switch error {
+    case .http(let status, _)?: OutboxAnswer.status(status).sentence
+    case .unreachable?: OutboxAnswer.unreachable.sentence
+    case let error?: "Last try: \(error.message)"
+    case nil: "Last try: the upload failed on this phone"
+    }
+  }
+
   /// A download kept because the server answered with an import to review.
   public static let needsNewerServer =
     "The app needs a server released after v0.7.0, one that applies an import in one request."

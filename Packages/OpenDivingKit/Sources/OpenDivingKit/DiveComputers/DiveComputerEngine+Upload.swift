@@ -14,6 +14,7 @@ import Foundation
 /// - Any other 4xx but a 409 and a 429: kept as refused, and not sent again by itself.
 /// - A 409, a 429, a 5xx or no answer: tried again at the next occasion, as the outbox treats
 ///   them; with no route, iOS is left a request to the server whose completion wakes the app.
+///   *Waiting to Sync* shows what the last try met.
 /// - Signed out, the session's 401 among it: the archive waits for a sign-in to its account.
 ///
 /// - The computer awaits *Which computer comes first?*: the archive stays, unsent and unsaid, with
@@ -24,18 +25,20 @@ import Foundation
 /// made.
 extension DiveComputerEngine {
   /// An occasion to upload: a walk's end, a launch, a route, a sign-in, the account loading,
-  /// iOS completing the request left with it.
+  /// iOS completing the request left with it, *Sync now*.
   public func upload() {
     guard uploading == nil else {
       uploadAgain = true
       return
     }
+    isUploading = true
     uploading = Task {
       repeat {
         uploadAgain = false
         await uploadAll()
       } while uploadAgain
       uploading = nil
+      isUploading = false
     }
   }
 
@@ -83,15 +86,18 @@ extension DiveComputerEngine {
     origin: ServerOrigin
   ) async -> Bool {
     let computer = archive.summary.computers.first?.title ?? ""
+    lastTries[archive.id] = nil
     do {
       let answer = try await client.importAtOnce(
         files: [ImportFile(file: downloads.url(for: archive), filename: archive.filename)],
         idempotencyKey: archive.key)
       guard answer.isApplied else {
+        noteUpload(archive, "answered with a pending import")
         try? await client.deleteImport(answer.uuid, status: "pending")
         refuse(archive, .notAppliedAtOnce, in: downloads)
         return true
       }
+      noteUpload(archive, "imported")
       try? downloads.deliver(archive.dives, of: archive.record)
       downloads.remove(archive)
       if let notice = DiveComputerNotice.imported(answer, from: computer, units: session.units) {
@@ -99,11 +105,13 @@ extension DiveComputerEngine {
       }
       return true
     } catch let error as APIError {
+      noteUpload(archive, Self.logged(error))
       switch error {
       case .http(410, _):
         downloads.remove(archive)
         return true
       case .http(let status, _) where status == 409 || status == 429 || status >= 500:
+        lastTries[archive.id] = DiveComputerText.lastTry(error)
         return false
       case .http(_, let message):
         refuse(archive, .server(message: message), in: downloads)
@@ -112,13 +120,34 @@ extension DiveComputerEngine {
         announceSignedOut()
         return false
       case .unreachable:
+        lastTries[archive.id] = DiveComputerText.lastTry(error)
         waitForRoute(downloads, origin)
         return false
       case .secretStore, .notAnInstance, .unreadableResponse:
+        lastTries[archive.id] = DiveComputerText.lastTry(error)
         return false
       }
     } catch {
+      noteUpload(archive, "failed: \(type(of: error))")
+      lastTries[archive.id] = DiveComputerText.lastTry(nil)
       return false
+    }
+  }
+
+  /// A line in the phone's watch log for each try, which names the archive and never the account.
+  private func noteUpload(_ archive: DownloadArchive, _ outcome: String) {
+    watch?.note("upload \(archive.id): \(outcome)")
+  }
+
+  /// The error as the log says it: its kind and status, never the server's sentence.
+  private static func logged(_ error: APIError) -> String {
+    switch error {
+    case .http(let status, _): "answered \(status)"
+    case .unreachable: "unreachable"
+    case .signedOut: "signed out"
+    case .notAnInstance: "not an instance"
+    case .unreadableResponse: "unreadable response"
+    case .secretStore: "secret store failed"
     }
   }
 
