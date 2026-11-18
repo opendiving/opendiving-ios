@@ -33,7 +33,8 @@ final class MapWeatherMorph {
   /// Counts the haptics a switch between the bar and the card owes: one as the card starts to
   /// grow, one as the bar lands back in place, as the invite pane's fold does.
   private(set) var switches = 0
-  /// The end the progress last settled toward, the card's or the bar's.
+  /// The card is out, from the start of its growth until the bar lands back, however many grabs
+  /// come between.
   private var isOpen = false
   /// A finger is driving the progress.
   private var isDriven = false
@@ -118,15 +119,19 @@ final class MapWeatherMorph {
     }
     waitingEnd = nil
     pulled = end
-    // A pull let go short of the card, or a push short of the bar, settles back with no haptic.
-    let switching = (end == 1) != isOpen
-    isOpen = end == 1
-    if switching, isOpen { switches += 1 }
+    if end == 1, !isOpen {
+      isOpen = true
+      switches += 1
+    }
     withAnimation(animation) {
       progress = end
     } completion: { [weak self] in
       guard let self, end == 0, progress == 0, !isDriven, waitingEnd == nil else { return }
-      if switching { switches += 1 }
+      // Not for a pull let go short of the card, which never opened it.
+      if isOpen {
+        isOpen = false
+        switches += 1
+      }
       coversBar = false
       Self.present { self.isPresented = false }
     }
