@@ -54,6 +54,11 @@ public final class DiveComputerEngine {
   public internal(set) var order: [DiveComputerRead]?
   /// The server answered the order's routes with a 404: it keeps no order.
   public internal(set) var orderRouteMissing = false
+  /// An upload pass is running.
+  public internal(set) var isUploading = false
+  /// What the last try at each archive's upload in this process met, where the archive waits for
+  /// the next: *Last try: the server answered 503*.
+  public internal(set) var lastTries: [UUID: String] = [:]
 
   /// Dives one walk kept apart until the diver says which zone they were in.
   public struct HeldDives: Hashable, Sendable, Identifiable {
@@ -918,6 +923,8 @@ public final class DiveComputerEngine {
     }
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
     archives = downloads.archives()
+    let waiting = Set(archives.map(\.id))
+    lastTries = lastTries.filter { waiting.contains($0.key) }
     held = downloads.walks().filter { $0.heldForZone && !answering.contains($0.id) }.compactMap {
       walk in
       guard let identity = walk.dives.first?.identity else { return nil }
