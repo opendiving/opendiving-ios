@@ -175,7 +175,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         if model.isLocating {
           BubbleSpinner()
         } else {
-          Image(Icon.locateFixed)
+          Image(loaded: .locateFixed)
         }
       }
       .frame(width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
@@ -188,7 +188,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
     Button {
       Task { await model.setYours(!model.yours) }
     } label: {
-      Image(Icon.bookmark)
+      Image(loaded: .bookmark)
         .frame(
           width: MapRoundButtonStyle.glassLabelSide, height: MapRoundButtonStyle.glassLabelSide)
     }
