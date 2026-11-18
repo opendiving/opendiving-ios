@@ -57,7 +57,11 @@ struct SpeciesPickerSheet: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
+          Button {
+            dismiss()
+          } label: {
+            Label("Cancel", icon: .x)
+          }
         }
       }
     }

@@ -66,7 +66,11 @@ struct PickerSheet<AddSheet: View>: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { dismiss() }
+          Button {
+            dismiss()
+          } label: {
+            Label("Cancel", icon: .x)
+          }
         }
         if let addLabel {
           ToolbarItem(placement: .primaryAction) {
