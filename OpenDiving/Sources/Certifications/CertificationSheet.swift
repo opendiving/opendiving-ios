@@ -3,9 +3,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// A certification opened from a list, as a pane: the sides it has a file for, each as wide as
-/// the pane, then its details in one card as the dive's information pane draws them, the course
-/// and the instructor opening their pages. Close at the top left; Edit at the top right opens the
-/// form inside the pane.
+/// the pane and unlabelled, then its details in one card as the dive's information pane draws
+/// them, the course and the instructor opening their pages. Its title is the agency and the
+/// certification. Close at the top left; Edit at the top right opens the form inside the pane.
 struct CertificationSheet: View {
   let certificationUUID: UUID
 
@@ -43,6 +43,12 @@ private struct CertificationSheetContent: View {
   @Environment(\.dismiss) private var dismiss
   @State private var editing = false
 
+  /// The agency and the certification once it is read; until then, what the pane is.
+  private var title: String {
+    guard case .loaded(let certification) = page.phase else { return CertificationSheet.title }
+    return CertificationPageContent.title(certification)
+  }
+
   var body: some View {
     NavigationStack {
       Group {
@@ -62,10 +68,9 @@ private struct CertificationSheetContent: View {
               certification, today: .today(), session: session, lookups: lookups),
             lastUpdated: page.lastUpdated, hasPendingEdit: page.hasPendingEdit
           )
-          .bubbleRefreshable { await page.refresh() }
         }
       }
-      .navigationTitle(CertificationSheet.title)
+      .navigationTitle(title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .topBarLeading) {
@@ -113,10 +118,10 @@ private struct CertificationSheetList: View {
         .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
       }
       ForEach(content.sides) { side in
-        Section(side.title) {
+        Section {
           CertificationSideView(
             certificationUUID: certificationUUID, file: side.file,
-            label: "\(side.side.rawValue) of certification card"
+            label: "\(side.title) of certification card"
           )
           .certificationDownload(certificationUUID: certificationUUID, file: side.file)
           .listRowBackground(Color.clear)

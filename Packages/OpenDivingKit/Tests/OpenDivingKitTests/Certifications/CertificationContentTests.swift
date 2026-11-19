@@ -51,6 +51,7 @@ struct CertificationContentTests {
         "Certification", "Agency", "Certification number", "Course", "Certified on",
         "Dive center", "Instructor", "Instructor number",
       ])
+    #expect(CertificationPageContent.title(certification) == "SDI Solo Diver")
     #expect(page.rows[0].value == "Solo Diver" && page.rows[1].value == "SDI")
     #expect(page.rows[3].link == .course(certification.courseUuid!))
     #expect(page.rows[6].link == .person(certification.instructorUuid!))
