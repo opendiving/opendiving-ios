@@ -15,7 +15,7 @@ import Testing
 struct GearReadsTests {
   /// A phone whose server answers the gear lists and the first item's page, and holds every
   /// write as if there were no route, so what is queued stays queued.
-  private func world(queries: Queries? = nil) throws -> OutboxWorld {
+  private func world(queries: Queries? = nil, account: Hanging? = nil) throws -> OutboxWorld {
     let world = try OutboxWorld()
     let items = try KitFixture.text("gear-items-page")
     let sets = try KitFixture.text("gear-sets-page")
@@ -26,6 +26,11 @@ struct GearReadsTests {
     let itemJSON = OutboxServer.with(item, uuid: APIClient.wire(Self.first))
     world.server.override { request, _ in
       guard request.route.hasPrefix("GET ") else { throw URLError(.notConnectedToInternet) }
+      if request.route == "GET user", let account, account.hangs.withLock({ $0 }) {
+        account.hanging.withLock { $0 += 1 }
+        while !Task.isCancelled { await Task.yield() }
+        throw URLError(.cancelled)
+      }
       if request.route == "GET gear-items" {
         queries?.list.withLock { $0.append(request.url?.query ?? "") }
       }
@@ -44,6 +49,12 @@ struct GearReadsTests {
   /// The queries each `GET /gear-items` was sent with.
   final class Queries: Sendable {
     let list = Mutex<[String]>([])
+  }
+
+  /// Holds each `GET /user` until its task is cancelled once ``hangs`` is set.
+  final class Hanging: Sendable {
+    let hangs = Mutex(false)
+    let hanging = Mutex(0)
   }
 
   /// The first item of `gear-items-page`.
@@ -108,6 +119,22 @@ struct GearReadsTests {
 
     await page.refresh()
     #expect(world.server.count("GET user", since: mark) == 2)
+  }
+
+  @Test func aPullCancelledWhileTheAccountReloadsStopsTheRead() async throws {
+    let account = Hanging()
+    let world = try world(account: account)
+    try await world.load()
+    let page = GearItemDetailModel(session: world.session, gearItemUUID: Self.first)
+    await page.load()
+    account.hangs.withLock { $0 = true }
+    let pull = Task { await page.refresh() }
+    while account.hanging.withLock({ $0 }) == 0 { await Task.yield() }
+    pull.cancel()
+    await pull.value
+    #expect(account.hanging.withLock { $0 } == 1)
+    #expect(page.dives.pageError == nil)
+    #expect(page.service.records.pageError == nil)
   }
 
   @Test func aListsOwnPullStillReadsTheAccount() async throws {
