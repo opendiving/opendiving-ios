@@ -180,6 +180,9 @@ public struct DiveDetailContent: Hashable, Sendable {
     /// `Started 10:05`, only where it differs from the dive's own start.
     public var started: String?
     public var firmware: String?
+    /// `Uploaded Oct 3, 2026, 14:07`: its first file's upload, or the recording's own creation
+    /// where it keeps no file.
+    public var uploaded: String?
     public var noFileKept: String?
     public var files: [File]
 

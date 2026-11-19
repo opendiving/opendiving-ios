@@ -200,6 +200,7 @@
                 "content_type": "application/vnd.ant.fit",
                 "byte_size": 30630,
                 "parser_key": "fit",
+                "created_at": "2026-11-07T11:46:37.667622+00:00",
                 "updated_at": null,
                 "entry_latitude": null,
                 "entry_longitude": null,
@@ -226,6 +227,7 @@
               "average_heart_rate": null,
               "updated_at": null
             },
+            "created_at": "2026-11-07T11:46:37.667622+00:00",
             "updated_at": null
           }
         ],

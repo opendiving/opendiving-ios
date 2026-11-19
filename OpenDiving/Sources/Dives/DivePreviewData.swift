@@ -56,27 +56,28 @@ enum DivePreviewData {
     + #""deco_model":{"algorithm":null,"name":null,"gf_low":50,"gf_high":85,"conservatism":null},""#
     + #"salinity":null,"started_at":"2021-04-04T10:04:00.5+02:00","files":[{"uuid":"01a10217-4287-"#
     + #"7034-a4ca-c1053ac50c5b","original_filename":"6abfb404aa1098559eda5053.json","content_type""#
-    + #":"application/json","byte_size":1299979,"parser_key":"suunto_json","updated_at":null},{"uu"#
-    + #"id":"01a10219-28d8-75f7-b181-cbae4898e6e0","original_filename":"6abfb404aa1098559eda5053.f"#
-    + #"it","content_type":"application/vnd.ant.fit","byte_size":26335,"parser_key":"fit","updated"#
-    + #"_at":null}],"profile":{"uuid":"01a1295d-3b76-7a05-a6c7-7cac0a28b57f","duration":3544010,"d"#
-    + #"epth_sample_count":359,"provenance":"file","channels":["depth","temperature","pressure","n"#
-    + #"dl","tts","gradient_factor","surface_gradient_factor"],"event_count":1,"max_depth":23.41,""#
-    + #"max_ceiling":3.2,"min_temperature":27.19,"max_temperature":28.62,"min_pressure":78.5,"max_"#
-    + #"pressure":130.0,"updated_at":null},"updated_at":null},{"cns_start":8.0,"cns_end":9.0,"otu_"#
-    + #"start":22.0,"otu_end":23.0,"surface_pressure_bar":1.013,"uuid":"01a20000-0000-7000-8000-00"#
-    + #"00000000d2","ordinal":1,"device":{"brand":"Shearwater","model":"Perdix 2","serial":null,"f"#
-    + #"irmware":null,"name":null,"dive_number":null},"mode":"closed_circuit","deco_model":{"algor"#
-    + #"ithm":"buhlmann","name":"ZHL-16C","gf_low":30,"gf_high":70,"conservatism":-1},"salinity":""#
-    + #"en13319","started_at":"2021-04-04T10:05:10","files":[],"profile":{"uuid":"01a20000-0000-70"#
-    + #"00-8000-0000000000e2","duration":3544010,"depth_sample_count":359,"provenance":"divejson_i"#
-    + #"mport","channels":["depth","ceiling","temperature","pressure","ndl","tts","ppo2","cns","gr"#
-    + #"adient_factor","surface_gradient_factor"],"event_count":null,"max_depth":23.41,"max_ceilin"#
-    + #"g":null,"min_temperature":27.19,"max_temperature":28.62,"min_pressure":78.5,"max_pressure""#
-    + #":130.0,"updated_at":null},"updated_at":null}],"gas_use":{"gas_used":1800.0,"rmv":14.29,"sa"#
-    + #"c_bar_per_min":null,"tanks":[{"gas_number":1,"gas_used":1680.0,"rmv":14.0,"sac_bar_per_min"#
-    + #"":1.19,"seconds_on_gas":2355,"mean_depth":24.8}],"attributed_seconds":2355,"duration":2900"#
-    + #"}}"#
+    + #":"application/json","byte_size":1299979,"parser_key":"suunto_json","created_at":"2026-10-0"#
+    + #"3T14:07:21.216050Z","updated_at":null},{"uuid":"01a10219-28d8-75f7-b181-cbae4898e6e0","ori"#
+    + #"ginal_filename":"6abfb404aa1098559eda5053.fit","content_type":"application/vnd.ant.fit","b"#
+    + #"yte_size":26335,"parser_key":"fit","created_at":"2026-10-03T14:09:02.481113Z","updated_at""#
+    + #":null}],"profile":{"uuid":"01a1295d-3b76-7a05-a6c7-7cac0a28b57f","duration":3544010,"depth"#
+    + #"_sample_count":359,"provenance":"file","channels":["depth","temperature","pressure","ndl","#
+    + #""tts","gradient_factor","surface_gradient_factor"],"event_count":1,"max_depth":23.41,"max_"#
+    + #"ceiling":3.2,"min_temperature":27.19,"max_temperature":28.62,"min_pressure":78.5,"max_pres"#
+    + #"sure":130.0,"updated_at":null},"created_at":"2026-10-03T14:07:21.216050Z","updated_at":nul"#
+    + #"l},{"cns_start":8.0,"cns_end":9.0,"otu_start":22.0,"otu_end":23.0,"surface_pressure_bar":1"#
+    + #".013,"uuid":"01a20000-0000-7000-8000-0000000000d2","ordinal":1,"device":{"brand":"Shearwat"#
+    + #"er","model":"Perdix 2","serial":null,"firmware":null,"name":null,"dive_number":null},"mode"#
+    + #"":"closed_circuit","deco_model":{"algorithm":"buhlmann","name":"ZHL-16C","gf_low":30,"gf_h"#
+    + #"igh":70,"conservatism":-1},"salinity":"en13319","started_at":"2021-04-04T10:05:10","files""#
+    + #":[],"profile":{"uuid":"01a20000-0000-7000-8000-0000000000e2","duration":3544010,"depth_sam"#
+    + #"ple_count":359,"provenance":"divejson_import","channels":["depth","ceiling","temperature","#
+    + #""pressure","ndl","tts","ppo2","cns","gradient_factor","surface_gradient_factor"],"event_co"#
+    + #"unt":null,"max_depth":23.41,"max_ceiling":null,"min_temperature":27.19,"max_temperature":2"#
+    + #"8.62,"min_pressure":78.5,"max_pressure":130.0,"updated_at":null},"created_at":"2026-10-05T"#
+    + #"08:30:00.004219Z","updated_at":null}],"gas_use":{"gas_used":1800.0,"rmv":14.29,"sac_bar_pe"#
+    + #"r_min":null,"tanks":[{"gas_number":1,"gas_used":1680.0,"rmv":14.0,"sac_bar_per_min":1.19,""#
+    + #"seconds_on_gas":2355,"mean_depth":24.8}],"attributed_seconds":2355,"duration":2900}}"#
 
   static let page =
     #"{"data":[{"uuid":"01a20000-0000-7000-8000-000000000001","entry_latitude":28.420546,"entry_"#

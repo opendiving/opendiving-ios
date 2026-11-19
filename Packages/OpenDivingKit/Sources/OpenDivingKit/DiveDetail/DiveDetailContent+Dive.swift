@@ -8,14 +8,17 @@ extension DiveDetailContent {
 
   /// The dive's page from `GET /dive/{uuid}` and what it names: the trip, the course and
   /// the dive centre, each nil when the dive has none or its read failed, and the people
-  /// table that names `people`.
+  /// table that names `people`. A recording's upload prints in `timeZone`, its day set
+  /// against `now`'s.
   public init(
     dive: DiveReadWithMixtures,
     trip: TripRead?,
     course: CourseRead?,
     contact: ContactRead?,
     people: [UUID: PersonRead],
-    units: UnitSystem
+    units: UnitSystem,
+    timeZone: TimeZone = .current,
+    now: Date? = Date()
   ) {
     let recordings = dive.recordings.sorted { $0.ordinal < $1.ordinal }
     navigationTitle = "#\(dive.diveNumber)"
@@ -33,7 +36,9 @@ extension DiveDetailContent {
     self.people = PersonRowContent.rows(dive.people, people: people)
     environment = Self.environment(dive.dive, units: units)
     self.recordings = recordings.map {
-      Self.recording($0, diveStart: dive.startTime, isOneOfMany: recordings.count > 1)
+      Self.recording(
+        $0, diveStart: dive.startTime, isOneOfMany: recordings.count > 1, timeZone: timeZone,
+        now: now)
     }
   }
 
@@ -366,9 +371,10 @@ extension DiveDetailContent {
     return figures
   }
 
-  static func recording(_ recording: RecordingRead, diveStart: DiveTimestamp, isOneOfMany: Bool)
-    -> Recording
-  {
+  static func recording(
+    _ recording: RecordingRead, diveStart: DiveTimestamp, isOneOfMany: Bool,
+    timeZone: TimeZone = .current, now: Date? = Date()
+  ) -> Recording {
     let device = recording.device
     var name: String?
     if isOneOfMany {
@@ -377,6 +383,8 @@ extension DiveDetailContent {
         + (recording.ordinal == 0 ? " · shown by default" : "")
     }
     let deco = recording.decoModel
+    let uploadedAt =
+      recording.files.compactMap(\.createdAt.instant).min() ?? recording.createdAt.instant
     return Recording(
       id: recording.uuid,
       device: device.flatMap {
@@ -394,6 +402,9 @@ extension DiveDetailContent {
         $0 == diveStart ? nil : "Started " + DateText.diveTime($0)
       },
       firmware: device?.firmware.flatMap { $0.isEmpty ? nil : "Firmware " + $0 },
+      uploaded: uploadedAt.map {
+        "Uploaded " + DateText.inSentence(DateText.dateTime($0, in: timeZone, relativeTo: now))
+      },
       noFileKept: DiveDetailText.noFileKeptSentence(
         fileCount: recording.files.count, provenance: recording.profile?.provenance),
       files: recording.files.map {
