@@ -1,9 +1,10 @@
 import OpenDivingKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The import screen, the web's Import page on the phone: the import the server holds, from
-/// whichever device uploaded it, above the files the phone keeps. Reached from *Dive Computers*
-/// and *More*, and shown when a file is shared to the app.
+/// whichever device uploaded it, above the files the phone keeps. Reached from *Import files*
+/// on *Dive Computers* and from *More*, and shown when a file is shared to the app.
 struct ImportView: View {
   /// Opened because a file was shared to the app, which delivers one at a time.
   var shared = false
@@ -12,6 +13,7 @@ struct ImportView: View {
   @Environment(InboxModel.self) private var inbox
   @State private var history: PagedList<LogbookImportSummary>?
   @State private var picking = false
+  @State private var pickFailure: String?
   @State private var choices = ImportCheckInChoices()
 
   var body: some View {
@@ -26,7 +28,22 @@ struct ImportView: View {
     }
     .navigationTitle("Import")
     .navigationBarTitleDisplayMode(.inline)
-    .importFilePicker(isPresented: $picking)
+    .fileImporter(
+      isPresented: $picking, allowedContentTypes: [.item], allowsMultipleSelection: true
+    ) { result in
+      switch result {
+      case .success(let urls): pick(urls)
+      case .failure(let error): pickFailure = error.localizedDescription
+      }
+    }
+    .alert(
+      "The files could not be picked",
+      isPresented: Binding(get: { pickFailure != nil }, set: { if !$0 { pickFailure = nil } })
+    ) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(pickFailure ?? "")
+    }
     .onChange(of: inbox.pending?.uuid) { choices = ImportCheckInChoices() }
     .task(id: inbox.isAccountLoaded) { inbox.readPending() }
     .task {
@@ -47,7 +64,7 @@ struct ImportView: View {
       Button {
         picking = true
       } label: {
-        Label("Import files", icon: .upload)
+        Label("Choose files", icon: .upload)
       }
       .accentRow()
       .disabled(inbox.phase != .idle)
@@ -112,6 +129,16 @@ struct ImportView: View {
 
     if inbox.pending == nil, let history {
       ImportHistorySection(list: history)
+    }
+  }
+
+  /// Each picked file is read under its security scope, released before the next, into a
+  /// staging copy; the selection then lands in the inbox as one arrival.
+  private func pick(_ urls: [URL]) {
+    let staged = urls.compactMap(SharedFileStaging.stage)
+    guard !staged.isEmpty else { return }
+    if case .notKept(let reason) = inbox.receive(staged, moving: true) {
+      pickFailure = reason
     }
   }
 }
