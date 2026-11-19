@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 /// More's *Certifications*: the diver's c-cards, newest certified first, each over its front
-/// image at the card's shape and opening its page — the pages the phone has shown first, from its
+/// image at the card's shape and opening its pane — the pages the phone has shown first, from its
 /// copy. A card being created waits in the pending summary above them.
 struct CertificationListView: View {
   @Environment(Session.self) private var session
@@ -34,6 +34,7 @@ private struct CertificationListContent: View {
   @State var list: PagedList<CertificationRead>
   @Environment(Session.self) private var session
   @State private var creating = false
+  @State private var opened: CertificationRead?
 
   var body: some View {
     ScrollView {
@@ -64,8 +65,8 @@ private struct CertificationListContent: View {
           }
           let today = CalendarDate.today()
           ForEach(list.items) { certification in
-            NavigationLink {
-              CertificationDetailView(certificationUUID: certification.uuid)
+            Button {
+              opened = certification
             } label: {
               CertificationCardView(
                 certificationUUID: certification.uuid,
@@ -88,6 +89,7 @@ private struct CertificationListContent: View {
         Button(CertificationListView.newLabel, systemImage: "plus") { creating = true }
       }
     }
+    .certificationSheet($opened)
     .navigationDestination(isPresented: $creating) {
       CertificationFormView(mode: .create)
     }

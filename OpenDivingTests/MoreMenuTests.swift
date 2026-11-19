@@ -47,7 +47,6 @@ struct MoreMenuTests {
 
   @Test func thePagesHostWithAUUID() {
     #expect(host(GearItemDetailView(gearItemUUID: UUID())) != nil)
-    #expect(host(CertificationDetailView(certificationUUID: UUID())) != nil)
     #expect(host(CourseDetailView(courseUUID: UUID())) != nil)
     #expect(host(PersonDetailView(personUUID: UUID())) != nil)
     #expect(host(SpeciesDetailView(speciesUUID: UUID())) != nil)

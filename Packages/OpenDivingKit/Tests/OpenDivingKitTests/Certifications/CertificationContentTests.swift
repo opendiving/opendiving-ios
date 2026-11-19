@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// What the list's cards, a certification's page and the form's slots are given, in the web's
+/// What the list's cards, a certification's pane and the form's slots are given, in the web's
 /// words, and the framing's geometry.
 struct CertificationContentTests {
   private static let today = CalendarDate(year: 2026, month: 11, day: 10)!
@@ -39,23 +39,42 @@ struct CertificationContentTests {
     #expect(pdfCard.front == nil && pdfCard.missingFrontIcon == .tabFileText)
   }
 
-  // MARK: - The page
+  // MARK: - The pane
 
-  @Test func thePageListsTheDialogsRowsInOrderLinkingTheCourseAndInstructor() throws {
+  @Test func thePaneListsItsRowsInOrderLinkingTheCourseAndInstructor() throws {
     let certification = try Self.stored()
     let page = CertificationPageContent(
       certification, today: Self.today, courseName: "Solo course", contactName: "Blue Ocean",
       instructorName: "Kim")
     #expect(
       page.rows.map(\.label) == [
-        "Certification number", "Course", "Certified on", "Dive center", "Instructor",
-        "Instructor number",
+        "Certification", "Agency", "Certification number", "Course", "Certified on",
+        "Dive center", "Instructor", "Instructor number",
       ])
-    #expect(page.rows[1].link == .course(certification.courseUuid!))
-    #expect(page.rows[4].link == .person(certification.instructorUuid!))
-    #expect(page.sides.map(\.title) == ["Front", "Back"])
-    #expect(page.sides[0].file != nil && page.sides[1].file == nil)
+    #expect(page.rows[0].value == "Solo Diver" && page.rows[1].value == "SDI")
+    #expect(page.rows[3].link == .course(certification.courseUuid!))
+    #expect(page.rows[6].link == .person(certification.instructorUuid!))
+    #expect(page.rows.allSatisfy { $0.badge == nil })
     #expect(page.notes == nil)
+  }
+
+  @Test func onlyTheSidesWithAFileAreDrawn() throws {
+    let frontOnly = CertificationPageContent(
+      try Self.stored(), today: Self.today, courseName: nil, contactName: nil, instructorName: nil)
+    #expect(frontOnly.sides.map(\.title) == ["Front"])
+
+    let bare = CertificationPageContent(
+      try Self.decode(files: "[]"), today: Self.today, courseName: nil, contactName: nil,
+      instructorName: nil)
+    #expect(bare.sides.isEmpty)
+  }
+
+  @Test func theExpiryDateCarriesTheBadge() throws {
+    let page = CertificationPageContent(
+      try Self.decode(files: "[]", expires: "2026-12-01"), today: Self.today, courseName: nil,
+      contactName: nil, instructorName: nil)
+    let expires = try #require(page.rows.first { $0.label == "Expires on" })
+    #expect(expires.badge == .expiringSoon)
   }
 
   @Test func aNameThePhoneDoesNotHoldIsLeftOut() throws {

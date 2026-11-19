@@ -1,6 +1,6 @@
 import Foundation
 
-/// A card's stored sides as the list and a certification's page draw them: the kept bytes when
+/// A card's stored sides as the list and a certification's pane draw them: the kept bytes when
 /// the phone has shown that version of the side, so a card shown once draws offline, and
 /// otherwise the server's, kept under the account's cache, which drops them with the card.
 @MainActor

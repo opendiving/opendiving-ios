@@ -11,7 +11,7 @@ struct CertificationFormView: View {
   var course: CourseRead?
   /// With `.create`: the refused create to reopen, by its outbox item's id.
   var failedItem: UUID?
-  /// The certification was deleted from the form, which leaves its page nothing to show.
+  /// The certification was deleted from the form, which leaves its pane nothing to show.
   var onDeleted: () -> Void = {}
 
   @Environment(Session.self) private var session

@@ -34,7 +34,7 @@ extension KeptRecordKind where Record == CourseRead {
 }
 
 extension KeptRecordKind where Record == CertificationRead {
-  /// A certification's page.
+  /// A certification's pane.
   public static var certification: Self {
     Self(folder: "certifications", uuid: \.uuid) { _ in [] }
   }

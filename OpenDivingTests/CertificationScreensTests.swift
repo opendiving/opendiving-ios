@@ -5,8 +5,8 @@ import UIKit
 
 @testable import OpenDiving
 
-/// More's certifications: what the list and the page say when they cannot show, and the form
-/// hosted on each of its openings.
+/// More's certifications: what the list and the pane say when they cannot show, the pane hosted,
+/// and the form hosted on each of its openings.
 @MainActor
 struct CertificationScreensTests {
   private func host(_ view: some View) -> UIView? {
@@ -19,12 +19,16 @@ struct CertificationScreensTests {
     return host.viewIfLoaded
   }
 
-  @Test func offlineTheListAndThePageSayTheyShowOnceTheServerCanBeReached() {
+  @Test func offlineTheListAndThePaneSayTheyShowOnceTheServerCanBeReached() {
     #expect(CertificationListView.failure(.noRoute) == OfflineText.certificationsNotShown)
     #expect(
       CertificationListView.failure(.http(status: 500, message: nil))
         == "Failed to load certifications. Please try again.")
-    #expect(CertificationDetailView.failure(.noRoute) == OfflineText.certificationNotShown)
+    #expect(CertificationSheet.failure(.noRoute) == OfflineText.certificationNotShown)
+  }
+
+  @Test func thePaneHostsWithAUUID() {
+    #expect(host(CertificationSheet(certificationUUID: UUID())) != nil)
   }
 
   @Test func theFormHostsOnACreateAndOnARefusedWrite() {
