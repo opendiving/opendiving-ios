@@ -47,29 +47,39 @@ extension View {
 private struct FloatingAddButtonPlacement: ViewModifier {
   let button: FloatingAddButton
   let isShown: Bool
-  @State private var screenCorner = 0.0
+  @State private var screen: ScreenCorner?
+  @State private var frame = CGRect.zero
 
-  /// From both screen edges, so the button's circle shares the corner's centre. A corner too
-  /// tight to leave a gap round the button falls back to the safe area's insets.
-  private var concentricInset: Double? {
-    let inset = screenCorner - FloatingAddButton.side / 2
-    return inset >= 12 ? inset : nil
+  /// How far the button moves from the view's bottom-right corner to stand as far from both
+  /// screen edges as its circle needs to share the screen corner's centre. Measured against the
+  /// window rather than by leaving the safe area, which a page's own insets can hold the button
+  /// inside. A corner too tight to leave a gap round the button keeps to the safe area instead.
+  private var concentricOffset: CGSize? {
+    guard let screen else { return nil }
+    let inset = screen.radius - FloatingAddButton.side / 2
+    guard inset >= 12 else { return nil }
+    return CGSize(
+      width: screen.size.width - inset - frame.maxX,
+      height: screen.size.height - inset - frame.maxY)
   }
 
   func body(content: Content) -> some View {
     content
+      .onGeometryChange(for: CGRect.self) {
+        $0.frame(in: .global)
+      } action: {
+        frame = $0
+      }
       .background {
-        ScreenCornerProbe(radius: $screenCorner)
+        ScreenCornerProbe(screen: $screen)
           .ignoresSafeArea()
           .allowsHitTesting(false)
           .accessibilityHidden(true)
       }
       .overlay(alignment: .bottomTrailing) {
         if isShown {
-          if let inset = concentricInset {
-            button
-              .padding([.trailing, .bottom], inset)
-              .ignoresSafeArea(edges: [.trailing, .bottom])
+          if let offset = concentricOffset {
+            button.offset(offset)
           } else {
             button
               .padding(.trailing, FloatingAddButton.trailingInset)
@@ -80,18 +90,24 @@ private struct FloatingAddButtonPlacement: ViewModifier {
   }
 }
 
-/// The screen's corner radius, which iOS 26 gives as the radius concentric with the window for a
-/// view filling it; nothing before, where the button keeps to the safe area.
+/// The screen's corner radius, and its size.
+private struct ScreenCorner: Equatable {
+  var radius: Double
+  var size: CGSize
+}
+
+/// Reads the screen's corner, which iOS 26 gives as the radius concentric with the window for a
+/// view filling it. Nothing before, where the button keeps to the safe area.
 private struct ScreenCornerProbe: UIViewRepresentable {
-  @Binding var radius: Double
+  @Binding var screen: ScreenCorner?
 
   func makeUIView(context: Context) -> UIView {
     guard #available(iOS 26, *) else { return UIView() }
     let view = ProbeView()
-    view.onRadius = { value in
+    view.onCorner = { corner in
       // Out of the layout pass that reports it.
       Task { @MainActor in
-        if radius != value { radius = value }
+        if screen != corner { screen = corner }
       }
     }
     return view
@@ -101,7 +117,7 @@ private struct ScreenCornerProbe: UIViewRepresentable {
 
   @available(iOS 26, *)
   private final class ProbeView: UIView {
-    var onRadius: ((Double) -> Void)?
+    var onCorner: ((ScreenCorner) -> Void)?
 
     override init(frame: CGRect) {
       super.init(frame: frame)
@@ -113,7 +129,9 @@ private struct ScreenCornerProbe: UIViewRepresentable {
 
     override func layoutSubviews() {
       super.layoutSubviews()
-      onRadius?(effectiveRadius(corner: .bottomRight))
+      guard let window else { return }
+      onCorner?(
+        ScreenCorner(radius: effectiveRadius(corner: .bottomRight), size: window.bounds.size))
     }
   }
 }
