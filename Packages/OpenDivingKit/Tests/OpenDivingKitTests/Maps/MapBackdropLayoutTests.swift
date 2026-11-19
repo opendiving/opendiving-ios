@@ -206,6 +206,15 @@ struct MapBackdropLayoutTests {
     #expect(head.pins.allSatisfy { (24...378).contains($0.x) && (116...248).contains($0.y) })
     let pins = Dictionary(uniqueKeysWithValues: head.pins.map { ($0.name, $0.x) })
     #expect(pins["Cabo San Lucas"]! < pins["Oban"]! && pins["Oban"]! < pins["Malapascua"]!)
+
+    // The profile's taller details leave a band too short for them: none goes below it, onto
+    // the credit over the details.
+    let profile = try #require(
+      MapBackdropLayout(
+        points: places, fixes: [], theme: .light, width: 402, height: 396, coveredTop: 116,
+        coveredBottom: 210))
+    #expect(profile.pins.allSatisfy { $0.y <= 396 - 210 - 20 })
+    #expect(profile.pins.contains { $0.y >= 396 - 210 - 30 })
   }
 
   @Test func theThemeIsEveryTilesAddress() throws {

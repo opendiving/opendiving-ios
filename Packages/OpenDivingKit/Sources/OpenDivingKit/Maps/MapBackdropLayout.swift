@@ -71,7 +71,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
 
     let zoom: Double
     var centreLongitude: Double
-    let centreLatitude: Double
+    var centreLatitude: Double
+    var southernmost: Double?
     if let pinBounds = WebMercator.union(
       placed.map {
         LatLonBounds(south: $0.latitude, north: $0.latitude, west: $0.longitude, east: $0.longitude)
@@ -90,6 +91,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
       centreLatitude = WebMercator.latitude(
         y: (WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.south))
           + WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.north))) / 2)
+      southernmost = pinBounds.south
       let fitWidth = width - 2 * padding
       zoom = min(
         Self.fitZoom(
@@ -117,6 +119,16 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let size = isWorld ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
     tileSize = size
     let worldSize = size * Double(count)
+    // A world too short to hold its places in the band keeps them off the credit and the
+    // details under it, and lets them run up under the bar instead.
+    if isWorld, let southernmost {
+      let lowest = WebMercator.y(latitude: WebMercator.clamp(latitude: southernmost)) * worldSize
+      let halfBand = max(0, (height - bandBottom - bandTop) / 2)
+      let centre = WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize
+      if lowest - centre > halfBand {
+        centreLatitude = WebMercator.latitude(y: (lowest - halfBand) / worldSize)
+      }
+    }
     let originX = WebMercator.round(WebMercator.x(longitude: centreLongitude) * worldSize)
     let originY = WebMercator.round(
       WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize)
