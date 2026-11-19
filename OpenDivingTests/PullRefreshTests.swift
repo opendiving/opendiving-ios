@@ -71,9 +71,12 @@ struct PullRefreshTests {
     control?.beginRefreshing()
     control?.sendActions(for: .valueChanged)
 
+    // A pull reads in steps, with nothing in flight between them, and is over when its control
+    // stops: the refresh action ends it once every read the pull started has been answered.
     #expect(
-      await F.eventually { transport.answered.count > sent && transport.isIdle },
-      sourceLocation: sourceLocation)
+      await F.eventually {
+        transport.answered.count > sent && transport.isIdle && control?.isRefreshing == false
+      }, sourceLocation: sourceLocation)
     try await Task.sleep(for: .milliseconds(500))
     #expect(transport.isIdle, sourceLocation: sourceLocation)
     #expect(transport.answered.dropFirst(sent).contains(route), sourceLocation: sourceLocation)
