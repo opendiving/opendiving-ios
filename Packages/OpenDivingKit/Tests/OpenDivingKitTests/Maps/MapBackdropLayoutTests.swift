@@ -204,8 +204,10 @@ struct MapBackdropLayoutTests {
     #expect(head.tileSize == 402)
     #expect(Set(head.tiles.map(\.address.z)) == [0])
     #expect(head.pins.allSatisfy { (24...378).contains($0.x) && (116...248).contains($0.y) })
+    // The widest gap, the Pacific from the Philippines to Mexico, split across the edges.
     let pins = Dictionary(uniqueKeysWithValues: head.pins.map { ($0.name, $0.x) })
     #expect(pins["Cabo San Lucas"]! < pins["Oban"]! && pins["Oban"]! < pins["Malapascua"]!)
+    #expect(abs(pins["Cabo San Lucas"]! - (402 - pins["Malapascua"]!)) <= 1)
 
     // The profile's taller details leave a band too short for them: the lowest goes down to just
     // past the details' top, and none further.
@@ -216,6 +218,13 @@ struct MapBackdropLayoutTests {
         coveredBottom: 210))
     #expect(profile.pins.allSatisfy { $0.y <= 396 - 210 + 8.5 })
     #expect(profile.pins.contains { $0.y >= 396 - 210 + 7 })
+  }
+
+  @Test func theWidestGapIsFoundAcrossTheAntimeridianToo() {
+    // From 100° east round to 10° west: the places' middle is opposite its middle.
+    #expect(MapBackdropLayout.oppositeWidestGap([-10, 10, 100]) == 45)
+    #expect(MapBackdropLayout.oppositeWidestGap([170, -170, 10]) == 100)
+    #expect(MapBackdropLayout.oppositeWidestGap([-120, 120]) == -180)
   }
 
   @Test func theThemeIsEveryTilesAddress() throws {

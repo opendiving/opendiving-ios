@@ -45,8 +45,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
 
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
   /// and `worldWhenEmpty`, the whole world at zoom 0 drawn as wide as the frame, ``worldMiddle``
-  /// at the band's middle. Places too far apart for zoom 0 get that world too, with the same
-  /// longitude at the middle and their own latitude.
+  /// at the band's middle. Places too far apart for zoom 0 get that world too, the widest gap
+  /// between them at its edges and their own latitude across the band.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
   ///
@@ -110,10 +110,14 @@ public struct MapBackdropLayout: Hashable, Sendable {
     // A frame narrower than its padding fits nothing, a zoom of -∞ or NaN.
     let z = zoom.isNaN ? Self.maxZoom : Int(min(Double(Self.maxZoom), max(0, zoom)).rounded(.down))
     let count = 1 << z
-    // Every longitude shows on a world as wide as the frame, so its places keep the one the
-    // empty world has at the middle, which puts the frame's edges in the Pacific.
+    // Every longitude shows on a world as wide as the frame, so where it meets its next copy is
+    // the choice: in the widest gap between the places, or the Pacific's with none.
     let isWorld = placed.isEmpty || zoom < 0
-    if isWorld { centreLongitude = Self.worldMiddle.longitude }
+    if isWorld {
+      centreLongitude =
+        placed.isEmpty
+        ? Self.worldMiddle.longitude : Self.oppositeWidestGap(placed.map(\.longitude))
+    }
     // A whole number of pixels, so the world meets its next copy without a seam, at most a
     // pixel past the frame's sides.
     let size = isWorld ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
@@ -176,6 +180,20 @@ public struct MapBackdropLayout: Hashable, Sendable {
         y: shownY + WebMercator.y(latitude: WebMercator.clamp(latitude: place.latitude))
           * worldSize - originY)
     }
+  }
+
+  /// The longitude opposite the middle of the widest gap between `longitudes`, the gap that
+  /// wraps past the antimeridian included.
+  static func oppositeWidestGap(_ longitudes: [Double]) -> Double {
+    let sorted = longitudes.map { WebMercator.wrap(longitude: $0) }.sorted()
+    guard let first = sorted.first, let last = sorted.last else { return 0 }
+    var gap = first + 360 - last
+    var start = last
+    for (west, east) in zip(sorted, sorted.dropFirst()) where east - west > gap {
+      gap = east - west
+      start = west
+    }
+    return WebMercator.wrap(longitude: start + gap / 2 + 180)
   }
 
   /// `box` grown to reach as far on each side of the centre as its farthest side does, so a fit
