@@ -221,6 +221,12 @@ struct GearServiceFormsTests {
     #expect(hours.deleteLabel == "Delete Service (First stage) schedule")
   }
 
+  @Test func aScheduleDoneTodaySaysSoInItsSentence() throws {
+    let row = GearServiceCardContent.row(
+      try schedule(["last_service_on": today.iso8601]), diveCount: 0, diveTime: 0, today: today)
+    #expect(row.intervals == "Every 12 months or every 100 dives · last done today")
+  }
+
   @Test func aPausedScheduleHasNoStatus() throws {
     let row = GearServiceCardContent.row(
       try schedule(["is_active": false]), diveCount: 0, diveTime: 0, today: today)

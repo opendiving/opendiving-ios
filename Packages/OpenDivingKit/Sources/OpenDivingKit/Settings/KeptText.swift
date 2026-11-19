@@ -72,7 +72,7 @@ public enum KeptText {
 public enum OfflineText {
   /// Above rows, or a dive, shown from the phone's copy: *Last updated Oct 25, 2026, 14:02*.
   public static func lastUpdated(_ at: Date, in timeZone: TimeZone = .current) -> String {
-    "Last updated " + DateText.dateTime(at, in: timeZone)
+    "Last updated " + DateText.inSentence(DateText.dateTime(at, in: timeZone))
   }
 
   /// On a record whose edit is queued. A dive's page already shows the edit; a trip's or a

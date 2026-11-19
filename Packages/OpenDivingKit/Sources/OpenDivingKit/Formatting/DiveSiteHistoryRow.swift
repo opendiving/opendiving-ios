@@ -19,9 +19,11 @@ public struct DiveSiteHistoryRow: Hashable, Sendable, Identifiable {
   public var date: String
   public var details: [Detail]
 
-  /// `timeZone` is the day the entry is printed on; the phone's own unless a test says.
+  /// `timeZone` is the day the entry is printed on, and `now` what it reads as `Today`
+  /// against; the phone's own unless a test says.
   public init(
-    _ entry: DiveSiteHistoryEntryRead, units: UnitSystem, in timeZone: TimeZone = .current
+    _ entry: DiveSiteHistoryEntryRead, units: UnitSystem, in timeZone: TimeZone = .current,
+    relativeTo now: Date? = Date()
   ) {
     id = entry.uuid
     let verb =
@@ -32,8 +34,9 @@ public struct DiveSiteHistoryRow: Hashable, Sendable, Identifiable {
       }
     title = entry.madeBy.flatMap { $0.isEmpty ? nil : verb + " by " + $0 } ?? verb
     date =
-      entry.createdAt.instant.map { DateText.date($0, in: timeZone) }
-      ?? DateText.diveDate(entry.createdAt)
+      entry.createdAt.instant.map { DateText.date($0, in: timeZone, relativeTo: now) }
+      ?? DateText.diveDate(
+        entry.createdAt, relativeTo: now.map { CalendarDate.today(in: timeZone, now: $0) })
     details = Self.details(entry.details, units: units)
   }
 

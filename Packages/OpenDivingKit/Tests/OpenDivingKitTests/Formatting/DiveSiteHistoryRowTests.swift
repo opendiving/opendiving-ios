@@ -7,7 +7,10 @@ struct DiveSiteHistoryRowTests {
   private func rows(_ units: UnitSystem = .metric) throws -> [DiveSiteHistoryRow] {
     try KitFixture.decode(
       PaginatedListResponse<DiveSiteHistoryEntryRead>.self, "dive-site-history-page"
-    ).data.map { DiveSiteHistoryRow($0, units: units, in: TimeZone(identifier: "Asia/Tokyo")!) }
+    ).data.map {
+      DiveSiteHistoryRow(
+        $0, units: units, in: TimeZone(identifier: "Asia/Tokyo")!, relativeTo: nil)
+    }
   }
 
   private func lines(_ row: DiveSiteHistoryRow) -> [String: String] {

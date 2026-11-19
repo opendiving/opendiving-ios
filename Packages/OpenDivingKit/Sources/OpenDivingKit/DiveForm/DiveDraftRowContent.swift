@@ -12,10 +12,10 @@ public struct DiveDraftRowContent: Hashable, Sendable, Identifiable {
 
   public init(_ entry: DiveDraftEntry, siteName: String?, timeZone: TimeZone = .current) {
     ref = entry.ref
-    title = entry.write.values.startTime.map(DateText.diveDateTime) ?? "Untitled draft"
+    title = entry.write.values.startTime.map { DateText.diveDateTime($0) } ?? "Untitled draft"
     detail =
       (siteName.map { "\($0) · " } ?? "") + "Changed "
-      + DateText.dateTime(entry.changedAt, in: timeZone)
+      + DateText.inSentence(DateText.dateTime(entry.changedAt, in: timeZone))
     isPending = entry.hasPendingChange
   }
 

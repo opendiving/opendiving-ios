@@ -105,7 +105,7 @@ public final class SignedInDevicesModel {
     let used =
       device.lastUsedAt.instant.map { DateText.dateTime($0, in: timeZone) }
       ?? DateText.diveDateTime(device.lastUsedAt)
-    return device.ip + " · Last used " + used
+    return device.ip + " · Last used " + DateText.inSentence(used)
   }
 
   public static func signOutMessage(_ device: UserSessionRead) -> String {

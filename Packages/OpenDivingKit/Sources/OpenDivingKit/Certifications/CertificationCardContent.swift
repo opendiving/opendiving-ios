@@ -24,7 +24,7 @@ public struct CertificationCardContent: Hashable, Sendable, Identifiable {
       certification.agency, other: certification.agencyOther)
     figures = [
       Figure.row("Number", certification.certificationNumber),
-      Figure.row("Certified", certification.certifiedOn.map(DateText.date)),
+      Figure.row("Certified", certification.certifiedOn.map { DateText.date($0) }),
     ].compactMap { $0 }
     let file = certification.file(side: CertificationSide.front.rawValue)
     let isPDF = file?.contentType == CertificationCardEdits.pdfContentType

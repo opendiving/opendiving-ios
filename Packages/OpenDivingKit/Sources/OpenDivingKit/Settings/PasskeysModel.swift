@@ -88,11 +88,17 @@ public final class PasskeysModel {
   nonisolated public static func details(_ passkey: PasskeyRead, in timeZone: TimeZone = .current)
     -> String
   {
-    let used = passkey.lastUsedAt.map { "Last used " + day($0, timeZone) } ?? "Never used"
-    return "Added " + day(passkey.createdAt, timeZone) + " · " + used
+    let used =
+      passkey.lastUsedAt.map { "Last used " + DateText.inSentence(day($0, timeZone)) }
+      ?? "Never used"
+    return "Added " + DateText.inSentence(day(passkey.createdAt, timeZone)) + " · " + used
   }
 
-  nonisolated static func day(_ timestamp: DiveTimestamp, _ timeZone: TimeZone) -> String {
-    timestamp.instant.map { DateText.date($0, in: timeZone) } ?? DateText.diveDate(timestamp)
+  nonisolated static func day(
+    _ timestamp: DiveTimestamp, _ timeZone: TimeZone, relativeTo now: Date? = Date()
+  ) -> String {
+    timestamp.instant.map { DateText.date($0, in: timeZone, relativeTo: now) }
+      ?? DateText.diveDate(
+        timestamp, relativeTo: now.map { CalendarDate.today(in: timeZone, now: $0) })
   }
 }

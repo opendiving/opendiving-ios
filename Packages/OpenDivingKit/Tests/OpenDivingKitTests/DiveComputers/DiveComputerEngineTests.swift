@@ -897,6 +897,8 @@ struct DiveComputerEngineTests {
     #expect(engine.archives.count == 1)
     #expect(engine.archives.first?.refusal == nil)
     #expect(notifier.posted.isEmpty)
+    let archive = try #require(engine.archives.first)
+    #expect(engine.lastTries == [archive.id: "Last try: the server answered 503"])
 
     engine.upload()
     await engine.settled()
@@ -906,7 +908,13 @@ struct DiveComputerEngineTests {
     #expect(keys.count == 2)
     #expect(Set(keys).count == 1)
     #expect(engine.archives.isEmpty)
+    #expect(engine.lastTries.isEmpty)
+    #expect(!engine.isUploading)
     #expect(notifier.posted.map(\.title) == ["1 new dive imported"])
+    #expect(
+      watchLines().filter { $0.hasPrefix("upload ") } == [
+        "upload \(archive.id): answered 503", "upload \(archive.id): imported",
+      ])
   }
 
   @Test(arguments: [409, 429, 500])
@@ -919,6 +927,18 @@ struct DiveComputerEngineTests {
     engine.upload()
     await engine.settled()
     #expect(server.atOnce.count == 2)
+    #expect(
+      engine.lastTries.values.map { $0 } == ["Last try: the server answered \(status)"])
+  }
+
+  @Test func anUnreadableAnswerIsSaidBeneathTheDownloadThatWaits() async throws {
+    let session = try await session()
+    server.answerAtOnce { _ in .json(#"{"unexpected":true}"#, status: 201) }
+    let engine = try await walked(session)
+    let archive = try #require(engine.archives.first)
+    #expect(archive.refusal == nil)
+    #expect(engine.lastTries[archive.id]?.hasPrefix("Last try: ") == true)
+    #expect(watchLines().last == "upload \(archive.id): unreadable response")
   }
 
   @Test func aRefusalIsKeptWithItsSentenceAndNotSentAgainByItself() async throws {

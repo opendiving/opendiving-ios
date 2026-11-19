@@ -496,6 +496,30 @@ struct DiveComputerListTests {
       ])
     #expect(rows.map(\.refused) == [false, true, false, true, false])
     #expect(rows.map { $0.archive == nil } == [false, false, false, false, true])
+    #expect(rows.allSatisfy { $0.lastTry == nil })
+  }
+
+  @Test func aDownloadThatWaitsSaysWhatItsLastTryMetAndARefusedOneDoesNot() {
+    let summary = DownloadSummary(
+      computers: [
+        .init(
+          family: .suuntoNautic, vendor: "Suunto", product: "Ocean", serial: "253810000400",
+          dives: 6)
+      ], downloadedAt: F.moment)
+    let waiting = DownloadArchive(
+      filename: "a.zip", summary: summary, record: "r", dives: [],
+      receivedBeforeAccountKnown: false)
+    var refused = DownloadArchive(
+      filename: "b.zip", summary: summary, record: "r", dives: [],
+      receivedBeforeAccountKnown: false)
+    refused.refusal = .server(message: "No.")
+    let tries = [
+      waiting.id: DiveComputerText.lastTry(.http(status: 409, message: "Busy")),
+      refused.id: DiveComputerText.lastTry(nil),
+    ]
+    let rows = WaitingDownload.rows(archives: [waiting, refused], held: [], lastTries: tries)
+    #expect(rows.map(\.stage) == ["Waiting to upload", "No."])
+    #expect(rows.map(\.lastTry) == ["Last try: the server answered 409", nil])
   }
 
   @Test func uploadSendsARefusedArchiveAgain() async throws {

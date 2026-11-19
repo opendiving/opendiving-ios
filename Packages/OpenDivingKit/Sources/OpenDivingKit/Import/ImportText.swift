@@ -89,17 +89,19 @@ public enum ImportText {
   /// Under a pending import's heading.
   public static func reviewLine(expiresAt: DiveTimestamp?) -> String {
     let finish = "Your logbook changes when you import. You can finish this on any device"
-    return expiresAt.map { finish + " until " + when($0) + "." } ?? finish + "."
+    return expiresAt.map { finish + " until " + DateText.inSentence(when($0)) + "." } ?? finish
+      + "."
   }
 
-  /// Under an applied import's heading.
+  /// Under an applied import's heading: always the date, which follows *on*.
   public static func appliedLine(_ appliedAt: DiveTimestamp?) -> String? {
-    appliedAt.map { "Written to your logbook on " + when($0) + "." }
+    appliedAt.map { "Written to your logbook on " + when($0, relativeTo: nil) + "." }
   }
 
-  /// A server's timestamp on the phone's clock.
-  public static func when(_ timestamp: DiveTimestamp) -> String {
-    timestamp.instant.map { DateText.dateTime($0) } ?? DateText.diveDateTime(timestamp)
+  /// A server's timestamp on the phone's clock; `relativeTo` as ``DateText`` takes it.
+  public static func when(_ timestamp: DiveTimestamp, relativeTo now: Date? = Date()) -> String {
+    timestamp.instant.map { DateText.dateTime($0, relativeTo: now) }
+      ?? DateText.diveDateTime(timestamp, relativeTo: now.map { CalendarDate.today(now: $0) })
   }
 
   /// Each file the import could not read, by name, with why.
@@ -271,7 +273,7 @@ public enum ImportText {
       let value = proposed ? offered : account
       return value?.isEmpty == false ? value : nil
     case .dateOfBirth(let account, let offered):
-      return (proposed ? offered : account).map(DateText.date)
+      return (proposed ? offered : account).map { DateText.date($0) }
     case .emergencyContacts(let account, let offered):
       let line = (proposed ? offered : account)
         .map { joined([$0.name, $0.phone, $0.relationship]) }.joined(separator: "; ")
@@ -279,7 +281,10 @@ public enum ImportText {
     case .insurancePolicies(let account, let offered):
       let line = (proposed ? offered : account)
         .map {
-          joined([$0.provider, $0.number, $0.expiresOn.map { "expires " + DateText.date($0) }])
+          joined([
+            $0.provider, $0.number,
+            $0.expiresOn.map { "expires " + DateText.inSentence(DateText.date($0)) },
+          ])
         }
         .joined(separator: "; ")
       return line.isEmpty ? nil : line

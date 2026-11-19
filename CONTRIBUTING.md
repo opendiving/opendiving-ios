@@ -92,6 +92,25 @@ Test the Kit, which the app's scheme leaves out — CI runs this on Linux and on
 swift test --package-path Packages/OpenDivingKit
 ```
 
+Check the Kit's fixtures against the API's document. Every JSON file in
+`Packages/OpenDivingKit/Tests/OpenDivingKitTests/Fixtures` is listed in
+`Packages/OpenDivingKit/api-bodies.json` against the operation whose response or request body it
+is, and the API repository's checker judges each by that operation's schema. It needs a checkout
+of [opendiving-api](https://github.com/opendiving/opendiving-api) and
+[uv](https://docs.astral.sh/uv/); from the API checkout, with this one beside it:
+
+```bash
+git fetch origin
+uv run python scripts/client_bodies.py \
+  --list ../opendiving-ios/Packages/OpenDivingKit/api-bodies.json --ref origin/main --mode enforce
+```
+
+CI judges against the API's `main`, so `--ref origin/main` is the answer CI will give. When your
+change is built on an API pull request that has not merged yet, point `--ref` at that pull
+request's branch instead: CI reports the mismatch as a warning until it merges, and fails it in the
+merge queue. A fixture that holds something the API does not send on purpose — a value or a row the
+Kit has to survive — is exempted in the list at that place, with the reason.
+
 Check the formatting, and fix it:
 
 ```bash

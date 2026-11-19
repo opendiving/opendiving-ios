@@ -2,7 +2,8 @@ import Foundation
 
 /// Dates and times as the web prints them in `en-US`, built by hand rather than through a
 /// `DateFormatter`: a formatter reads the device's locale for its month names and its
-/// field order, and the device's zone for its clock.
+/// field order, and the device's zone for its clock. A day that is the phone's today or
+/// yesterday reads `Today` or `Yesterday` instead, which the web does not do.
 ///
 /// A dive's `start_time` prints in the dive's own offset, never the phone's — the
 /// ``DiveTimestamp`` already holds the clock the diver saw, so nothing here converts it.
@@ -10,17 +11,24 @@ import Foundation
 /// A server timestamp (`created_at`, `last_used_at`) is an instant, and prints in the
 /// zone it is given.
 public enum DateText {
+  // Each date takes `relativeTo`, the phone's day or the instant it is now: a date on that
+  // day or the one before reads `Today` or `Yesterday`. Nil prints the date whatever it is.
+
   /// `Apr 4, 2021, 10:04` — a dive card's and a hero's facts line. A dive that carries
   /// only its day prints `Jun 18, 2002`: a midnight would be a time nobody recorded.
-  public static func diveDateTime(_ start: DiveTimestamp) -> String {
-    guard let clock = start.wallClock else { return date(start.calendarDate) }
-    return date(clock.date) + ", " + time(clock)
+  public static func diveDateTime(
+    _ start: DiveTimestamp, relativeTo today: CalendarDate? = .today()
+  ) -> String {
+    guard let clock = start.wallClock else { return date(start.calendarDate, relativeTo: today) }
+    return date(clock.date, relativeTo: today) + ", " + time(clock)
   }
 
   /// `Apr 4, 2021`: the day the dive happened, on its own side of midnight — a species'
   /// last sighting, a neighbouring dive's label.
-  public static func diveDate(_ start: DiveTimestamp) -> String {
-    date(start.calendarDate)
+  public static func diveDate(_ start: DiveTimestamp, relativeTo today: CalendarDate? = .today())
+    -> String
+  {
+    date(start.calendarDate, relativeTo: today)
   }
 
   /// `10:04`, on the dive's own clock. A bare day has no clock and reads `00:00`, as the
@@ -31,32 +39,65 @@ public enum DateText {
   }
 
   /// `Jun 1, 2024`: a date-only field — a card's `certified_on`, a site's last dive.
-  public static func date(_ day: CalendarDate) -> String {
-    monthAndDay(day) + ", " + String(day.year)
+  public static func date(_ day: CalendarDate, relativeTo today: CalendarDate? = .today())
+    -> String
+  {
+    today.flatMap { relativeDay(day, today: $0) } ?? monthAndDay(day) + ", " + String(day.year)
   }
 
   /// `Jun 1, 2024, 09:05`: a server timestamp, in `timeZone` — the phone's own unless a
-  /// caller says otherwise.
-  public static func dateTime(_ instant: Date, in timeZone: TimeZone = .current) -> String {
+  /// caller says otherwise — its day set against `now`'s in that zone.
+  public static func dateTime(
+    _ instant: Date, in timeZone: TimeZone = .current, relativeTo now: Date? = Date()
+  ) -> String {
     let clock = localClock(instant, in: timeZone)
-    return date(clock.date) + ", " + time(clock)
+    return date(clock.date, relativeTo: today(now, in: timeZone)) + ", " + time(clock)
   }
 
   /// `Jun 1, 2024`: a server timestamp's day, in `timeZone`.
-  public static func date(_ instant: Date, in timeZone: TimeZone = .current) -> String {
-    date(localClock(instant, in: timeZone).date)
+  public static func date(
+    _ instant: Date, in timeZone: TimeZone = .current, relativeTo now: Date? = Date()
+  ) -> String {
+    date(localClock(instant, in: timeZone).date, relativeTo: today(now, in: timeZone))
   }
 
   /// A span of days, `Jun 1 - Jun 8, 2024`, with the start's year dropped when both fall
   /// in one year, and the one date alone when only one is set; nil when neither is.
-  public static func dateRange(start: CalendarDate?, end: CalendarDate?) -> String? {
+  public static func dateRange(
+    start: CalendarDate?, end: CalendarDate?, relativeTo today: CalendarDate? = .today()
+  ) -> String? {
     switch (start, end) {
     case (nil, nil): return nil
     case (let start?, let end?):
-      let startText = start.year == end.year ? monthAndDay(start) : date(start)
-      return startText + " - " + date(end)
-    case (let only?, nil), (nil, let only?): return date(only)
+      let startText =
+        start.year == end.year && today.flatMap({ relativeDay(start, today: $0) }) == nil
+        ? monthAndDay(start) : date(start, relativeTo: today)
+      return startText + " - " + date(end, relativeTo: today)
+    case (let only?, nil), (nil, let only?): return date(only, relativeTo: today)
     }
+  }
+
+  /// A date written after other words — *Queued today, 14:02* — with the `Today` or
+  /// `Yesterday` it opens with lowercased; any other date is returned as it is.
+  public static func inSentence(_ text: String) -> String {
+    for word in relativeWords where text.hasPrefix(word) {
+      return word.lowercased() + text.dropFirst(word.count)
+    }
+    return text
+  }
+
+  private static let relativeWords = ["Today", "Yesterday"]
+
+  private static func relativeDay(_ day: CalendarDate, today: CalendarDate) -> String? {
+    switch today.daysSinceEpoch - day.daysSinceEpoch {
+    case 0: return relativeWords[0]
+    case 1: return relativeWords[1]
+    default: return nil
+    }
+  }
+
+  private static func today(_ now: Date?, in timeZone: TimeZone) -> CalendarDate? {
+    now.map { CalendarDate.today(in: timeZone, now: $0) }
   }
 
   /// A duration in seconds as `45min`, `1h 30min` or `2h`, to the nearest minute — a

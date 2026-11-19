@@ -78,7 +78,8 @@ private struct DiveDetailScreen: View {
       if let content = model.content {
         DiveDetailPage(
           content: content, diveUUID: dive.uuid, lastUpdated: model.lastUpdated,
-          fromCopy: model.fetchedAt != nil, hasPendingEdit: model.hasPendingEdit
+          fromCopy: model.fetchedAt != nil, hasPendingEdit: model.hasPendingEdit,
+          refresh: { await model.refresh() }
         ) { uuid, version in
           await model.speciesPhoto(uuid, version: version)
         }
@@ -120,6 +121,7 @@ private struct DiveDetailPage: View {
   /// What is shown is the phone's copy rather than this visit's.
   let fromCopy: Bool
   let hasPendingEdit: Bool
+  let refresh: @Sendable () async -> Void
   let speciesPhoto: (UUID, String) async -> Data?
 
   /// Kept while the pager steps, so the next dive opens on the tab this one was read on.
@@ -195,7 +197,7 @@ private struct DiveDetailPage: View {
       visibleHeight = $1
     }
     .tabsReselect($reselect, tabsTop: tabsTop)
-    .heroUnderTopBar()
+    .heroUnderTopBar(refresh: refresh)
     .background(Color.pageBackground)
   }
 

@@ -1,5 +1,6 @@
 import Foundation
 import OpenDivingKit
+import Synchronization
 import Testing
 
 #if canImport(FoundationNetworking)
@@ -120,5 +121,70 @@ struct DiveDetailModelTests {
     #expect(model.diveUUID == other)
     #expect(model.content?.navigationTitle == "#532")
     #expect(!model.isStepping)
+  }
+
+  /// A session answering the dive with what `dive` gives each time it is asked, and its
+  /// neighbours.
+  private func session(dive: @escaping @Sendable () throws -> StubTransport.Response) throws
+    -> Session
+  {
+    let route = "GET dive/\(diveID.uuidString.lowercased())"
+    let neighbors = try KitFixture.text("dive-neighbors")
+    return Session.stub(
+      transport: StubTransport { request in
+        switch StubTransport.routeKey(request) {
+        case route: return try dive()
+        case "\(route)/neighbors": return .json(neighbors)
+        default: return .json(#"{"detail":"Not Found"}"#, status: 404)
+        }
+      })
+  }
+
+  @Test func aRefreshShowsTheServersNewAnswer() async throws {
+    let first = try KitFixture.text("dive-two-recordings")
+    let answer = Mutex(first)
+    let model = DiveDetailModel(
+      session: try session { .json(answer.withLock { $0 }) }, diveUUID: diveID)
+    await model.load()
+    #expect(model.content?.navigationTitle == "#212")
+
+    answer.withLock {
+      $0 = first.replacingOccurrences(of: #""dive_number": 212"#, with: #""dive_number": 213"#)
+    }
+    await model.refresh()
+    #expect(model.content?.navigationTitle == "#213")
+    #expect(model.neighbors?.previous?.diveNumber == 531)
+  }
+
+  @Test func aRefreshThatFailsLeavesTheDiveAndItsPager() async throws {
+    let dive = try KitFixture.text("dive-two-recordings")
+    let fails = Mutex(false)
+    let model = DiveDetailModel(
+      session: try session {
+        if fails.withLock({ $0 }) { throw URLError(.timedOut) }
+        return .json(dive)
+      }, diveUUID: diveID)
+    await model.load()
+
+    fails.withLock { $0 = true }
+    await model.refresh()
+    #expect(model.content?.navigationTitle == "#212")
+    #expect(model.neighbors?.previous?.diveNumber == 531)
+    #expect(model.refreshError != nil)
+  }
+
+  @Test func aRefreshTheServerAnswers404FailsThePage() async throws {
+    let dive = try KitFixture.text("dive-two-recordings")
+    let gone = Mutex(false)
+    let model = DiveDetailModel(
+      session: try session {
+        gone.withLock { $0 }
+          ? .json(#"{"detail":"Dive not found"}"#, status: 404) : .json(dive)
+      }, diveUUID: diveID)
+    await model.load()
+
+    gone.withLock { $0 = true }
+    await model.refresh()
+    #expect(model.phase == .failed(.http(status: 404, message: "Dive not found")))
   }
 }
