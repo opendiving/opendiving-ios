@@ -4,9 +4,9 @@ import SwiftUI
 /// The diver's own page, opened from the sites map by their picture: their name over the places
 /// their trips went, with the logbook's figures, as the web's Home has it; the way back to the
 /// map, the dive-computer button, the QR code that opens the diver's invite link, and the
-/// settings in the top bar; their picture, which opens *Account*; and under the
-/// head their dives, their trips, their check-in sheet or *More*, the menu of the rest, one at a
-/// time.
+/// settings in the top bar; their picture, which opens *Account*; under the head their dives,
+/// their trips, their check-in sheet or *More*, the menu of the rest, one at a time; and over
+/// the dives and the trips, the button that adds one.
 struct ProfileView: View {
   let avatar: AvatarModel
   @Environment(Session.self) private var session
@@ -16,9 +16,9 @@ struct ProfileView: View {
   }
 }
 
-/// Where the top bar's buttons lead.
+/// Where the top bar's buttons and the add button lead.
 private enum ProfileRoute: Hashable {
-  case diveComputer, settings, account
+  case diveComputer, settings, account, logDive, addTrip
 }
 
 private struct ProfileContent: View {
@@ -78,6 +78,11 @@ private struct ProfileContent: View {
           }
         }
         .padding(.horizontal)
+        // Room for the add button, so the last card scrolls clear of it.
+        .padding(
+          .bottom,
+          adding == nil ? 0 : FloatingAddButton.side + FloatingAddButton.bottomInset
+        )
         .modifier(HiddenUnderTopBar())
       }
       .coordinateSpace(.pageContent)
@@ -87,6 +92,12 @@ private struct ProfileContent: View {
     .tabsReselect($reselect, tabsTop: tabsTop)
     .overlay(alignment: .top) {
       StuckProfileTabs(selection: $section, isStuck: tabsStuck, onReselect: scrollOnReselect)
+    }
+    .floatingAddButton(
+      adding?.title ?? "", icon: adding?.icon ?? .plus, fill: adding?.fill ?? .clear,
+      isShown: adding != nil
+    ) {
+      route = adding?.route
     }
     .background(Color.pageBackground)
     .heroUnderTopBar { [model, dives, trips, checkin, section] in
@@ -124,6 +135,8 @@ private struct ProfileContent: View {
       case .diveComputer: DiveComputerView()
       case .settings: SettingsView()
       case .account: AccountScreen()
+      case .logDive: DiveFormView(mode: .create)
+      case .addTrip: TripFormView(mode: .create)
       }
     }
     .sheet(isPresented: $isShowingInvite) { InviteQRSheet() }
@@ -144,6 +157,15 @@ private struct ProfileContent: View {
         await checkin.followRoute()
       case .more: break
       }
+    }
+  }
+
+  /// The add button the section shows: coral for a dive, teal for a trip.
+  private var adding: (title: String, icon: Icon, fill: Color, route: ProfileRoute)? {
+    switch section {
+    case .dives: ("Log a dive", .divePlus, .brandCoral, .logDive)
+    case .trips: ("Add trip", .luggagePlus, .brandTeal, .addTrip)
+    case .cards, .more: nil
     }
   }
 
