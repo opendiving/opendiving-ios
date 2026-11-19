@@ -34,16 +34,17 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public static let fitPadding = 24.0
   /// The latitude a map of the whole world puts across the band's middle: north of the equator,
   /// where most of the land is, since the band shows far less than the world's height.
-  public static let worldMiddleLatitude = 40.0
+  public static let worldMiddleLatitude = 25.0
 
   public let tiles: [Tile]
   public let pins: [Pin]
-  /// The side of a tile, in points.
-  public var tileSize: Double { WebMercator.tileSize }
+  /// The side of a tile, in points: ``WebMercator``'s, but for a map of the whole world, which
+  /// is drawn as wide as the frame.
+  public let tileSize: Double
 
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
-  /// and `worldWhenEmpty`, the whole world at zoom 0, ``worldMiddleLatitude`` across the band's
-  /// middle.
+  /// and `worldWhenEmpty`, the whole world at zoom 0 drawn as wide as the frame, the
+  /// antimeridian at both its edges and ``worldMiddleLatitude`` across the band's middle.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
   ///
@@ -105,7 +106,12 @@ public struct MapBackdropLayout: Hashable, Sendable {
     // A frame narrower than its padding fits nothing, a zoom of -∞ or NaN.
     let z = zoom.isNaN ? Self.maxZoom : Int(min(Double(Self.maxZoom), max(0, zoom)).rounded(.down))
     let count = 1 << z
-    let worldSize = WebMercator.tileSize * Double(count)
+    // A whole number of pixels, so the world meets its next copy without a seam, at most a
+    // pixel past the frame's sides.
+    let size =
+      placed.isEmpty ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
+    tileSize = size
+    let worldSize = size * Double(count)
     let originX = WebMercator.round(WebMercator.x(longitude: centreLongitude) * worldSize)
     let originY = WebMercator.round(
       WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize)
@@ -123,7 +129,6 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let shownX = anchorX + shiftX
     let shownY = anchorY + shiftY
 
-    let size = WebMercator.tileSize
     let first = Int(((originX - shownX) / size).rounded(.down))
     let last = Int(((originX + width - shownX) / size).rounded(.up)) - 1
     // Rows past the world's top or bottom edge have nothing to draw.

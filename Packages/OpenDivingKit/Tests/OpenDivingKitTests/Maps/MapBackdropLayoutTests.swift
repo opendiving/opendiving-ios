@@ -174,6 +174,9 @@ struct MapBackdropLayoutTests {
         worldWhenEmpty: true))
     #expect(world.pins.isEmpty)
     #expect(Set(world.tiles.map(\.address)) == [MapTileAddress(theme: .light, z: 0, x: 0, y: 0)])
+    // One copy of the world, as wide as the frame: the antimeridian at both edges.
+    #expect(world.tileSize == 361)
+    #expect(world.tiles.map(\.x) == [0])
     // Its middle latitude across the band's middle, between the padding and the details, which
     // puts the equator below it.
     let middle =
