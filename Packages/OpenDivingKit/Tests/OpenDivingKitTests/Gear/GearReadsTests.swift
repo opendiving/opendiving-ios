@@ -20,6 +20,8 @@ struct GearReadsTests {
     let items = try KitFixture.text("gear-items-page")
     let sets = try KitFixture.text("gear-sets-page")
     let item = try KitFixture.text("gear-item")
+    let schedules = try KitFixture.text("gear-service-schedules-page")
+    let records = try KitFixture.text("gear-service-records-page")
     let itemRoute = "GET gear-item/" + APIClient.wire(Self.first)
     let itemJSON = OutboxServer.with(item, uuid: APIClient.wire(Self.first))
     world.server.override { request, _ in
@@ -30,6 +32,8 @@ struct GearReadsTests {
       return switch request.route {
       case "GET gear-items": .json(items)
       case "GET gear-sets": .json(sets)
+      case "GET gear-service-schedules": .json(schedules)
+      case "GET gear-service-records": .json(records)
       case itemRoute: .json(itemJSON)
       default: nil
       }
@@ -84,6 +88,37 @@ struct GearReadsTests {
     showing.cancel()
     #expect(world.server.count("GET gear-items", since: mark) == 1)
     #expect(world.server.count("GET gear-sets", since: mark) == 1)
+  }
+
+  @Test func aPullOnAnItemsPageReadsTheAccountOnceForAllItsLists() async throws {
+    let world = try world()
+    try await world.load()
+    let page = GearItemDetailModel(session: world.session, gearItemUUID: Self.first)
+    await page.load()
+    let mark = world.server.mark
+    await page.refresh()
+    #expect(world.server.count("GET user", since: mark) == 1)
+    #expect(world.server.count("GET people", since: mark) == 1)
+    for route in ["GET gear-service-schedules", "GET gear-service-records", "GET dives"] {
+      #expect(world.server.count(route, since: mark) == 1, "\(route)")
+    }
+    #expect(page.service.schedules.phase == .loaded)
+    #expect(page.service.records.phase == .loaded)
+    #expect(page.dives.phase == .loaded)
+
+    await page.refresh()
+    #expect(world.server.count("GET user", since: mark) == 2)
+  }
+
+  @Test func aListsOwnPullStillReadsTheAccount() async throws {
+    let world = try world()
+    try await world.load()
+    let page = GearItemDetailModel(session: world.session, gearItemUUID: Self.first)
+    await page.load()
+    let mark = world.server.mark
+    await page.dives.refresh()
+    await page.service.refresh()
+    #expect(world.server.count("GET user", since: mark) == 2)
   }
 
   @Test func aQueuedDeleteTakesTheRowAtOnce() async throws {

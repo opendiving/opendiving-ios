@@ -51,9 +51,10 @@ public final class SpeciesDetailModel {
   /// Pull-to-refresh. A species already on screen stays there when the refresh fails.
   public func refresh() async {
     await page.refresh()
+    let account = AccountReload(session: session)
     await readBeside {
-      async let dives: Void = dives.refresh()
-      async let sites: Void = sites.refresh()
+      async let dives: Void = dives.refresh(sharing: account)
+      async let sites: Void = sites.refresh(sharing: account)
       _ = await (dives, sites)
     }
   }

@@ -38,8 +38,12 @@ public final class GearServiceModel {
   }
 
   public func refresh() async {
-    async let schedules: Void = schedules.refresh()
-    async let records: Void = records.refresh()
+    await refresh(sharing: AccountReload(session: session))
+  }
+
+  func refresh(sharing account: AccountReload) async {
+    async let schedules: Void = schedules.refresh(sharing: account)
+    async let records: Void = records.refresh(sharing: account)
     _ = await (schedules, records)
   }
 

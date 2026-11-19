@@ -125,13 +125,19 @@ public final class PagedList<Item: Codable & Sendable> {
 
   /// Pull-to-refresh: the account and the people table, then page 1 in place of every page.
   public func refresh() async {
+    await refresh(sharing: AccountReload(session: session))
+  }
+
+  /// ``refresh()`` as one of the lists a page's pull refreshes together, which read the account
+  /// once between them.
+  func refresh(sharing account: AccountReload) async {
     if routed, !session.connectivity.isRouteAvailable {
       pageError = .noRoute
       if fetched.isEmpty { phase = .failed(.noRoute) }
       return
     }
     do {
-      try await session.loadAccount()
+      try await account.run()
     } catch {
       guard !Task.isCancelled else { return }
       pageError = APIError(error)
