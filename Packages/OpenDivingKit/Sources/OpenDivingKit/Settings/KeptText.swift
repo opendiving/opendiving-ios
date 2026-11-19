@@ -4,7 +4,7 @@ import Foundation
 /// there, and ``held(_:)`` names them all: the sign-in, the account, the check-in sheet, the
 /// drafts, the writes waiting to sync, the card images waiting to be sent, the files waiting to
 /// be read, the dive computer download history, and the copies kept for offline of the logbook
-/// and of the gear, training, people and marine life it names. The paired dive computers are the
+/// and of the gear, training, people and aquatic life it names. The paired dive computers are the
 /// phone's, kept for no server, so it does not name them. ``SignedOutEntry/info(on:)`` says what
 /// stays of one entry alone.
 public enum KeptText {
@@ -23,7 +23,7 @@ public enum KeptText {
       case .cardImages: "card images waiting to be sent"
       case .filesToRead: "files waiting to be read"
       case .downloadHistory: "dive computer download history"
-      case .offlineCopies: "copies of the logbook, gear, training, people and marine life"
+      case .offlineCopies: "copies of the logbook, gear, training, people and aquatic life"
       }
     }
   }
@@ -138,10 +138,10 @@ public enum OfflineText {
   public static let contactsNotShown =
     "Your contacts have not been listed on this phone, so they show once the server can be"
     + " reached."
-  /// More's *Marine Life* never listed.
+  /// More's *Aquatic Life* never listed.
   public static let lifeListNotShown =
-    "Your marine life has not been listed on this phone, so it shows once the server can be"
-    + " reached."
+    "The aquatic life you have logged has not been listed on this phone, so it shows once the"
+    + " server can be reached."
   /// A species' *Dive Sites* tab never listed.
   public static let speciesDiveSitesNotShown =
     "The dive sites this species was seen at have not been listed on this phone, so they show"

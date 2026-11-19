@@ -114,7 +114,7 @@ extension APIClient {
       Call(path: "contacts", query: Self.paging(page, itemsPerPage)))
   }
 
-  // MARK: - Marine life
+  // MARK: - Aquatic life
 
   /// `GET /user/species/{uuid}`: the diver's history with one species, its life-list row. A
   /// 404 means no live dive of theirs records it, whether or not the catalog has it.

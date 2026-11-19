@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The marine-life picker: the species the diver has logged, from the life list the phone
+/// The aquatic-life picker: the species the diver has logged, from the life list the phone
 /// keeps, then — when the server can be asked — its suggestions, the dive's sites' species
 /// first. A pick the catalogue does not hold yet is resolved before it goes on the dive.
 struct SpeciesPickerSheet: View {

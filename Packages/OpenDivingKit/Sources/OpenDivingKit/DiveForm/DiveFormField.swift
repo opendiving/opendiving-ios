@@ -93,7 +93,7 @@ public enum DiveFormField: String, CaseIterable, Sendable, Hashable, Codable {
       .mixtureEndPressure, .mixtureUsage, .mixtureRole:
       .tanks
     case .gearItems, .weight: .gear
-    case .sightings: .marineLife
+    case .sightings: .aquaticLife
     case .rating, .tags, .notes: .notes
     }
   }

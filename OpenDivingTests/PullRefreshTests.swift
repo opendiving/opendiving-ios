@@ -21,7 +21,7 @@ struct PullRefreshTests {
 
   @Test func aPullOnAListReadsItThrough() async throws {
     try await pull(GearListView())
-    try await pull(MarineLifeListView())
+    try await pull(AquaticLifeListView())
     try await pull(CertificationListView())
     try await pull(CourseListView())
     try await pull(PeopleListView())

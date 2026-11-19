@@ -1,9 +1,9 @@
 import Foundation
 
 extension SpeciesCardContent {
-  /// A life-list row as More's *Marine Life* draws it: its names, how many of the diver's dives
+  /// A life-list row as More's *Aquatic Life* draws it: its names, how many of the diver's dives
   /// and sites it was seen on, and the day of the last sighting, on that dive's own calendar.
-  public static func marineLife(_ entry: SpeciesLifeListEntry, photo: Data? = nil)
+  public static func aquaticLife(_ entry: SpeciesLifeListEntry, photo: Data? = nil)
     -> SpeciesCardContent
   {
     var card = lifeList(entry, photo: photo)

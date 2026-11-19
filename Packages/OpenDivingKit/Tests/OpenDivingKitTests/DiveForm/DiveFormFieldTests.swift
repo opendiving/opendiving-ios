@@ -29,7 +29,7 @@ struct DiveFormFieldTests {
     ("mixtures", "Tanks", "Tanks"),
     ("gear_item_uuids", "Gear", "Gear"),
     ("weight", "Weight", "Gear"),
-    ("sightings", "Species spotted", "Marine Life"),
+    ("sightings", "Species spotted", "Aquatic Life"),
     ("rating", "Rating", "Notes"),
     ("tags", "Tags", "Notes"),
     ("notes", "Notes", "Notes"),
@@ -57,7 +57,7 @@ struct DiveFormFieldTests {
     #expect(
       DiveFormGroup.allCases.map(\.title) == [
         "Import", "Training", "Location", "People", "Dive Info", "Environment", "Tanks", "Gear",
-        "Marine Life", "Notes",
+        "Aquatic Life", "Notes",
       ])
   }
 

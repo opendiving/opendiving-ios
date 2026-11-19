@@ -3,9 +3,9 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// More's *Marine Life* card, a species' page and one of its dive sites say what the web's
+/// More's *Aquatic Life* card, a species' page and one of its dive sites say what the web's
 /// say, field for field.
-struct MarineLifeContentTests {
+struct AquaticLifeContentTests {
   private func species(_ edit: (inout [String: Any]) -> Void = { _ in }) throws -> SpeciesRead {
     var object = try #require(
       JSONSerialization.jsonObject(with: KitFixture.data("species")) as? [String: Any])
@@ -20,7 +20,7 @@ struct MarineLifeContentTests {
   }
 
   @Test func aLifeListCardCountsDivesAndSitesAndDatesTheLastSighting() throws {
-    let card = SpeciesCardContent.marineLife(try entries()[0])
+    let card = SpeciesCardContent.aquaticLife(try entries()[0])
     #expect(card.commonName == "Twoband anemonefish")
     #expect(card.scientificName == "Amphiprion bicinctus")
     #expect(
