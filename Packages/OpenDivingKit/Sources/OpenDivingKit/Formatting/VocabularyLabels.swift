@@ -151,13 +151,14 @@ public enum VocabularyLabels {
 
   static let gearTypes = [
     "mask": "Mask", "snorkel": "Snorkel", "fins": "Fins", "wetsuit": "Wetsuit",
-    "drysuit": "Drysuit", "vest": "Vest", "hood": "Hood", "gloves": "Gloves", "boots": "Boots",
-    "bcd": "BCD", "backplate": "Backplate", "wing": "Wing", "regulator": "Regulator",
+    "drysuit": "Drysuit", "vest": "Vest", "undergarment": "Undergarment", "hood": "Hood",
+    "gloves": "Gloves", "boots": "Boots", "tech_shorts": "Tech shorts", "bcd": "BCD",
+    "backplate": "Backplate", "wing": "Wing", "regulator": "Regulator",
     "rebreather": "Rebreather", "computer": "Dive computer", "transmitter": "Transmitter",
     "cylinder": "Cylinder", "light": "Light", "scooter": "Scooter", "smb": "SMB",
     "mirror": "Mirror", "whistle": "Whistle", "reel": "Reel", "knife": "Knife",
-    "line_cutter": "Line cutter", "shears": "Shears", "compass": "Compass", "camera": "Camera",
-    "other": "Other",
+    "line_cutter": "Line cutter", "shears": "Shears", "compass": "Compass", "slate": "Slate",
+    "camera": "Camera", "other": "Other",
   ]
 
   static let abundances = ["few": "Few", "many": "Many", "abundant": "Abundant"]

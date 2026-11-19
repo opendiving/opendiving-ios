@@ -84,20 +84,20 @@ struct VocabularyLabelsTests {
     #expect(Labels.personRole("boat_captain") == "Boat captain")
   }
 
-  /// `gear.ts:56-86`, with the five rows the census sha predates.
+  /// `gear.ts`'s `GEAR_TYPE_LABELS`.
   @Test func gearTypes() {
     let keys = [
-      "mask", "snorkel", "fins", "wetsuit", "drysuit", "vest", "hood", "gloves", "boots", "bcd",
-      "backplate", "wing", "regulator", "rebreather", "computer", "transmitter", "cylinder",
-      "light", "scooter", "smb", "mirror", "whistle", "reel", "knife", "line_cutter", "shears",
-      "compass", "camera", "other",
+      "mask", "snorkel", "fins", "wetsuit", "drysuit", "vest", "undergarment", "hood", "gloves",
+      "boots", "tech_shorts", "bcd", "backplate", "wing", "regulator", "rebreather", "computer",
+      "transmitter", "cylinder", "light", "scooter", "smb", "mirror", "whistle", "reel", "knife",
+      "line_cutter", "shears", "compass", "slate", "camera", "other",
     ]
     #expect(
       keys.map { Labels.gearType($0) } == [
-        "Mask", "Snorkel", "Fins", "Wetsuit", "Drysuit", "Vest", "Hood", "Gloves", "Boots", "BCD",
-        "Backplate", "Wing", "Regulator", "Rebreather", "Dive computer", "Transmitter", "Cylinder",
-        "Light", "Scooter", "SMB", "Mirror", "Whistle", "Reel", "Knife", "Line cutter", "Shears",
-        "Compass", "Camera", "Other",
+        "Mask", "Snorkel", "Fins", "Wetsuit", "Drysuit", "Vest", "Undergarment", "Hood", "Gloves",
+        "Boots", "Tech shorts", "BCD", "Backplate", "Wing", "Regulator", "Rebreather",
+        "Dive computer", "Transmitter", "Cylinder", "Light", "Scooter", "SMB", "Mirror", "Whistle",
+        "Reel", "Knife", "Line cutter", "Shears", "Compass", "Slate", "Camera", "Other",
       ])
     #expect(Labels.gearType("dry_bag") == "Dry bag")
     #expect(Labels.gearType(nil) == nil)
@@ -156,6 +156,11 @@ struct VocabularyLabelsTests {
   /// The fallback would hide a gap: a value with no entry still reads, as "Cdaa".
   @Test func thePickersAgenciesAreTheTablesKeys() {
     #expect(Set(FormVocabulary.certificationAgencies) == Set(Labels.certificationAgencies.keys))
+  }
+
+  /// The same gap for gear: a type the picker offers with no label would read de-snaked.
+  @Test func thePickersGearTypesAreTheTablesKeys() {
+    #expect(Set(FormVocabulary.gearTypes) == Set(Labels.gearTypes.keys))
   }
 
   @Test func cdaaIscAndIseReadAsTheirShortNames() {

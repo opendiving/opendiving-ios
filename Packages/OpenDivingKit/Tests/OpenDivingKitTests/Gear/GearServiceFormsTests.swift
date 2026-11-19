@@ -55,7 +55,10 @@ struct GearServiceFormsTests {
       ServiceSchedulePreset.defaults(forGearType: "wing") == [
         ServiceSchedulePreset(kind: "service", intervalMonths: 12)
       ])
-    for type in ["mask", "backplate", "rebreather", "scooter", "transmitter", "", "hookah"] {
+    for type in [
+      "mask", "vest", "undergarment", "tech_shorts", "backplate", "rebreather", "scooter",
+      "transmitter", "slate", "", "hookah",
+    ] {
       #expect(ServiceSchedulePreset.defaults(forGearType: type).isEmpty)
     }
     #expect(ServiceSchedulePreset.defaults(forGearType: nil).isEmpty)
