@@ -1,3 +1,4 @@
+import OpenDivingKit
 import SwiftUI
 
 /// A record's name, followed by a graduation cap for a course dive, its rating in stars and a
