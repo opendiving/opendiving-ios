@@ -123,7 +123,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     // of the details, still above the credit there, and up under the bar for the rest.
     if isWorld, let southernmost {
       let lowest = WebMercator.y(latitude: WebMercator.clamp(latitude: southernmost)) * worldSize
-      let room = max(0, height - coveredBottom + 4 - (bandTop + height - bandBottom) / 2)
+      let room = max(0, height - coveredBottom + 8 - (bandTop + height - bandBottom) / 2)
       let centre = WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize
       if lowest - centre > room {
         centreLatitude = WebMercator.latitude(y: (lowest - room) / worldSize)

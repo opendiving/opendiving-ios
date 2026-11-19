@@ -214,8 +214,8 @@ struct MapBackdropLayoutTests {
       MapBackdropLayout(
         points: places + [reef], fixes: [], theme: .light, width: 402, height: 396, coveredTop: 116,
         coveredBottom: 210))
-    #expect(profile.pins.allSatisfy { $0.y <= 396 - 210 + 4.5 })
-    #expect(profile.pins.contains { $0.y >= 396 - 210 + 3 })
+    #expect(profile.pins.allSatisfy { $0.y <= 396 - 210 + 8.5 })
+    #expect(profile.pins.contains { $0.y >= 396 - 210 + 7 })
   }
 
   @Test func theThemeIsEveryTilesAddress() throws {
