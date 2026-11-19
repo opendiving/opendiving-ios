@@ -119,11 +119,11 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let size = isWorld ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
     tileSize = size
     let worldSize = size * Double(count)
-    // A world too short to hold its places in the band lets them down to the top of the
-    // details, where the credit starts, and up under the bar for the rest.
+    // A world too short to hold its places in the band lets them down to a little past the top
+    // of the details, still above the credit there, and up under the bar for the rest.
     if isWorld, let southernmost {
       let lowest = WebMercator.y(latitude: WebMercator.clamp(latitude: southernmost)) * worldSize
-      let room = max(0, height - coveredBottom - (bandTop + height - bandBottom) / 2)
+      let room = max(0, height - coveredBottom + 4 - (bandTop + height - bandBottom) / 2)
       let centre = WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize
       if lowest - centre > room {
         centreLatitude = WebMercator.latitude(y: (lowest - room) / worldSize)
