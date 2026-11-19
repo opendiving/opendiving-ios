@@ -491,6 +491,24 @@ struct DiveDetailContentTests {
         == "No file kept — these samples were imported through the converter.")
   }
 
+  @Test func eachRecordingSaysWhenItWasUploaded() throws {
+    let read = try dive("dive-two-recordings")
+    let utc = try #require(TimeZone(identifier: "UTC"))
+    let recordings = DiveDetailContent(
+      dive: read, trip: nil, course: nil, contact: nil, people: [:], units: .metric,
+      timeZone: utc, now: nil
+    ).recordings
+    // The first file's upload, of the two; the recording that keeps no file gives its own.
+    #expect(
+      recordings.map(\.uploaded) == ["Uploaded Oct 3, 2026, 14:07", "Uploaded Oct 5, 2026, 08:30"])
+    let morning = try #require(ISO8601DateFormatter().date(from: "2026-10-05T09:00:00Z"))
+    let today = DiveDetailContent(
+      dive: read, trip: nil, course: nil, contact: nil, people: [:], units: .metric,
+      timeZone: utc, now: morning
+    ).recordings
+    #expect(today[1].uploaded == "Uploaded today, 08:30")
+  }
+
   @Test func aLoneRecordingIsNotNumbered() throws {
     #expect(content(try dive("dive-detail")).recordings.map(\.name) == [nil])
   }

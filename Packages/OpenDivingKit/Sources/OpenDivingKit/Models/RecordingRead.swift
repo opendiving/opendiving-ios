@@ -14,6 +14,9 @@ public struct RecordingRead: Codable, Hashable, Sendable {
   public let startedAt: DiveTimestamp?
   public let files: [DiveFileInfo]
   public let profile: DiveProfileInfo?
+  /// When the recording was made on the server; a merged dive keeps the older one, so a file's
+  /// own `createdAt` is its upload.
+  public let createdAt: DiveTimestamp
   public let updatedAt: DiveTimestamp?
   /// Percent.
   public let cnsStart: Double?

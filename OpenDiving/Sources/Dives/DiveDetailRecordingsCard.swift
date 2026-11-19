@@ -35,6 +35,9 @@ private struct RecordingView: View {
         if let firmware = recording.firmware {
           Text(firmware).font(.caption).foregroundStyle(.secondary)
         }
+        if let uploaded = recording.uploaded {
+          Text(uploaded).font(.caption).foregroundStyle(.secondary)
+        }
       }
       if let noFileKept = recording.noFileKept {
         Text(noFileKept).font(.subheadline).foregroundStyle(.secondary)
