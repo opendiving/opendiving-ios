@@ -94,8 +94,8 @@ public final class DiveComputerEngine {
   /// Called when a walk pairs a computer or changes what the phone remembers of it: the screen's
   /// rows follow.
   @ObservationIgnored var pairingsChanged: (() -> Void)?
-  /// Called as each walk starts and once it has ended: the link stops a scan to download, so the
-  /// screen stops its own, and starts it again after.
+  /// Called as each walk starts and once it has ended: the screen shows a walk nobody started,
+  /// and as the link stops a scan to download, stops its own and starts it again after.
   @ObservationIgnored var walkStarting: ((DiveComputerWalk) -> Void)?
   @ObservationIgnored var walkEnded: ((DiveComputerWalk) -> Void)?
 

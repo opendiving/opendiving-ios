@@ -27,7 +27,7 @@ struct DiveComputerDownloadsTests {
       session: session, makeLink: { link }, generator: F.generator,
       workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
       zone: F.helsinki)
-    let downloads = DiveComputerDownloads { DiveComputerModel(engine: engine, zone: F.helsinki) }
+    let downloads = DiveComputerDownloads(engine: engine, zone: F.helsinki)
     return (downloads, engine)
   }
 
@@ -181,6 +181,147 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== model)
     link.release()
     await model.settled()
+  }
+
+  /// Pairs the Perdix on the phone, as the watch knows it, and has it connect to the watch's
+  /// request: a walk nobody started, held before its end with every dive before the hold in.
+  private func connect(
+    _ engine: DiveComputerEngine, _ link: FakeDiveComputerLink
+  ) async throws -> DiveComputerRecord {
+    let record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    try computers().save(record)
+    #expect(engine.connected(F.perdixFound.id, record: record))
+    let atTheHold = { link.isHeld && engine.walk?.divesDownloaded == F.perdixDownload.count }
+    await until(atTheHold)
+    try #require(atTheHold())
+    return record
+  }
+
+  private func computers() -> DiveComputerStore {
+    DiveComputerStore(
+      store: ServerStateStore(
+        root: root, secrets: InMemorySecretStore(),
+        activeOrigin: InMemoryActiveOriginStore(ImportServer.origin)),
+      origin: ImportServer.origin, account: ImportServer.accountA)
+  }
+
+  @Test func aDownloadNobodyStartedQueuedBehindTheDiversWaitsForItsOutcomeToGo() async throws {
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
+      FakeDiveComputerLink.script(F.ocean, F.oceanDownload, zone: F.helsinki),
+    ]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    let ocean = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
+    try computers().save(ocean)
+    let model = downloads.model
+    downloads.screenAppeared()
+    try await start(model, link)
+    #expect(engine.connected(F.oceanFound.id, record: ocean))
+
+    link.release()
+    await until { engine.walk?.computer.id == F.oceanFound.id && link.isHeld }
+    #expect(engine.walk?.computer.id == F.oceanFound.id)
+    #expect(model.outcome?.kind == .kept)
+    #expect(model.pageWalk(ocean) == .none)
+
+    // Where a scan would clear the outcome, the walk it held back is shown instead, and the
+    // scan waits for its end.
+    let scans = link.scans
+    model.pair()
+    #expect(model.pageWalk(ocean) == .running)
+    #expect(link.scans == scans)
+
+    link.release()
+    await engine.settled()
+    #expect(model.phase == .scanning)
+    #expect(link.scans == scans + 1)
+  }
+
+  @Test func aDownloadNobodyStartedDrawsTheButtonWhileItRuns() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    _ = try await connect(engine, link)
+
+    #expect(downloads.button?.state == .working)
+    #expect(downloads.button?.ring == .fraction(0.25))
+
+    link.release()
+    await engine.settled()
+    #expect(engine.archives.count == 1)
+    // Its outcome is the notification's.
+    #expect(downloads.button == nil)
+  }
+
+  @Test func theScreenShowsADownloadNobodyStartedAsTheDiversAndATapStillTakesOver() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    let record = try await connect(engine, link)
+
+    // Opened mid-walk, the screen takes it in, and the button gives way to it.
+    downloads.screenAppeared()
+    let model = downloads.model
+    await model.watch()
+    #expect(downloads.button == nil)
+    #expect(model.phase == .downloading)
+    #expect(model.pageWalk(record) == .running)
+    #expect(model.progress == 0.25)
+    #expect(model.downloadingText == engine.walk?.downloadingText)
+    #expect(model.canDownload(record))
+
+    // Left while it runs, the button draws it through its end, as the diver's.
+    downloads.screenDisappeared()
+    #expect(downloads.model === model)
+    #expect(downloads.button?.state == .working)
+    link.release()
+    await engine.settled()
+    #expect(downloads.button?.state == .succeeded)
+    #expect(downloads.screenAppeared()?.kind == .kept)
+    #expect(model.pageWalk(record) == .finished(try #require(model.outcome)))
+  }
+
+  @Test func leftDuringADownloadNobodyStartedTheScanItStoppedStaysStopped() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    downloads.screenAppeared()
+    let model = downloads.model
+    model.pair()
+    await model.watch()
+    #expect(model.phase == .scanning)
+    _ = try await connect(engine, link)
+    let scans = link.scans
+
+    downloads.screenDisappeared()
+    link.release()
+    await engine.settled()
+    #expect(link.scans == scans)
+    #expect(downloads.button?.state == .succeeded)
+    #expect(downloads.screenAppeared()?.kind == .kept)
+  }
+
+  @Test func aDownloadNobodyStartedIsShownFromItsStart() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    downloads.screenAppeared()
+    let model = downloads.model
+    let record = try await connect(engine, link)
+
+    #expect(model.pageWalk(record) == .running)
+    model.cancel()
+    await engine.settled()
+    #expect(link.cancelled)
+    // What it downloaded before the cancel is kept, as the diver's would be.
+    #expect(model.outcome?.kind == .kept)
   }
 
   @Test func theBarsRiseInTurnThenFadeTogether() {

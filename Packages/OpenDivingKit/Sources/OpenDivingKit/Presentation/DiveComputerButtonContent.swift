@@ -1,7 +1,7 @@
 import Foundation
 
-/// What the profile's dive-computer button draws over a download left running: a ring of its
-/// progress around the icon, in a colour for how the download stands.
+/// What the profile's dive-computer button draws over a download the diver left running, or one a
+/// connection started: a ring of its progress around the icon, in a colour for how it stands.
 public struct DiveComputerButtonContent: Hashable, Sendable {
   public enum Ring: Hashable, Sendable {
     /// Connecting, or a family that reports no progress.
@@ -32,22 +32,34 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
     self.accessibilityValue = accessibilityValue
   }
 
+  /// The screen's model, left mid-download: its walk, or the question about held dives.
   @MainActor public init(_ model: DiveComputerModel) {
-    switch model.phase {
-    case .idle, .scanning, .connecting:
+    if model.phase == .askingTimeZone {
+      self.init(
+        ring: .fraction(1), state: .waiting, accessibilityValue: DiveComputerText.timeZoneQuestion)
+    } else if let walk = model.walk {
+      self.init(walk)
+    } else {
+      self.init(
+        ring: .indeterminate, state: .working, accessibilityValue: DiveComputerText.connecting)
+    }
+  }
+
+  @MainActor public init(_ walk: DiveComputerWalk) {
+    switch walk.phase {
+    case .connecting:
       self.init(
         ring: .indeterminate, state: .working,
-        accessibilityValue: model.waitingText ?? model.connectingText
-          ?? DiveComputerText.connecting)
+        accessibilityValue: walk.waitingText ?? walk.connectingText ?? DiveComputerText.connecting)
     case .downloading:
-      if let waiting = model.waitingText {
+      if let waiting = walk.waitingText {
         self.init(
-          ring: model.progress.map(Ring.fraction) ?? .indeterminate, state: .working,
+          ring: walk.progress.map(Ring.fraction) ?? .indeterminate, state: .working,
           accessibilityValue: waiting)
         return
       }
-      let text = model.downloadingText ?? DiveComputerText.connecting
-      if let progress = model.progress {
+      let text = walk.downloadingText
+      if let progress = walk.progress {
         self.init(
           ring: .fraction(progress), state: .working,
           accessibilityValue: "\(text), \(Int((progress * 100).rounded())) percent")
@@ -58,12 +70,12 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
       self.init(
         ring: .fraction(1), state: .waiting, accessibilityValue: DiveComputerText.timeZoneQuestion)
     case .finished:
-      let kind = model.outcome?.kind
+      let kind = walk.outcome?.kind
       let failed =
         kind == .failed || kind == .notKept || kind == .cancelled || kind == .notDownloaded
       self.init(
         ring: .fraction(1), state: failed ? .failed : .succeeded,
-        accessibilityValue: model.outcome?.sentence ?? "")
+        accessibilityValue: walk.outcome?.sentence ?? "")
     }
   }
 }

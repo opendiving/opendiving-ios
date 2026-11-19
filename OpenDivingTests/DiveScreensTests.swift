@@ -20,7 +20,7 @@ struct DiveScreensTests {
     let engine = DiveComputerEngine(
       session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
       generator: DiveComputerView.generator)
-    let downloads = DiveComputerDownloads { DiveComputerModel(engine: engine) }
+    let downloads = DiveComputerDownloads(engine: engine)
     window.rootViewController = UIHostingController(
       rootView: view.environment(session).environment(OutboxModel(session: session))
         .environment(inbox).environment(downloads))

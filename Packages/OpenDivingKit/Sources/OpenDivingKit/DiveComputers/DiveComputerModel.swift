@@ -5,6 +5,11 @@ import Observation
 /// computers: idle → scanning, once the diver asks to pair one → the walk the diver starts,
 /// through its phases to finished, with an outcome.
 ///
+/// **A walk a connection starts is shown as the diver's is**, from its start or from the
+/// model's, if it is already in flight, to its outcome — unless the diver's own walk is held for
+/// its outcome, which it does not replace until the next scan would. A tap on another computer's page still ends it with
+/// what it kept and starts the diver's, as the engine has it.
+///
 /// **The paired computers are listed in the account's order**, each with the line its state
 /// gives (``status(_:)``), and reordered on the server where it keeps one and there is a route.
 /// A computer paired beside exactly one other asks *Which computer comes first?*, and its dives
@@ -77,7 +82,8 @@ public final class DiveComputerModel {
 
   public private(set) var availability = DiveComputerAvailability.unknown
   private var scanPhase = Phase.idle
-  /// The walk the diver started here, kept for its outcome until the next scan.
+  /// The walk the diver started here, or the one a connection started that the model saw run,
+  /// kept for its outcome until the next scan.
   public private(set) var walk: DiveComputerWalk?
   /// The computers the latest scan found, newest-seen first.
   public private(set) var rows: [Row] = []
@@ -156,6 +162,9 @@ public final class DiveComputerModel {
   /// A download is in flight: from connecting to the time-zone question's answer.
   public var isBusy: Bool { walk?.isBusy ?? false }
 
+  /// The walk in flight is the diver's, which a tap does not replace.
+  private var diverBusy: Bool { walk.map { $0.watched && $0.isBusy } ?? false }
+
   /// *Downloading 2 of 3 new dives* while downloading after a listing, *Downloading dive 3*
   /// without one.
   public var downloadingText: String? {
@@ -184,20 +193,13 @@ public final class DiveComputerModel {
   /// download starts.
   public var connectingText: String? {
     guard phase == .connecting else { return nil }
-    return identity == nil ? DiveComputerText.connecting : DiveComputerText.reading
+    return walk?.connectingText
   }
 
-  /// While connecting or downloading: *The connection to this computer was lost…* while the walk
-  /// waits for a lost link; else *This computer is busy…* from a computer that is: closing other
-  /// apps lets the download go on, once another app's handshake broke a transfer and until a dive
-  /// arrives; else, while the computer says it is busy, the download starts when it is free, or
-  /// once a dive has downloaded, continues.
+  /// While connecting or downloading, the walk's ``DiveComputerWalk/waitingText``.
   public var waitingText: String? {
     guard phase == .connecting || phase == .downloading else { return nil }
-    if linkLost { return DiveComputerText.linkLost }
-    if otherAppHandshaking { return DiveComputerText.busyOtherApp }
-    guard computerBusy else { return nil }
-    return divesDownloaded > 0 ? DiveComputerText.busyContinues : DiveComputerText.busy
+    return walk?.waitingText
   }
 
   @ObservationIgnored private let engine: DiveComputerEngine
@@ -217,9 +219,12 @@ public final class DiveComputerModel {
     self.engine = engine
     phoneZone = zone
     engine.reload()
+    if let running = engine.walk, !running.watched { shows(running) }
     engine.pairingsChanged = { [weak self] in self?.rebuildRows() }
     engine.walkStarting = { [weak self] walk in
-      guard let self, !walk.watched, scanTask != nil else { return }
+      guard let self, !walk.watched else { return }
+      shows(walk)
+      guard scanTask != nil else { return }
       stopScanning()
       resumesScan = true
     }
@@ -259,6 +264,14 @@ public final class DiveComputerModel {
     guard searching, availability == .on, !isBusy, !askingHeld, scanTask == nil, admits() else {
       return
     }
+    // The diver's outcome gives way to the walk nobody started that it held back, and the scan
+    // waits for that walk's end.
+    if let running = engine.walk, !running.watched, running.isBusy {
+      walk = nil
+      shows(running)
+      resumesScan = true
+      return
+    }
     scanPhase = .scanning
     walk = nil
     // A row is a computer this scan saw: one an earlier scan saw may since have gone, or been
@@ -272,6 +285,12 @@ public final class DiveComputerModel {
       }
     }
     pairedWatch?.scanStarted()
+  }
+
+  /// The screen was left with the model's walk in flight: no scan starts at its end, with no
+  /// screen to show what it finds.
+  public func screenLeftMidDownload() {
+    resumesScan = false
   }
 
   /// The app came back to the foreground: a scan in progress starts over, since what the diver
@@ -516,7 +535,7 @@ public final class DiveComputerModel {
 
   /// Whether a paired computer's page can start a download of it now.
   public func canDownload(_ record: DiveComputerRecord) -> Bool {
-    record.peripheral != nil && !isBusy && blocker == nil && availability == .on
+    record.peripheral != nil && !diverBusy && blocker == nil && availability == .on
   }
 
   /// What `record`'s page draws of the diver's walk.
@@ -567,7 +586,7 @@ public final class DiveComputerModel {
   }
 
   private func start(_ computer: FoundComputer, all: Bool) {
-    guard !isBusy, admits() else { return }
+    guard !diverBusy, admits() else { return }
     stopScanning()
     guard let started = engine.start(computer, all: all) else {
       startScanning()
@@ -575,6 +594,14 @@ public final class DiveComputerModel {
     }
     lastComputer = computer
     walk = started
+  }
+
+  /// A walk nobody started, which the screen draws as the diver's: never in place of the diver's
+  /// own, whose outcome would be lost.
+  private func shows(_ walk: DiveComputerWalk) {
+    guard self.walk?.watched != true else { return }
+    lastComputer = walk.computer
+    self.walk = walk
   }
 
   /// Whether a download may start, saying why not in ``refusal``.

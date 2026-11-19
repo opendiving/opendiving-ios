@@ -28,7 +28,7 @@ struct RootView: View {
     _inbox = State(initialValue: inbox)
     _engine = State(initialValue: engine)
     _notices = State(initialValue: notices)
-    _downloads = State(initialValue: DiveComputerDownloads { DiveComputerModel(engine: engine) })
+    _downloads = State(initialValue: DiveComputerDownloads(engine: engine))
     // The quiet load: a reconnect that loads the account raises no alert of its own.
     _outbox = State(
       initialValue: OutboxModel(session: session, loadAccount: { await account.loadQuietly() }))
