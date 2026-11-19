@@ -23,6 +23,7 @@ private struct HeroUnderTopBar: ViewModifier {
   @State private var pull: CGFloat = 0
   @State private var scrolled: CGFloat = 0
   @State private var isRefreshing = false
+  @Environment(\.pullsToRefresh) private var pullsToRefresh
 
   func body(content: Content) -> some View {
     topEdge(refreshable(content))
@@ -45,7 +46,7 @@ private struct HeroUnderTopBar: ViewModifier {
       .overlay(alignment: .top) {
         ZStack {
           // Built only while it shows: hidden by opacity, its timeline would draw every frame.
-          if refresh != nil, isRefreshing || pulledFar > 0 {
+          if pullRefresh != nil, isRefreshing || pulledFar > 0 {
             BubbleSpinner()
               .frame(width: 32, height: 32)
               .background(Color(.systemBackground).opacity(0.8), in: Circle())
@@ -62,6 +63,10 @@ private struct HeroUnderTopBar: ViewModifier {
       } action: {
         inset = $0
       }
+  }
+
+  private var pullRefresh: (@Sendable () async -> Void)? {
+    pullsToRefresh ? refresh : nil
   }
 
   /// How far into a pull the spinner has faded in, from none to whole.
@@ -82,7 +87,7 @@ private struct HeroUnderTopBar: ViewModifier {
 
   @ViewBuilder
   private func refreshable(_ content: Content) -> some View {
-    if let refresh {
+    if let refresh = pullRefresh {
       content.refreshable {
         isRefreshing = true
         await RefreshRead.run(refresh)

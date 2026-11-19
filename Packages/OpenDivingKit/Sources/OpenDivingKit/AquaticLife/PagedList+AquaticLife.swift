@@ -1,7 +1,7 @@
 import Foundation
 
 extension PagedList where Item == SpeciesLifeListEntry {
-  /// More's *Marine Life*, most recently seen first, in pages of the web's grid's 24, over the
+  /// More's *Aquatic Life*, most recently seen first, in pages of the web's grid's 24, over the
   /// account's copy of the pages it has shown.
   public static func lifeList(_ session: Session) -> PagedList<SpeciesLifeListEntry> {
     PagedList(session: session, itemsPerPage: 24, cache: .lifeList, routed: true) {

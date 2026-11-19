@@ -48,8 +48,9 @@ public final class CourseDetailModel {
   public func refresh() async {
     await page.refresh()
     guard page.phase.isLoaded else { return }
-    async let certifications: Void = self.certifications.refresh()
-    async let dives: Void = self.dives.refresh()
+    let account = AccountReload(session: session)
+    async let certifications: Void = self.certifications.refresh(sharing: account)
+    async let dives: Void = self.dives.refresh(sharing: account)
     _ = await (certifications, dives)
   }
 

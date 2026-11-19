@@ -38,8 +38,9 @@ public final class GearListModel {
 
   /// Pull-to-refresh: both lists from their first page.
   public func refresh() async {
-    async let gear: Void = items.refresh()
-    async let sets: Void = self.sets.refresh()
+    let account = AccountReload(session: session)
+    async let gear: Void = items.refresh(sharing: account)
+    async let sets: Void = self.sets.refresh(sharing: account)
     _ = await (gear, sets)
   }
 

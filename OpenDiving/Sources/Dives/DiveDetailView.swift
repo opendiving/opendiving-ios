@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// One dive's page, pushed from any list of dive cards: the hero, then its cards in four tabs —
-/// Info, Data, Gear and Marine life. The pager in the navigation bar
+/// Info, Data, Gear and Aquatic life. The pager in the navigation bar
 /// steps to the dive before or after in place. A dive the phone has opened before shows at
 /// once from its copy, under when that was fetched, and an edit waiting to sync is marked.
 struct DiveDetailView: View {
@@ -155,7 +155,7 @@ private struct DiveDetailPage: View {
         SectionTabs(
           selection: $tab,
           title: { tab in
-            tab == .marineLife
+            tab == .aquaticLife
               ? DiveSiteSummary.counted(tab.title, content.sightings.count) : tab.title
           },
           onReselect: { withAnimation { scroll.scroll(to: reselect) } }
@@ -175,7 +175,7 @@ private struct DiveDetailPage: View {
               if let gear = content.gear {
                 DiveDetailGearCard(gear: gear)
               }
-            case .marineLife:
+            case .aquaticLife:
               DiveDetailSpeciesCard(sightings: content.sightings, photo: speciesPhoto)
             }
           } else {
@@ -206,7 +206,7 @@ private struct DiveDetailPage: View {
     case .info: .empty(icon: .fileText, title: "Nothing else logged", message: nil)
     case .data: .empty(icon: .chartLine, title: "No profile or tanks logged", message: nil)
     case .gear: .empty(icon: .backpack, title: "No gear logged", message: nil)
-    case .marineLife: .empty(icon: .fish, title: "No marine life logged", message: nil)
+    case .aquaticLife: .empty(icon: .fish, title: "No aquatic life logged", message: nil)
     }
   }
 

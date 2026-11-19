@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One trip's page, pushed from the dive page and the trips list: its hero, then three tabs —
 /// Info, its parts, people, dive centres and notes; Dives, under the parts they were made on;
-/// and Marine life, the species seen on them.
+/// and Aquatic life, the species seen on them.
 struct TripDetailView: View {
   let tripUUID: UUID
   @Environment(Session.self) private var session
@@ -107,7 +107,7 @@ private struct TripDetailPage: View {
             switch tab {
             case .info: tab.title
             case .dives: DiveSiteSummary.counted(tab.title, trip.diveCount)
-            case .marineLife: DiveSiteSummary.counted(tab.title, trip.speciesCount)
+            case .aquaticLife: DiveSiteSummary.counted(tab.title, trip.speciesCount)
             }
           },
           onReselect: { withAnimation { scroll.scroll(to: reselect) } }
@@ -135,7 +135,7 @@ private struct TripDetailPage: View {
               PageEndTrigger(list: model.dives)
               LoadMoreFooter(list: model.dives)
             }
-          case .marineLife:
+          case .aquaticLife:
             TripSpecies(model: model) { empty($0) }
           }
         }
@@ -292,7 +292,7 @@ private struct TripSpecies<Empty: View>: View {
   var body: some View {
     switch model.species {
     case .none:
-      empty(.empty(icon: .fish, title: "No marine life logged on this trip yet", message: nil))
+      empty(.empty(icon: .fish, title: "No aquatic life logged on this trip yet", message: nil))
     case .loading:
       BubbleSpinner()
         .frame(maxWidth: .infinity)

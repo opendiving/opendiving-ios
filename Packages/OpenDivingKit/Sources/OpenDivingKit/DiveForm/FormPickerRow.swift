@@ -68,7 +68,7 @@ public struct FormPickerRow: Hashable, Sendable, Identifiable {
   }
 }
 
-/// A species the marine-life picker offers: one the diver has logged, from the life list the
+/// A species the aquatic-life picker offers: one the diver has logged, from the life list the
 /// phone keeps, or a match the server's search found, which may still need resolving into the
 /// catalogue before a dive can name it.
 public struct SpeciesPick: Hashable, Sendable, Identifiable {

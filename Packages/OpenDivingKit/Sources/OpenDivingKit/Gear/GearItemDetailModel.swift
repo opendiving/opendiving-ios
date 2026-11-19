@@ -38,8 +38,9 @@ public final class GearItemDetailModel {
   public func refresh() async {
     await page.refresh()
     guard page.phase.isLoaded else { return }
-    async let service: Void = service.refresh()
-    async let dives: Void = dives.refresh()
+    let account = AccountReload(session: session)
+    async let service: Void = service.refresh(sharing: account)
+    async let dives: Void = dives.refresh(sharing: account)
     _ = await (service, dives)
   }
 

@@ -1,18 +1,18 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *Marine Life*: every species the diver has logged, most recently seen first, as photo
+/// More's *Aquatic Life*: every species the diver has logged, most recently seen first, as photo
 /// cards each opening the species' page — the pages the phone has shown first, from its copy.
-struct MarineLifeListView: View {
+struct AquaticLifeListView: View {
   @Environment(Session.self) private var session
 
   var body: some View {
-    MarineLifeListContent(list: .lifeList(session))
+    AquaticLifeListContent(list: .lifeList(session))
   }
 }
 
-extension MarineLifeListView {
-  static let title = "Marine Life"
+extension AquaticLifeListView {
+  static let title = "Aquatic Life"
   static let description = "Everything you have logged seeing, and when you saw it"
   static let emptyTitle = "No species yet"
   static let emptyMessage = "Record what you saw on a dive and it will appear here."
@@ -25,14 +25,14 @@ extension MarineLifeListView {
   }
 }
 
-private struct MarineLifeListContent: View {
+private struct AquaticLifeListContent: View {
   @State var list: PagedList<SpeciesLifeListEntry>
   @Environment(Session.self) private var session
 
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 12) {
-        Text(MarineLifeListView.description)
+        Text(AquaticLifeListView.description)
           .font(.subheadline)
           .foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,14 +41,14 @@ private struct MarineLifeListContent: View {
           EmptyOrErrorView(status: .loading)
             .padding(.top, 32)
         case .failed(let error):
-          EmptyOrErrorView(status: .failed(message: MarineLifeListView.failure(error))) {
+          EmptyOrErrorView(status: .failed(message: AquaticLifeListView.failure(error))) {
             Task { await list.refresh() }
           }
         case .loaded where list.items.isEmpty:
           EmptyOrErrorView(
             status: .empty(
-              icon: .fish, title: MarineLifeListView.emptyTitle,
-              message: MarineLifeListView.emptyMessage))
+              icon: .fish, title: AquaticLifeListView.emptyTitle,
+              message: AquaticLifeListView.emptyMessage))
         case .loaded:
           if let lastUpdated = list.lastUpdated {
             LastUpdatedLine(date: lastUpdated)
@@ -64,7 +64,7 @@ private struct MarineLifeListContent: View {
     }
     .background(Color.pageBackground)
     .bubbleRefreshable { await list.refresh() }
-    .navigationTitle(MarineLifeListView.title)
+    .navigationTitle(AquaticLifeListView.title)
     .navigationBarTitleDisplayMode(.inline)
     .task { await list.show(following: session) }
   }
@@ -78,7 +78,7 @@ private struct LifeListCard: View {
 
   var body: some View {
     CreditedSpeciesCard(
-      speciesUUID: entry.uuid, content: .marineLife(entry, photo: photo)
+      speciesUUID: entry.uuid, content: .aquaticLife(entry, photo: photo)
     )
     .task(id: entry.photoSha256) {
       // A null version is the whole photo contract: no photo, and no request.
@@ -90,7 +90,7 @@ private struct LifeListCard: View {
 
 #Preview {
   NavigationStack {
-    MarineLifeListView()
+    AquaticLifeListView()
   }
   .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

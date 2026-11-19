@@ -139,7 +139,7 @@ private struct TripSheetForm: View {
             style: style, points: model.values.mapped, label: "Map of the trip's locations"
           )
           .frame(height: 200)
-          .clipShape(RoundedRectangle(cornerRadius: 8))
+          .listRowInsets(EdgeInsets())
         }
       }
       RecordPeopleField(people: $model.values.people, rows: lookups.people, defaultRole: nil)

@@ -7,5 +7,7 @@ public struct DiveFileInfo: Codable, Hashable, Sendable {
   public let contentType: String
   public let byteSize: Int
   public let parserKey: String
+  /// When the file was uploaded.
+  public let createdAt: DiveTimestamp
   public let updatedAt: DiveTimestamp?
 }

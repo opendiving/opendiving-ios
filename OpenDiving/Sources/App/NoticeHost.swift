@@ -25,11 +25,13 @@ private struct NoticeHost: ViewModifier {
             }
           }
           .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-              Button("Done") { route.opened = nil }
+            ToolbarItem(placement: .topBarLeading) {
+              Button("Close", systemImage: "xmark") { route.opened = nil }
             }
           }
         }
+        // A pull from the top closes the sheet rather than reading its page again.
+        .environment(\.pullsToRefresh, false)
       }
   }
 

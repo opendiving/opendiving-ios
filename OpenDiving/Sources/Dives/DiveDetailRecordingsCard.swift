@@ -8,10 +8,9 @@ struct DiveDetailRecordingsCard: View {
 
   var body: some View {
     SectionCard(title: "Recordings", icon: .diveComputer) {
-      VStack(alignment: .leading, spacing: 20) {
-        ForEach(recordings) { recording in
-          RecordingView(recording: recording)
-        }
+      ForEach(Array(recordings.enumerated()), id: \.element.id) { index, recording in
+        if index > 0 { Divider() }
+        RecordingView(recording: recording)
       }
     }
   }
@@ -36,6 +35,9 @@ private struct RecordingView: View {
         if let firmware = recording.firmware {
           Text(firmware).font(.caption).foregroundStyle(.secondary)
         }
+        if let uploaded = recording.uploaded {
+          Text(uploaded).font(.caption).foregroundStyle(.secondary)
+        }
       }
       if let noFileKept = recording.noFileKept {
         Text(noFileKept).font(.subheadline).foregroundStyle(.secondary)
@@ -50,10 +52,6 @@ private struct RecordingView: View {
               Text(file.detail).font(.caption).foregroundStyle(.secondary)
             }
           }
-          .padding(.horizontal, 12)
-          .padding(.vertical, 8)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(.separator)))
           .accessibilityElement(children: .combine)
         }
       }

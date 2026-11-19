@@ -2,7 +2,7 @@
 
 This repository is the iPhone app: a client of an OpenDiving server, holding on the phone what it
 needs to stay signed in, to show your check-in sheet and the pages of your logbook, gear,
-training, people and marine life it has shown without signal, to keep the drafts, the writes
+training, people and aquatic life it has shown without signal, to keep the drafts, the writes
 waiting to sync, the card images waiting to be sent, the files waiting to be read and the dives
 downloaded from a dive computer waiting to be imported until the server has them, to remember
 which of those dives the server has answered for, and to remember the dive computers it has paired
@@ -42,7 +42,7 @@ What helps most:
 ## Scope
 
 In scope is anything in this repository: how the app stores credentials, the cached sheet, the
-copies of the logbook and of the gear, training, people and marine life it names, the drafts, the
+copies of the logbook and of the gear, training, people and aquatic life it names, the drafts, the
 queue of writes waiting to sync, the card images waiting to be sent, the files waiting to be read,
 the dives downloaded and waiting to be imported and the dive computers it remembers on the phone,
 the notifications it makes of them, how it talks to a server — which origins

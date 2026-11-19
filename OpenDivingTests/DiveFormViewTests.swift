@@ -87,7 +87,7 @@ struct DiveFormViewTests {
       model.sections.map(\.title)
         == [
           "Training", "Location", "People", "Dive Info", "Environment", "Tanks", "Gear",
-          "Marine Life", "Notes",
+          "Aquatic Life", "Notes",
         ])
     // The form draws one section per title.
     #expect(await Self.renderedSections(in: window) == model.sections.count)

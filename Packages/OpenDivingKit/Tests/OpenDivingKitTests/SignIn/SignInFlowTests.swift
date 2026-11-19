@@ -617,7 +617,7 @@ struct SignInFlowTests {
       SignInFlow.goodbyeKept(origin)
         == "This phone holds a check-in sheet, drafts, dives and other changes waiting to sync,"
         + " card images waiting to be sent, files waiting to be read, dive computer download"
-        + " history or copies of the logbook, gear, training, people and marine life for"
+        + " history or copies of the logbook, gear, training, people and aquatic life for"
         + " https://dive.example.org. Forget this server removes all of it.")
     // The flagship offers no Forget.
     #expect(!SignInFlow.goodbyeKept(.flagship).contains("Forget"))
@@ -627,7 +627,7 @@ struct SignInFlowTests {
         == "This phone holds a sign-in, an account, a check-in sheet, drafts, dives and other"
         + " changes waiting to sync, card images waiting to be sent, files waiting to be read,"
         + " dive computer download history or copies of the logbook, gear, training, people and"
-        + " marine life for https://dive.example.org.")
+        + " aquatic life for https://dive.example.org.")
   }
 
   @Test func resendWaitsThirtySeconds() async throws {

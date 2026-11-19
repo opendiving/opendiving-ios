@@ -214,7 +214,7 @@ struct DiveFormModelTests {
     #expect(!model.shows(.course))
     #expect(!model.shows(.sightings))
     #expect(!model.sections.contains(.training))
-    #expect(!model.sections.contains(.marineLife))
+    #expect(!model.sections.contains(.aquaticLife))
     #expect(model.sections.contains(.diveInfo))
   }
 

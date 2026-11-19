@@ -111,15 +111,15 @@ private struct CertificationSheetForm: View {
         end: .init(label: "Expires on", field: "expires_on", date: $model.values.expiresOn),
         contact: $model.values.contact, instructor: $model.values.instructor,
         instructorNumber: $model.values.instructorNumber, lookups: lookups,
-        message: { model.message($0) }
+        message: { model.message($0) }, isCompact: true
       ) {
         TextBox(
           label: "Certification *", placeholder: "e.g. Advanced Open Water Diver",
           text: $model.values.name, message: model.message("name"))
       } besideAgency: {
-        TextBox(
-          label: "Certification number", placeholder: "As printed on the card",
-          text: $model.values.certificationNumber, message: model.message("certification_number"))
+        InlineTextField(
+          title: "Certification number", placeholder: "As printed",
+          text: $model.values.certificationNumber, error: model.message("certification_number"))
       }
       Section {
         ForEach(CertificationCardSlot.slots(certification, edits: edits), id: \.side) { slot in

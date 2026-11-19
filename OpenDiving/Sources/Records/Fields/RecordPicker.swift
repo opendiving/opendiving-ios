@@ -10,19 +10,30 @@ struct RecordPicker<Row: LookupRow, NewSheet: View>: View {
   let addLabel: String
   let rows: [Row]
   @Binding var selection: RecordRef?
+  /// On one line, as a select is, for a value short enough to sit beside its label.
+  var isInline = false
   /// The sheet that makes a new record, handed what to do with its ref.
   let newSheet: (@escaping (RecordRef) -> Void) -> NewSheet
 
   @State private var picking = false
 
   var body: some View {
-    PickerFieldRow(title: label, row: selected, prompt: placeholder) { picking = true }
-      .sheet(isPresented: $picking) {
-        PickerSheet(
-          title: placeholder, searchPrompt: searchPrompt,
-          rows: { LookupsModel.matching(rows, $0).map(FormPickerRow.init) }, current: selection,
-          addLabel: addLabel, addSheet: newSheet, onPick: { selection = $0 })
+    Group {
+      if isInline {
+        SelectRow(
+          title: label, value: selected?.title ?? placeholder,
+          isPending: selected?.isPending ?? false
+        ) { picking = true }
+      } else {
+        PickerFieldRow(title: label, row: selected, prompt: placeholder) { picking = true }
       }
+    }
+    .sheet(isPresented: $picking) {
+      PickerSheet(
+        title: placeholder, searchPrompt: searchPrompt,
+        rows: { LookupsModel.matching(rows, $0).map(FormPickerRow.init) }, current: selection,
+        addLabel: addLabel, addSheet: newSheet, onPick: { selection = $0 })
+    }
   }
 
   private var selected: FormPickerRow? {

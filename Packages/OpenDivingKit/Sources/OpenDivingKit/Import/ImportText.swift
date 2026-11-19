@@ -185,7 +185,7 @@ public enum ImportText {
   public static func collectionLabel(_ collection: String) -> String {
     [
       "dives": "Dives", "trips": "Trips", "courses": "Courses", "sites": "Dive sites",
-      "species": "Marine life", "gear": "Gear", "gear_sets": "Gear sets",
+      "species": "Aquatic life", "gear": "Gear", "gear_sets": "Gear sets",
       "gear_service_schedules": "Service schedules", "gear_service_records": "Service records",
       "certifications": "Certifications", "contacts": "Contacts", "people": "People",
     ][collection] ?? collection
