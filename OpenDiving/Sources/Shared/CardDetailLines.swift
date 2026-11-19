@@ -7,13 +7,14 @@ struct CardDetailLines: View {
   let title: String
   var isCourse = false
   var rating: Int?
+  var badge: Badge?
   let facts: [Fact]
   let figures: [Figure]
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       VStack(alignment: .leading, spacing: 2) {
-        TitleLine(title: title, isCourse: isCourse, rating: rating)
+        TitleLine(title: title, isCourse: isCourse, rating: rating, badge: badge)
         FactsLine(facts: facts, color: .primary)
       }
       FiguresRow(figures: figures)
