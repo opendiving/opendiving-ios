@@ -854,7 +854,8 @@ struct DiveComputerEngineTests {
 
     watcher.send(.connected(F.perdixFound.id))
     await link.untilHeld()
-    #expect(model.phase == .idle)
+    // The screen shows the walk where the scan was.
+    #expect(model.phase == .downloading)
     link.release()
     await engine.settled()
     #expect(model.phase == .scanning)

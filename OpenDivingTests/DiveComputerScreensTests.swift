@@ -34,7 +34,7 @@ struct DiveComputerScreensTests {
       generator: DiveComputerView.generator)
     let window = F.window(
       NavigationStack {
-        DiveComputerScreen(downloads: DiveComputerDownloads { DiveComputerModel(engine: engine) })
+        DiveComputerScreen(downloads: DiveComputerDownloads(engine: engine))
       }
       .environment(session))
     defer { window?.isHidden = true }

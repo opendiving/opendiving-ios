@@ -3,7 +3,8 @@ import Observation
 
 /// One walk over a dive computer as it stands: connecting → downloading → the time-zone
 /// question, only in a walk the diver started and only where it is needed → finished, with an
-/// outcome. ``DiveComputerEngine`` runs it; the screen draws the walk it started.
+/// outcome. ``DiveComputerEngine`` runs it; the screen draws the walk it started, or the one a
+/// connection started while it runs.
 @MainActor
 @Observable
 public final class DiveComputerWalk: Identifiable {
@@ -95,6 +96,26 @@ public final class DiveComputerWalk: Identifiable {
     guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
     return DiveComputerText.downloading(
       min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
+  }
+
+  /// While connecting: *Connecting* until the computer is identified, then *Reading* until the
+  /// download starts.
+  public var connectingText: String? {
+    guard phase == .connecting else { return nil }
+    return identity == nil ? DiveComputerText.connecting : DiveComputerText.reading
+  }
+
+  /// While connecting or downloading: *The connection to this computer was lost…* while the walk
+  /// waits for a lost link; else *This computer is busy…* from a computer that is: closing other
+  /// apps lets the download go on, once another app's handshake broke a transfer and until a dive
+  /// arrives; else, while the computer says it is busy, the download starts when it is free, or
+  /// once a dive has downloaded, continues.
+  public var waitingText: String? {
+    guard phase == .connecting || phase == .downloading else { return nil }
+    if linkLost { return DiveComputerText.linkLost }
+    if otherAppHandshaking { return DiveComputerText.busyOtherApp }
+    guard computerBusy else { return nil }
+    return divesDownloaded > 0 ? DiveComputerText.busyContinues : DiveComputerText.busy
   }
 
   /// The seconds left of the download at `date`, while it downloads and the computer is neither

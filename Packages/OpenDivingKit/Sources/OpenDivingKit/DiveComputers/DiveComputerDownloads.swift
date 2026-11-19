@@ -7,7 +7,8 @@ import Observation
 /// The screen reads ``model`` and reports its appearing and disappearing. Left mid-download,
 /// the model is kept and ``button`` shows until the screen is seen again — through the end of
 /// the download, so its outcome is not lost. Left otherwise, the model is closed and the next
-/// visit starts a fresh one, as a new screen always did.
+/// visit starts a fresh one, as a new screen always did. A download a connection starts while
+/// the screen is not shown draws the button as it runs, its outcome the notification's.
 @MainActor
 @Observable
 public final class DiveComputerDownloads {
@@ -18,29 +19,34 @@ public final class DiveComputerDownloads {
   private var screens = 0
   /// The screen was left while a download was in flight, and has not been seen since.
   private var leftBusy = false
-  @ObservationIgnored private let make: () -> DiveComputerModel
+  @ObservationIgnored private let engine: DiveComputerEngine
+  @ObservationIgnored private let zone: TimeZone
 
-  /// `make` builds a model when a visit needs a fresh one, never before the screen is first
-  /// shown — the device's link asks for Bluetooth.
-  public init(make: @escaping () -> DiveComputerModel) {
-    self.make = make
+  /// A model is made over `engine` when a visit needs a fresh one, never before the screen is
+  /// first shown — the device's link asks for Bluetooth. `zone` is the phone's, which a test
+  /// fixes.
+  public init(engine: DiveComputerEngine, zone: TimeZone = .current) {
+    self.engine = engine
+    self.zone = zone
   }
 
   /// The model the screen shows: the one in flight or whose end is unseen, else a fresh one.
   public var model: DiveComputerModel {
     _ = generation
     if let current { return current }
-    let fresh = make()
+    let fresh = DiveComputerModel(engine: engine, zone: zone)
     current = fresh
     return fresh
   }
 
-  /// The download the profile's button draws, while the screen was left mid-download and is
-  /// not shown.
+  /// The download the profile's button draws while the screen is not shown: the one it was left
+  /// in, else a walk nobody started, while it runs.
   public var button: DiveComputerButtonContent? {
     _ = generation
-    guard screens == 0, leftBusy, let current else { return nil }
-    return DiveComputerButtonContent(current)
+    guard screens == 0 else { return nil }
+    if leftBusy, let current { return DiveComputerButtonContent(current) }
+    guard let walk = engine.walk, !walk.watched, walk.isBusy else { return nil }
+    return DiveComputerButtonContent(walk)
   }
 
   /// The screen came into view, the outcome of the download it shows now seen. Returns that

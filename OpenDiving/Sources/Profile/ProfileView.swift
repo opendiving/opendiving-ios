@@ -239,11 +239,9 @@ private struct StuckProfileTabs: View {
   .environment(InboxModel(session: session))
   .environment(OutboxModel(session: session))
   .environment(
-    DiveComputerDownloads {
-      DiveComputerModel(
-        engine: DiveComputerEngine(
-          session: session,
-          makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
-          generator: DiveComputerView.generator))
-    })
+    DiveComputerDownloads(
+      engine: DiveComputerEngine(
+        session: session,
+        makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+        generator: DiveComputerView.generator)))
 }

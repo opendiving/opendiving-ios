@@ -2,7 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The profile's dive-computer button, which opens the *Dive Computers* screen. Over a
-/// download the diver left running, the icon's bars rise in a loop inside a ring of its progress.
+/// download the diver left running, or one a connection started, the icon's bars rise in a loop
+/// inside a ring of its progress.
 struct DiveComputerToolbarItem: ToolbarContent {
   let action: () -> Void
 

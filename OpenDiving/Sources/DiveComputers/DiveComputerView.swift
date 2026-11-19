@@ -22,8 +22,8 @@ struct DiveComputerView: View {
 
 /// The screen over the app's download model, which a preview or a test gives a fake link:
 /// the paired computers in the account's order, each with its line, *Which computer comes
-/// first?* while a computer just paired waits for it, *Allow notifications*, the download the
-/// diver started, and *Pair a dive computer*. Leaving it mid-download leaves the download running.
+/// first?* while a computer just paired waits for it, *Allow notifications*, the download in
+/// flight, whoever started it, and *Pair a dive computer*. Leaving it mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
   @State private var showing: DiveComputerRecord?
@@ -153,8 +153,9 @@ struct DiveComputerScreen: View {
   }
 }
 
-/// The download the diver started, as it stands: connecting, downloading, the time-zone
-/// question, then its outcome. The list and the computer's page both draw it.
+/// The download the diver started, or one a connection started, as it stands: connecting,
+/// downloading, the time-zone question, then its outcome. The list and the computer's page both
+/// draw it.
 struct DiveComputerWalkSections: View {
   let model: DiveComputerModel
 
@@ -273,7 +274,7 @@ private struct TimeZoneQuestion: View {
     session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
     generator: DiveComputerView.generator)
   NavigationStack {
-    DiveComputerScreen(downloads: DiveComputerDownloads { DiveComputerModel(engine: engine) })
+    DiveComputerScreen(downloads: DiveComputerDownloads(engine: engine))
   }
   .environment(session)
 }

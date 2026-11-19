@@ -27,7 +27,7 @@ struct DiveComputerDownloadsTests {
       session: session, makeLink: { link }, generator: F.generator,
       workFolder: root.appendingPathComponent("Work", isDirectory: true), now: { F.moment },
       zone: F.helsinki)
-    let downloads = DiveComputerDownloads { DiveComputerModel(engine: engine, zone: F.helsinki) }
+    let downloads = DiveComputerDownloads(engine: engine, zone: F.helsinki)
     return (downloads, engine)
   }
 
@@ -181,6 +181,88 @@ struct DiveComputerDownloadsTests {
     #expect(downloads.model !== model)
     link.release()
     await model.settled()
+  }
+
+  /// Pairs the Perdix on the phone, as the watch knows it, and has it connect to the watch's
+  /// request: a walk nobody started, held before its end with every dive before the hold in.
+  private func connect(
+    _ engine: DiveComputerEngine, _ link: FakeDiveComputerLink
+  ) async throws -> DiveComputerRecord {
+    let store = DiveComputerStore(
+      store: ServerStateStore(
+        root: root, secrets: InMemorySecretStore(),
+        activeOrigin: InMemoryActiveOriginStore(ImportServer.origin)),
+      origin: ImportServer.origin, account: ImportServer.accountA)
+    let record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    try store.save(record)
+    #expect(engine.connected(F.perdixFound.id, record: record))
+    let atTheHold = { link.isHeld && engine.walk?.divesDownloaded == F.perdixDownload.count }
+    await until(atTheHold)
+    try #require(atTheHold())
+    return record
+  }
+
+  @Test func aDownloadNobodyStartedDrawsTheButtonWhileItRuns() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    _ = try await connect(engine, link)
+
+    #expect(downloads.button?.state == .working)
+    #expect(downloads.button?.ring == .fraction(0.25))
+
+    link.release()
+    await engine.settled()
+    #expect(engine.archives.count == 1)
+    // Its outcome is the notification's.
+    #expect(downloads.button == nil)
+  }
+
+  @Test func theScreenShowsADownloadNobodyStartedAsTheDiversAndATapStillTakesOver() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    let record = try await connect(engine, link)
+
+    // Opened mid-walk, the screen takes it in, and the button gives way to it.
+    downloads.screenAppeared()
+    let model = downloads.model
+    await model.watch()
+    #expect(downloads.button == nil)
+    #expect(model.phase == .downloading)
+    #expect(model.pageWalk(record) == .running)
+    #expect(model.progress == 0.25)
+    #expect(model.downloadingText == engine.walk?.downloadingText)
+    #expect(model.canDownload(record))
+
+    // Left while it runs, the button draws it through its end, as the diver's.
+    downloads.screenDisappeared()
+    #expect(downloads.model === model)
+    #expect(downloads.button?.state == .working)
+    link.release()
+    await engine.settled()
+    #expect(downloads.button?.state == .succeeded)
+    #expect(downloads.screenAppeared()?.kind == .kept)
+    #expect(model.pageWalk(record) == .finished(try #require(model.outcome)))
+  }
+
+  @Test func aDownloadNobodyStartedIsShownFromItsStart() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    downloads.screenAppeared()
+    let model = downloads.model
+    let record = try await connect(engine, link)
+
+    #expect(model.pageWalk(record) == .running)
+    model.cancel()
+    await engine.settled()
+    #expect(link.cancelled)
+    // What it downloaded before the cancel is kept, as the diver's would be.
+    #expect(model.outcome?.kind == .kept)
   }
 
   @Test func theBarsRiseInTurnThenFadeTogether() {
