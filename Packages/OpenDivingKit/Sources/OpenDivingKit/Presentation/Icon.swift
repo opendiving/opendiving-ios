@@ -47,6 +47,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case locateFixed = "locate-fixed"
   case lock
   case luggage
+  case luggagePlus = "luggage-plus"
   case mail
   case mailPlus = "mail-plus"
   case mapPin = "map-pin"

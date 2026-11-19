@@ -81,7 +81,7 @@ private struct ProfileContent: View {
         // Room for the add button, so the last card scrolls clear of it.
         .padding(
           .bottom,
-          adding == nil ? 0 : FloatingAddButton.side + FloatingAddButton.inset
+          adding == nil ? 0 : FloatingAddButton.side + FloatingAddButton.bottomInset
         )
         .modifier(HiddenUnderTopBar())
       }
@@ -94,7 +94,8 @@ private struct ProfileContent: View {
       StuckProfileTabs(selection: $section, isStuck: tabsStuck, onReselect: scrollOnReselect)
     }
     .floatingAddButton(
-      adding?.title ?? "", fill: adding?.fill ?? .clear, isShown: adding != nil
+      adding?.title ?? "", icon: adding?.icon ?? .plus, fill: adding?.fill ?? .clear,
+      isShown: adding != nil
     ) {
       route = adding?.route
     }
@@ -160,10 +161,10 @@ private struct ProfileContent: View {
   }
 
   /// The add button the section shows: coral for a dive, teal for a trip.
-  private var adding: (title: String, fill: Color, route: ProfileRoute)? {
+  private var adding: (title: String, icon: Icon, fill: Color, route: ProfileRoute)? {
     switch section {
-    case .dives: ("Log a dive", .brandCoral, .logDive)
-    case .trips: ("Add trip", .brandTeal, .addTrip)
+    case .dives: ("Log a dive", .divePlus, .brandCoral, .logDive)
+    case .trips: ("Add trip", .luggagePlus, .brandTeal, .addTrip)
     case .cards, .more: nil
     }
   }
