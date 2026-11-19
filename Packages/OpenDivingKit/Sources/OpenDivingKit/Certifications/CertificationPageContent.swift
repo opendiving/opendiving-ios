@@ -52,10 +52,7 @@ public struct CertificationPageContent: Hashable, Sendable {
     }
     rows = [
       row("Certification", certification.name),
-      row(
-        "Agency",
-        VocabularyLabels.certificationAgency(
-          certification.agency, other: certification.agencyOther)),
+      row("Agency", Self.agency(certification)),
       row("Certification number", certification.certificationNumber),
       row("Course", courseName, certification.courseUuid.map(Row.Link.course)),
       row("Certified on", certification.certifiedOn.map { DateText.date($0) }),
@@ -67,6 +64,15 @@ public struct CertificationPageContent: Hashable, Sendable {
       row("Instructor number", certification.instructorNumber),
     ].compactMap { $0 }
     notes = certification.notes.isEmpty ? nil : certification.notes
+  }
+
+  /// The pane's title: the agency, then the certification.
+  public static func title(_ certification: CertificationRead) -> String {
+    [agency(certification), certification.name].compactMap { $0 }.joined(separator: " ")
+  }
+
+  static func agency(_ certification: CertificationRead) -> String? {
+    VocabularyLabels.certificationAgency(certification.agency, other: certification.agencyOther)
   }
 
   /// The pane as the phone can name its records: the course from the pickers' rows or the copy

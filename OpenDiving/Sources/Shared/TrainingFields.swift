@@ -20,6 +20,9 @@ struct TrainingFields<Leading: View, BesideAgency: View>: View {
   let lookups: LookupsModel
   /// The form's message for an API field name, as `RecordSheetModel.message(_:)`.
   let message: (String) -> String?
+  /// A certification's layout: the dates in the first section, the instructor and their number
+  /// each on one line.
+  var isCompact = false
   /// The form's own rows ahead of the agency, in its section: the record's name.
   @ViewBuilder let leading: Leading
   @ViewBuilder let besideAgency: BesideAgency
@@ -49,12 +52,10 @@ struct TrainingFields<Leading: View, BesideAgency: View>: View {
           label: "Agency name *", placeholder: "e.g. SwedTech Diving", text: $agencyOther,
           message: message("agency_other"))
       }
+      if isCompact { dates }
     }
-    Section {
-      CalendarDateField(label: start.label, date: start.date, rangeEnd: end.date.wrappedValue)
-      FieldMessage(message(start.field))
-      CalendarDateField(label: end.label, date: end.date, rangeStart: start.date.wrappedValue)
-      FieldMessage(message(end.field))
+    if !isCompact {
+      Section { dates }
     }
     Section {
       RecordPicker(
@@ -67,14 +68,28 @@ struct TrainingFields<Leading: View, BesideAgency: View>: View {
       RecordPicker(
         label: "Instructor", placeholder: "Select an instructor...",
         searchPrompt: "Search instructors...",
-        addLabel: "Add instructor...", rows: lookups.people, selection: $instructor
+        addLabel: "Add instructor...", rows: lookups.people, selection: $instructor,
+        isInline: isCompact
       ) { made in
         NewPersonSheet(onCreated: made)
       }
-      TextBox(
-        label: "Instructor number", text: $instructorNumber,
-        message: message("instructor_number"))
+      if isCompact {
+        InlineTextField(
+          title: "Instructor number", placeholder: "", text: $instructorNumber,
+          error: message("instructor_number"))
+      } else {
+        TextBox(
+          label: "Instructor number", text: $instructorNumber,
+          message: message("instructor_number"))
+      }
     }
+  }
+
+  @ViewBuilder private var dates: some View {
+    CalendarDateField(label: start.label, date: start.date, rangeEnd: end.date.wrappedValue)
+    FieldMessage(message(start.field))
+    CalendarDateField(label: end.label, date: end.date, rangeStart: start.date.wrappedValue)
+    FieldMessage(message(end.field))
   }
 }
 
