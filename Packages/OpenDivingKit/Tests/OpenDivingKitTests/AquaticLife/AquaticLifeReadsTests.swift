@@ -11,7 +11,7 @@ import Testing
 /// The life list and a species' page ask what the web asks, keep what they
 /// showed, and with no route ask nothing until one appears.
 @MainActor
-struct MarineLifeReadsTests {
+struct AquaticLifeReadsTests {
   private let uuid = UUID(uuidString: "01a20000-0000-7000-8000-0000000000c1")!
   private var wire: String { uuid.uuidString.lowercased() }
 

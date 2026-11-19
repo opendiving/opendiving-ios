@@ -8,7 +8,7 @@ public enum DiveFormGroup: String, CaseIterable, Sendable, Hashable {
   case environment = "Environment"
   case tanks = "Tanks"
   case gear = "Gear"
-  case marineLife = "Marine Life"
+  case aquaticLife = "Aquatic Life"
   case notes = "Notes"
 
   /// The section's heading.
@@ -26,7 +26,7 @@ public enum DiveFormGroup: String, CaseIterable, Sendable, Hashable {
     case .environment: .cloudSun
     case .tanks: .twinTank
     case .gear: .backpack
-    case .marineLife: .fish
+    case .aquaticLife: .fish
     case .notes: .fileText
     }
   }

@@ -4,7 +4,7 @@ import SwiftUI
 /// Everything about one dive site, as the sites map's panel shows it under the site's mark, name
 /// and location, in three tabs across the panel's width: *Info*, with what stands on it (a
 /// proposal, a Commons match, an edit waiting to land), every field it records, its notes and a
-/// Commons record's history; *Marine life*, the species seen on its dives; and *My dives*, every dive there.
+/// Commons record's history; *Aquatic life*, the species seen on its dives; and *My dives*, every dive there.
 struct SitePanelView: View {
   let siteUUID: UUID
   /// The site, each time it is read.
@@ -62,7 +62,7 @@ private struct SitePanelContent: View {
             Group {
               switch section {
               case .info: info(site)
-              case .marineLife: SiteSpecies(model: model, below: tabsHeight)
+              case .aquaticLife: SiteSpecies(model: model, below: tabsHeight)
               case .myDives:
                 SiteDives(list: model.dives, units: session.units, below: tabsHeight)
                 PageEndTrigger(list: model.dives)
@@ -73,7 +73,7 @@ private struct SitePanelContent: View {
             SectionTabs(selection: $section) { section in
               switch section {
               case .info: section.title
-              case .marineLife: DiveSiteSummary.counted(section.title, site.speciesCount)
+              case .aquaticLife: DiveSiteSummary.counted(section.title, site.speciesCount)
               case .myDives: DiveSiteSummary.counted(section.title, site.diveCount)
               }
             }
@@ -465,7 +465,7 @@ private struct SiteSpecies: View {
     case .none:
       EmptyOrErrorView(
         status: .empty(
-          icon: .fish, title: "No marine life recorded on your dives here yet", message: nil)
+          icon: .fish, title: "No aquatic life recorded on your dives here yet", message: nil)
       )
       .centredInPanel(below: below)
     case .loading:

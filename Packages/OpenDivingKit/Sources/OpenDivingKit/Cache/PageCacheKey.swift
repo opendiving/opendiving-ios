@@ -138,7 +138,7 @@ extension PageCacheKey where Item == ContactRead {
 }
 
 extension PageCacheKey where Item == SpeciesLifeListEntry {
-  /// More's *Marine Life*, the life list. No write deletes a species, but a species' page the
+  /// More's *Aquatic Life*, the life list. No write deletes a species, but a species' page the
   /// server answers 404 for takes its row out.
   public static var lifeList: Self { Self("life-list", record: \.uuid) }
 }

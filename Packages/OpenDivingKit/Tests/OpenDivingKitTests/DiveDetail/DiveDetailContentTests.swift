@@ -516,6 +516,6 @@ struct DiveDetailContentTests {
     #expect(!page.hasSections(in: .data))
     page.gear = nil
     page.sightings = []
-    #expect(!page.hasSections(in: .gear) && !page.hasSections(in: .marineLife))
+    #expect(!page.hasSections(in: .gear) && !page.hasSections(in: .aquaticLife))
   }
 }

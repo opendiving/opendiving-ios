@@ -29,19 +29,19 @@ struct MoreMenu: View {
 
 /// One of the menu's rows.
 enum MoreRow: Hashable, CaseIterable {
-  case marineLife, gear, certifications, courses, people, contacts, imports
+  case aquaticLife, gear, certifications, courses, people, contacts, imports
 
   /// The rows in their groups: the web's first rule falls before Gear, and the import follows,
   /// ruled off.
   static let sections: [[MoreRow]] = [
-    [.marineLife],
+    [.aquaticLife],
     [.gear, .certifications, .courses, .people, .contacts],
     [.imports],
   ]
 
   var title: String {
     switch self {
-    case .marineLife: "Marine Life"
+    case .aquaticLife: "Aquatic Life"
     case .gear: "Gear"
     case .certifications: "Certifications"
     case .courses: "Courses"
@@ -53,7 +53,7 @@ enum MoreRow: Hashable, CaseIterable {
 
   var icon: OpenDivingKit.Icon {
     switch self {
-    case .marineLife: .fish
+    case .aquaticLife: .fish
     case .gear: .backpack
     case .certifications: .badgeCheck
     case .courses: .graduationCap
@@ -65,7 +65,7 @@ enum MoreRow: Hashable, CaseIterable {
 
   @ViewBuilder var destination: some View {
     switch self {
-    case .marineLife: MarineLifeListView()
+    case .aquaticLife: AquaticLifeListView()
     case .gear: GearListView()
     case .certifications: CertificationListView()
     case .courses: CourseListView()

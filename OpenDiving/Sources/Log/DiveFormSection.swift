@@ -17,7 +17,7 @@ struct DiveFormSection: View {
     case .diveInfo: diveInfo
     case .environment: environment
     case .gear: gear
-    case .marineLife: SpeciesField(model: model)
+    case .aquaticLife: SpeciesField(model: model)
     case .notes: notes
     }
   }
