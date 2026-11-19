@@ -14,15 +14,10 @@ struct CertificationContentTests {
 
   // MARK: - The list's card
 
-  @Test func aCardCarriesItsLevelAgencyFiguresAndFront() throws {
+  @Test func aCardCarriesItsLevelAgencyAndFront() throws {
     let card = CertificationCardContent(try Self.stored(), today: Self.today)
-    #expect(card.name == "Solo Diver" && card.agency == "SDI")
-    #expect(
-      card.figures == [
-        Figure(label: "Number", value: "0000000"),
-        Figure(label: "Certified", value: "Sep 25, 2025"),
-      ])
-    #expect(card.front?.side == "front" && card.expiry == nil)
+    #expect(card.name == "Solo Diver" && card.facts == [Fact(text: "SDI")])
+    #expect(card.front?.side == "front" && card.badge == nil)
     #expect(card.missingFrontIcon == .tabImageOff)
   }
 
@@ -30,7 +25,8 @@ struct CertificationContentTests {
     let bare = try Self.decode(files: "[]", expires: "2026-12-01")
     let card = CertificationCardContent(bare, today: Self.today)
     #expect(card.front == nil && card.missingFrontIcon == .tabBadgeCheck)
-    #expect(card.expiry == .expiringSoon)
+    #expect(card.badge == Badge("Expiring soon", style: .coral))
+    #expect(card.facts == [Fact(text: "PADI")])
 
     let pdf = try Self.decode(
       files: #"[{"uuid":"01a0b07a-2e5b-792f-b35b-98009ab92953","side":"front","#

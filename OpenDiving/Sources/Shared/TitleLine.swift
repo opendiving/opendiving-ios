@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// A record's name, followed by a graduation cap for a course dive and its rating in stars.
+/// A record's name, followed by a graduation cap for a course dive, its rating in stars and a
+/// badge, as a certification's expiry.
 struct TitleLine: View {
   let title: String
   var isCourse = false
   var rating: Int?
+  var badge: Badge?
   var font: Font = .headline
 
   var body: some View {
@@ -19,6 +21,9 @@ struct TitleLine: View {
       if let rating {
         RatingStars(rating: rating)
           .font(.caption)
+      }
+      if let badge {
+        BadgeView(badge)
       }
     }
   }

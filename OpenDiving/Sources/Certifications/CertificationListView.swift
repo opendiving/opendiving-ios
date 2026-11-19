@@ -15,8 +15,6 @@ struct CertificationListView: View {
 
 extension CertificationListView {
   static let title = "Certifications"
-  static let description =
-    "Keep photos of your c-cards here, so they're on hand at the dive shop without digging out the plastic"
   static let emptyTitle = "No certifications yet"
   static let emptyMessage = "Add your c-cards so you always have them on hand at the dive shop."
   static let emptyAction = "Add your first certification"
@@ -39,10 +37,6 @@ private struct CertificationListContent: View {
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 12) {
-        Text(CertificationListView.description)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
         PendingSection()
         switch list.phase {
         case .idle, .loading:
@@ -133,20 +127,9 @@ private struct CertificationCardView: View {
   }
 
   private var details: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      FlowLayout(spacing: 8, lineSpacing: 4) {
-        Text(content.name)
-          .font(.headline)
-        if let expiry = content.expiry {
-          BadgeView(expiry.label, style: expiry == .expired ? .destructive : .coral)
-        }
-      }
-      if let agency = content.agency {
-        Text(agency)
-          .font(.caption)
-      }
-      FiguresRow(figures: content.figures, minWidth: 120)
-    }
+    CardDetailLines(
+      title: content.name, badge: content.badge, facts: content.facts, figures: []
+    )
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(CardBackdropFrame.glassPadding)
     .background { GlassCard(shape: .formSection(inset: CardBackdropFrame.glassInset)) }
