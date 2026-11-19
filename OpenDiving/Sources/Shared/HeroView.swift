@@ -23,6 +23,10 @@ struct HeroView<Leading: View>: View {
   private static var pullReach: CGFloat { 400 }
   /// The water showing above the glass on a head with nothing behind its details.
   private static var bareBand: CGFloat { 16 }
+  /// Around the details, so also from the top of what they cover to the credit over them.
+  private static var inset: CGFloat { 16 }
+  /// How far above the bar's bottom its buttons end.
+  private static var barButtonsGap: CGFloat { 10 }
 
   @Environment(\.heroTopInset) private var topInset
   @State private var height: CGFloat = 0
@@ -38,6 +42,13 @@ struct HeroView<Leading: View>: View {
 
   private var onGlass: Bool { detailsOnGlass || isPlain }
 
+  /// From the bar's buttons to the credit, where a map of the whole world centres its places.
+  private var worldBand: ClosedRange<CGFloat>? {
+    let top = topInset - Self.barButtonsGap
+    let bottom = height - detailsHeight + Self.inset
+    return top <= bottom ? top...bottom : nil
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       if onGlass {
@@ -50,7 +61,7 @@ struct HeroView<Leading: View>: View {
         creditLine
       }
     }
-    .padding()
+    .padding(Self.inset)
     .onGeometryChange(for: CGFloat.self) {
       $0.size.height
     } action: {
@@ -84,7 +95,7 @@ struct HeroView<Leading: View>: View {
           MapBackdropView(
             points: content.points, fixes: content.fixes,
             overflowTop: Self.pullReach, coveredTop: topInset, coveredBottom: detailsHeight,
-            worldWhenEmpty: content.mapsTheWorldWhenEmpty, credit: $credit
+            worldWhenEmpty: content.mapsTheWorldWhenEmpty, worldBand: worldBand, credit: $credit
           )
           .allowsHitTesting(false)
           .accessibilityHidden(true)

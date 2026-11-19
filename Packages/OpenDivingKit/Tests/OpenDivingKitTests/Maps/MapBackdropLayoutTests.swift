@@ -209,15 +209,15 @@ struct MapBackdropLayoutTests {
     #expect(pins["Cabo San Lucas"]! < pins["Oban"]! && pins["Oban"]! < pins["Malapascua"]!)
     #expect(abs(pins["Cabo San Lucas"]! - (402 - pins["Malapascua"]!)) <= 1)
 
-    // The profile's taller details leave a band too short for them: the lowest goes down to just
-    // past the details' top, and none further.
+    // A page head says where to centre them: between its bar's buttons and its credit, below
+    // the 400 points a pull-down reveals.
     let reef = MapPoint(name: "Lizard Island", latitude: -14.67, longitude: 145.46)
     let profile = try #require(
       MapBackdropLayout(
-        points: places + [reef], fixes: [], theme: .light, width: 402, height: 396, coveredTop: 116,
-        coveredBottom: 210))
-    #expect(profile.pins.allSatisfy { $0.y <= 396 - 210 + 8.5 })
-    #expect(profile.pins.contains { $0.y >= 396 - 210 + 7 })
+        points: places + [reef], fixes: [], theme: .light, width: 402, height: 796,
+        overflowTop: 400, coveredTop: 116, coveredBottom: 210, worldBand: 106...202))
+    let ys = profile.pins.map(\.y)
+    #expect(abs((ys.min()! + ys.max()!) / 2 - (400 + 154)) <= 0.5)
   }
 
   @Test func theWidestGapIsFoundAcrossTheAntimeridianToo() {

@@ -46,7 +46,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
   /// and `worldWhenEmpty`, the whole world at zoom 0 drawn as wide as the frame, ``worldMiddle``
   /// at the band's middle. Places too far apart for zoom 0 get that world too, the widest gap
-  /// between them at its edges and their own latitude across the band.
+  /// between them at its edges and the middle of their box at the middle of `worldBand`, which
+  /// is in points from the top of what is shown; at the band's middle without one.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
   ///
@@ -56,7 +57,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public init?(
     points: [MapPoint], fixes: [MapPoint], theme: MapTileTheme, width: Double, height: Double,
     overflowTop: Double = 0, coveredTop: Double = 0, coveredBottom: Double,
-    worldWhenEmpty: Bool = false, scale: Double = 1
+    worldWhenEmpty: Bool = false, worldBand: ClosedRange<Double>? = nil, scale: Double = 1
   ) {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
@@ -67,12 +68,10 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let bandTop = overflowTop + padding + coveredTop
     let bandBottom = min(padding + coveredBottom, shown - padding - coveredTop - padding)
     let anchorX = WebMercator.round(width / 2)
-    let anchorY = WebMercator.round((bandTop + height - bandBottom) / 2)
 
     let zoom: Double
     var centreLongitude: Double
-    var centreLatitude: Double
-    var southernmost: Double?
+    let centreLatitude: Double
     if let pinBounds = WebMercator.union(
       placed.map {
         LatLonBounds(south: $0.latitude, north: $0.latitude, west: $0.longitude, east: $0.longitude)
@@ -91,7 +90,6 @@ public struct MapBackdropLayout: Hashable, Sendable {
       centreLatitude = WebMercator.latitude(
         y: (WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.south))
           + WebMercator.y(latitude: WebMercator.clamp(latitude: centreBounds.north))) / 2)
-      southernmost = pinBounds.south
       let fitWidth = width - 2 * padding
       zoom = min(
         Self.fitZoom(
@@ -123,16 +121,12 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let size = isWorld ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
     tileSize = size
     let worldSize = size * Double(count)
-    // A world too short to hold its places in the band lets them down to a little past the top
-    // of the details, still above the credit there, and up under the bar for the rest.
-    if isWorld, let southernmost {
-      let lowest = WebMercator.y(latitude: WebMercator.clamp(latitude: southernmost)) * worldSize
-      let room = max(0, height - coveredBottom + 8 - (bandTop + height - bandBottom) / 2)
-      let centre = WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize
-      if lowest - centre > room {
-        centreLatitude = WebMercator.latitude(y: (lowest - room) / worldSize)
-      }
-    }
+    let bandMiddle = (bandTop + height - bandBottom) / 2
+    let middleY =
+      isWorld && !placed.isEmpty
+      ? worldBand.map { overflowTop + ($0.lowerBound + $0.upperBound) / 2 } ?? bandMiddle
+      : bandMiddle
+    let anchorY = WebMercator.round(middleY)
     let originX = WebMercator.round(WebMercator.x(longitude: centreLongitude) * worldSize)
     let originY = WebMercator.round(
       WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize)
@@ -144,7 +138,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let shiftX = snap(
       width / 2 - (anchorX + WebMercator.x(longitude: centreLongitude) * worldSize - originX))
     let shiftY = snap(
-      (bandTop + height - bandBottom) / 2
+      middleY
         - (anchorY + WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude))
           * worldSize - originY))
     let shownX = anchorX + shiftX
