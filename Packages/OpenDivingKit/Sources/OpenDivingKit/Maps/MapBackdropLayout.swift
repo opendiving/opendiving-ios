@@ -32,6 +32,9 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public static let maxZoom = 9
   /// How far the outermost place is kept from the frame's edges.
   public static let fitPadding = 24.0
+  /// The latitude a map of the whole world puts across the band's middle: north of the equator,
+  /// where most of the land is, since the band shows far less than the world's height.
+  public static let worldMiddleLatitude = 40.0
 
   public let tiles: [Tile]
   public let pins: [Pin]
@@ -39,7 +42,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public var tileSize: Double { WebMercator.tileSize }
 
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
-  /// and `worldWhenEmpty`, the whole world at zoom 0, the equator across the band's middle.
+  /// and `worldWhenEmpty`, the whole world at zoom 0, ``worldMiddleLatitude`` across the band's
+  /// middle.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
   ///
@@ -93,7 +97,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     } else {
       zoom = 0
       centreLongitude = 0
-      centreLatitude = 0
+      centreLatitude = Self.worldMiddleLatitude
     }
 
     // Floored, so the pins only draw closer and a tile's lettering stays the size it was drawn
