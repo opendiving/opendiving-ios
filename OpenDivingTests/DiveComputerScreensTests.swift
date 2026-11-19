@@ -36,7 +36,8 @@ struct DiveComputerScreensTests {
       NavigationStack {
         DiveComputerScreen(downloads: DiveComputerDownloads(engine: engine))
       }
-      .environment(session))
+      .environment(session)
+      .environment(InboxModel(session: session)))
     defer { window?.isHidden = true }
     #expect(window != nil)
   }

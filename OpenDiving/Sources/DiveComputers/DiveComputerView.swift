@@ -23,7 +23,8 @@ struct DiveComputerView: View {
 /// The screen over the app's download model, which a preview or a test gives a fake link:
 /// the paired computers in the account's order, each with its line, *Which computer comes
 /// first?* while a computer just paired waits for it, *Allow notifications*, the download in
-/// flight, whoever started it, *Pair a dive computer*, and *Import files*. Leaving it
+/// flight, whoever started it, *Pair a dive computer*, and *Import files* with the previous
+/// imports under it. Leaving it
 /// mid-download leaves the download running.
 struct DiveComputerScreen: View {
   let downloads: DiveComputerDownloads
@@ -65,15 +66,7 @@ struct DiveComputerScreen: View {
       if model.phase == .idle || model.phase == .scanning || model.phase == .finished {
         pairing
       }
-      Section {
-        NavigationLink {
-          ImportView()
-        } label: {
-          Label(row: DiveComputerText.importFiles, icon: .upload)
-        }
-      } footer: {
-        Text(DiveComputerText.importFilesFooter)
-      }
+      ImportFilesSection()
     }
     .navigationTitle(DiveComputerText.screenTitle)
     .navigationBarTitleDisplayMode(.inline)
@@ -160,6 +153,33 @@ struct DiveComputerScreen: View {
           .accentRow()
       }
     }
+  }
+}
+
+/// *Import files*, which opens the file picker and then the import with what was picked, and
+/// *Previous imports*, the import screen that lists them.
+private struct ImportFilesSection: View {
+  @Environment(InboxModel.self) private var inbox
+  @State private var picking = false
+  @State private var showingImport = false
+
+  var body: some View {
+    Section {
+      Button {
+        picking = true
+      } label: {
+        Label(row: DiveComputerText.importFiles, icon: .upload)
+      }
+      .accentRow()
+      .disabled(inbox.phase != .idle)
+      NavigationLink(DiveComputerText.previousImports) {
+        ImportView()
+      }
+    } footer: {
+      Text(DiveComputerText.importFilesFooter)
+    }
+    .importFilePicker(isPresented: $picking) { showingImport = true }
+    .navigationDestination(isPresented: $showingImport) { ImportView() }
   }
 }
 
@@ -287,4 +307,5 @@ private struct TimeZoneQuestion: View {
     DiveComputerScreen(downloads: DiveComputerDownloads(engine: engine))
   }
   .environment(session)
+  .environment(InboxModel(session: session))
 }

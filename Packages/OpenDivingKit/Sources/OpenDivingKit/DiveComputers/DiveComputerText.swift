@@ -7,8 +7,10 @@ public enum DiveComputerText {
   public static let pair = "Pair a dive computer"
   public static let screenTitle = "Dive Computers"
   public static let pairedHeading = "Paired Computers"
-  /// Opens the import, for the files a computer's own app or desktop software saves.
+  /// Opens the file picker, for the files a computer's own app or desktop software saves.
   public static let importFiles = "Import files"
+  /// Opens the import screen, which lists the imports already applied.
+  public static let previousImports = "Previous imports"
   public static let importFilesFooter =
     "Bring in the dives a dive computer's own app or desktop software has saved to a file."
   public static let scanningHeading = "Looking for Dive Computers"
