@@ -17,10 +17,10 @@ public enum FormVocabulary {
   public static let personRoles = ["buddy", "guide", "instructor", "student", "companion"]
   /// The way a diver lays kit out, mask first.
   public static let gearTypes = [
-    "mask", "snorkel", "fins", "wetsuit", "drysuit", "vest", "hood", "gloves", "boots", "bcd",
-    "backplate", "wing", "regulator", "rebreather", "computer", "transmitter", "cylinder",
-    "light", "scooter", "smb", "mirror", "whistle", "reel", "knife", "line_cutter", "shears",
-    "compass", "camera", "other",
+    "mask", "snorkel", "fins", "wetsuit", "drysuit", "vest", "undergarment", "hood", "gloves",
+    "boots", "tech_shorts", "bcd", "backplate", "wing", "regulator", "rebreather", "computer",
+    "transmitter", "cylinder", "light", "scooter", "smb", "mirror", "whistle", "reel", "knife",
+    "line_cutter", "shears", "compass", "slate", "camera", "other",
   ]
   public static let cylinderMaterials = ["steel", "aluminium", "carbon"]
   public static let contactRoles = [

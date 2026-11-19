@@ -16,7 +16,6 @@ public struct ServiceSchedulePreset: Hashable, Sendable {
     "regulator": [Self(kind: "service", intervalMonths: 12, intervalDives: 100)],
     "bcd": [Self(kind: "service", intervalMonths: 12)],
     "wing": [Self(kind: "service", intervalMonths: 12)],
-    "vest": [Self(kind: "service", intervalMonths: 12)],
     "cylinder": [
       Self(kind: "visual_inspection", intervalMonths: 12),
       Self(kind: "hydrostatic_test", intervalMonths: 60),
