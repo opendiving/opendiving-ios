@@ -31,6 +31,7 @@ private struct NotificationsList: View {
             Text(preference.label)
             Text(preference.description)
           }
+          .tint(.brandTeal)
         }
         .disabled(model.write.isSaving)
         .needsServer()

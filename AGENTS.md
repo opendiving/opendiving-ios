@@ -80,12 +80,13 @@ its own.
 - **Nothing takes the accent from the default tint**, which iOS brightens when Increase Contrast is
   on, and neither does `Color.accentColor`. Give it: `.accentRow()` or `.dangerRow()` on a button's
   label, a link or a symbol, `Label(row:icon:)` for a row, `Color.accentText` for any other text or
-  symbol, `brandBorderedButton()` and `brandProminentButton()` for those styles, and
-  `.tint(Color.accentText)` on any other system control (a progress bar, a slider, an inline
-  picker, a disclosure group). A `Label` in a list colours its own icon, which a tint does not
-  reach, and a destructive button's role draws the system red whatever its tint. Toolbar items,
-  alerts and menus are the system's. `scripts/default-tint.sh` catches the common cases; look at a
-  screen you changed with Increase Contrast on, as `CONTRIBUTING.md` says, for the rest.
+  symbol, `brandBorderedButton()` and `brandProminentButton()` for those styles, `.tint(.brandTeal)`
+  on a switch, which otherwise draws the system green, and `.tint(Color.accentText)` on any other
+  system control (a progress bar, a slider, an inline picker, a disclosure group). A `Label` in a
+  list colours its own icon, which a tint does not reach, and a destructive button's role draws the
+  system red whatever its tint. Toolbar items, alerts and menus are the system's.
+  `scripts/default-tint.sh` catches the common cases; look at a screen you changed with Increase
+  Contrast on, as `CONTRIBUTING.md` says, for the rest.
 
 ## Consuming the API
 
