@@ -1,6 +1,12 @@
 import SwiftUI
 import UIKit
 
+extension EnvironmentValues {
+  /// Whether a page refreshes when pulled down, through ``View/bubbleRefreshable(_:)`` or
+  /// ``View/heroUnderTopBar(refresh:)``.
+  @Entry var pullsToRefresh = true
+}
+
 extension View {
   /// `refreshable`, with the bubble spinner in place of the system's.
   func bubbleRefreshable(_ action: @escaping @MainActor () async -> Void) -> some View {
@@ -22,8 +28,18 @@ private struct BubbleRefreshable: ViewModifier {
   @State private var controlTop: CGFloat = 0
   @State private var origin: CGFloat = 0
   @State private var isRefreshing = false
+  @Environment(\.pullsToRefresh) private var pullsToRefresh
 
+  @ViewBuilder
   func body(content: Content) -> some View {
+    if pullsToRefresh {
+      refreshing(content)
+    } else {
+      content
+    }
+  }
+
+  private func refreshing(_ content: Content) -> some View {
     content
       .refreshable {
         isRefreshing = true
