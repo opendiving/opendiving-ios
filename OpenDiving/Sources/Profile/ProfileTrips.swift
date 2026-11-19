@@ -1,22 +1,13 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The profile's *Trips*: the button that adds a trip, then the diver's trips, the latest first,
-/// each opening its page.
+/// The profile's *Trips*: the diver's trips, the latest first, each opening its page.
 struct ProfileTrips: View {
   let list: PagedList<TripRead>
   let units: UnitSystem
 
   var body: some View {
     LazyVStack(spacing: 12) {
-      NavigationLink {
-        TripFormView(mode: .create)
-      } label: {
-        Label("Add trip", icon: .luggage)
-          .frame(maxWidth: .infinity)
-      }
-      .brandProminentButton()
-      .controlSize(.large)
       switch list.phase {
       case .idle, .loading:
         EmptyOrErrorView(status: .loading)
@@ -29,7 +20,7 @@ struct ProfileTrips: View {
         EmptyOrErrorView(
           status: .empty(
             icon: .luggage, title: "No trips yet",
-            message: "Add one above, or when logging a dive."))
+            message: "Add one with the button below, or when logging a dive."))
       case .loaded:
         if let lastUpdated = list.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
