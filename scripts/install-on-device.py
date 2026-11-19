@@ -2,7 +2,8 @@
 """Builds the app and installs it on a physical iPhone, asking which when more than one is paired.
 
 Pressing return takes the first device listed, and `--first` takes it without asking. Simulators
-are skipped, and the script stops when no physical device is known to the Mac.
+and paired phones the Mac cannot reach are skipped, and the script stops when no physical device
+is left.
 """
 
 import argparse
@@ -27,16 +28,22 @@ def physical_devices():
         with open(out) as f:
             devices = json.load(f)["result"]["devices"]
 
-    found = []
+    found, offline = [], []
     for device in devices:
         hardware = device["properties"]["hardware"]
         if hardware.get("reality") != "physical" or hardware.get("platform") != "iOS":
             continue
         # `deviceProperties` is deprecated, but the replacement carries no user-given name.
         name = device.get("deviceProperties", {}).get("name") or hardware["marketingName"]
-        state = device["properties"]["connection"]["pairingState"]
+        connection = device["properties"]["connection"]
+        # A paired phone the Mac cannot reach right now reads `unavailable`, and xcodebuild
+        # does not offer it as a destination.
+        if connection.get("state") == "unavailable":
+            offline.append(name)
+            continue
+        state = connection["pairingState"]
         found.append((name, hardware["marketingName"], hardware["udid"], state))
-    return found
+    return found, offline
 
 
 def choose(devices):
@@ -66,7 +73,14 @@ def main():
     )
     args = parser.parse_args()
 
-    devices = physical_devices()
+    devices, offline = physical_devices()
+    if not devices and offline:
+        print(
+            f"install-on-device.py: paired but not reachable: {', '.join(offline)}. Connect the "
+            "phone by cable or to this Mac's Wi-Fi, unlock it, and try again.",
+            file=sys.stderr,
+        )
+        return 1
     if not devices:
         print(
             "install-on-device.py: no physical device found. Connect the phone, unlock it and "

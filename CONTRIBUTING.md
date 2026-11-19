@@ -171,7 +171,7 @@ xcrun devicectl device install app --device <UDID> \
 
 `scripts/install-on-device.py` does all of it: it lists the physical devices, takes the first on
 return — or without asking, given `--first` — then generates the project, builds and installs. It
-exits when no physical device is found.
+skips a paired phone the Mac cannot reach right now, and exits when no physical device is left.
 
 Choosing the phone as the run destination in Xcode and pressing Run does the same. The first launch
 stops at *Untrusted Developer*: Settings → General → VPN & Device Management, trust your developer
