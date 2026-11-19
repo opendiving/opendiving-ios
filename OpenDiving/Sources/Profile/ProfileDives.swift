@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The profile's *Dives*: what is waiting to sync, then the logbook, newest first as the server orders it, a page at a time — the pages the phone
-/// has shown first, from its copy.
+/// The profile's *Dives*: what is waiting to sync, then the logbook, newest first as the server
+/// orders it, a page at a time — the pages the phone has shown first, from its copy.
 struct ProfileDives: View {
   let list: PagedList<DiveListItem>
   let units: UnitSystem
