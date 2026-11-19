@@ -188,18 +188,47 @@ struct DiveComputerDownloadsTests {
   private func connect(
     _ engine: DiveComputerEngine, _ link: FakeDiveComputerLink
   ) async throws -> DiveComputerRecord {
-    let store = DiveComputerStore(
-      store: ServerStateStore(
-        root: root, secrets: InMemorySecretStore(),
-        activeOrigin: InMemoryActiveOriginStore(ImportServer.origin)),
-      origin: ImportServer.origin, account: ImportServer.accountA)
     let record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
-    try store.save(record)
+    try computers().save(record)
     #expect(engine.connected(F.perdixFound.id, record: record))
     let atTheHold = { link.isHeld && engine.walk?.divesDownloaded == F.perdixDownload.count }
     await until(atTheHold)
     try #require(atTheHold())
     return record
+  }
+
+  private func computers() -> DiveComputerStore {
+    DiveComputerStore(
+      store: ServerStateStore(
+        root: root, secrets: InMemorySecretStore(),
+        activeOrigin: InMemoryActiveOriginStore(ImportServer.origin)),
+      origin: ImportServer.origin, account: ImportServer.accountA)
+  }
+
+  @Test func aDownloadNobodyStartedQueuedBehindTheDiversLeavesItsOutcome() async throws {
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, F.perdixDownload),
+      FakeDiveComputerLink.script(F.ocean, F.oceanDownload, zone: F.helsinki),
+    ]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    let ocean = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
+    try computers().save(ocean)
+    let model = downloads.model
+    downloads.screenAppeared()
+    try await start(model, link)
+    #expect(engine.connected(F.oceanFound.id, record: ocean))
+
+    link.release()
+    await until { engine.walk?.computer.id == F.oceanFound.id && link.isHeld }
+    #expect(engine.walk?.computer.id == F.oceanFound.id)
+    #expect(model.outcome?.kind == .kept)
+    #expect(model.pageWalk(ocean) == .none)
+
+    link.release()
+    await engine.settled()
   }
 
   @Test func aDownloadNobodyStartedDrawsTheButtonWhileItRuns() async throws {

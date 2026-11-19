@@ -6,8 +6,9 @@ import Observation
 /// through its phases to finished, with an outcome.
 ///
 /// **A walk a connection starts is shown as the diver's is**, from its start or from the
-/// model's, if it is already in flight, to its outcome. A tap on another computer's page still
-/// ends it with what it kept and starts the diver's, as the engine has it.
+/// model's, if it is already in flight, to its outcome — unless the diver's own walk is held for
+/// its outcome, which it does not replace. A tap on another computer's page still ends it with
+/// what it kept and starts the diver's, as the engine has it.
 ///
 /// **The paired computers are listed in the account's order**, each with the line its state
 /// gives (``status(_:)``), and reordered on the server where it keeps one and there is a route.
@@ -581,8 +582,10 @@ public final class DiveComputerModel {
     walk = started
   }
 
-  /// A walk nobody started, which the screen draws as the diver's.
+  /// A walk nobody started, which the screen draws as the diver's: never in place of the diver's
+  /// own, whose outcome would be lost.
   private func shows(_ walk: DiveComputerWalk) {
+    guard self.walk?.watched != true else { return }
     lastComputer = walk.computer
     self.walk = walk
   }
