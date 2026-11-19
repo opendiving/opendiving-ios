@@ -40,7 +40,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public let tiles: [Tile]
   public let pins: [Pin]
   /// The side of a tile, in points: ``WebMercator``'s, but for a map of the whole world, which
-  /// is drawn as wide as the frame so that it ends in the Pacific rather than off the screen.
+  /// is drawn as wide as the frame so that every longitude is on screen.
   public let tileSize: Double
 
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
@@ -109,7 +109,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let z = zoom.isNaN ? Self.maxZoom : Int(min(Double(Self.maxZoom), max(0, zoom)).rounded(.down))
     let count = 1 << z
     // Every longitude shows on a world as wide as the frame, so where it meets its next copy is
-    // the choice: in the widest gap between the places, or the Pacific's with none.
+    // the choice: in the widest gap between the places, or in the Pacific with none.
     let isWorld = placed.isEmpty || zoom < 0
     if isWorld {
       centreLongitude =
@@ -123,9 +123,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let worldSize = size * Double(count)
     let bandMiddle = (bandTop + height - bandBottom) / 2
     let middleY =
-      isWorld && !placed.isEmpty
-      ? worldBand.map { overflowTop + ($0.lowerBound + $0.upperBound) / 2 } ?? bandMiddle
-      : bandMiddle
+      (isWorld && !placed.isEmpty ? worldBand : nil)
+      .map { overflowTop + ($0.lowerBound + $0.upperBound) / 2 } ?? bandMiddle
     let anchorY = WebMercator.round(middleY)
     let originX = WebMercator.round(WebMercator.x(longitude: centreLongitude) * worldSize)
     let originY = WebMercator.round(

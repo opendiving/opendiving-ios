@@ -23,7 +23,7 @@ struct HeroView<Leading: View>: View {
   private static var pullReach: CGFloat { 400 }
   /// The water showing above the glass on a head with nothing behind its details.
   private static var bareBand: CGFloat { 16 }
-  /// Around the details, so also from the top of what they cover to the credit over them.
+  /// Around the details, so also from the top of what they cover to their first line.
   private static var inset: CGFloat { 16 }
   /// How far above the bar's bottom its buttons end.
   private static var barButtonsGap: CGFloat { 10 }
@@ -42,7 +42,8 @@ struct HeroView<Leading: View>: View {
 
   private var onGlass: Bool { detailsOnGlass || isPlain }
 
-  /// From the bar's buttons to the credit, where a map of the whole world centres its places.
+  /// From the bar's buttons to the details' first line, the credit on glass: where a map of the
+  /// whole world centres its places.
   private var worldBand: ClosedRange<CGFloat>? {
     let top = topInset - Self.barButtonsGap
     let bottom = height - detailsHeight + Self.inset
