@@ -63,6 +63,7 @@ public final class DiveComputerDownloads {
     guard screens == 0, let current else { return }
     if current.isBusy {
       leftBusy = true
+      current.screenLeftMidDownload()
     } else {
       drop()
     }

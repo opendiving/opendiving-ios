@@ -287,6 +287,12 @@ public final class DiveComputerModel {
     pairedWatch?.scanStarted()
   }
 
+  /// The screen was left with the model's walk in flight: no scan starts at its end, with no
+  /// screen to show what it finds.
+  public func screenLeftMidDownload() {
+    resumesScan = false
+  }
+
   /// The app came back to the foreground: a scan in progress starts over, since what the diver
   /// did meanwhile, such as forgetting a computer in the Settings app, can leave a row whose
   /// identifier no longer reaches the computer.

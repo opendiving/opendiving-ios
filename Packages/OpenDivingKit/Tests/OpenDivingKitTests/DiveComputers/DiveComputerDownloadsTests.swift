@@ -286,6 +286,27 @@ struct DiveComputerDownloadsTests {
     #expect(model.pageWalk(record) == .finished(try #require(model.outcome)))
   }
 
+  @Test func leftDuringADownloadNobodyStartedTheScanItStoppedStaysStopped() async throws {
+    let link = FakeDiveComputerLink()
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.holdBeforeEnd = true
+    let (downloads, engine) = try await downloads(link)
+    downloads.screenAppeared()
+    let model = downloads.model
+    model.pair()
+    await model.watch()
+    #expect(model.phase == .scanning)
+    _ = try await connect(engine, link)
+    let scans = link.scans
+
+    downloads.screenDisappeared()
+    link.release()
+    await engine.settled()
+    #expect(link.scans == scans)
+    #expect(downloads.button?.state == .succeeded)
+    #expect(downloads.screenAppeared()?.kind == .kept)
+  }
+
   @Test func aDownloadNobodyStartedIsShownFromItsStart() async throws {
     let link = FakeDiveComputerLink()
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
