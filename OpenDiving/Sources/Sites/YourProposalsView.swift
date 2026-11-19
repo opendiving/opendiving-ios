@@ -1,58 +1,77 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Your Proposals*, pushed from the sites map: what the diver has proposed for OpenDiving
-/// Commons and what became of it, a page at a time.
+/// *Your Proposals*, pushed from the sites map, under the OpenDiving Commons mark: to a diver who
+/// has proposed nothing, what the Commons is and how to propose a site; to one who has, what
+/// waits, what was accepted and what was declined, a tab each, with the introduction behind *i*.
 struct YourProposalsView: View {
   static let title = "Your Proposals"
 
   @Environment(Session.self) private var session
 
   var body: some View {
-    ProposalList(model: DiveSiteProposalsModel(session: session))
-      .navigationTitle(Self.title)
-      .navigationBarTitleDisplayMode(.inline)
+    ProposalsContent(model: DiveSiteProposalsModel(session: session))
   }
 }
 
-private struct ProposalList: View {
+nonisolated extension DiveSiteProposalTab: TabSection {}
+
+private struct ProposalsContent: View {
   @State private var model: DiveSiteProposalsModel
+  @State private var tab = DiveSiteProposalTab.proposed
+  @State private var showsIntro = false
+  @State private var adding = false
 
   init(model: DiveSiteProposalsModel) {
     _model = State(initialValue: model)
   }
 
+  private var showsTabs: Bool {
+    model.any.phase == .loaded && !model.any.items.isEmpty
+  }
+
   var body: some View {
-    let list = model.list
+    let any = model.any
     Group {
-      switch list.phase {
+      switch any.phase {
       case .idle, .loading:
         EmptyOrErrorView(status: .loading)
       case .failed(let error):
         EmptyOrErrorView(status: .failed(message: error.message)) {
-          Task { await list.load() }
+          Task { await any.load() }
         }
-      case .loaded where list.items.isEmpty:
-        EmptyOrErrorView(
-          status: .empty(
-            icon: .landmark, title: "No proposals yet",
-            message: "What you propose for OpenDiving Commons shows here."))
+      case .loaded where any.items.isEmpty:
+        CommonsIntroPage { adding = true }
       case .loaded:
-        ScrollView {
-          LazyVStack(spacing: 12) {
-            ForEach(list.items) { proposal in
-              ProposalCard(row: DiveSiteProposalSummary.row(proposal), model: model)
-                .onAppear { Task { await list.loadMore(after: proposal) } }
-            }
-            LoadMoreFooter(list: list)
-          }
-          .padding()
-        }
+        ProposalTabs(model: model, tab: $tab) { adding = true }
       }
     }
     .background(Color(.systemGroupedBackground))
-    .bubbleRefreshable { await list.refresh() }
-    .task { await list.load() }
+    .navigationTitle(YourProposalsView.title)
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbar {
+      // The title names the page in the back button's history; the mark heads it on screen, and
+      // on the tabs it becomes the bar's own title. Removing the title would remove that too.
+      if !showsTabs {
+        ToolbarItem(placement: .principal) {
+          Color.clear.frame(width: 1, height: 1)
+        }
+      }
+      if showsTabs {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button {
+            showsIntro = true
+          } label: {
+            Label("About OpenDiving Commons", systemImage: "info.circle")
+          }
+        }
+      }
+    }
+    .sheet(isPresented: $showsIntro) { CommonsIntroSheet() }
+    .navigationDestination(isPresented: $adding) {
+      DiveSiteFormView(mode: .create, visibility: .public)
+    }
+    .task { await any.load() }
     .proposalWithdrawalAlert(model.withdrawal)
     .alert(
       DiveSiteProposalSummary.showProposerRefused,
@@ -63,6 +82,150 @@ private struct ProposalList: View {
     } message: {
       Text(model.choiceFailure ?? "")
     }
+  }
+}
+
+/// The logo over the tabs, then the chosen tab's proposals. Scrolled up, the logo's second line, its
+/// filled bubble, C and *ommons*, flies into the navigation bar as its title while *OpenDiving* fades
+/// on the way, and the tabs stay pinned under the bar.
+private struct ProposalTabs: View {
+  let model: DiveSiteProposalsModel
+  @Binding var tab: DiveSiteProposalTab
+  let add: () -> Void
+
+  private static let content = "ProposalTabsContent"
+  private static let gap: CGFloat = 16
+
+  @State private var offset: CGFloat = 0
+  /// The scroll view's height less its insets, which its container size already leaves out.
+  @State private var visibleHeight: CGFloat = 0
+  /// How far the page scrolls before the tabs reach the bar: the head's height and the gap under
+  /// it.
+  @State private var travel: CGFloat = 0
+  @State private var scrollFrame = CGRect.zero
+  @State private var contentFrame = CGRect.zero
+  /// In the page's content, where it stands with the page at rest.
+  @State private var logo = CGRect.zero
+  /// On screen.
+  @State private var barTitle = CGRect.zero
+
+  var body: some View {
+    let list = model.list(tab)
+    ScrollView {
+      LazyVStack(spacing: Self.gap, pinnedViews: [.sectionHeaders]) {
+        CommonsWordmarkHeader(in: Self.content) { logo = $0 }
+          // The flying copy stands in for it from the first point of the scroll.
+          .opacity(progress > 0 ? 0 : 1)
+          .onGeometryChange(for: CGFloat.self) {
+            $0.size.height
+          } action: {
+            travel = $0 + Self.gap
+          }
+        Section {
+          Group {
+            switch list.phase {
+            case .idle, .loading:
+              BubbleSpinner()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            case .failed(let error):
+              EmptyOrErrorView(status: .failed(message: error.message)) {
+                Task { await list.load() }
+              }
+            case .loaded where list.items.isEmpty:
+              ContentUnavailableView {
+                Label(tab.emptyTitle, icon: .landmark)
+              } description: {
+                Text(CommonsIntro.emptyMessage)
+              } actions: {
+                Button(CommonsIntro.addAction, systemImage: "plus", action: add)
+                  .brandProminentButton()
+              }
+              .padding(.top, 24)
+            case .loaded:
+              ForEach(list.items) { proposal in
+                ProposalCard(row: DiveSiteProposalSummary.row(proposal), model: model)
+                  .onAppear { Task { await list.loadMore(after: proposal) } }
+              }
+              LoadMoreFooter(list: list)
+            }
+          }
+          .padding(.horizontal)
+        } header: {
+          SectionTabs(selection: $tab, showsIcons: false)
+            // On the page's own fill, which what scrolls passes under.
+            .background(Color(.systemGroupedBackground))
+        }
+      }
+      .padding(.bottom)
+      // Tall enough for the head to go all the way into the bar however short the list.
+      .frame(minHeight: visibleHeight + travel, alignment: .top)
+      .coordinateSpace(.named(Self.content))
+      .onGeometryChange(for: CGRect.self) {
+        $0.frame(in: .global)
+      } action: {
+        contentFrame = $0
+      }
+    }
+    .onScrollGeometryChange(for: CGFloat.self) {
+      $0.contentOffset.y + $0.contentInsets.top
+    } action: {
+      offset = $1
+    }
+    .onScrollGeometryChange(for: CGFloat.self) {
+      $0.containerSize.height
+    } action: {
+      visibleHeight = $1
+    }
+    .onGeometryChange(for: CGRect.self) {
+      $0.frame(in: .global)
+    } action: {
+      scrollFrame = $0
+    }
+    // Over the scroll rather than in it: the name goes straight from its place to the bar while
+    // the page moves away under it, clear of the blur the bar lays over the scroll's content.
+    .overlay(alignment: .topLeading) { flyingName }
+    .toolbar {
+      ToolbarItem(placement: .principal) {
+        CommonsBarTitle { barTitle = $0 }
+          .opacity(progress >= 1 ? 1 : 0)
+      }
+    }
+    .bubbleRefreshable { await model.refresh() }
+    .task(id: tab) { await list.load() }
+  }
+
+  /// How far the head has gone into the bar, from none at rest to all once the tabs reach it.
+  private var progress: Double {
+    guard travel > 0 else { return 0 }
+    return min(max(Double(offset / travel), 0), 1)
+  }
+
+  /// The logo's second line `progress` of the way from where it stands at rest to the bar's title,
+  /// the rest of the logo going with it as it fades.
+  @ViewBuilder private var flyingName: some View {
+    let share = progress
+    if share > 0, share < 1, barTitle != .zero {
+      let line = CommonsLogo.barFrame(in: atRest(logo)).interpolated(
+        to: onScroll(barTitle), by: share)
+      let frame = CommonsLogo.frame(barAt: line)
+      CommonsLogoLayers(size: frame.size, openDiving: 1 - share)
+        .offset(x: frame.minX, y: frame.minY)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+  }
+
+  /// `frame`, in the content, as it stands in the scroll view with the page at rest.
+  private func atRest(_ frame: CGRect) -> CGRect {
+    let contentTopAtRest = contentFrame.minY + offset
+    return frame.offsetBy(
+      dx: contentFrame.minX - scrollFrame.minX, dy: contentTopAtRest - scrollFrame.minY)
+  }
+
+  /// `frame`, on screen, in the scroll view.
+  private func onScroll(_ frame: CGRect) -> CGRect {
+    frame.offsetBy(dx: -scrollFrame.minX, dy: -scrollFrame.minY)
   }
 }
 
@@ -114,9 +277,24 @@ private struct ProposalCard: View {
   }
 }
 
-#Preview {
+#Preview("Proposals") {
+  let page =
+    #"{"data":[{"uuid":"01a15c10-7d3e-7b21-9a44-5e6f7a8b9c0d","kind":"new_site","#
+    + #""status":"waiting","reason":null,"site":{"uuid":"01a0a521-28c5-7e34-a572-4d7324f5033b","#
+    + #""name":"Tiger Reef"},"created_at":"2026-11-02T23:40:11.502113Z","decided_at":null}],"#
+    + #""total_count":1,"has_more":false,"page":1,"items_per_page":50}"#
   NavigationStack {
     YourProposalsView()
   }
-  .environment(Session.stub(transport: StubTransport(routes: [:])))
+  .environment(
+    Session.stub(transport: StubTransport(routes: ["GET dive-site-proposals": .json(page)])))
+}
+
+#Preview("None yet") {
+  let empty = #"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":1}"#
+  NavigationStack {
+    YourProposalsView()
+  }
+  .environment(
+    Session.stub(transport: StubTransport(routes: ["GET dive-site-proposals": .json(empty)])))
 }

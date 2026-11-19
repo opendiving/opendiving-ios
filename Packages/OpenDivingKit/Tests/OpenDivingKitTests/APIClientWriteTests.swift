@@ -88,6 +88,17 @@ struct APIClientWriteTests {
     let query = try #require(harness.transport.requests.first?.url?.query)
     #expect(query.contains("page=2"))
     #expect(query.contains("items_per_page=10"))
+    #expect(!query.contains("status"))
+  }
+
+  @Test func theProposalsAskForTheStatusTheyAreFilteredTo() async throws {
+    let harness = harness([
+      "GET dive-site-proposals": .json(try KitFixture.text("dive-site-proposals-page"))
+    ])
+    _ = try await harness.client.diveSiteProposals(
+      status: DiveSiteProposalStatus.declined, page: 1)
+    let query = try #require(harness.transport.requests.first?.url?.query)
+    #expect(query.contains("status=declined"))
   }
 
   @Test func everyCreateIsAPostCarryingItsIdempotencyKey() async throws {

@@ -28,7 +28,8 @@ public enum DiveSiteProposalSummary {
 
   /// How the form for the diver's own site offers the choice between private and public.
   public enum Choice: Hashable, Sendable {
-    /// Either can be chosen, and private is where it starts.
+    /// Either can be chosen. Private is where it starts, except on a new site added from *Your
+    /// Proposals*, which starts on public.
     case open
     /// A proposal waits: public, until it is withdrawn or decided.
     case locked
