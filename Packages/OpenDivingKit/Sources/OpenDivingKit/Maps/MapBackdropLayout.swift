@@ -40,12 +40,13 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public let tiles: [Tile]
   public let pins: [Pin]
   /// The side of a tile, in points: ``WebMercator``'s, but for a map of the whole world, which
-  /// is drawn as wide as the frame.
+  /// is drawn as wide as the frame so that it ends in the Pacific rather than off the screen.
   public let tileSize: Double
 
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
   /// and `worldWhenEmpty`, the whole world at zoom 0 drawn as wide as the frame, ``worldMiddle``
-  /// at the band's middle.
+  /// at the band's middle. Places too far apart for zoom 0 get that world too, with the same
+  /// longitude at the middle and their own latitude.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
   ///
@@ -69,7 +70,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let anchorY = WebMercator.round((bandTop + height - bandBottom) / 2)
 
     let zoom: Double
-    let centreLongitude: Double
+    var centreLongitude: Double
     let centreLatitude: Double
     if let pinBounds = WebMercator.union(
       placed.map {
@@ -107,10 +108,13 @@ public struct MapBackdropLayout: Hashable, Sendable {
     // A frame narrower than its padding fits nothing, a zoom of -∞ or NaN.
     let z = zoom.isNaN ? Self.maxZoom : Int(min(Double(Self.maxZoom), max(0, zoom)).rounded(.down))
     let count = 1 << z
+    // Every longitude shows on a world as wide as the frame, so its places keep the one the
+    // empty world has at the middle, which puts the frame's edges in the Pacific.
+    let isWorld = placed.isEmpty || zoom < 0
+    if isWorld { centreLongitude = Self.worldMiddle.longitude }
     // A whole number of pixels, so the world meets its next copy without a seam, at most a
     // pixel past the frame's sides.
-    let size =
-      placed.isEmpty ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
+    let size = isWorld ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
     tileSize = size
     let worldSize = size * Double(count)
     let originX = WebMercator.round(WebMercator.x(longitude: centreLongitude) * worldSize)

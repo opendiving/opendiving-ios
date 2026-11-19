@@ -187,6 +187,27 @@ struct MapBackdropLayoutTests {
     #expect(world.tiles[0].y + world.tileSize / 2 > down)
   }
 
+  @Test func placesTooFarApartForZoomZeroGetTheWorldAsWideAsTheFrame() throws {
+    // Cabo first, as the profile lists them, so the places' own box runs west from it and
+    // would put Mexico in the middle.
+    let places = [
+      MapPoint(name: "Cabo San Lucas", latitude: 22.89, longitude: -109.92),
+      MapPoint(name: "Oban", latitude: 56.41, longitude: -5.47),
+      MapPoint(name: "Dahab", latitude: 28.5, longitude: 34.51),
+      MapPoint(name: "Ko Tao", latitude: 10.09, longitude: 99.84),
+      MapPoint(name: "Malapascua", latitude: 11.34, longitude: 124.12),
+    ]
+    let head = try #require(
+      MapBackdropLayout(
+        points: places, fixes: [], theme: .light, width: 402, height: 396, coveredTop: 116,
+        coveredBottom: 148))
+    #expect(head.tileSize == 402)
+    #expect(Set(head.tiles.map(\.address.z)) == [0])
+    #expect(head.pins.allSatisfy { (24...378).contains($0.x) && (116...248).contains($0.y) })
+    let pins = Dictionary(uniqueKeysWithValues: head.pins.map { ($0.name, $0.x) })
+    #expect(pins["Cabo San Lucas"]! < pins["Oban"]! && pins["Oban"]! < pins["Malapascua"]!)
+  }
+
   @Test func theThemeIsEveryTilesAddress() throws {
     let layout = try #require(
       MapBackdropLayout(
