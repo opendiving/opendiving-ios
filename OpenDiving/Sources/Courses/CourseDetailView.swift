@@ -135,13 +135,19 @@ private struct CourseDetailContent: View {
   }
 }
 
-/// The certifications the course issued, each opening its page. A course with no agency and no
+/// The certifications the course issued, each opening its pane. A course with no agency and no
 /// card shows nothing; one with an agency and no card invites the first.
 private struct CourseCertificationsSection: View {
   let course: CourseRead
   let list: PagedList<CertificationRead>
 
+  @State private var opened: CertificationRead?
+
   var body: some View {
+    section.certificationSheet($opened)
+  }
+
+  @ViewBuilder private var section: some View {
     if CoursePageContent.showsCertifications(course, certifications: list.items) {
       switch list.phase {
       case .idle, .loading:
@@ -165,8 +171,8 @@ private struct CourseCertificationsSection: View {
       case .loaded:
         card {
           ForEach(list.items) { certification in
-            NavigationLink {
-              CertificationDetailView(certificationUUID: certification.uuid)
+            Button {
+              opened = certification
             } label: {
               VStack(alignment: .leading, spacing: 2) {
                 Text(certification.name)
