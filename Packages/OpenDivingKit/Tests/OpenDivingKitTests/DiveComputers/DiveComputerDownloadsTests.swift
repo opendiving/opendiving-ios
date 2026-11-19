@@ -205,7 +205,7 @@ struct DiveComputerDownloadsTests {
       origin: ImportServer.origin, account: ImportServer.accountA)
   }
 
-  @Test func aDownloadNobodyStartedQueuedBehindTheDiversLeavesItsOutcome() async throws {
+  @Test func aDownloadNobodyStartedQueuedBehindTheDiversWaitsForItsOutcomeToGo() async throws {
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
     link.scripts = [
@@ -227,8 +227,17 @@ struct DiveComputerDownloadsTests {
     #expect(model.outcome?.kind == .kept)
     #expect(model.pageWalk(ocean) == .none)
 
+    // Where a scan would clear the outcome, the walk it held back is shown instead, and the
+    // scan waits for its end.
+    let scans = link.scans
+    model.pair()
+    #expect(model.pageWalk(ocean) == .running)
+    #expect(link.scans == scans)
+
     link.release()
     await engine.settled()
+    #expect(model.phase == .scanning)
+    #expect(link.scans == scans + 1)
   }
 
   @Test func aDownloadNobodyStartedDrawsTheButtonWhileItRuns() async throws {

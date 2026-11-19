@@ -7,7 +7,7 @@ import Observation
 ///
 /// **A walk a connection starts is shown as the diver's is**, from its start or from the
 /// model's, if it is already in flight, to its outcome — unless the diver's own walk is held for
-/// its outcome, which it does not replace. A tap on another computer's page still ends it with
+/// its outcome, which it does not replace until the next scan would. A tap on another computer's page still ends it with
 /// what it kept and starts the diver's, as the engine has it.
 ///
 /// **The paired computers are listed in the account's order**, each with the line its state
@@ -262,6 +262,14 @@ public final class DiveComputerModel {
   /// Starts a scan once the diver asked to pair, unless something refuses one.
   public func startScanning() {
     guard searching, availability == .on, !isBusy, !askingHeld, scanTask == nil, admits() else {
+      return
+    }
+    // The diver's outcome gives way to the walk nobody started that it held back, and the scan
+    // waits for that walk's end.
+    if let running = engine.walk, !running.watched, running.isBusy {
+      walk = nil
+      shows(running)
+      resumesScan = true
       return
     }
     scanPhase = .scanning
