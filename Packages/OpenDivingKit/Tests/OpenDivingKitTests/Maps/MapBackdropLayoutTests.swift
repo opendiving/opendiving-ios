@@ -174,16 +174,17 @@ struct MapBackdropLayoutTests {
         worldWhenEmpty: true))
     #expect(world.pins.isEmpty)
     #expect(Set(world.tiles.map(\.address)) == [MapTileAddress(theme: .light, z: 0, x: 0, y: 0)])
-    // One copy of the world, as wide as the frame: the antimeridian at both edges.
+    // As wide as the frame, so the world meets its next copy at the frame's edges, in the
+    // Pacific.
     #expect(world.tileSize == 361)
-    #expect(world.tiles.map(\.x) == [0])
+    let middle = MapBackdropLayout.worldMiddle
+    let across = try #require(world.tiles.first { $0.x <= 361 / 2.0 && 361 / 2.0 < $0.x + 361 })
+    #expect(abs(across.x + WebMercator.x(longitude: middle.longitude) * 361 - 361 / 2.0) <= 0.5)
     // Its middle latitude across the band's middle, between the padding and the details, which
     // puts the equator below it.
-    let middle =
-      world.tiles[0].y
-      + WebMercator.y(latitude: MapBackdropLayout.worldMiddleLatitude) * world.tileSize
-    #expect(abs(middle - (24 + 240 - 124) / 2.0) <= 0.5)
-    #expect(world.tiles[0].y + world.tileSize / 2 > middle)
+    let down = world.tiles[0].y + WebMercator.y(latitude: middle.latitude) * world.tileSize
+    #expect(abs(down - (24 + 240 - 124) / 2.0) <= 0.5)
+    #expect(world.tiles[0].y + world.tileSize / 2 > down)
   }
 
   @Test func theThemeIsEveryTilesAddress() throws {
