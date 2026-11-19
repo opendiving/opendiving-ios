@@ -26,7 +26,9 @@ struct DiveComputerPage: View {
           DiveComputerText.downloadAutomatically,
           isOn: Binding(
             get: { record.downloadsAutomatically },
-            set: { model.setDownloadsAutomatically($0, for: record) }))
+            set: { model.setDownloadsAutomatically($0, for: record) })
+        )
+        .tint(.brandTeal)
       } footer: {
         Text(DiveComputerText.downloadAutomaticallyFooter)
       }

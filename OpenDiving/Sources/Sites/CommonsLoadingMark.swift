@@ -61,7 +61,7 @@ struct CommonsLoadingMark: View {
   @Previewable @State var isLoading = false
   VStack(spacing: 24) {
     CommonsLoadingMark(isLoading: isLoading)
-    Toggle("Loading", isOn: $isLoading).fixedSize()
+    Toggle("Loading", isOn: $isLoading).fixedSize().tint(.brandTeal)
   }
   .padding()
 }

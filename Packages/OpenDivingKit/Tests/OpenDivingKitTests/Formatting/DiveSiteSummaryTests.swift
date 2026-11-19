@@ -14,7 +14,7 @@ struct DiveSiteSummaryTests {
 
   @Test func aTabCountsWhatItHoldsAndSaysNothingOfNone() {
     #expect(DiveSiteSummary.counted("My dives", 3) == "My dives (3)")
-    #expect(DiveSiteSummary.counted("Marine life", 0) == "Marine life")
+    #expect(DiveSiteSummary.counted("Aquatic life", 0) == "Aquatic life")
   }
 
   @Test func theInformationCardHoldsEveryFieldTheSiteRecords() throws {

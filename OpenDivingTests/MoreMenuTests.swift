@@ -12,13 +12,13 @@ struct MoreMenuTests {
   @Test func theRowsFollowTheWebsNavigationRuledOffAsItIs() {
     #expect(
       MoreRow.sections == [
-        [.marineLife],
+        [.aquaticLife],
         [.gear, .certifications, .courses, .people, .contacts],
         [.imports],
       ])
     #expect(
       MoreRow.sections.flatMap { $0 }.map(\.title) == [
-        "Marine Life", "Gear", "Certifications", "Courses", "People", "Contacts", "Import",
+        "Aquatic Life", "Gear", "Certifications", "Courses", "People", "Contacts", "Import",
       ])
   }
 
@@ -42,7 +42,7 @@ struct MoreMenuTests {
     #expect(host(CourseListView()) != nil)
     #expect(host(PeopleListView()) != nil)
     #expect(host(ContactListView()) != nil)
-    #expect(host(MarineLifeListView()) != nil)
+    #expect(host(AquaticLifeListView()) != nil)
   }
 
   @Test func thePagesHostWithAUUID() {

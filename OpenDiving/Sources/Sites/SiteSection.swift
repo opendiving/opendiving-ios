@@ -1,11 +1,11 @@
 /// What an opened site's panel shows under its head.
 nonisolated enum SiteSection: TabSection {
-  case info, marineLife, myDives
+  case info, aquaticLife, myDives
 
   var title: String {
     switch self {
     case .info: "Info"
-    case .marineLife: "Marine life"
+    case .aquaticLife: "Aquatic life"
     case .myDives: "My dives"
     }
   }

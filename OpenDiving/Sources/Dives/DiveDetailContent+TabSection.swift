@@ -6,7 +6,7 @@ nonisolated extension DiveDetailContent.Tab: TabSection {
     case .info: "Info"
     case .data: "Data"
     case .gear: "Gear"
-    case .marineLife: "Marine life"
+    case .aquaticLife: "Aquatic life"
     }
   }
 }

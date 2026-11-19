@@ -277,7 +277,7 @@ extension DiveFormModel {
 
   public func removeTag(_ tag: String) { change { $0.tags.removeAll { $0 == tag } } }
 
-  // MARK: - Marine life
+  // MARK: - Aquatic life
 
   /// A species on the dive, by the name the phone knows for it.
   public func speciesName(_ uuid: UUID) -> String {

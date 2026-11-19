@@ -17,7 +17,7 @@ struct DiveFormSection: View {
     case .diveInfo: diveInfo
     case .environment: environment
     case .gear: gear
-    case .marineLife: SpeciesField(model: model)
+    case .aquaticLife: SpeciesField(model: model)
     case .notes: notes
     }
   }
@@ -221,26 +221,6 @@ private struct DiveNumberField: View {
     }
     .onAppear { text = number.map(String.init) ?? "" }
     .onChange(of: number) { _, now in if !focused { text = now.map(String.init) ?? "" } }
-  }
-}
-
-/// A line of text on one row.
-private struct InlineTextField: View {
-  let title: String
-  let placeholder: String
-  let text: Binding<String>
-  var error: String?
-
-  @FocusState private var focused: Bool
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      InlineField(title, focus: $focused) {
-        TextField(placeholder, text: text)
-          .focused($focused)
-      }
-      if let error { FieldMessage(error) }
-    }
   }
 }
 

@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The photos of a *Marine life* tab's species, as each card asks for its own.
+/// The photos of a *Aquatic life* tab's species, as each card asks for its own.
 @MainActor
 @Observable
 public final class SpeciesCardPhotos {
