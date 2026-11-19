@@ -32,14 +32,22 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public static let maxZoom = 9
   /// How far the outermost place is kept from the frame's edges.
   public static let fitPadding = 24.0
+  /// The place a map of the whole world puts at the band's middle, chosen by eye: north of the
+  /// equator, where most of the land is, and east of Greenwich so the frame's edges fall in the
+  /// Pacific.
+  public static let worldMiddle = (latitude: 11.0, longitude: 11.0)
 
   public let tiles: [Tile]
   public let pins: [Pin]
-  /// The side of a tile, in points.
-  public var tileSize: Double { WebMercator.tileSize }
+  /// The side of a tile, in points: ``WebMercator``'s, but for a map of the whole world, which
+  /// is drawn as wide as the frame so that every longitude is on screen.
+  public let tileSize: Double
 
   /// Nil when there is nothing to place, or no frame to place it in; with nothing to place
-  /// and `worldWhenEmpty`, the whole world at zoom 0, the equator across the band's middle.
+  /// and `worldWhenEmpty`, the whole world at zoom 0 drawn as wide as the frame, ``worldMiddle``
+  /// at the band's middle. Places too far apart for zoom 0 get that world too, the widest gap
+  /// between them at its edges and the middle of their box at the middle of `worldBand`, which
+  /// is in points from the top of what is shown; at the band's middle without one.
   /// The top `overflowTop` points of the frame are out of sight until a pull-down shows
   /// them: tiles are laid out there, but nothing is fitted into them.
   ///
@@ -49,7 +57,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
   public init?(
     points: [MapPoint], fixes: [MapPoint], theme: MapTileTheme, width: Double, height: Double,
     overflowTop: Double = 0, coveredTop: Double = 0, coveredBottom: Double,
-    worldWhenEmpty: Bool = false, scale: Double = 1
+    worldWhenEmpty: Bool = false, worldBand: ClosedRange<Double>? = nil, scale: Double = 1
   ) {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
@@ -60,10 +68,9 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let bandTop = overflowTop + padding + coveredTop
     let bandBottom = min(padding + coveredBottom, shown - padding - coveredTop - padding)
     let anchorX = WebMercator.round(width / 2)
-    let anchorY = WebMercator.round((bandTop + height - bandBottom) / 2)
 
     let zoom: Double
-    let centreLongitude: Double
+    var centreLongitude: Double
     let centreLatitude: Double
     if let pinBounds = WebMercator.union(
       placed.map {
@@ -92,8 +99,8 @@ public struct MapBackdropLayout: Hashable, Sendable {
           width: fitWidth, height: height - bandTop - bandBottom))
     } else {
       zoom = 0
-      centreLongitude = 0
-      centreLatitude = 0
+      centreLongitude = Self.worldMiddle.longitude
+      centreLatitude = Self.worldMiddle.latitude
     }
 
     // Floored, so the pins only draw closer and a tile's lettering stays the size it was drawn
@@ -101,7 +108,24 @@ public struct MapBackdropLayout: Hashable, Sendable {
     // A frame narrower than its padding fits nothing, a zoom of -∞ or NaN.
     let z = zoom.isNaN ? Self.maxZoom : Int(min(Double(Self.maxZoom), max(0, zoom)).rounded(.down))
     let count = 1 << z
-    let worldSize = WebMercator.tileSize * Double(count)
+    // Every longitude shows on a world as wide as the frame, so where it meets its next copy is
+    // the choice: in the widest gap between the places, or in the Pacific with none.
+    let isWorld = placed.isEmpty || zoom < 0
+    if isWorld {
+      centreLongitude =
+        placed.isEmpty
+        ? Self.worldMiddle.longitude : Self.oppositeWidestGap(placed.map(\.longitude))
+    }
+    // A whole number of pixels, so the world meets its next copy without a seam, at most a
+    // pixel past the frame's sides.
+    let size = isWorld ? (width * scale).rounded(.up) / scale : WebMercator.tileSize
+    tileSize = size
+    let worldSize = size * Double(count)
+    let bandMiddle = (bandTop + height - bandBottom) / 2
+    let middleY =
+      (isWorld && !placed.isEmpty ? worldBand : nil)
+      .map { overflowTop + ($0.lowerBound + $0.upperBound) / 2 } ?? bandMiddle
+    let anchorY = WebMercator.round(middleY)
     let originX = WebMercator.round(WebMercator.x(longitude: centreLongitude) * worldSize)
     let originY = WebMercator.round(
       WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude)) * worldSize)
@@ -113,13 +137,12 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let shiftX = snap(
       width / 2 - (anchorX + WebMercator.x(longitude: centreLongitude) * worldSize - originX))
     let shiftY = snap(
-      (bandTop + height - bandBottom) / 2
+      middleY
         - (anchorY + WebMercator.y(latitude: WebMercator.clamp(latitude: centreLatitude))
           * worldSize - originY))
     let shownX = anchorX + shiftX
     let shownY = anchorY + shiftY
 
-    let size = WebMercator.tileSize
     let first = Int(((originX - shownX) / size).rounded(.down))
     let last = Int(((originX + width - shownX) / size).rounded(.up)) - 1
     // Rows past the world's top or bottom edge have nothing to draw.
@@ -150,6 +173,20 @@ public struct MapBackdropLayout: Hashable, Sendable {
         y: shownY + WebMercator.y(latitude: WebMercator.clamp(latitude: place.latitude))
           * worldSize - originY)
     }
+  }
+
+  /// The longitude opposite the middle of the widest gap between `longitudes`, the gap that
+  /// wraps past the antimeridian included.
+  static func oppositeWidestGap(_ longitudes: [Double]) -> Double {
+    let sorted = longitudes.map { WebMercator.wrap(longitude: $0) }.sorted()
+    guard let first = sorted.first, let last = sorted.last else { return 0 }
+    var gap = first + 360 - last
+    var start = last
+    for (west, east) in zip(sorted, sorted.dropFirst()) where east - west > gap {
+      gap = east - west
+      start = west
+    }
+    return WebMercator.wrap(longitude: start + gap / 2 + 180)
   }
 
   /// `box` grown to reach as far on each side of the centre as its farthest side does, so a fit

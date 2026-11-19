@@ -15,6 +15,8 @@ struct MapBackdropView: View {
   let coveredBottom: CGFloat
   /// Draw a record with no place too, as the whole world.
   var worldWhenEmpty = false
+  /// Where a map of the whole world centres its places, in points from the top of what is shown.
+  var worldBand: ClosedRange<CGFloat>?
   /// Where a page head carries the credit on its details: the credit the instance's tiles owe,
   /// whether or not a set is on screen yet. Without it the map hands ``CardCredit`` up to the
   /// card it sits in.
@@ -36,7 +38,9 @@ struct MapBackdropView: View {
       points: points, fixes: fixes, theme: colorScheme == .dark ? .dark : .light,
       width: size.width, height: size.height, overflowTop: overflowTop,
       coveredTop: coveredTop, coveredBottom: coveredBottom,
-      worldWhenEmpty: worldWhenEmpty, scale: displayScale)
+      worldWhenEmpty: worldWhenEmpty,
+      worldBand: worldBand.map { Double($0.lowerBound)...Double($0.upperBound) },
+      scale: displayScale)
   }
 
   var body: some View {

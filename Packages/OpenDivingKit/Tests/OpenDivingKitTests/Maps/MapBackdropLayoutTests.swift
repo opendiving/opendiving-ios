@@ -174,9 +174,57 @@ struct MapBackdropLayoutTests {
         worldWhenEmpty: true))
     #expect(world.pins.isEmpty)
     #expect(Set(world.tiles.map(\.address)) == [MapTileAddress(theme: .light, z: 0, x: 0, y: 0)])
-    // The equator across the band's middle, between the padding and the details.
-    let equator = world.tiles[0].y + world.tileSize / 2
-    #expect(equator == WebMercator.round((24 + 240 - 124) / 2.0))
+    // As wide as the frame, so the world meets its next copy at the frame's edges, in the
+    // Pacific.
+    #expect(world.tileSize == 361)
+    let middle = MapBackdropLayout.worldMiddle
+    let across = try #require(world.tiles.first { $0.x <= 361 / 2.0 && 361 / 2.0 < $0.x + 361 })
+    #expect(abs(across.x + WebMercator.x(longitude: middle.longitude) * 361 - 361 / 2.0) <= 0.5)
+    // Its middle latitude across the band's middle, between the padding and the details, which
+    // puts the equator below it.
+    let down = world.tiles[0].y + WebMercator.y(latitude: middle.latitude) * world.tileSize
+    #expect(abs(down - (24 + 240 - 124) / 2.0) <= 0.5)
+    #expect(world.tiles[0].y + world.tileSize / 2 > down)
+  }
+
+  @Test func placesTooFarApartForZoomZeroGetTheWorldAsWideAsTheFrame() throws {
+    // Cabo first, as the profile lists them, so the places' own box runs west from it and
+    // would put Mexico in the middle.
+    let places = [
+      MapPoint(name: "Cabo San Lucas", latitude: 22.89, longitude: -109.92),
+      MapPoint(name: "Oban", latitude: 56.41, longitude: -5.47),
+      MapPoint(name: "Dahab", latitude: 28.5, longitude: 34.51),
+      MapPoint(name: "Ko Tao", latitude: 10.09, longitude: 99.84),
+      MapPoint(name: "Malapascua", latitude: 11.34, longitude: 124.12),
+    ]
+    let head = try #require(
+      MapBackdropLayout(
+        points: places, fixes: [], theme: .light, width: 402, height: 396, coveredTop: 116,
+        coveredBottom: 148))
+    #expect(head.tileSize == 402)
+    #expect(Set(head.tiles.map(\.address.z)) == [0])
+    #expect(head.pins.allSatisfy { (24...378).contains($0.x) && (116...248).contains($0.y) })
+    // The widest gap, the Pacific from the Philippines to Mexico, split across the edges.
+    let pins = Dictionary(uniqueKeysWithValues: head.pins.map { ($0.name, $0.x) })
+    #expect(pins["Cabo San Lucas"]! < pins["Oban"]! && pins["Oban"]! < pins["Malapascua"]!)
+    #expect(abs(pins["Cabo San Lucas"]! - (402 - pins["Malapascua"]!)) <= 1)
+
+    // A page head says where to centre them: between its bar's buttons and its credit, below
+    // the 400 points a pull-down reveals.
+    let reef = MapPoint(name: "Lizard Island", latitude: -14.67, longitude: 145.46)
+    let profile = try #require(
+      MapBackdropLayout(
+        points: places + [reef], fixes: [], theme: .light, width: 402, height: 796,
+        overflowTop: 400, coveredTop: 116, coveredBottom: 210, worldBand: 106...202))
+    let ys = profile.pins.map(\.y)
+    #expect(abs((ys.min()! + ys.max()!) / 2 - (400 + 154)) <= 0.5)
+  }
+
+  @Test func theWidestGapIsFoundAcrossTheAntimeridianToo() {
+    // From 100° east round to 10° west: the places' middle is opposite its middle.
+    #expect(MapBackdropLayout.oppositeWidestGap([-10, 10, 100]) == 45)
+    #expect(MapBackdropLayout.oppositeWidestGap([170, -170, 10]) == 100)
+    #expect(MapBackdropLayout.oppositeWidestGap([-120, 120]) == -180)
   }
 
   @Test func theThemeIsEveryTilesAddress() throws {
