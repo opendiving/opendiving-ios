@@ -385,6 +385,9 @@ extension DiveDetailContent {
     let deco = recording.decoModel
     let uploadedAt =
       recording.files.compactMap(\.createdAt.instant).min() ?? recording.createdAt.instant
+    let uploaded = { (instant: Date) in
+      "Uploaded " + DateText.inSentence(DateText.dateTime(instant, in: timeZone, relativeTo: now))
+    }
     return Recording(
       id: recording.uuid,
       device: device.flatMap {
@@ -402,16 +405,15 @@ extension DiveDetailContent {
         $0 == diveStart ? nil : "Started " + DateText.diveTime($0)
       },
       firmware: device?.firmware.flatMap { $0.isEmpty ? nil : "Firmware " + $0 },
-      uploaded: uploadedAt.map {
-        "Uploaded " + DateText.inSentence(DateText.dateTime($0, in: timeZone, relativeTo: now))
-      },
+      uploaded: uploadedAt.map(uploaded),
       noFileKept: DiveDetailText.noFileKeptSentence(
         fileCount: recording.files.count, provenance: recording.profile?.provenance),
       files: recording.files.map {
         Recording.File(
           id: $0.uuid, name: $0.originalFilename,
           detail: VocabularyLabels.importSource($0.parserKey) + " · "
-            + DiveDetailText.fileSize($0.byteSize))
+            + DiveDetailText.fileSize($0.byteSize),
+          uploaded: $0.createdAt.instant.map(uploaded))
       })
   }
 }

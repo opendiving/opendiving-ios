@@ -191,6 +191,8 @@ public struct DiveDetailContent: Hashable, Sendable {
       public var name: String
       /// `Suunto app JSON · 1.2 MB`.
       public var detail: String
+      /// `Uploaded Oct 3, 2026, 14:07`.
+      public var uploaded: String?
     }
   }
 }
