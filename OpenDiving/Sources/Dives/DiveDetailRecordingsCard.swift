@@ -50,6 +50,9 @@ private struct RecordingView: View {
             VStack(alignment: .leading, spacing: 2) {
               Text(file.name).font(.subheadline.weight(.medium))
               Text(file.detail).font(.caption).foregroundStyle(.secondary)
+              if let uploaded = file.uploaded {
+                Text(uploaded).font(.caption).foregroundStyle(.secondary)
+              }
             }
           }
           .accessibilityElement(children: .combine)
