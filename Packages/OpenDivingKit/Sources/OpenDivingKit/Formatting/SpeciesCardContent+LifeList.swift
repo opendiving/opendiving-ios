@@ -2,7 +2,8 @@ import Foundation
 
 extension SpeciesCardContent {
   /// A life-list row as its card on a site's panel: its names, and how many of the diver's
-  /// dives it was seen on and the day of the last, on that dive's own calendar.
+  /// dives it was seen on and the day of the last, on that dive's own calendar. No count of
+  /// sites, since the panel's rows count only dives at the site it shows.
   public static func lifeList(_ entry: SpeciesLifeListEntry, photo: Data? = nil)
     -> SpeciesCardContent
   {
