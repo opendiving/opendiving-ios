@@ -25,8 +25,9 @@ struct ProfileToolbarItem: ToolbarContent {
       UserAvatarView(
         initials: avatar.initials, picture: avatar.data, side: MapRoundButtonStyle.side
       )
-      // In the name's colour, as on the profile and in *Account*.
-      .overlay { Circle().strokeBorder(Color.primary, lineWidth: 1) }
+      // The page's colour, where the profile and *Account* ring theirs in the name's: over the
+      // map's tiles it parts the picture from them.
+      .overlay { Circle().strokeBorder(Color(.systemBackground), lineWidth: 1) }
       .pickerControl(in: Circle())
     }
     .buttonStyle(.plain)
