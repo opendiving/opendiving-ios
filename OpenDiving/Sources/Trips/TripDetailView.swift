@@ -162,26 +162,20 @@ private struct TripDetailPage: View {
   }
 }
 
-/// The trip's dives: a card for each part, headed by its place and dates, holding the dives
-/// made on it, with the dives no part covers between them. A trip with no parts keeps one
-/// card of every dive.
+/// The trip's dives as cards, each part's under its place and dates, with the dives no part
+/// covers between them. The tab names them, so they stand in no card of their own.
 private struct TripDives: View {
   let trip: TripRead
   let list: PagedList<DiveListItem>
   let units: UnitSystem
 
-  private static let title = "Dives in This Trip"
-  private static let icon = Icon.dive
-
   var body: some View {
     switch list.phase {
     case .idle, .loading:
-      SectionCard(title: Self.title, icon: Self.icon) {
-        BubbleSpinner()
-          .frame(maxWidth: .infinity)
-      }
+      BubbleSpinner()
+        .frame(maxWidth: .infinity)
     case .failed(let error):
-      SectionCard(title: Self.title, icon: Self.icon) {
+      VStack(alignment: .leading, spacing: 12) {
         Text(
           error.isUnreachable
             ? OfflineText.divesNotShown : "This trip's dives could not be loaded."
@@ -191,13 +185,9 @@ private struct TripDives: View {
         Button("Try again") { Task { await list.load() } }
           .brandBorderedButton()
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
     case .loaded where trip.parts.isEmpty:
-      SectionCard(title: Self.title, icon: Self.icon) {
-        Text("Every dive logged on this trip")
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-        DiveCardLinks(items: list.items, units: units)
-      }
+      DiveCardLinks(items: list.items, units: units)
     case .loaded:
       let sections = TripDiveSection.sections(
         list.items, parts: TripSummary.spans(trip.parts), complete: !list.hasMore
@@ -208,12 +198,8 @@ private struct TripDives: View {
           DiveCardLinks(items: items, units: units)
         case .part(let index, let items):
           let heading = TripSummary.partHeading(trip.parts[index])
-          SectionCard(title: heading.title, icon: .mapPin) {
-            if let subtitle = heading.subtitle {
-              Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
+          VStack(alignment: .leading, spacing: 8) {
+            SectionTitle(title: heading.title, icon: .mapPin, subtitle: heading.subtitle)
             if items.isEmpty {
               Text("No dives logged for this part yet")
                 .font(.subheadline)
