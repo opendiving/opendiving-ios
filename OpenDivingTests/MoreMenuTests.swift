@@ -14,11 +14,10 @@ struct MoreMenuTests {
       MoreRow.sections == [
         [.aquaticLife],
         [.gear, .certifications, .courses, .people, .contacts],
-        [.imports],
       ])
     #expect(
       MoreRow.sections.flatMap { $0 }.map(\.title) == [
-        "Aquatic Life", "Gear", "Certifications", "Courses", "People", "Contacts", "Import",
+        "Aquatic Life", "Gear", "Certifications", "Courses", "People", "Contacts",
       ])
   }
 
