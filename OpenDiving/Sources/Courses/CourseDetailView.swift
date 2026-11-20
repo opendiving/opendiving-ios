@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A course's page, by its uuid: its head, the certifications it issued, its dives and its
-/// *Course Information* card, which logs a dive for it and adds a certification. It is edited
-/// and deleted from its top bar.
+/// A course's page, by its uuid: its head, then three tabs — Info, its *Course Information*
+/// card, which logs a dive for it and adds a certification; Certifications, the cards it issued;
+/// and Dives, those logged on it. It is edited and deleted from its top bar.
 struct CourseDetailView: View {
   let courseUUID: UUID
   @Environment(Session.self) private var session
@@ -40,6 +40,10 @@ private struct CourseDetailContent: View {
 
   @State private var confirmsDelete = false
   @State private var queueError: String?
+  @State private var section = CourseSection.info
+  @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
 
   init(model: CourseDetailModel, lookups: LookupsModel) {
     _model = State(initialValue: model)
@@ -61,27 +65,45 @@ private struct CourseDetailContent: View {
         ScrollView {
           LazyVStack(spacing: 16) {
             HeroView(content: CoursePageContent.hero(course), backdrop: .plain)
+            if model.page.lastUpdated != nil || model.page.hasPendingEdit {
+              VStack(spacing: 16) {
+                if let lastUpdated = model.page.lastUpdated {
+                  LastUpdatedLine(date: lastUpdated)
+                }
+                if model.page.hasPendingEdit {
+                  PendingEditLine()
+                }
+              }
+              .padding(.horizontal)
+            }
+            SectionTabs(
+              selection: $section,
+              onReselect: { withAnimation { scroll.scroll(to: reselect) } }
+            )
+            .readsTabsTop($tabsTop)
             Group {
-              if let lastUpdated = model.page.lastUpdated {
-                LastUpdatedLine(date: lastUpdated)
+              switch section {
+              case .info:
+                CourseInformationCard(
+                  course: course,
+                  information: CoursePageContent.information(
+                    course, people: session.people, personLookups: lookups.people,
+                    contactLookups: lookups.contacts))
+              case .certifications:
+                CourseCertificationsSection(course: course, list: model.certifications)
+              case .dives:
+                RecordDivesSection(
+                  list: model.dives, content: .course, units: session.units,
+                  logDive: .course(course.uuid), isCarded: false)
               }
-              if model.page.hasPendingEdit {
-                PendingEditLine()
-              }
-              CourseCertificationsSection(course: course, list: model.certifications)
-              RecordDivesSection(
-                list: model.dives, content: .course, units: session.units,
-                logDive: .course(course.uuid))
-              CourseInformationCard(
-                course: course,
-                information: CoursePageContent.information(
-                  course, people: session.people, personLookups: lookups.people,
-                  contactLookups: lookups.contacts))
             }
             .padding(.horizontal)
           }
+          .coordinateSpace(.pageContent)
           .padding(.bottom)
         }
+        .scrollPosition($scroll)
+        .tabsReselect($reselect, tabsTop: tabsTop)
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(course) }
         .confirmationDialog(
@@ -135,8 +157,8 @@ private struct CourseDetailContent: View {
   }
 }
 
-/// The certifications the course issued, each opening its pane. A course with no agency and no
-/// card shows nothing; one with an agency and no card invites the first.
+/// The certifications the course issued, each opening its pane; while it has none, an invitation
+/// to add the first.
 private struct CourseCertificationsSection: View {
   let course: CourseRead
   let list: PagedList<CertificationRead>
@@ -148,44 +170,42 @@ private struct CourseCertificationsSection: View {
   }
 
   @ViewBuilder private var section: some View {
-    if CoursePageContent.showsCertifications(course, certifications: list.items) {
-      switch list.phase {
-      case .idle, .loading:
-        card {
-          BubbleSpinner()
-            .frame(maxWidth: .infinity)
-        }
-      case .failed(let error) where error.isUnreachable:
-        card {
-          Text(OfflineText.certificationsNotShown)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-          Button("Try again") { Task { await list.load() } }
-            .brandBorderedButton()
-        }
-      // The web leaves a list it could not read empty, which invites the first card.
-      case .failed:
-        empty
-      case .loaded where list.items.isEmpty:
-        empty
-      case .loaded:
-        card {
-          ForEach(list.items) { certification in
-            Button {
-              opened = certification
-            } label: {
-              VStack(alignment: .leading, spacing: 2) {
-                Text(certification.name)
-                  .font(.body.weight(.medium))
-                Text(CoursePageContent.certificationLine(certification))
-                  .font(.subheadline)
-                  .foregroundStyle(.secondary)
-              }
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .contentShape(.rect)
+    switch list.phase {
+    case .idle, .loading:
+      card {
+        BubbleSpinner()
+          .frame(maxWidth: .infinity)
+      }
+    case .failed(let error) where error.isUnreachable:
+      card {
+        Text(OfflineText.certificationsNotShown)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+        Button("Try again") { Task { await list.load() } }
+          .brandBorderedButton()
+      }
+    // The web leaves a list it could not read empty, which invites the first card.
+    case .failed:
+      empty
+    case .loaded where list.items.isEmpty:
+      empty
+    case .loaded:
+      card {
+        ForEach(list.items) { certification in
+          Button {
+            opened = certification
+          } label: {
+            VStack(alignment: .leading, spacing: 2) {
+              Text(certification.name)
+                .font(.body.weight(.medium))
+              Text(CoursePageContent.certificationLine(certification))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
           }
+          .buttonStyle(.plain)
         }
       }
     }

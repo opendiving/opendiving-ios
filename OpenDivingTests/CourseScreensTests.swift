@@ -5,7 +5,8 @@ import Testing
 @testable import OpenDiving
 
 /// More's *Courses* and a course's page say what the web says, offline with nothing kept that
-/// they show once the server can be reached, and a course's *Log a dive* opens on the course.
+/// they show once the server can be reached; the page keeps its three tabs in order, and a
+/// course's *Log a dive* opens on the course.
 @MainActor
 struct CourseScreensTests {
   private let server = APIError.http(status: 500, message: "Internal Server Error")
@@ -41,6 +42,10 @@ struct CourseScreensTests {
         == "Add the card this training issued, or name this course from an existing card's form."
     )
     #expect(CourseDetailView.certificationsEmptyAction == "Add the first certification")
+  }
+
+  @Test func thePageOpensOnInfoThenCertificationsThenDives() {
+    #expect(CourseSection.allCases.map(\.title) == ["Info", "Certifications", "Dives"])
   }
 
   @Test func logADiveOpensTheFormOnTheCourse() {
