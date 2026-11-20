@@ -555,8 +555,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
       } label: {
         PickerRowLabel(row: row, showsCredit: true)
           .padding(12)
-          .background(
-            Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+          .background(Color(.secondarySystemGroupedBackground), in: .formSection)
       }
       .buttonStyle(.plain)
     }
@@ -828,18 +827,26 @@ private struct SiteFinderRow: View {
     HStack(alignment: .nameCentre, spacing: 12) {
       Image(content.isPlace ? Icon.mapPin : Icon.diveSite)
         .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
-        .foregroundStyle(.secondary)
+        .foregroundStyle(content.mark.map { AnyShapeStyle($0.color) } ?? AnyShapeStyle(.secondary))
         .accessibilityHidden(true)
       // The credit sits outside the distance's row, so it runs on under the distance rather
       // than wrapping in the narrower column beside it.
       VStack(alignment: .leading, spacing: 2) {
         HStack(alignment: .top, spacing: 12) {
           VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-              Text(content.title).foregroundStyle(Color.primary)
-                .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
+            HStack(alignment: .nameCentre, spacing: 6) {
+              ZStack(alignment: .topLeading) {
+                // One line in the name's font, whose middle is the first line's however many
+                // lines the name wraps to.
+                Text(verbatim: " ")
+                  .hidden()
+                  .accessibilityHidden(true)
+                  .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
+                Text(content.title).foregroundStyle(Color.primary)
+              }
               if let mark = content.mark {
                 DiveSiteMarkBadge(mark: mark)
+                  .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
               }
             }
             if let subtitle = content.subtitle {
@@ -861,7 +868,7 @@ private struct SiteFinderRow: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(12)
-    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    .background(Color(.secondarySystemGroupedBackground), in: .formSection)
     .contentShape(Rectangle())
   }
 }
@@ -877,7 +884,8 @@ extension VerticalAlignment {
 
   fileprivate static let headFirstLine = VerticalAlignment(HeadFirstLine.self)
 
-  /// The middle of a row's name, which its icon is centred on however many lines follow.
+  /// The middle of a row's first line, which its icon and mark are centred on however many lines
+  /// the name wraps to.
   private enum NameCentre: AlignmentID {
     static func defaultValue(in context: ViewDimensions) -> CGFloat {
       context[VerticalAlignment.top]
