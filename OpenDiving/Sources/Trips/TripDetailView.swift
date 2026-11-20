@@ -306,7 +306,7 @@ private struct TripSpecies<Empty: View>: View {
       ForEach(entries) { entry in
         CreditedSpeciesCard(
           speciesUUID: entry.uuid,
-          content: SpeciesCardContent.lifeList(entry, photo: model.photos[entry.uuid])
+          content: SpeciesCardContent.aquaticLife(entry, photo: model.photos[entry.uuid])
         )
         .onAppear { Task { await model.photos.load(entry) } }
       }
