@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The profile's *More*: the rest of the logbook, a row each in the web's navigation order less
-/// what the other tabs and the sites map hold, ruled off where the web's menu rules them, then the
-/// import. Each row pushes its own screen, and the menu reads nothing of its own.
+/// what the other tabs and the sites map hold, ruled off where the web's menu rules them. Each row
+/// pushes its own screen, and the menu reads nothing of its own.
 struct MoreMenu: View {
   var body: some View {
     VStack(spacing: 16) {
@@ -29,14 +29,12 @@ struct MoreMenu: View {
 
 /// One of the menu's rows.
 enum MoreRow: Hashable, CaseIterable {
-  case aquaticLife, gear, certifications, courses, people, contacts, imports
+  case aquaticLife, gear, certifications, courses, people, contacts
 
-  /// The rows in their groups: the web's first rule falls before Gear, and the import follows,
-  /// ruled off.
+  /// The rows in their groups: the web's first rule falls before Gear.
   static let sections: [[MoreRow]] = [
     [.aquaticLife],
     [.gear, .certifications, .courses, .people, .contacts],
-    [.imports],
   ]
 
   var title: String {
@@ -47,7 +45,6 @@ enum MoreRow: Hashable, CaseIterable {
     case .courses: "Courses"
     case .people: "People"
     case .contacts: "Contacts"
-    case .imports: "Import"
     }
   }
 
@@ -59,7 +56,6 @@ enum MoreRow: Hashable, CaseIterable {
     case .courses: .graduationCap
     case .people: .users
     case .contacts: .bookUser
-    case .imports: .upload
     }
   }
 
@@ -71,7 +67,6 @@ enum MoreRow: Hashable, CaseIterable {
     case .courses: CourseListView()
     case .people: PeopleListView()
     case .contacts: ContactListView()
-    case .imports: ImportView()
     }
   }
 }
