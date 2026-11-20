@@ -33,14 +33,6 @@ public enum CoursePageContent {
     return Badge(RecordSheetText.courseStatus(status), style: style)
   }
 
-  /// Whether the page shows its certifications: a course with no agency, a private instructor's,
-  /// usually issues no card, so its card waits for one rather than inviting it.
-  public static func showsCertifications(_ course: CourseRead, certifications: [CertificationRead])
-    -> Bool
-  {
-    !(course.agency ?? "").isEmpty || !certifications.isEmpty
-  }
-
   /// A certification's row under the course: the agency, and the day it was certified where it
   /// has one.
   public static func certificationLine(_ certification: CertificationRead) -> String {

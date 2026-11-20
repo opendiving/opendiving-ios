@@ -62,14 +62,6 @@ struct CourseContentTests {
     #expect(hero.points.isEmpty)
   }
 
-  @Test func aCourseWithNoAgencyShowsCertificationsOnlyOnceItHasOne() throws {
-    let card = try certification()
-    #expect(CoursePageContent.showsCertifications(try course(), certifications: []))
-    let instructorsOwn = try course(["agency": NSNull()])
-    #expect(!CoursePageContent.showsCertifications(instructorsOwn, certifications: []))
-    #expect(CoursePageContent.showsCertifications(instructorsOwn, certifications: [card]))
-  }
-
   @Test func aCertificationsRowSaysItsAgencyAndDay() throws {
     #expect(CoursePageContent.certificationLine(try certification()) == "SDI · Sep 25, 2025")
     #expect(
