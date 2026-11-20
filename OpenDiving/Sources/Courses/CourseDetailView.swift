@@ -158,7 +158,8 @@ private struct CourseDetailContent: View {
 }
 
 /// The certifications the course issued, each opening its pane; while it has none, an invitation
-/// to add the first.
+/// to add the first. A course with no agency invites one too, where the web hides its card: the
+/// tab is there for every course, and the diver who opens it is asking for its cards.
 private struct CourseCertificationsSection: View {
   let course: CourseRead
   let list: PagedList<CertificationRead>
