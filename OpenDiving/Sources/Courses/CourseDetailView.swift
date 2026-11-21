@@ -338,28 +338,34 @@ private struct CourseInformationRow: View {
   }
 }
 
-/// *Log a dive* on the course, in the coral the profile's own *Log a dive* takes, over *Add a
-/// certification*.
+/// *Log a dive* on the course, in the coral the profile's own *Log a dive* takes, beside *Add a
+/// certification* — words alone, so the two share a row — and over it where a large text size
+/// leaves no room.
 private struct CourseActions: View {
   let course: CourseRead
 
   var body: some View {
-    VStack(spacing: 8) {
-      NavigationLink {
-        DiveFormView(mode: .course(course.uuid))
-      } label: {
-        Label("Log a dive", icon: .divePlus)
-          .frame(maxWidth: .infinity)
-      }
-      .brandProminentButton(.brandCoral)
-      NavigationLink {
-        CertificationFormView(mode: .create, course: course)
-      } label: {
-        Label("Add a certification", icon: .badgeCheck)
-          .frame(maxWidth: .infinity)
-      }
-      .brandBorderedButton()
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 8) { buttons }
+      VStack(spacing: 8) { buttons }
     }
+  }
+
+  @ViewBuilder private var buttons: some View {
+    NavigationLink {
+      DiveFormView(mode: .course(course.uuid))
+    } label: {
+      Text("Log a dive")
+        .frame(maxWidth: .infinity)
+    }
+    .brandProminentButton(.brandCoral)
+    NavigationLink {
+      CertificationFormView(mode: .create, course: course)
+    } label: {
+      Text("Add a certification")
+        .frame(maxWidth: .infinity)
+    }
+    .brandBorderedButton()
   }
 }
 
