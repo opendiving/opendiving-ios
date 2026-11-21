@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// One trip's page, pushed from the dive page and the trips list: its hero, then three tabs —
-/// Info, its parts, people, dive centres and notes; Dives, under the parts they were made on;
-/// and Aquatic life, the species seen on them.
+/// Info, its parts, people, dive centres and notes; Dives, under the parts they were made on
+/// where it has more than one; and Aquatic life, the species seen on them.
 struct TripDetailView: View {
   let tripUUID: UUID
   @Environment(Session.self) private var session
@@ -127,7 +127,7 @@ private struct TripDetailPage: View {
               TripInformation(trip: trip, contacts: model.contacts, people: session.people)
             }
           case .dives:
-            if model.dives.phase == .loaded, trip.parts.isEmpty, model.dives.items.isEmpty {
+            if model.dives.phase == .loaded, trip.parts.count < 2, model.dives.items.isEmpty {
               empty(
                 .empty(icon: .dive, title: "No dives logged for this trip yet", message: nil))
             } else {
@@ -163,7 +163,9 @@ private struct TripDetailPage: View {
 }
 
 /// The trip's dives as cards, each part's under its place and dates, with the dives no part
-/// covers between them. The tab names them, so they stand in no card of their own.
+/// covers between them. The tab names them, so they stand in no card of their own, and a
+/// trip of one part is that part, whose place and dates the hero already gives, so its dives
+/// stand under no heading.
 private struct TripDives: View {
   let trip: TripRead
   let list: PagedList<DiveListItem>
@@ -186,7 +188,7 @@ private struct TripDives: View {
           .brandBorderedButton()
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-    case .loaded where trip.parts.isEmpty:
+    case .loaded where trip.parts.count < 2:
       DiveCardLinks(items: list.items, units: units)
     case .loaded:
       let sections = TripDiveSection.sections(
