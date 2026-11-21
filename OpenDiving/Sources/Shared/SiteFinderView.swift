@@ -488,10 +488,17 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         if let lastUpdated = model.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
         }
-        ForEach(model.rows) { row in
-          rowView(row)
-            .onAppear { Task { await model.loadMore(after: row) } }
+        // Lazy, as the panel's stack is, so a row still asks for the next page only on appearing.
+        LazyVStack(spacing: 0) {
+          ForEach(model.rows) { row in
+            if row.id != model.rows.first?.id {
+              Divider().padding(.leading, SiteFinderRow.textLeading)
+            }
+            rowView(row)
+              .onAppear { Task { await model.loadMore(after: row) } }
+          }
         }
+        .background(Color(.secondarySystemGroupedBackground), in: .formSection)
         let credits = SiteFinderRowContent.placeCredits(model.rows)
         if !credits.isEmpty {
           AttributionLine(credits: credits)
@@ -823,9 +830,15 @@ private struct HandleValue: ViewModifier {
 private struct SiteFinderRow: View {
   let content: SiteFinderRowContent
 
+  private static let padding: Double = 12
+  private static let iconWidth: Double = 24
+  /// Where the name starts, which the separators between rows start under.
+  static let textLeading = padding + iconWidth + padding
+
   var body: some View {
-    HStack(alignment: .nameCentre, spacing: 12) {
+    HStack(alignment: .nameCentre, spacing: Self.padding) {
       Image(content.isPlace ? Icon.mapPin : Icon.diveSite)
+        .frame(width: Self.iconWidth)
         .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
         .foregroundStyle(content.mark.map { AnyShapeStyle($0.color) } ?? AnyShapeStyle(.secondary))
         .accessibilityHidden(true)
@@ -867,8 +880,7 @@ private struct SiteFinderRow: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(12)
-    .background(Color(.secondarySystemGroupedBackground), in: .formSection)
+    .padding(Self.padding)
     .contentShape(Rectangle())
   }
 }
