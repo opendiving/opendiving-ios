@@ -75,6 +75,14 @@ private struct CourseDetailContent: View {
             }
             SectionTabs(
               selection: $section,
+              title: { section in
+                switch section {
+                case .info: section.title
+                case .certifications:
+                  DiveSiteSummary.counted(section.title, model.certifications.count ?? 0)
+                case .dives: DiveSiteSummary.counted(section.title, model.dives.count ?? 0)
+                }
+              },
               onReselect: { withAnimation { scroll.scroll(to: reselect) } }
             )
             .readsTabsTop($tabsTop)
@@ -195,9 +203,7 @@ private struct CourseCertificationsSection: View {
               content: CertificationCardContent(certification, today: today))
           }
           .buttonStyle(.plain)
-          .onAppear { Task { await list.loadMore(after: certification) } }
         }
-        LoadMoreFooter(list: list)
       }
     }
   }
@@ -265,7 +271,8 @@ private struct CourseInformationCard: View {
       // A number with no name the phone holds stands in the name's place.
       personRow(
         person, icon: .instructor, title: person?.name ?? number ?? "",
-        detail: person == nil ? nil : number)
+        detail: ["Instructor", person == nil ? nil : number].compactMap { $0 }
+          .joined(separator: " · "))
     case .person(let person):
       personRow(
         person, icon: .user, title: person.name,

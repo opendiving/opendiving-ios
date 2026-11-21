@@ -14,12 +14,18 @@ struct CourseContentTests {
     return try APICoding.decoder().decode(CourseRead.self, from: data)
   }
 
-  @Test func theCardNamesTheStatusTheDatesAndTheAgency() throws {
+  @Test func theCardNamesTheDatesAndTheAgency() throws {
     let card = PlainCardContent.course(try course())
     #expect(card.title == "Solo Diver")
-    #expect(card.badges == [Badge("Completed", style: .primary)])
     #expect(card.facts.map(\.text) == ["Sep 24 - Sep 25, 2025", "SDI"])
     #expect(card.figures.isEmpty)
+  }
+
+  @Test func theCardWearsTheStatusOnlyOfACourseNotCompleted() throws {
+    #expect(PlainCardContent.course(try course()).badges.isEmpty)
+    #expect(
+      PlainCardContent.course(try course(["status": "in_progress"])).badges
+        == [Badge("In progress", style: .outline)])
   }
 
   @Test func theCardLeavesOutWhatTheCourseLacks() throws {
