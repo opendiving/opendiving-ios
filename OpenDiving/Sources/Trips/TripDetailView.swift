@@ -216,7 +216,7 @@ private struct TripDives: View {
   }
 }
 
-/// Each part's place, accommodation and dates, the people on the trip, its dive centres and its
+/// Each part's place, dates and accommodation, the people on the trip, its dive centres and its
 /// notes, a card for each the trip has.
 private struct TripInformation: View {
   let trip: TripRead
@@ -297,7 +297,7 @@ private struct TripSpecies<Empty: View>: View {
   }
 }
 
-/// A part's place, then where the diver stayed and its dates, each led by its icon, in a
+/// A part's place, then its dates and where the diver stayed, each led by its icon, in a
 /// person's row's size and colours.
 private struct PartRowView: View {
   let row: TripSummary.PartRow
@@ -307,16 +307,16 @@ private struct PartRowView: View {
       Text(row.place ?? "No place recorded")
         .fontWeight(row.place == nil ? .regular : .medium)
         .foregroundStyle(row.place == nil ? Color.secondary : Color.primary)
+      if let dates = row.dates {
+        line(icon: .calendar) {
+          Text(dates).foregroundStyle(.secondary)
+        }
+      }
       if let accommodation = row.accommodation {
         line(icon: .bedDouble) {
           Text(accommodation).foregroundStyle(.secondary)
         }
         .accessibilityLabel("Stayed at " + accommodation)
-      }
-      if let dates = row.dates {
-        line(icon: .calendar) {
-          Text(dates).foregroundStyle(.secondary)
-        }
       }
     }
     .font(.subheadline)
