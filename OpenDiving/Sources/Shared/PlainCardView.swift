@@ -46,8 +46,7 @@ struct PlainCardView: View {
       ))
     PlainCardView(
       content: PlainCardContent(
-        title: "Advanced Open Water", badges: [Badge("Completed", style: .primary)],
-        facts: [Fact(text: "PADI"), Fact(text: "Sep 6 - Sep 8, 2026")]))
+        title: "Dana Reyes", facts: [Fact(text: "@dana"), Fact(text: "24 dives")]))
   }
   .padding()
   .background(Color.pageBackground)
