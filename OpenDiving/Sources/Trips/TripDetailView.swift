@@ -236,20 +236,17 @@ private struct TripInformation: View {
     let centres = TripSummary.diveCenters(trip, contacts: contacts)
     if !parts.isEmpty {
       SectionCard(title: parts.count > 1 ? "Parts" : "Part", icon: .mapPin) {
-        VStack(alignment: .leading, spacing: 12) {
-          ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
-            PartRowView(row: part)
-          }
+        ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+          if index > 0 { Divider() }
+          PartRowView(row: part)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
     if !people.isEmpty {
       SectionCard(title: "People", icon: .users) {
-        VStack(alignment: .leading, spacing: 8) {
-          ForEach(Array(people.enumerated()), id: \.offset) { _, person in
-            PersonRowView(content: person)
-          }
+        ForEach(Array(people.enumerated()), id: \.offset) { index, person in
+          if index > 0 { Divider() }
+          PersonRowView(content: person)
         }
       }
     }
@@ -300,29 +297,41 @@ private struct TripSpecies<Empty: View>: View {
   }
 }
 
+/// A part's place, where the diver stayed and its dates, a line each led by its icon, in a
+/// person's row's size and colours.
 private struct PartRowView: View {
   let row: TripSummary.PartRow
 
   var body: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Image(.mapPin)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
-      VStack(alignment: .leading, spacing: 2) {
+    VStack(alignment: .leading, spacing: 4) {
+      line(icon: .mapPin) {
         Text(row.place ?? "No place recorded")
+          .fontWeight(row.place == nil ? .regular : .medium)
           .foregroundStyle(row.place == nil ? Color.secondary : Color.primary)
-        if let accommodation = row.accommodation {
-          Label(accommodation, icon: .bedDouble)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Stayed at " + accommodation)
+      }
+      if let accommodation = row.accommodation {
+        line(icon: .bedDouble) {
+          Text(accommodation).foregroundStyle(.secondary)
         }
-        if let dates = row.dates {
-          Text(dates)
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        .accessibilityLabel("Stayed at " + accommodation)
+      }
+      if let dates = row.dates {
+        line(icon: .calendar) {
+          Text(dates).foregroundStyle(.secondary)
         }
       }
+    }
+    .font(.subheadline)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityElement(children: .combine)
+  }
+
+  private func line(icon: Icon, @ViewBuilder text: () -> some View) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 8) {
+      Image(icon)
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+      text()
     }
   }
 }
