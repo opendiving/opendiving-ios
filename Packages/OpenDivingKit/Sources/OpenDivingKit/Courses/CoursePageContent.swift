@@ -3,19 +3,19 @@ import Foundation
 /// What a course's page says (`CourseDetailPageContent`): its head, the certifications it issued,
 /// and its *Course Information* card.
 public enum CoursePageContent {
-  /// The agency and the dates, in the card's formats, so a course reads the same on its page as
+  /// The dates, then the agency, in the card's formats, so a course reads the same on its page as
   /// in the list; either is left out where the course lacks it.
-  static func agencyAndDates(_ course: CourseRead) -> [String] {
+  static func datesAndAgency(_ course: CourseRead) -> [String] {
     [
-      VocabularyLabels.certificationAgency(course.agency, other: course.agencyOther),
       DateText.dateRange(start: course.startDate, end: course.endDate),
+      VocabularyLabels.certificationAgency(course.agency, other: course.agencyOther),
     ].compactMap { $0 }
   }
 
-  /// The page's head: the name over the agency, the dates and the status.
+  /// The page's head: the name over the dates, the agency and the status.
   public static func hero(_ course: CourseRead) -> HeroContent {
     let status = RecordSheetText.courseStatus(course.status)
-    let subtitle = agencyAndDates(course) + (status.isEmpty ? [] : [status])
+    let subtitle = datesAndAgency(course) + (status.isEmpty ? [] : [status])
     return HeroContent(title: course.name, facts: subtitle.map { Fact(text: $0) })
   }
 
