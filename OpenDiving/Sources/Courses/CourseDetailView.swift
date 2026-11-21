@@ -338,9 +338,9 @@ private struct CourseInformationRow: View {
   }
 }
 
-/// *Log a dive* on the course, in the coral and under the icon the profile's own *Log a dive*
-/// takes, beside *Add a certification* — in words alone, so the two share a row — and over it
-/// where a large text size leaves no room.
+/// *Log a dive* on the course, in the coral the profile's own *Log a dive* takes, beside *Add a
+/// certification* — words alone, so the two share a row — and over it where a large text size
+/// leaves no room.
 private struct CourseActions: View {
   let course: CourseRead
 
@@ -355,7 +355,7 @@ private struct CourseActions: View {
     NavigationLink {
       DiveFormView(mode: .course(course.uuid))
     } label: {
-      Label("Log a dive", icon: .divePlus)
+      Text("Log a dive")
         .frame(maxWidth: .infinity)
     }
     .brandProminentButton(.brandCoral)
