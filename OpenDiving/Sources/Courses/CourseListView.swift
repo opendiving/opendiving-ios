@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *Courses*: what is waiting to sync, then the diver's courses in the API's order, each
-/// opening its page and holding *Edit* and *Delete* under a long press — the pages the phone has
-/// shown first, from its copy.
+/// More's *Courses*: what is waiting to sync, then the diver's courses in the API's order, a row
+/// each on one card, each opening its page and holding *Edit* and *Delete* under a long press —
+/// the pages the phone has shown first, from its copy.
 struct CourseListView: View {
   @Environment(Session.self) private var session
 
@@ -14,8 +14,6 @@ struct CourseListView: View {
 
 extension CourseListView {
   static let title = "Courses"
-  static let description = "The training you did, with the dives and cards it produced"
-  static let listTitle = "Course List"
   static let emptyTitle = "No courses yet"
   static let emptyMessage = "Add the training you have done to group its dives and cards."
   static let emptyAction = "Add your first course"
@@ -42,10 +40,6 @@ private struct CourseListContent: View {
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 12) {
-        Text(CourseListView.description)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
         // A queued create is not a row until it lands; what waits shows here however the
         // list stands.
         PendingSection()
@@ -110,33 +104,57 @@ private struct CourseListContent: View {
           .brandProminentButton()
       }
     case .loaded:
-      HStack(spacing: 8) {
-        Image(.graduationCap)
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-        Text(CourseListView.listTitle)
-          .font(.headline)
-          .accessibilityAddTraits(.isHeader)
-        Spacer()
-      }
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
       }
-      ForEach(list.items) { course in
-        NavigationLink {
-          CourseDetailView(courseUUID: course.uuid)
-        } label: {
-          PlainCardView(content: .course(course))
+      VStack(spacing: 0) {
+        ForEach(Array(list.items.enumerated()), id: \.element.id) { index, course in
+          if index > 0 {
+            Divider().padding(.leading, 12)
+          }
+          NavigationLink {
+            CourseDetailView(courseUUID: course.uuid)
+          } label: {
+            CourseRow(content: .course(course))
+          }
+          .buttonStyle(.plain)
+          .contentShape(.contextMenuPreview, .formSection)
+          .contextMenu {
+            Button("Edit", systemImage: "pencil") { route = .edit(course) }
+            Button("Delete", systemImage: "trash", role: .destructive) { deleting = course }
+          }
+          .task { await list.loadMore(after: course) }
         }
-        .buttonStyle(.plain)
-        .contextMenu {
-          Button("Edit", systemImage: "pencil") { route = .edit(course) }
-          Button("Delete", systemImage: "trash", role: .destructive) { deleting = course }
-        }
-        .task { await list.loadMore(after: course) }
       }
+      .background(Color.cardFill, in: .formSection)
+      .clipShape(.formSection)
       LoadMoreFooter(list: list)
     }
+  }
+}
+
+/// A course's row on the list's card: its name over its dates and agency, its status at the
+/// trailing edge.
+private struct CourseRow: View {
+  let content: PlainCardContent
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 12) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(content.title)
+          .font(.headline)
+        FactsLine(facts: content.facts, color: .primary)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      ForEach(Array(content.badges.enumerated()), id: \.offset) { _, badge in
+        BadgeView(badge)
+      }
+    }
+    .padding(12)
+    // A long press lifts the row alone, which takes a fill of its own.
+    .background(Color.cardFill)
+    .contentShape(.rect)
+    .accessibilityElement(children: .combine)
   }
 }
 

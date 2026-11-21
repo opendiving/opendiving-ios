@@ -23,8 +23,6 @@ struct CourseScreensTests {
 
   @Test func theWordsAreTheWebs() {
     #expect(CourseListView.title == "Courses")
-    #expect(
-      CourseListView.description == "The training you did, with the dives and cards it produced")
     #expect(CourseListView.emptyTitle == "No courses yet")
     #expect(
       CourseListView.emptyMessage

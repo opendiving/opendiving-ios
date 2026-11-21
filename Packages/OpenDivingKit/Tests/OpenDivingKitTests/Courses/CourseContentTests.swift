@@ -23,11 +23,11 @@ struct CourseContentTests {
     return try APICoding.decoder().decode(CertificationRead.self, from: data)
   }
 
-  @Test func theCardNamesTheStatusTheAgencyAndTheDates() throws {
+  @Test func theCardNamesTheStatusTheDatesAndTheAgency() throws {
     let card = PlainCardContent.course(try course())
     #expect(card.title == "Solo Diver")
     #expect(card.badges == [Badge("Completed", style: .primary)])
-    #expect(card.facts.map(\.text) == ["SDI", "Sep 24 - Sep 25, 2025"])
+    #expect(card.facts.map(\.text) == ["Sep 24 - Sep 25, 2025", "SDI"])
     #expect(card.figures.isEmpty)
   }
 
@@ -37,7 +37,7 @@ struct CourseContentTests {
     #expect(card.facts.isEmpty)
     let other = PlainCardContent.course(
       try course(["agency": "other", "agency_other": "Cave Federation", "end_date": NSNull()]))
-    #expect(other.facts.map(\.text) == ["Cave Federation", "Sep 24, 2025"])
+    #expect(other.facts.map(\.text) == ["Sep 24, 2025", "Cave Federation"])
   }
 
   @Test func eachStatusWearsTheWebsVariant() {
@@ -54,10 +54,10 @@ struct CourseContentTests {
       ])
   }
 
-  @Test func theHeadSaysTheAgencyTheDatesAndTheStatus() throws {
+  @Test func theHeadSaysTheDatesTheAgencyAndTheStatus() throws {
     let hero = CoursePageContent.hero(try course())
     #expect(hero.title == "Solo Diver")
-    #expect(hero.facts.map(\.text) == ["SDI", "Sep 24 - Sep 25, 2025", "Completed"])
+    #expect(hero.facts.map(\.text) == ["Sep 24 - Sep 25, 2025", "SDI", "Completed"])
     #expect(hero.figures.isEmpty)
     #expect(hero.points.isEmpty)
   }
