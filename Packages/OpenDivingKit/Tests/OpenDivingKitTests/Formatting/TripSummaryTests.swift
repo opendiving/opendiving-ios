@@ -55,7 +55,7 @@ struct TripSummaryTests {
         Figure(label: "Species seen", value: "31"),
       ])
     let hero = TripSummary.hero(trip, units: .metric)
-    #expect(hero.figures.last == Figure(label: "Max depth", value: "32 m"))
+    #expect(hero.figures == card.figures)
     #expect(hero.points == [MapPoint(name: "Dahab, Egypt", latitude: 28.5, longitude: 34.5)])
   }
 
@@ -91,6 +91,10 @@ struct TripSummaryTests {
         Figure(label: "Max depth", value: "33 ft"),
       ])
     let hero = TripSummary.hero(trip, units: .metric)
+    #expect(
+      hero.figures == [
+        Figure(label: "Dives", value: "0"), Figure(label: "Dive sites", value: "0"),
+      ])
     #expect(hero.points.isEmpty)
     #expect(hero.mapsTheWorldWhenEmpty)
   }

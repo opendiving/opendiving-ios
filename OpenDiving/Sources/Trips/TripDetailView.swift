@@ -297,18 +297,16 @@ private struct TripSpecies<Empty: View>: View {
   }
 }
 
-/// A part's place, where the diver stayed and its dates, a line each led by its icon, in a
+/// A part's place, then where the diver stayed and its dates, each led by its icon, in a
 /// person's row's size and colours.
 private struct PartRowView: View {
   let row: TripSummary.PartRow
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
-      line(icon: .mapPin) {
-        Text(row.place ?? "No place recorded")
-          .fontWeight(row.place == nil ? .regular : .medium)
-          .foregroundStyle(row.place == nil ? Color.secondary : Color.primary)
-      }
+      Text(row.place ?? "No place recorded")
+        .fontWeight(row.place == nil ? .regular : .medium)
+        .foregroundStyle(row.place == nil ? Color.secondary : Color.primary)
       if let accommodation = row.accommodation {
         line(icon: .bedDouble) {
           Text(accommodation).foregroundStyle(.secondary)

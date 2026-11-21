@@ -28,11 +28,12 @@ public enum TripSummary {
       points: points(trip), mapsTheWorldWhenEmpty: true)
   }
 
-  /// The trip's page's head: the card the width of the screen, every figure, and a map of
-  /// the places its parts went, or of the world before it has any, as its card draws.
+  /// The trip's page's head: the card the width of the screen, its counts without the depth,
+  /// and a map of the places its parts went, or of the world before it has any, as its card
+  /// draws.
   public static func hero(_ trip: TripRead, units: UnitSystem) -> HeroContent {
     HeroContent(
-      title: trip.name, facts: facts(trip), figures: figures(trip, units: units),
+      title: trip.name, facts: facts(trip), figures: counts(trip),
       points: points(trip), mapsTheWorldWhenEmpty: true)
   }
 
@@ -45,16 +46,22 @@ public enum TripSummary {
     ].compactMap { $0.map { Fact(text: $0) } }
   }
 
-  /// The dives and their sites, at zero too; the species once there are some; the deepest
-  /// point where there is one, in whole units as a dive card rounds its depths.
-  public static func figures(_ trip: TripRead, units: UnitSystem) -> [Figure] {
-    var figures = [
+  /// The dives and their sites, at zero too, and the species once there are some.
+  public static func counts(_ trip: TripRead) -> [Figure] {
+    var counts = [
       Figure(label: "Dives", value: String(trip.diveCount)),
       Figure(label: "Dive sites", value: String(trip.diveSiteCount)),
     ]
     if trip.speciesCount > 0 {
-      figures.append(Figure(label: "Species seen", value: String(trip.speciesCount)))
+      counts.append(Figure(label: "Species seen", value: String(trip.speciesCount)))
     }
+    return counts
+  }
+
+  /// The counts, then the deepest point where there is one, in whole units as a dive card
+  /// rounds its depths.
+  public static func figures(_ trip: TripRead, units: UnitSystem) -> [Figure] {
+    var figures = counts(trip)
     if let maxDepth = trip.maxDepth {
       figures.append(
         Figure(label: "Max depth", value: UnitFormat.depth(maxDepth, units, decimals: 0)))
