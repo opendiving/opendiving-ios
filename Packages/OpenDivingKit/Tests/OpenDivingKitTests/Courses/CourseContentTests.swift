@@ -3,7 +3,8 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// A course's card, head and information card say what the web's say.
+/// A course's head and information card say what the web's say, and its card does too but for
+/// the status a completed course leaves off.
 struct CourseContentTests {
   /// `course.json` with `changes` laid over it.
   private func course(_ changes: [String: Any] = [:]) throws -> CourseRead {
