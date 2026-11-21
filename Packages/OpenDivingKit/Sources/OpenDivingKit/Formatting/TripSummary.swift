@@ -31,7 +31,7 @@ public enum TripSummary {
   /// The trip's page's head: the card the width of the screen, its counts without the depth,
   /// and a map of the places its parts went, or of the world before it has any, as its card
   /// draws.
-  public static func hero(_ trip: TripRead, units: UnitSystem) -> HeroContent {
+  public static func hero(_ trip: TripRead) -> HeroContent {
     HeroContent(
       title: trip.name, facts: facts(trip), figures: counts(trip),
       points: points(trip), mapsTheWorldWhenEmpty: true)

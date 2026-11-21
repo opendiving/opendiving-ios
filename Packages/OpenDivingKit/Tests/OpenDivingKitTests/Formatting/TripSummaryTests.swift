@@ -3,7 +3,7 @@ import OpenDivingKit
 import Testing
 
 /// The trip's card, hero and *Info* tab over the `trip` fixture, as the web's `tripFacts`,
-/// `tripFigures` and trip page print them.
+/// `tripFigures` and trip page print them, except that the hero leaves out the depth.
 struct TripSummaryTests {
   static func trip(_ changes: [String: Any] = [:]) throws -> TripRead {
     var object = try #require(
@@ -54,7 +54,7 @@ struct TripSummaryTests {
         Figure(label: "Dives", value: "12"), Figure(label: "Dive sites", value: "5"),
         Figure(label: "Species seen", value: "31"),
       ])
-    let hero = TripSummary.hero(trip, units: .metric)
+    let hero = TripSummary.hero(trip)
     #expect(hero.figures == card.figures)
     #expect(hero.points == [MapPoint(name: "Dahab, Egypt", latitude: 28.5, longitude: 34.5)])
   }
@@ -74,7 +74,7 @@ struct TripSummaryTests {
     let card = TripSummary.card(trip, units: .metric)
     #expect(card.points == TripSummary.points(trip))
     #expect(card.mapsTheWorldWhenEmpty)
-    let hero = TripSummary.hero(trip, units: .metric)
+    let hero = TripSummary.hero(trip)
     #expect(hero.points == TripSummary.points(trip))
     #expect(hero.mapsTheWorldWhenEmpty)
   }
@@ -90,7 +90,7 @@ struct TripSummaryTests {
         Figure(label: "Dives", value: "0"), Figure(label: "Dive sites", value: "0"),
         Figure(label: "Max depth", value: "33 ft"),
       ])
-    let hero = TripSummary.hero(trip, units: .metric)
+    let hero = TripSummary.hero(trip)
     #expect(
       hero.figures == [
         Figure(label: "Dives", value: "0"), Figure(label: "Dive sites", value: "0"),

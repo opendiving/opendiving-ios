@@ -89,7 +89,7 @@ private struct TripDetailPage: View {
       // Lazy, so the dives' last page asks for the next and each species card for its photo
       // as it scrolls into reach.
       LazyVStack(spacing: 16) {
-        HeroView(content: TripSummary.hero(trip, units: session.units), detailsOnGlass: true)
+        HeroView(content: TripSummary.hero(trip), detailsOnGlass: true)
         if model.lastUpdated != nil || model.hasPendingEdit {
           VStack(spacing: 16) {
             if let lastUpdated = model.lastUpdated {
