@@ -54,6 +54,14 @@ struct PagedListTests {
     #expect(transport.requests.allSatisfy { $0.url?.query?.contains("items_per_page=2") == true })
   }
 
+  @Test func theCountIsTheServersTotalOnceAPageShows() async throws {
+    let list = trips(Session.stub(transport: try transport()))
+    #expect(list.count == nil)
+    await list.load()
+    #expect(list.items.count == 1)
+    #expect(list.count == 3)
+  }
+
   @Test func refreshReloadsTheAccountAndThePeopleThenPageOne() async throws {
     let transport = try transport()
     let session = Session.stub(transport: transport)

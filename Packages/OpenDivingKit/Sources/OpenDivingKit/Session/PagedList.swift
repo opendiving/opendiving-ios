@@ -46,6 +46,12 @@ public final class PagedList<Item: Codable & Sendable> {
   public private(set) var phase: Phase = .idle
   public private(set) var hasMore = false
   public private(set) var isLoadingMore = false
+  /// How many rows the list holds in all, as its latest page says, less those being deleted;
+  /// nil until a page shows.
+  public var count: Int? {
+    guard phase == .loaded else { return nil }
+    return (totalCount ?? fetched.count) - (fetched.count - items.count)
+  }
   /// A later page, or a refresh, failed while earlier items stay on screen.
   public private(set) var pageError: APIError? = nil
   /// When the kept pages shown were fetched, once no read a route may answer is on its way:
@@ -54,6 +60,8 @@ public final class PagedList<Item: Codable & Sendable> {
   public var lastUpdated: Date? { isReading ? nil : fetchedAt }
   /// When the items shown were fetched, while they are the cache's rather than this visit's.
   private(set) var fetchedAt: Date? = nil
+  /// The server's count of every row, from the latest page read.
+  private var totalCount: Int? = nil
   /// A read of every page is on its way, begun while the phone believed it had a route.
   private var isReading = false
 
@@ -106,6 +114,7 @@ public final class PagedList<Item: Codable & Sendable> {
       let response = try await fetch(client, nextPage, itemsPerPage)
       guard generation == self.generation else { return }
       fetched += response.data
+      totalCount = response.totalCount
       showFetched()
       hasMore = response.hasMore && !response.data.isEmpty
       nextPage += 1
@@ -171,14 +180,17 @@ public final class PagedList<Item: Codable & Sendable> {
       var pages: [Item] = []
       var page = 1
       var more = true
+      var total: Int?
       while more, page <= last {
         let response = try await fetch(client, page, itemsPerPage)
         guard generation == self.generation else { return }
         pages += response.data
+        total = response.totalCount
         more = response.hasMore && !response.data.isEmpty
         page += 1
       }
       fetched = pages
+      totalCount = total
       showFetched()
       hasMore = more
       nextPage = page
@@ -268,6 +280,7 @@ public final class PagedList<Item: Codable & Sendable> {
       let entry = stores.cache.pages(cacheKey.name, of: Item.self), !entry.value.items.isEmpty
     else { return }
     fetched = entry.value.items
+    totalCount = entry.value.totalCount
     showFetched()
     hasMore = false
     fetchedAt = entry.fetchedAt
@@ -288,7 +301,9 @@ public final class PagedList<Item: Codable & Sendable> {
     guard let cacheKey, let cache = cacheForAnswer(fetchedUnder: stores, session: session)
     else { return }
     cache.writePages(
-      AccountCache.Pages(items: fetched, hasMore: hasMore, nextPage: nextPage), key: cacheKey.name)
+      AccountCache.Pages(
+        items: fetched, hasMore: hasMore, nextPage: nextPage, totalCount: totalCount),
+      key: cacheKey.name)
     if firstPage, let number = cacheKey.highestDiveNumber?(fetched) {
       cache.setHighestDiveNumber(number)
     }

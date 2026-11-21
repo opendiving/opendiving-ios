@@ -19,6 +19,8 @@ public struct AccountCache: Sendable {
     public var items: [Item]
     public var hasMore: Bool
     public var nextPage: Int
+    /// The server's count of every row, kept pages written before it was kept having none.
+    public var totalCount: Int? = nil
   }
 
   /// A dive the phone has opened, with the records its cards named.

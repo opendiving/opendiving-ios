@@ -3,7 +3,8 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// A course's card, head, certifications and information card say what the web's say.
+/// A course's head and information card say what the web's say, and its card does too but for
+/// the status a completed course leaves off.
 struct CourseContentTests {
   /// `course.json` with `changes` laid over it.
   private func course(_ changes: [String: Any] = [:]) throws -> CourseRead {
@@ -14,21 +15,18 @@ struct CourseContentTests {
     return try APICoding.decoder().decode(CourseRead.self, from: data)
   }
 
-  private func certification(_ changes: [String: Any] = [:]) throws -> CertificationRead {
-    var object =
-      try JSONSerialization.jsonObject(with: KitFixture.data("certification-front-only"))
-      as! [String: Any]
-    for (key, value) in changes { object[key] = value }
-    let data = try JSONSerialization.data(withJSONObject: object)
-    return try APICoding.decoder().decode(CertificationRead.self, from: data)
-  }
-
-  @Test func theCardNamesTheStatusTheDatesAndTheAgency() throws {
+  @Test func theCardNamesTheDatesAndTheAgency() throws {
     let card = PlainCardContent.course(try course())
     #expect(card.title == "Solo Diver")
-    #expect(card.badges == [Badge("Completed", style: .primary)])
     #expect(card.facts.map(\.text) == ["Sep 24 - Sep 25, 2025", "SDI"])
     #expect(card.figures.isEmpty)
+  }
+
+  @Test func theCardWearsTheStatusOnlyOfACourseNotCompleted() throws {
+    #expect(PlainCardContent.course(try course()).badges.isEmpty)
+    #expect(
+      PlainCardContent.course(try course(["status": "in_progress"])).badges
+        == [Badge("In progress", style: .outline)])
   }
 
   @Test func theCardLeavesOutWhatTheCourseLacks() throws {
@@ -60,13 +58,6 @@ struct CourseContentTests {
     #expect(hero.facts.map(\.text) == ["Sep 24 - Sep 25, 2025", "SDI", "Completed"])
     #expect(hero.figures.isEmpty)
     #expect(hero.points.isEmpty)
-  }
-
-  @Test func aCertificationsRowSaysItsAgencyAndDay() throws {
-    #expect(CoursePageContent.certificationLine(try certification()) == "SDI · Sep 25, 2025")
-    #expect(
-      CoursePageContent.certificationLine(try certification(["certified_on": NSNull()]))
-        == "SDI")
   }
 
   @Test func theInformationNamesWhatThePhoneHoldsAndLeavesOutTheRest() throws {
