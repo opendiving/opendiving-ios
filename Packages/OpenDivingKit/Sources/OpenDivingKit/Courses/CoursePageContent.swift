@@ -1,7 +1,6 @@
 import Foundation
 
-/// What a course's page says (`CourseDetailPageContent`): its head, the certifications it issued,
-/// and its *Course Information* card.
+/// What a course's page says (`CourseDetailPageContent`): its head and its information card.
 public enum CoursePageContent {
   /// The dates, then the agency, in the card's formats, so a course reads the same on its page as
   /// in the list; either is left out where the course lacks it.
@@ -33,17 +32,7 @@ public enum CoursePageContent {
     return Badge(RecordSheetText.courseStatus(status), style: style)
   }
 
-  /// A certification's row under the course: the agency, and the day it was certified where it
-  /// has one.
-  public static func certificationLine(_ certification: CertificationRead) -> String {
-    [
-      VocabularyLabels.certificationAgency(
-        certification.agency, other: certification.agencyOther),
-      certification.certifiedOn.map { DateText.date($0) },
-    ].compactMap { $0 }.joined(separator: " · ")
-  }
-
-  /// The *Course Information* card's rows, each nil or empty where the course holds nothing for
+  /// The information card's rows, each nil or empty where the course holds nothing for
   /// it or the phone holds no name for it.
   public struct Information: Hashable, Sendable {
     public var diveCenter: String?

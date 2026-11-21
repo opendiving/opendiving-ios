@@ -29,11 +29,6 @@ struct CourseScreensTests {
         == "Add the training you have done to group its dives and cards.")
     #expect(CourseListView.emptyAction == "Add your first course")
     #expect(CourseDetailView.notFound == "Course not found.")
-    #expect(CourseDetailView.certificationsTitle == "Certifications from This Course")
-    #expect(
-      CourseDetailView.certificationsDescription
-        == "The cards this training issued. An existing card can name this course from its own form too."
-    )
     #expect(CourseDetailView.certificationsEmptyTitle == "No certifications from this course yet")
     #expect(
       CourseDetailView.certificationsEmptyMessage

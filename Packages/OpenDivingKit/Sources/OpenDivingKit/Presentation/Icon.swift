@@ -40,6 +40,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case history
   case idCard = "id-card"
   case imageOff = "image-off"
+  case instructor
   case keyRound = "key-round"
   case landmark
   case layers

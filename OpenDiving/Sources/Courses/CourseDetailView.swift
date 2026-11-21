@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A course's page, by its uuid: its head, then three tabs — Info, its *Course Information*
-/// card, which logs a dive for it and adds a certification; Certifications, the cards it issued;
-/// and Dives, those logged on it. It is edited and deleted from its top bar.
+/// A course's page, by its uuid: its head, then three tabs — Info, its information card over
+/// *Log a dive* and *Add a certification*; Certifications, the cards it issued; and Dives, those
+/// logged on it. It is edited and deleted from its top bar.
 struct CourseDetailView: View {
   let courseUUID: UUID
   @Environment(Session.self) private var session
@@ -17,9 +17,6 @@ struct CourseDetailView: View {
 
 extension CourseDetailView {
   static let notFound = "Course not found."
-  static let certificationsTitle = "Certifications from This Course"
-  static let certificationsDescription =
-    "The cards this training issued. An existing card can name this course from its own form too."
   static let certificationsEmptyTitle = "No certifications from this course yet"
   static let certificationsEmptyMessage =
     "Add the card this training issued, or name this course from an existing card's form."
@@ -85,10 +82,10 @@ private struct CourseDetailContent: View {
               switch section {
               case .info:
                 CourseInformationCard(
-                  course: course,
                   information: CoursePageContent.information(
                     course, people: session.people, personLookups: lookups.people,
                     contactLookups: lookups.contacts))
+                CourseActions(course: course)
               case .certifications:
                 CourseCertificationsSection(course: course, list: model.certifications)
               case .dives:
@@ -157,9 +154,10 @@ private struct CourseDetailContent: View {
   }
 }
 
-/// The certifications the course issued, each opening its pane; while it has none, an invitation
-/// to add the first. A course with no agency invites one too, where the web hides its card: the
-/// tab is there for every course, and the diver who opens it is asking for its cards.
+/// The certifications the course issued, a card each as More's *Certifications* draws them, each
+/// opening its pane; while it has none, an invitation to add the first. A course with no agency
+/// invites one too, where the web hides its card: the tab is there for every course, and the
+/// diver who opens it is asking for its cards.
 private struct CourseCertificationsSection: View {
   let course: CourseRead
   let list: PagedList<CertificationRead>
@@ -173,17 +171,12 @@ private struct CourseCertificationsSection: View {
   @ViewBuilder private var section: some View {
     switch list.phase {
     case .idle, .loading:
-      card {
-        BubbleSpinner()
-          .frame(maxWidth: .infinity)
-      }
+      BubbleSpinner()
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
     case .failed(let error) where error.isUnreachable:
-      card {
-        Text(OfflineText.certificationsNotShown)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-        Button("Try again") { Task { await list.load() } }
-          .brandBorderedButton()
+      EmptyOrErrorView(status: .failed(message: OfflineText.certificationsNotShown)) {
+        Task { await list.load() }
       }
     // The web leaves a list it could not read empty, which invites the first card.
     case .failed:
@@ -191,23 +184,20 @@ private struct CourseCertificationsSection: View {
     case .loaded where list.items.isEmpty:
       empty
     case .loaded:
-      card {
+      let today = CalendarDate.today()
+      LazyVStack(spacing: 12) {
         ForEach(list.items) { certification in
           Button {
             opened = certification
           } label: {
-            VStack(alignment: .leading, spacing: 2) {
-              Text(certification.name)
-                .font(.body.weight(.medium))
-              Text(CoursePageContent.certificationLine(certification))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(.rect)
+            CertificationCardView(
+              certificationUUID: certification.uuid,
+              content: CertificationCardContent(certification, today: today))
           }
           .buttonStyle(.plain)
+          .onAppear { Task { await list.loadMore(after: certification) } }
         }
+        LoadMoreFooter(list: list)
       }
     }
   }
@@ -226,72 +216,142 @@ private struct CourseCertificationsSection: View {
       .brandProminentButton()
     }
   }
+}
 
-  private func card(@ViewBuilder _ rows: () -> some View) -> some View {
-    SectionCard(title: CourseDetailView.certificationsTitle, icon: .badgeCheck) {
-      Text(CourseDetailView.certificationsDescription)
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-      rows()
+/// The dive centre, the instructor and their number, the people on the course and its notes, a
+/// row each on one card led by its icon, each where the course holds it and the phone holds its
+/// name. A person the server has opens their page. Nothing at all where the course holds none.
+private struct CourseInformationCard: View {
+  let information: CoursePageContent.Information
+
+  private enum Row: Hashable {
+    case diveCenter(String)
+    case instructor(PersonRowContent?, number: String?)
+    case person(PersonRowContent)
+    case notes(String)
+  }
+
+  private var rows: [Row] {
+    var rows: [Row] = []
+    if let diveCenter = information.diveCenter { rows.append(.diveCenter(diveCenter)) }
+    if information.instructor != nil || information.instructorNumber != nil {
+      rows.append(.instructor(information.instructor, number: information.instructorNumber))
+    }
+    rows += information.people.map(Row.person)
+    if let notes = information.notes { rows.append(.notes(notes)) }
+    return rows
+  }
+
+  var body: some View {
+    let rows = rows
+    if !rows.isEmpty {
+      VStack(spacing: 0) {
+        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+          if index > 0 {
+            Divider().padding(.leading, 52)
+          }
+          view(row)
+        }
+      }
+      .background(Color.cardFill, in: .formSection)
+    }
+  }
+
+  @ViewBuilder private func view(_ row: Row) -> some View {
+    switch row {
+    case .diveCenter(let name):
+      CourseInformationRow(icon: .building2, title: name)
+    case .instructor(let person, let number):
+      // A number with no name the phone holds stands in the name's place.
+      personRow(
+        person, icon: .instructor, title: person?.name ?? number ?? "",
+        detail: person == nil ? nil : number)
+    case .person(let person):
+      personRow(
+        person, icon: .user, title: person.name,
+        detail: [person.username.map { "@" + $0 }, person.role].compactMap { $0 }
+          .joined(separator: " · "))
+    case .notes(let notes):
+      CourseInformationRow(icon: .fileText, title: notes)
+    }
+  }
+
+  @ViewBuilder private func personRow(
+    _ person: PersonRowContent?, icon: Icon, title: String, detail: String?
+  ) -> some View {
+    let detail = detail?.isEmpty == true ? nil : detail
+    if let uuid = person?.uuid {
+      NavigationLink {
+        PersonDetailView(personUUID: uuid)
+      } label: {
+        CourseInformationRow(icon: icon, title: title, detail: detail, opens: true)
+      }
+      .buttonStyle(.plain)
+    } else {
+      CourseInformationRow(icon: icon, title: title, detail: detail)
     }
   }
 }
 
-/// The dive centre, the instructor and their number, the people on the course and its notes,
-/// each where the course holds it and the phone holds its name, then *Log a dive* and
-/// *Add a certification*.
-private struct CourseInformationCard: View {
-  let course: CourseRead
-  let information: CoursePageContent.Information
+/// One of the information card's rows: its icon, the value with a line under it where it has
+/// one, and a chevron where the row opens a page.
+private struct CourseInformationRow: View {
+  let icon: Icon
+  let title: String
+  var detail: String?
+  var opens = false
 
   var body: some View {
-    SectionCard(title: "Course Information", icon: .graduationCap) {
-      VStack(alignment: .leading, spacing: 16) {
-        if let diveCenter = information.diveCenter {
-          InfoRow(label: "Dive center") { Text(diveCenter) }
-        }
-        if let instructor = information.instructor {
-          InfoRow(label: "Instructor") {
-            if let uuid = instructor.uuid {
-              NavigationLink(instructor.name) { PersonDetailView(personUUID: uuid) }
-                .accentRow()
-            } else {
-              Text(instructor.name)
-            }
-          }
-        }
-        if let number = information.instructorNumber {
-          InfoRow(label: "Instructor number") { Text(number) }
-        }
-        if !information.people.isEmpty {
-          InfoRow(label: "People") {
-            VStack(alignment: .leading, spacing: 8) {
-              ForEach(Array(information.people.enumerated()), id: \.offset) { _, person in
-                PersonRowView(content: person)
-              }
-            }
-          }
-        }
-        if let notes = information.notes {
-          InfoRow(label: "Notes") { Text(notes) }
-        }
-        VStack(spacing: 8) {
-          NavigationLink {
-            DiveFormView(mode: .course(course.uuid))
-          } label: {
-            Label("Log a dive", systemImage: "plus")
-              .frame(maxWidth: .infinity)
-          }
-          .brandProminentButton()
-          NavigationLink {
-            CertificationFormView(mode: .create, course: course)
-          } label: {
-            Label("Add a certification", icon: .badgeCheck)
-              .frame(maxWidth: .infinity)
-          }
-          .brandBorderedButton()
+    HStack(alignment: .firstTextBaseline, spacing: 12) {
+      Image(icon)
+        .foregroundStyle(.secondary)
+        .frame(width: 24)
+        .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+        if let detail {
+          Text(detail)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      if opens {
+        Image(systemName: "chevron.right")
+          .font(.footnote.weight(.semibold))
+          .foregroundStyle(.tertiary)
+          .accessibilityHidden(true)
+      }
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 12)
+    .frame(minHeight: 48)
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
+  }
+}
+
+/// *Log a dive* on the course, in the coral the profile's own *Log a dive* takes, over *Add a
+/// certification*.
+private struct CourseActions: View {
+  let course: CourseRead
+
+  var body: some View {
+    VStack(spacing: 8) {
+      NavigationLink {
+        DiveFormView(mode: .course(course.uuid))
+      } label: {
+        Label("Log a dive", icon: .divePlus)
+          .frame(maxWidth: .infinity)
+      }
+      .brandProminentButton(.brandCoral)
+      NavigationLink {
+        CertificationFormView(mode: .create, course: course)
+      } label: {
+        Label("Add a certification", icon: .badgeCheck)
+          .frame(maxWidth: .infinity)
+      }
+      .brandBorderedButton()
     }
   }
 }

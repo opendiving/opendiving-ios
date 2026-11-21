@@ -1,6 +1,5 @@
 import OpenDivingKit
 import SwiftUI
-import UIKit
 
 /// More's *Certifications*: the diver's c-cards, newest certified first, each over its front
 /// image at the card's shape and opening its pane — the pages the phone has shown first, from its
@@ -88,65 +87,6 @@ private struct CertificationListContent: View {
       CertificationFormView(mode: .create)
     }
     .task { await list.showFollowingRoute(session) }
-  }
-}
-
-/// One certification as a card: its front behind the details, in the card's shape so the front
-/// shows whole, or the water and an icon where there is no picture to show — none stored, a PDF,
-/// or one that could not be had. Nothing while the picture is on its way, so a card that has one
-/// does not flash an icon first.
-private struct CertificationCardView: View {
-  let certificationUUID: UUID
-  let content: CertificationCardContent
-
-  @Environment(Session.self) private var session
-  @State private var front: UIImage?
-  @State private var loading = true
-
-  var body: some View {
-    Color.clear
-      .aspectRatio(CertificationCardCrop.aspect, contentMode: .fit)
-      .frame(maxWidth: .infinity)
-      .background { backdrop }
-      .overlay(alignment: .bottom) { details }
-      .background(Color(.systemBackground))
-      .clipShape(.formSection)
-      .accessibilityElement(children: .combine)
-      .task(id: content.front) { await load() }
-  }
-
-  @ViewBuilder private var backdrop: some View {
-    if let front {
-      Image(uiImage: front)
-        .resizable()
-        .scaledToFill()
-        .accessibilityHidden(true)
-    } else if !loading {
-      UnplacedBackdropView(icon: content.missingFrontIcon, coveredBottom: 100)
-    }
-  }
-
-  private var details: some View {
-    CardDetailLines(
-      title: content.name, badge: content.badge, facts: content.facts, figures: []
-    )
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(CardBackdropFrame.glassPadding)
-    .background { GlassCard(shape: .formSection(inset: CardBackdropFrame.glassInset)) }
-    .padding(CardBackdropFrame.glassInset)
-  }
-
-  private func load() async {
-    guard let file = content.front else {
-      front = nil
-      loading = false
-      return
-    }
-    loading = true
-    let bytes = await CertificationCardImages.bytes(
-      of: certificationUUID, file, session: session)
-    front = bytes.flatMap(UIImage.init(data:))
-    loading = false
   }
 }
 

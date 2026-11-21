@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// A course's card, head, certifications and information card say what the web's say.
+/// A course's card, head and information card say what the web's say.
 struct CourseContentTests {
   /// `course.json` with `changes` laid over it.
   private func course(_ changes: [String: Any] = [:]) throws -> CourseRead {
@@ -12,15 +12,6 @@ struct CourseContentTests {
     for (key, value) in changes { object[key] = value }
     let data = try JSONSerialization.data(withJSONObject: object)
     return try APICoding.decoder().decode(CourseRead.self, from: data)
-  }
-
-  private func certification(_ changes: [String: Any] = [:]) throws -> CertificationRead {
-    var object =
-      try JSONSerialization.jsonObject(with: KitFixture.data("certification-front-only"))
-      as! [String: Any]
-    for (key, value) in changes { object[key] = value }
-    let data = try JSONSerialization.data(withJSONObject: object)
-    return try APICoding.decoder().decode(CertificationRead.self, from: data)
   }
 
   @Test func theCardNamesTheStatusTheDatesAndTheAgency() throws {
@@ -60,13 +51,6 @@ struct CourseContentTests {
     #expect(hero.facts.map(\.text) == ["Sep 24 - Sep 25, 2025", "SDI", "Completed"])
     #expect(hero.figures.isEmpty)
     #expect(hero.points.isEmpty)
-  }
-
-  @Test func aCertificationsRowSaysItsAgencyAndDay() throws {
-    #expect(CoursePageContent.certificationLine(try certification()) == "SDI · Sep 25, 2025")
-    #expect(
-      CoursePageContent.certificationLine(try certification(["certified_on": NSNull()]))
-        == "SDI")
   }
 
   @Test func theInformationNamesWhatThePhoneHoldsAndLeavesOutTheRest() throws {
