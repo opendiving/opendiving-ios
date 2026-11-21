@@ -1,7 +1,7 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A record with nothing to draw behind it — gear, a course — as a card on its list: its name
+/// A record with nothing to draw behind it — gear, a person — as a card on its list: its name
 /// with its badges beside it, the facts line under it and its figures, on a card's fill, as the
 /// web's plain card.
 struct PlainCardView: View {

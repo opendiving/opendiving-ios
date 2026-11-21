@@ -107,7 +107,8 @@ private struct CourseListContent: View {
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
       }
-      VStack(spacing: 0) {
+      // Lazy, so each row asks for the next page only as it scrolls into view.
+      LazyVStack(spacing: 0) {
         ForEach(Array(list.items.enumerated()), id: \.element.id) { index, course in
           if index > 0 {
             Divider().padding(.leading, 12)
