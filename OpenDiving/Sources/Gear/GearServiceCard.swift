@@ -190,9 +190,7 @@ struct GearServiceCard: View {
       route = .editRecord(record.uuid)
     } label: {
       VStack(alignment: .leading, spacing: 2) {
-        Text(
-          "\(Text(row.kind).fontWeight(.medium))\(Text(Self.after(row)).foregroundStyle(.secondary))"
-        )
+        Self.title(row)
         if let servicedBy = row.servicedBy {
           Text(servicedBy).foregroundStyle(.secondary)
         }
@@ -249,9 +247,12 @@ struct GearServiceCard: View {
 
   private var ref: RecordRef { .server(gearItem.uuid) }
 
-  /// What follows a service's kind on its line: its label, then its day.
-  private static func after(_ row: GearServiceCardContent.RecordRow) -> String {
-    (row.label.map { " (\($0))" } ?? "") + " · " + row.date
+  /// A service's line: its day, then its kind and its label.
+  private static func title(_ row: GearServiceCardContent.RecordRow) -> Text {
+    let date = Text(row.date + " · ").foregroundStyle(.secondary)
+    let kind = Text(row.kind).fontWeight(.medium)
+    let label = Text(row.label.map { " (\($0))" } ?? "").foregroundStyle(.secondary)
+    return Text("\(date)\(kind)\(label)")
   }
 
   private var deletingTitle: String {
