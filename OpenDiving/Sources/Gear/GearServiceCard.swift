@@ -118,24 +118,20 @@ struct GearServiceCard: View {
       route = .editSchedule(schedule.uuid)
     } label: {
       VStack(alignment: .leading, spacing: 4) {
-        HStack(spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
           Text(row.kind).fontWeight(.medium)
           if let label = row.label {
             Text("(\(label))").foregroundStyle(.secondary)
           }
+          Spacer(minLength: 8)
           if row.isPaused {
             BadgeView("Paused", style: .outline)
+          } else if let status = row.status {
+            BadgeView(status.text, style: status.style)
           }
         }
-        if let status = row.status {
-          HStack(spacing: 8) {
-            BadgeView(status.text, style: status.style)
-            if let due = row.due {
-              Text(due).font(.caption).foregroundStyle(.secondary)
-            }
-          }
-        } else {
-          Text("—").foregroundStyle(.secondary)
+        if let due = row.due {
+          Text(due).font(.caption).foregroundStyle(.secondary)
         }
         Text(row.intervals)
           .font(.caption)
