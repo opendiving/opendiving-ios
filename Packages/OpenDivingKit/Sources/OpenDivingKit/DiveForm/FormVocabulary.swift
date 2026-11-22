@@ -15,13 +15,29 @@ public enum FormVocabulary {
   public static let tankUsages = ["parallel", "staged"]
   public static let abundances = ["few", "many", "abundant"]
   public static let personRoles = ["buddy", "guide", "instructor", "student", "companion"]
-  /// The way a diver lays kit out, mask first.
-  public static let gearTypes = [
-    "mask", "snorkel", "fins", "wetsuit", "drysuit", "vest", "undergarment", "hood", "gloves",
-    "boots", "tech_shorts", "bcd", "backplate", "wing", "regulator", "rebreather", "computer",
-    "transmitter", "cylinder", "light", "scooter", "smb", "mirror", "whistle", "reel", "knife",
-    "line_cutter", "shears", "compass", "slate", "camera", "other",
+  /// The Type picker's headings, which the web's flat menu lacks; within each, the way a diver
+  /// lays kit out.
+  public static let gearTypeGroups = [
+    GearTypeGroup(
+      title: "Exposure",
+      types: [
+        "wetsuit", "drysuit", "vest", "undergarment", "hood", "gloves", "boots", "tech_shorts",
+      ]),
+    GearTypeGroup(
+      title: "SCUBA",
+      types: [
+        "mask", "snorkel", "fins", "bcd", "backplate", "wing", "regulator", "rebreather",
+        "computer", "transmitter", "cylinder", "scooter",
+      ]),
+    GearTypeGroup(
+      title: "Accessories",
+      types: [
+        "light", "smb", "mirror", "whistle", "reel", "knife", "line_cutter", "shears", "compass",
+        "slate", "camera",
+      ]),
+    GearTypeGroup(title: "Other", types: ["other"]),
   ]
+  public static let gearTypes = gearTypeGroups.flatMap(\.types)
   public static let cylinderMaterials = ["steel", "aluminium", "carbon"]
   public static let contactRoles = [
     "dive_center", "school", "shop", "accommodation", "liveaboard", "club", "other",

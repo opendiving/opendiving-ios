@@ -163,6 +163,13 @@ struct VocabularyLabelsTests {
     #expect(Set(FormVocabulary.gearTypes) == Set(Labels.gearTypes.keys))
   }
 
+  /// A type under two headings would be two rows with one tag in the picker.
+  @Test func eachGearTypeSitsUnderOneHeading() {
+    #expect(FormVocabulary.gearTypes.count == Set(FormVocabulary.gearTypes).count)
+    #expect(
+      FormVocabulary.gearTypeGroups.map(\.title) == ["Exposure", "SCUBA", "Accessories", "Other"])
+  }
+
   @Test func cdaaIscAndIseReadAsTheirShortNames() {
     #expect(Labels.certificationAgency("cdaa") == "CDAA")
     #expect(Labels.certificationAgency("isc") == "ISC")
