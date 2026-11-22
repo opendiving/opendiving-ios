@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A gear item's page, by its uuid: its hero, its service, the dives it was used on and its
-/// notes. It is edited, archived, unarchived and deleted from its top bar.
+/// A gear item's page, by its uuid: its hero and its notes, then two tabs — Service, its
+/// schedules and history; and Dives, those it was used on. It is edited, archived, unarchived and
+/// deleted from its top bar.
 struct GearItemDetailView: View {
   let gearItemUUID: UUID
   @Environment(Session.self) private var session
@@ -31,6 +32,10 @@ private struct GearItemDetailContent: View {
   @State private var confirmsArchive = false
   @State private var confirmsDelete = false
   @State private var queueError: String?
+  @State private var section = GearItemSection.service
+  @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
 
   init(model: GearItemDetailModel) {
     _model = State(initialValue: model)
@@ -54,27 +59,52 @@ private struct GearItemDetailContent: View {
               content: GearItemPageContent.hero(
                 item, units: session.units, today: CalendarDate.today()),
               backdrop: .plain)
-            Group {
-              if let lastUpdated = model.page.lastUpdated {
-                LastUpdatedLine(date: lastUpdated)
-              }
-              if model.page.hasPendingEdit {
-                PendingEditLine()
-              }
-              GearServiceCard(gearItem: item, service: model.service)
-              RecordDivesSection(
-                list: model.dives, content: .gearItem, units: session.units, logDive: .create)
-              if let notes = GearItemPageContent.notes(item) {
-                SectionCard(title: "Notes", icon: .fileText) {
-                  Text(notes)
-                    .foregroundStyle(.secondary)
+            let notes = GearItemPageContent.notes(item)
+            if model.page.lastUpdated != nil || model.page.hasPendingEdit || notes != nil {
+              VStack(spacing: 16) {
+                if let lastUpdated = model.page.lastUpdated {
+                  LastUpdatedLine(date: lastUpdated)
                 }
+                if model.page.hasPendingEdit {
+                  PendingEditLine()
+                }
+                if let notes {
+                  SectionCard(title: "Notes", icon: .fileText) {
+                    Text(notes)
+                      .foregroundStyle(.secondary)
+                  }
+                }
+              }
+              .padding(.horizontal)
+            }
+            SectionTabs(
+              selection: $section,
+              title: { section in
+                switch section {
+                case .service: section.title
+                case .dives: DiveSiteSummary.counted(section.title, model.dives.count ?? 0)
+                }
+              },
+              onReselect: { withAnimation { scroll.scroll(to: reselect) } }
+            )
+            .readsTabsTop($tabsTop)
+            Group {
+              switch section {
+              case .service:
+                GearServiceCard(gearItem: item, service: model.service)
+              case .dives:
+                RecordDivesSection(
+                  list: model.dives, content: .gearItem, units: session.units, logDive: .create,
+                  isCarded: false)
               }
             }
             .padding(.horizontal)
           }
+          .coordinateSpace(.pageContent)
           .padding(.bottom)
         }
+        .scrollPosition($scroll)
+        .tabsReselect($reselect, tabsTop: tabsTop)
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(item) }
         .confirmationDialog(

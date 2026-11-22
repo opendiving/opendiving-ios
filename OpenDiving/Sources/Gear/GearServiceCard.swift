@@ -1,7 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A gear item's service schedules, with their status, and its service history, on the item's page.
+/// A gear item's service schedules, with their status, and its service history, under the item
+/// page's *Service* tab, which names it.
 /// A schedule is added, logged against, paused, resumed, edited and deleted from here, and a
 /// service logged, edited and deleted; each is queued, and its row shows once it lands.
 struct GearServiceCard: View {
@@ -27,20 +28,26 @@ struct GearServiceCard: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      header
-      VStack(alignment: .leading, spacing: 12) {
-        if GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: gearItem.uuid) {
-          PendingEditLine()
-        }
-        schedules
-        history
+    VStack(alignment: .leading, spacing: 12) {
+      if GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: gearItem.uuid) {
+        PendingEditLine()
       }
-      .padding(.horizontal, 16)
-      .padding(.vertical, 12)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .background(Color.cardFill, in: .formSection)
+      subhead("Schedules") {
+        NavigationLink {
+          ServiceScheduleFormView(gearItem: ref, mode: .create, gearType: gearItem.type)
+        } label: {
+          Label("Add schedule", systemImage: "plus")
+            .font(.subheadline)
+        }
+        .brandBorderedButton()
+      }
+      schedules
+      history
     }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.cardFill, in: .formSection)
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
     .confirmationDialog(
       deletingTitle, isPresented: isDeleting, titleVisibility: .visible, presenting: deleting
@@ -62,17 +69,15 @@ struct GearServiceCard: View {
     }
   }
 
-  private var header: some View {
+  /// A part's name, with the button that adds to it.
+  private func subhead(_ title: String, @ViewBuilder action: () -> some View) -> some View {
     HStack(spacing: 8) {
-      SectionTitle(title: "Service", icon: .wrench)
+      Text(title)
+        .font(.subheadline.weight(.medium))
+        .foregroundStyle(.secondary)
+        .accessibilityAddTraits(.isHeader)
       Spacer()
-      NavigationLink {
-        ServiceScheduleFormView(gearItem: ref, mode: .create, gearType: gearItem.type)
-      } label: {
-        Label("Add schedule", systemImage: "plus")
-          .font(.subheadline)
-      }
-      .brandBorderedButton()
+      action()
     }
   }
 
@@ -159,12 +164,7 @@ struct GearServiceCard: View {
 
   private var history: some View {
     VStack(alignment: .leading, spacing: 8) {
-      HStack {
-        Text("Service History")
-          .font(.subheadline.weight(.medium))
-          .foregroundStyle(.secondary)
-          .accessibilityAddTraits(.isHeader)
-        Spacer()
+      subhead("Service History") {
         NavigationLink {
           ServiceRecordFormView(gearItem: ref, mode: .create)
         } label: {
