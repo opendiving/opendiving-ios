@@ -83,10 +83,15 @@ struct DiveSiteProposalsTests {
     }
   }
 
+  private static let origin = ServerOrigin("https://stub.opendiving.invalid")!
+
   private func primarySession(
-    connectivity: any Connectivity = AlwaysReachable(), failures: Int = 0
+    connectivity: any Connectivity = AlwaysReachable(), failures: Int = 0, primary: Bool = true,
+    applicationSupport: URL = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "DiveSiteProposalsTests-\(UUID().uuidString)", isDirectory: true)
   ) throws -> (Session, StubTransport) {
-    let config = try KitFixture.text("config-commons-primary")
+    let config = try KitFixture.text("config-commons-primary").replacingOccurrences(
+      of: "\"commons_primary\": true", with: "\"commons_primary\": \(primary)")
     let health = try KitFixture.text("health")
     let left = Mutex(failures)
     let transport = StubTransport { request in
@@ -101,15 +106,52 @@ struct DiveSiteProposalsTests {
       default: return .json(#"{"detail":"Not Found"}"#, status: 404)
       }
     }
-    let origin = ServerOrigin("https://stub.opendiving.invalid")!
     let session = Session(
       transport: transport, secrets: InMemorySecretStore([:]),
-      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
-      connectivity: connectivity,
-      applicationSupport: FileManager.default.temporaryDirectory.appendingPathComponent(
-        "DiveSiteProposalsTests-\(UUID().uuidString)", isDirectory: true),
+      activeOrigin: InMemoryActiveOriginStore(Self.origin), background: NoBackgroundExecution(),
+      connectivity: connectivity, applicationSupport: applicationSupport,
       userAgent: ClientHarness.userAgent)
     return (session, transport)
+  }
+
+  @Test func aLaunchWithNoRouteOffersProposingWhereTheServerLastSaidItEditsTheCommons()
+    async throws
+  {
+    let (answered, _) = try primarySession()
+    await answered.loadServerInfo()
+    #expect(answered.isCommonsPrimary)
+
+    let (offline, transport) = try primarySession(
+      connectivity: RouteSwitch(available: false),
+      applicationSupport: answered.store.applicationSupport)
+    #expect(offline.server == nil)
+    #expect(offline.isCommonsPrimary)
+    #expect(transport.requests.isEmpty)
+  }
+
+  @Test func anAnswerThatItNoLongerEditsTheCommonsStandsFromThenOn() async throws {
+    let (answered, _) = try primarySession()
+    await answered.loadServerInfo()
+    let directory = answered.store.applicationSupport
+
+    let (relaunched, _) = try primarySession(primary: false, applicationSupport: directory)
+    #expect(relaunched.isCommonsPrimary)
+    await relaunched.loadServerInfo()
+    #expect(!relaunched.isCommonsPrimary)
+
+    let (offline, _) = try primarySession(
+      connectivity: RouteSwitch(available: false), applicationSupport: directory)
+    #expect(!offline.isCommonsPrimary)
+  }
+
+  @Test func forgettingTheServerForgetsWhatItSaid() async throws {
+    let (session, _) = try primarySession()
+    await session.loadServerInfo()
+    #expect(session.store.commonsPrimary(Self.origin) == true)
+
+    try session.forget(Self.origin)
+    #expect(!session.isCommonsPrimary)
+    #expect(session.store.commonsPrimary(Self.origin) == nil)
   }
 
   @Test func aLaunchWithNoRouteOffersProposingOnceARouteAppears() async throws {
