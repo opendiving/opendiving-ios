@@ -99,13 +99,13 @@ public final class PagedList<Item: Codable & Sendable> {
   }
 
   /// The first page, unless it is loaded or loading already — after the kept pages, shown at
-  /// once.
+  /// once. A list that reads every page reads as many as it kept before it shows any again.
   public func load() async {
     switch phase {
     case .loading, .loaded: return
     case .idle, .failed:
       showCached()
-      await loadFirstPage()
+      await loadPages(through: max(nextPage - 1, 1))
     }
   }
 
@@ -317,6 +317,8 @@ public final class PagedList<Item: Codable & Sendable> {
     totalCount = entry.value.totalCount
     showFetched()
     hasMore = false
+    // Which page comes next is no concern of a list that reads only page 1 again.
+    if readsEveryPage { nextPage = entry.value.nextPage }
     fetchedAt = entry.fetchedAt
     phase = .loaded
   }

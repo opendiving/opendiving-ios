@@ -78,8 +78,8 @@ struct PeopleReadsTests {
     #expect(contacts.contacts.items.map(\.uuid) == onlineContacts.contacts.items.map(\.uuid))
   }
 
-  @Test func theListReadsEveryPageForItsLetters() async throws {
-    let world = try OutboxWorld()
+  /// `GET people` in two pages of three, the second's first person Zoe.
+  private func servesTwoPages(_ world: OutboxWorld) throws {
     let first = try KitFixture.text("people-page")
       .replacingOccurrences(of: #""has_more": false"#, with: #""has_more": true"#)
     let second = try KitFixture.text("people-page")
@@ -89,6 +89,40 @@ struct PeopleReadsTests {
       guard request.route == "GET people" else { return nil }
       return .json(request.url?.query?.contains("page=2") == true ? second : first)
     }
+  }
+
+  @MainActor private final class Shown {
+    var list: PagedList<PersonRead>?
+  }
+
+  @Test func theKeptPagesStandUntilEveryOneIsReadAgain() async throws {
+    let first = try OutboxWorld()
+    try servesTwoPages(first)
+    try await first.load()
+    await PeopleListModel(session: first.session).people.load()
+
+    let world = try first.relaunched()
+    try servesTwoPages(world)
+    try await world.session.loadAccount()
+    let shown = Shown()
+    let duringPageTwo = Mutex<Int?>(nil)
+    let list = PagedList<PersonRead>(session: world.session, cache: .people, readsEveryPage: true) {
+      client, page, perPage in
+      if page == 2 {
+        let count = await shown.list?.items.count
+        duringPageTwo.withLock { $0 = count }
+      }
+      return try await client.people(page: page, itemsPerPage: perPage)
+    }
+    shown.list = list
+    await list.load()
+    #expect(duringPageTwo.withLock { $0 } == 6)
+    #expect(list.items.count == 6)
+  }
+
+  @Test func theListReadsEveryPageForItsLetters() async throws {
+    let world = try OutboxWorld()
+    try servesTwoPages(world)
     try await world.load()
     let model = PeopleListModel(session: world.session)
     let showing = Task { await model.show() }
