@@ -227,12 +227,17 @@ struct GearServiceFormsTests {
     #expect(row.intervals == "Every 12 months or every 100 dives · last done today")
   }
 
-  @Test func aPausedScheduleHasNoStatus() throws {
-    let row = GearServiceCardContent.row(
-      try schedule(["is_active": false]), diveCount: 0, diveTime: 0, today: today)
+  @Test func aPausedScheduleHasNoStatusAndStillSaysWhenItIsDue() throws {
+    let paused = try schedule(["is_active": false, "next_due_on": "2026-08-20"])
+    let row = GearServiceCardContent.row(paused, diveCount: 0, diveTime: 0, today: today)
     #expect(row.isPaused)
     #expect(row.status == nil)
-    #expect(row.due == nil)
+    #expect(row.due == "Due in 10 days")
+
+    let resumed = GearServiceCardContent.row(
+      paused, isActive: true, diveCount: 0, diveTime: 0, today: today)
+    #expect(!resumed.isPaused)
+    #expect(resumed.status == Badge("Due soon", style: .coral))
   }
 
   @Test func aServicesRowNamesWhereThenWhoAndTheDay() throws {
@@ -276,6 +281,26 @@ struct GearServiceFormsTests {
     world.offline()
     #expect(form.delete())
     #expect(outbox.items.map(\.operation) == [.deleteServiceSchedule(ref, gearItem: gearItem)])
+  }
+
+  @Test func aPauseShowsAtOnceAndUntilTheSchedulesAreReadBack() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.offline()
+    let outbox = world.outbox()
+    let service = GearServiceModel(session: world.session, gearItemUUID: Self.item)
+    let read = try schedule()
+    #expect(service.isActive(read, items: outbox.items))
+
+    _ = try outbox.queue(
+      .updateServiceSchedule(
+        .server(read.uuid), gearItem: gearItem, GearServiceScheduleUpdate(active: false)))
+    service.toggled(read.uuid, active: false)
+    #expect(!service.isActive(read, items: outbox.items))
+    // Landed, and the list not yet read again.
+    #expect(!service.isActive(read, items: []))
+    service.schedulesRead()
+    #expect(service.isActive(read, items: []))
   }
 
   @Test func aQueuedServiceWriteForTheItemIsSaidOnItsCard() async throws {

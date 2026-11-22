@@ -68,7 +68,7 @@ private struct RowSwipeActions: ViewModifier {
       // lets go says nothing.
       .sensoryFeedback(.impact, trigger: isFullSwipe) { _, _ in isPanning }
       .onChange(of: isFullSwipe) { _, isFull in
-        withAnimation(.smooth(duration: 0.25)) { toRow = isFull ? 1 : 0 }
+        withAnimation(.smooth(duration: 0.12)) { toRow = isFull ? 1 : 0 }
       }
   }
 

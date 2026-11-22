@@ -47,6 +47,7 @@ struct GearServiceCard: View {
       }
     }
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
+    .onChange(of: service.schedules.items) { service.schedulesRead() }
     .alert(
       "Not saved",
       isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
@@ -88,8 +89,9 @@ struct GearServiceCard: View {
   }
 
   private func scheduleRow(_ schedule: GearServiceScheduleRead) -> some View {
+    let isActive = service.isActive(schedule, items: outbox.items)
     let row = GearServiceCardContent.row(
-      schedule, diveCount: gearItem.diveCount, diveTime: gearItem.diveTime,
+      schedule, isActive: isActive, diveCount: gearItem.diveCount, diveTime: gearItem.diveTime,
       today: CalendarDate.today())
     return Button {
       route = .editSchedule(schedule.uuid)
@@ -126,7 +128,9 @@ struct GearServiceCard: View {
       } label: {
         Label("Log service", icon: .clipboardCheck)
       }
-      Button(Self.toggleTitle(row), systemImage: Self.toggleSymbol(row)) { toggle(schedule) }
+      Button(Self.toggleTitle(row), systemImage: Self.toggleSymbol(row)) {
+        toggle(schedule, to: !isActive)
+      }
     }
     .rowSwipeActions(
       leading: [
@@ -138,7 +142,7 @@ struct GearServiceCard: View {
         RowSwipeAction(
           title: Self.toggleTitle(row), image: Image(systemName: Self.toggleSymbol(row)),
           fill: Color(.systemGray)
-        ) { toggle(schedule) }
+        ) { toggle(schedule, to: !isActive) }
       ])
   }
 
@@ -150,11 +154,11 @@ struct GearServiceCard: View {
     row.isPaused ? "play" : "pause"
   }
 
-  private func toggle(_ schedule: GearServiceScheduleRead) {
+  private func toggle(_ schedule: GearServiceScheduleRead, to active: Bool) {
     queue(
       .updateServiceSchedule(
-        .server(schedule.uuid), gearItem: ref,
-        GearServiceScheduleUpdate(active: !schedule.isActive)))
+        .server(schedule.uuid), gearItem: ref, GearServiceScheduleUpdate(active: active)))
+    if queueError == nil { service.toggled(schedule.uuid, active: active) }
   }
 
   @ViewBuilder private var history: some View {

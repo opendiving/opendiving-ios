@@ -16,9 +16,10 @@ public enum GearServiceCardContent {
     public let kind: String
     public let label: String?
     public let isPaused: Bool
-    /// The status badge at the title line's end and the due sentence at the row's foot; nil
-    /// while paused, whose badge stands there instead.
+    /// The status badge at the title line's end; nil while paused, whose badge stands there
+    /// instead.
     public let status: Badge?
+    /// At the row's foot, paused or not.
     public let due: String?
     /// *Every 12 months or every 100 dives · last done Mar 4, 2026*.
     public let intervals: String
@@ -35,8 +36,10 @@ public enum GearServiceCardContent {
     public let notes: String?
   }
 
+  /// `isActive` is the diver's last word where it differs from the server's copy.
   public static func row(
-    _ schedule: GearServiceScheduleRead, diveCount: Int, diveTime: Int, today: CalendarDate
+    _ schedule: GearServiceScheduleRead, isActive: Bool? = nil, diveCount: Int, diveTime: Int,
+    today: CalendarDate
   ) -> ScheduleRow {
     let arms = [
       schedule.intervalMonths.map { "Every \($0) months" },
@@ -47,16 +50,14 @@ public enum GearServiceCardContent {
       schedule.lastServiceOn.map {
         " · last done " + DateText.inSentence(DateText.date($0, relativeTo: today))
       } ?? " · never serviced"
-    let active = schedule.isActive
+    let shown = ShownDue(schedule, isActive: isActive ?? schedule.isActive)
     return ScheduleRow(
-      id: schedule.uuid, kind: GearServiceKinds.label(schedule.kind), label: shown(schedule.label),
-      isPaused: !active,
-      status: active
-        ? GearServiceStatus(schedule, diveCount: diveCount, diveTime: diveTime, today: today).badge
+      id: schedule.uuid, kind: GearServiceKinds.label(schedule.kind),
+      label: Self.shown(schedule.label), isPaused: !shown.isActive,
+      status: shown.isActive
+        ? GearServiceStatus(shown, diveCount: diveCount, diveTime: diveTime, today: today).badge
         : nil,
-      due: active
-        ? GearServiceText.due(schedule, diveCount: diveCount, diveTime: diveTime, today: today)
-        : nil,
+      due: GearServiceText.due(shown, diveCount: diveCount, diveTime: diveTime, today: today),
       intervals: arms.joined(separator: " or ") + last)
   }
 
@@ -87,6 +88,21 @@ public enum GearServiceCardContent {
         return owner == ref
       default: return false
       }
+    }
+  }
+
+  /// A schedule's due points, running or paused as its row shows it.
+  private struct ShownDue: GearServiceDue {
+    let nextDueOn: CalendarDate?
+    let nextDueAtDiveCount: Int?
+    let nextDueAtDiveTime: Int?
+    let isActive: Bool
+
+    init(_ schedule: GearServiceScheduleRead, isActive: Bool) {
+      nextDueOn = schedule.nextDueOn
+      nextDueAtDiveCount = schedule.nextDueAtDiveCount
+      nextDueAtDiveTime = schedule.nextDueAtDiveTime
+      self.isActive = isActive
     }
   }
 
