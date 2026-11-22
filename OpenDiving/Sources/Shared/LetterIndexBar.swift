@@ -48,11 +48,12 @@ struct LetterIndexBar: View {
     .accessibilityLabel("Index")
     .accessibilityValue(selected ?? letters.first ?? "")
     .accessibilityAdjustableAction { direction in
-      let current = selected.flatMap { letters.firstIndex(of: $0) }
+      // With nothing picked the value reads the first letter, so a step moves on from it.
+      let current = selected.flatMap { letters.firstIndex(of: $0) } ?? 0
       let next: Int
       switch direction {
-      case .increment: next = current.map { $0 + 1 } ?? 0
-      case .decrement: next = current.map { $0 - 1 } ?? 0
+      case .increment: next = current + 1
+      case .decrement: next = current - 1
       @unknown default: return
       }
       guard letters.indices.contains(next) else { return }
