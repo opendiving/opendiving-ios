@@ -21,6 +21,12 @@ public struct SiteFinderRowContent: Hashable, Sendable, Identifiable {
   /// of the list, so its coral icon says it alone.
   public var badge: DiveSiteMark? { mark == .commons ? nil : mark }
 
+  /// What VoiceOver reads for the icon: the mark, where no badge reads it; nil where the icon
+  /// says nothing the row does not.
+  public var iconAccessibilityLabel: String? {
+    badge == nil ? mark?.accessibilityLabel : nil
+  }
+
   public init(_ row: DiveSiteSearchRow, units: UnitSystem) {
     id = row.id
     distance = row.distanceM.map { GeoDistance.format($0, units) }

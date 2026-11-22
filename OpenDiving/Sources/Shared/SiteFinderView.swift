@@ -841,7 +841,8 @@ private struct SiteFinderRow: View {
         .frame(width: Self.iconWidth)
         .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
         .foregroundStyle(content.mark.map { AnyShapeStyle($0.color) } ?? AnyShapeStyle(.secondary))
-        .accessibilityHidden(true)
+        .accessibilityLabel(content.iconAccessibilityLabel ?? "")
+        .accessibilityHidden(content.iconAccessibilityLabel == nil)
       // The credit sits outside the distance's row, so it runs on under the distance rather
       // than wrapping in the narrower column beside it.
       VStack(alignment: .leading, spacing: 2) {
