@@ -37,7 +37,8 @@ struct CertificationCardView: View {
     }
   }
 
-  /// One line: a long level gives up its tail before either badge gives up a letter.
+  /// One line: a long level gives up its tail before the expiry gives up a letter. The agency
+  /// can truncate too, since an agency outside the vocabulary is the diver's free text.
   private var details: some View {
     HStack(alignment: .firstTextBaseline, spacing: 6) {
       Text(content.name)
@@ -48,7 +49,7 @@ struct CertificationCardView: View {
       }
       Spacer(minLength: 6)
       if let agency = content.agency {
-        BadgeView(agency, style: .outline).fixedSize()
+        BadgeView(agency, style: .outline)
       }
     }
     .shadow(color: Color(.systemBackground).opacity(0.6), radius: 3)
