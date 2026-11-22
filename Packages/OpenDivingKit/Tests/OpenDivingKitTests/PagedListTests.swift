@@ -251,6 +251,27 @@ struct PagedListTests {
     #expect(list.phase == .loaded)
     #expect(list.pageError != nil)
   }
+
+  @Test func theRestIsEveryPageLeft() async throws {
+    let transport = try transport()
+    let list = trips(Session.stub(transport: transport))
+    await list.load()
+    await list.loadRest()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
+    #expect(!list.hasMore)
+    await list.loadRest()
+    #expect(transport.requests.count == 3)
+  }
+
+  @Test func theRestStopsAtAPageThatFails() async throws {
+    let transport = try transport(failPage: 2)
+    let list = trips(Session.stub(transport: transport))
+    await list.load()
+    await list.loadRest()
+    #expect(list.items.map(\.name) == ["Trip 1"])
+    #expect(list.pageError != nil)
+    #expect(transport.requests.count == 2)
+  }
 }
 
 /// Holds the first page-1 request sent after ``arm()`` at the ``Gate``.

@@ -1,9 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *People*: what is waiting to sync, then the diver's people in the API's order, each
-/// opening their page and holding *Edit* and *Delete* under a long press — the pages the phone
-/// has shown first, from its copy.
+/// More's *People*: what is waiting to sync, then the diver's people on one card, filed under
+/// their letters with an index of them down the edge as Contacts has, each opening their page and
+/// holding *Edit* and *Delete* under a long press — the pages the phone has shown first, from its
+/// copy.
 struct PeopleListView: View {
   @Environment(Session.self) private var session
 
@@ -14,9 +15,6 @@ struct PeopleListView: View {
 
 extension PeopleListView {
   static let title = "People"
-  static let description =
-    "Your buddies, guides, instructors and the people who came along, kept once"
-  static let listTitle = "People List"
   static let emptyTitle = "No people yet"
   static let emptyMessage =
     "Add the people you dive with once, and pick them from your dives, trips and courses."
@@ -42,18 +40,25 @@ private struct PeopleListContent: View {
   @State private var queueError: String?
 
   var body: some View {
-    ScrollView {
-      LazyVStack(spacing: 12) {
-        Text(PeopleListView.description)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        // A queued create is not a row until it lands; what waits shows here however the
-        // list stands.
-        PendingSection()
-        people
+    let sections = model.people.phase == .loaded ? model.sections : []
+    ScrollViewReader { proxy in
+      ScrollView {
+        LazyVStack(spacing: 12) {
+          // A queued create is not a row until it lands; what waits shows here however the
+          // list stands.
+          PendingSection()
+          people(sections)
+        }
+        .padding()
       }
-      .padding()
+      // In the page's trailing margin, beside the card rather than over its rows.
+      .overlay(alignment: .trailing) {
+        if !sections.isEmpty {
+          SectionIndexBar(letters: sections.map(\.letter)) { letter in
+            proxy.scrollTo(letter, anchor: .top)
+          }
+        }
+      }
     }
     .background(Color.pageBackground)
     .bubbleRefreshable { await model.refresh() }
@@ -92,7 +97,7 @@ private struct PeopleListContent: View {
     .task { await model.show() }
   }
 
-  @ViewBuilder private var people: some View {
+  @ViewBuilder private func people(_ sections: [PeopleLetterSection]) -> some View {
     let list = model.people
     switch list.phase {
     case .idle, .loading:
@@ -112,33 +117,83 @@ private struct PeopleListContent: View {
           .brandProminentButton()
       }
     case .loaded:
-      HStack(spacing: 8) {
-        Image(.users)
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-        Text(PeopleListView.listTitle)
-          .font(.headline)
-          .accessibilityAddTraits(.isHeader)
-        Spacer()
-      }
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
       }
-      ForEach(list.items) { person in
-        NavigationLink {
-          PersonDetailView(personUUID: person.uuid)
-        } label: {
-          PlainCardView(content: .person(person))
+      // Not lazy, so the index can scroll to a letter that has not been drawn yet; the model
+      // reads every page rather than the rows asking for the next.
+      VStack(spacing: 0) {
+        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+          if index > 0 { Divider() }
+          PeopleLetterHeader(letter: section.letter)
+            .id(section.letter)
+          ForEach(Array(section.people.enumerated()), id: \.element.id) { index, person in
+            if index > 0 {
+              Divider().padding(.leading, PersonListRow.textInset)
+            }
+            NavigationLink {
+              PersonDetailView(personUUID: person.uuid)
+            } label: {
+              PersonListRow(content: .person(person))
+            }
+            .buttonStyle(.plain)
+            .contentShape(.contextMenuPreview, .formSection)
+            .contextMenu {
+              Button("Edit", systemImage: "pencil") { route = .edit(person) }
+              Button("Delete", systemImage: "trash", role: .destructive) { deleting = person }
+            }
+          }
         }
-        .buttonStyle(.plain)
-        .contextMenu {
-          Button("Edit", systemImage: "pencil") { route = .edit(person) }
-          Button("Delete", systemImage: "trash", role: .destructive) { deleting = person }
-        }
-        .task { await list.loadMore(after: person) }
       }
+      .background(Color.cardFill, in: .formSection)
+      .clipShape(.formSection)
       LoadMoreFooter(list: list)
     }
+  }
+}
+
+/// The letter a run of the card's rows is filed under.
+private struct PeopleLetterHeader: View {
+  let letter: String
+
+  var body: some View {
+    Text(letter)
+      .font(.subheadline.weight(.semibold))
+      .foregroundStyle(.secondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, 12)
+      .padding(.top, 10)
+      .padding(.bottom, 2)
+      .accessibilityAddTraits(.isHeader)
+  }
+}
+
+/// A person's row on the card: the user icon in its circle, then their name over the linked
+/// account's username and how many dives name them.
+private struct PersonListRow: View {
+  let content: PlainCardContent
+
+  private static let iconSide: CGFloat = 36
+  /// Where the row's text starts, which the rule between two rows starts under.
+  static let textInset: CGFloat = 12 + iconSide + 12
+
+  var body: some View {
+    HStack(spacing: 12) {
+      UserAvatarView(initials: nil, picture: nil, side: Self.iconSide)
+        .foregroundStyle(.secondary)
+        .background(Color(.tertiarySystemFill), in: Circle())
+      VStack(alignment: .leading, spacing: 2) {
+        Text(content.title)
+          .font(.headline)
+        FactsLine(facts: content.facts, color: .primary)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(12)
+    // A long press lifts the row alone, which takes a fill of its own.
+    .background(Color.cardFill)
+    .contentShape(.rect)
+    .accessibilityElement(children: .combine)
   }
 }
 

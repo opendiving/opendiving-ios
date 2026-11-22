@@ -126,6 +126,17 @@ public final class PagedList<Item: Codable & Sendable> {
     }
   }
 
+  /// Every page still to come, one after another, for a screen that needs the whole list — an
+  /// index of its letters — rather than the pages scrolled to. It stops at a page that fails,
+  /// and where another load holds the list, which asks again once it lands.
+  public func loadRest() async {
+    while hasMore, pageError == nil, !Task.isCancelled {
+      let page = nextPage
+      await loadMore()
+      guard nextPage > page else { return }
+    }
+  }
+
   /// Loads the next page when `item` is the last one shown.
   public func loadMore(after item: Item) async where Item: Identifiable {
     guard item.id == items.last?.id else { return }
