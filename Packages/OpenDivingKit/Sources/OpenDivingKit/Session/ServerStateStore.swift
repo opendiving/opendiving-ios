@@ -3,7 +3,8 @@ import Foundation
 /// Everything the phone keeps about one server, as one thing: the refresh token and each
 /// account's invite-link token in the ``SecretStore``, the remembered account, a directory under Application Support that other
 /// features write into — the check-in sheet among them — its place on the saved list, and
-/// when it was last used and the build it last said it runs.
+/// when it was last used, the build it last said it runs and whether it last said it edits the
+/// Commons.
 /// ``forget(_:)`` is the only call that removes them all, so no feature needs a forget path of
 /// its own.
 ///
@@ -161,7 +162,7 @@ public struct ServerStateStore: Sendable {
 
   /// Removes the tokens, the remembered account and the directory — every account's directory
   /// and the last-account pointer with it — takes the server off the saved list, drops when it
-  /// was last used and what it runs, and clears the active-origin pointer when it names this
+  /// was last used, what it runs and whether it edits the Commons, and clears the active-origin pointer when it names this
   /// server. Needs no server, so a server that is gone can still be forgotten.
   public func forget(_ origin: ServerOrigin) throws {
     try endSession(for: origin)
@@ -172,6 +173,7 @@ public struct ServerStateStore: Sendable {
     }
     try setRow(Date?.none, for: origin, in: lastUsedFile)
     try setRow(HealthRead?.none, for: origin, in: healthFile)
+    try setRow(Bool?.none, for: origin, in: commonsPrimaryFile)
     if activeOrigin.load() == origin {
       activeOrigin.save(nil)
     }
@@ -216,12 +218,26 @@ public struct ServerStateStore: Sendable {
     try setRow(health, for: origin, in: healthFile)
   }
 
+  /// Whether the server last said it edits the Commons, offered until it answers again; nil
+  /// for a server whose config has not said.
+  public func commonsPrimary(_ origin: ServerOrigin) -> Bool? {
+    (table(commonsPrimaryFile) as [String: Bool])[origin.description]
+  }
+
+  func rememberCommonsPrimary(_ commonsPrimary: Bool?, for origin: ServerOrigin) throws {
+    try setRow(commonsPrimary, for: origin, in: commonsPrimaryFile)
+  }
+
   private var lastUsedFile: URL {
     root.appendingPathComponent("server-last-used.json", isDirectory: false)
   }
 
   private var healthFile: URL {
     root.appendingPathComponent("server-health.json", isDirectory: false)
+  }
+
+  private var commonsPrimaryFile: URL {
+    root.appendingPathComponent("server-commons-primary.json", isDirectory: false)
   }
 
   /// A file of one value per server, kept beside the saved list rather than in each server's

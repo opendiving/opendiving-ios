@@ -55,6 +55,9 @@ public final class Session {
   public private(set) var server: ServerInfo? = nil
   /// When ``server`` was answered.
   @ObservationIgnored private var serverAnsweredAt: Date?
+  /// Whether the active server said it edits the Commons when it last answered, in this
+  /// launch or any before: what ``isCommonsPrimary`` reads until ``server`` is answered.
+  private var lastSaidCommonsPrimary = false
   /// The servers ``validate(_:)`` is asking, for a card that shows it is updating.
   public private(set) var validating: Set<ServerOrigin> = []
   /// Why ``validate(_:)`` last failed for a server, until it next answers.
@@ -175,9 +178,10 @@ public final class Session {
       server = info
       serverAnsweredAt = now()
     }
-    // Only a saved server's build is kept: a typed one may never be chosen.
-    if let health = info.health, store.savedServers().contains(origin) {
-      try? store.rememberHealth(health, for: origin)
+    // Only a saved server's answer is kept: a typed one may never be chosen.
+    if store.savedServers().contains(origin) {
+      try? store.rememberCommonsPrimary(info.config.commonsPrimary, for: origin)
+      if let health = info.health { try? store.rememberHealth(health, for: origin) }
     }
     return info
   }
@@ -194,6 +198,7 @@ public final class Session {
     try? store.save(origin)
     try? store.markUsed(origin, at: used)
     if let health = info?.health { try? store.rememberHealth(health, for: origin) }
+    if let info { try? store.rememberCommonsPrimary(info.config.commonsPrimary, for: origin) }
     savedServers = store.savedServers()
     replaceClient(with: makeClient(origin))
     server = info
@@ -313,6 +318,7 @@ public final class Session {
     guard state.origin == origin else { return }
     replaceClient(with: nil)
     server = nil
+    lastSaidCommonsPrimary = false
     user = nil
     people = [:]
     transition(to: .noServer)
@@ -491,10 +497,12 @@ public final class Session {
 
   // MARK: - OpenDiving Commons
 
-  /// Whether the active server edits the Commons, so that proposing is offered at all: not
-  /// until it has answered, and not on a config that does not say.
+  /// Whether the active server edits the Commons, so that proposing is offered at all: as it
+  /// answered in this launch, or until it does — offline among them — as it last answered in
+  /// any before; never for a server that has not said.
   public var isCommonsPrimary: Bool {
-    server?.config.commonsPrimary == true
+    guard let server else { return lastSaidCommonsPrimary }
+    return server.config.commonsPrimary == true
   }
 
   // MARK: - Experimental features
@@ -521,6 +529,7 @@ public final class Session {
   }
 
   private func enter(_ origin: ServerOrigin) {
+    lastSaidCommonsPrimary = store.commonsPrimary(origin) == true
     if store.hasRefreshToken(origin) {
       user = store.rememberedUser(for: origin)
       transition(to: .signedIn(origin))
