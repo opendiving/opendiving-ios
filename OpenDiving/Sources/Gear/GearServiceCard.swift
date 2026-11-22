@@ -249,10 +249,10 @@ struct GearServiceCard: View {
 
   /// A service's line: its day, then its kind and its label.
   private static func title(_ row: GearServiceCardContent.RecordRow) -> Text {
-    let date = Text(row.date + " · ").foregroundStyle(.secondary)
+    let dot = Text(" · ").foregroundStyle(.secondary)
     let kind = Text(row.kind).fontWeight(.medium)
     let label = Text(row.label.map { " (\($0))" } ?? "").foregroundStyle(.secondary)
-    return Text("\(date)\(kind)\(label)")
+    return Text("\(row.date)\(dot)\(kind)\(label)")
   }
 
   private var deletingTitle: String {
