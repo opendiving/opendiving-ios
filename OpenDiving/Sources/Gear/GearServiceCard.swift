@@ -130,12 +130,12 @@ struct GearServiceCard: View {
             BadgeView(status.text, style: status.style)
           }
         }
-        if let due = row.due {
-          Text(due).font(.caption).foregroundStyle(.secondary)
-        }
         Text(row.intervals)
           .font(.caption)
           .foregroundStyle(.secondary)
+        if let due = row.due {
+          Text(due).font(.caption).foregroundStyle(.secondary)
+        }
       }
       .rowPadding()
     }
