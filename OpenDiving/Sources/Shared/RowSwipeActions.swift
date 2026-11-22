@@ -125,8 +125,9 @@ private struct RowSwipeActions: ViewModifier {
 }
 
 /// UIKit's pan, which begins only on a sideways swipe and so leaves an upward or downward one to
-/// the page's scroll, and only once the navigation's edge swipe back has let the touch go. The
-/// swipe back from anywhere on the page waits for it instead, as it does for a list's row.
+/// the page's scroll. The navigation's swipes back wait for it, as they do for a list's row,
+/// both the edge's and the one from anywhere on the page; it leaves them a swipe that starts at
+/// the screen's edge.
 private struct HorizontalPan: UIGestureRecognizerRepresentable {
   let onBegan: () -> Void
   /// The pan's translation since it began, rightward positive.
@@ -159,27 +160,23 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
   }
 
   final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+    /// How far in from the screen's edge a swipe is the edge's swipe back.
+    private static let edge: CGFloat = 24
+
     func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
       guard let pan = recognizer as? UIPanGestureRecognizer else { return false }
       let velocity = pan.velocity(in: pan.view)
-      return abs(velocity.x) > abs(velocity.y)
-    }
-
-    func gestureRecognizer(
-      _ recognizer: UIGestureRecognizer,
-      shouldRequireFailureOf other: UIGestureRecognizer
-    ) -> Bool {
-      other is UIScreenEdgePanGestureRecognizer
+      let start = pan.location(in: nil).x - pan.translation(in: nil).x
+      return abs(velocity.x) > abs(velocity.y) && start > Self.edge
     }
 
     func gestureRecognizer(
       _ recognizer: UIGestureRecognizer,
       shouldBeRequiredToFailBy other: UIGestureRecognizer
     ) -> Bool {
-      guard other is UIPanGestureRecognizer, !(other is UIScreenEdgePanGestureRecognizer),
-        let view = recognizer.view, let otherView = other.view, !(otherView is UIScrollView)
-      else { return false }
-      return view.isDescendant(of: otherView)
+      // The swipes back, of either kind: the scroll's pan and another row's are left alone.
+      other is UIPanGestureRecognizer && !(other.view is UIScrollView)
+        && !(other.delegate is Coordinator)
     }
   }
 }
