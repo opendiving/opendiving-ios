@@ -76,7 +76,8 @@ public enum GearServiceCardContent {
   }
 
   /// Whether a schedule or a service for `gearItem` waits to be sent — a new one, or a change —
-  /// which the card says, its rows showing the server's copy until it lands.
+  /// which the card says, its rows showing the server's copy until it lands. A pause or resume
+  /// alone is not one: its row shows it already.
   public static func hasPendingWrite(_ items: [OutboxItem], gearItem: UUID) -> Bool {
     let ref = RecordRef.server(gearItem)
     return items.contains { item in
@@ -84,7 +85,11 @@ public enum GearServiceCardContent {
       switch item.operation {
       case .createServiceSchedule(let body): return body.gearItem == ref
       case .createServiceRecord(let body): return body.gearItem == ref
-      case .updateServiceSchedule(_, let owner, _), .updateServiceRecord(_, let owner, _):
+      case .updateServiceSchedule(_, let owner, let update):
+        var rest = update
+        rest.isActive = nil
+        return owner == ref && !rest.isEmpty
+      case .updateServiceRecord(_, let owner, _):
         return owner == ref
       default: return false
       }

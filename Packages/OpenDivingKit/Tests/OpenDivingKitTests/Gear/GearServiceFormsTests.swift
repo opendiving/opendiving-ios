@@ -297,6 +297,8 @@ struct GearServiceFormsTests {
         .server(read.uuid), gearItem: gearItem, GearServiceScheduleUpdate(active: false)))
     service.toggled(read.uuid, active: false)
     #expect(!service.isActive(read, items: outbox.items))
+    // The row says it, so the card does not.
+    #expect(!GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: Self.item))
     // Landed, and the list not yet read again.
     #expect(!service.isActive(read, items: []))
     service.schedulesRead()
