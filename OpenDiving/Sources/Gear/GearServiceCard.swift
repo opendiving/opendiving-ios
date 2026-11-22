@@ -1,13 +1,15 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A gear item's service schedules, with their status, and its service history, under the item
-/// page's *Service* tab, which names it.
-/// A schedule is added, logged against, paused, resumed, edited and deleted from here, and a
-/// service logged, edited and deleted; each is queued, and its row shows once it lands.
+/// A gear item's service schedules, with their status, and its service history, each a card of
+/// rows under its title and the button that adds to it, under the item page's *Service* tab. A
+/// row opens its form; its other actions are in its context menu. Each write is queued, and its
+/// row shows once it lands.
 struct GearServiceCard: View {
   let gearItem: GearItemRead
   let service: GearServiceModel
+  /// The form a row opens, which the page pushes: a lazy stack cannot hold the destination.
+  @Binding var route: GearServiceRoute?
 
   @Environment(Session.self) private var session
   @Environment(OutboxModel.self) private var outbox
@@ -28,26 +30,35 @@ struct GearServiceCard: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 16) {
       if GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: gearItem.uuid) {
         PendingEditLine()
       }
-      subhead("Schedules") {
-        NavigationLink {
-          ServiceScheduleFormView(gearItem: ref, mode: .create, gearType: gearItem.type)
-        } label: {
-          Label("Add schedule", systemImage: "plus")
-            .font(.subheadline)
+      VStack(alignment: .leading, spacing: 6) {
+        header("Schedules", icon: .calendar) {
+          NavigationLink {
+            ServiceScheduleFormView(gearItem: ref, mode: .create, gearType: gearItem.type)
+          } label: {
+            Label("Add schedule", systemImage: "plus")
+              .font(.subheadline)
+          }
+          .brandBorderedButton()
         }
-        .brandBorderedButton()
+        schedules
       }
-      schedules
-      history
+      VStack(alignment: .leading, spacing: 6) {
+        header("Service History", icon: .history) {
+          NavigationLink {
+            ServiceRecordFormView(gearItem: ref, mode: .create)
+          } label: {
+            Label("Log service", systemImage: "plus")
+              .font(.subheadline)
+          }
+          .brandBorderedButton()
+        }
+        history
+      }
     }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 12)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color.cardFill, in: .formSection)
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
     .confirmationDialog(
       deletingTitle, isPresented: isDeleting, titleVisibility: .visible, presenting: deleting
@@ -69,13 +80,11 @@ struct GearServiceCard: View {
     }
   }
 
-  /// A part's name, with the button that adds to it.
-  private func subhead(_ title: String, @ViewBuilder action: () -> some View) -> some View {
+  private func header(_ title: String, icon: Icon, @ViewBuilder action: () -> some View)
+    -> some View
+  {
     HStack(spacing: 8) {
-      Text(title)
-        .font(.subheadline.weight(.medium))
-        .foregroundStyle(.secondary)
-        .accessibilityAddTraits(.isHeader)
+      SectionTitle(title: title, icon: icon)
       Spacer()
       action()
     }
@@ -84,17 +93,19 @@ struct GearServiceCard: View {
   @ViewBuilder private var schedules: some View {
     switch service.schedules.phase {
     case .idle, .loading:
-      BubbleSpinner()
-        .frame(maxWidth: .infinity)
+      card { spinner }
     case .failed(let error):
-      failed(error) { await service.schedules.load() }
+      card { failed(error) { await service.schedules.load() } }
     case .loaded where service.schedules.items.isEmpty:
-      Text(GearServiceCardContent.noSchedules)
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
+      card { message(GearServiceCardContent.noSchedules) }
     case .loaded:
-      ForEach(service.schedules.items) { schedule in
-        scheduleRow(schedule)
+      card {
+        ForEach(Array(service.schedules.items.enumerated()), id: \.element.id) { index, schedule in
+          if index > 0 {
+            Divider().padding(.leading, 16)
+          }
+          scheduleRow(schedule)
+        }
       }
     }
   }
@@ -103,7 +114,9 @@ struct GearServiceCard: View {
     let row = GearServiceCardContent.row(
       schedule, diveCount: gearItem.diveCount, diveTime: gearItem.diveTime,
       today: CalendarDate.today())
-    return HStack(alignment: .top, spacing: 8) {
+    return Button {
+      route = .editSchedule(schedule.uuid)
+    } label: {
       VStack(alignment: .leading, spacing: 4) {
         HStack(spacing: 6) {
           Text(row.kind).fontWeight(.medium)
@@ -128,75 +141,58 @@ struct GearServiceCard: View {
           .font(.caption)
           .foregroundStyle(.secondary)
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      HStack(spacing: 2) {
-        NavigationLink {
-          ServiceRecordFormView(gearItem: ref, mode: .create, schedule: schedule.uuid)
-        } label: {
-          RowIcon(Image(.clipboardCheck), label: row.logLabel)
-        }
-        Button {
-          queue(
-            .updateServiceSchedule(
-              .server(schedule.uuid), gearItem: ref,
-              GearServiceScheduleUpdate(active: !schedule.isActive)))
-        } label: {
-          RowIcon(Image(systemName: schedule.isActive ? "pause" : "play"), label: row.toggleLabel)
-        }
-        NavigationLink {
-          ServiceScheduleFormView(gearItem: ref, mode: .edit(schedule.uuid))
-        } label: {
-          RowIcon(Image(systemName: "pencil"), label: row.editLabel)
-        }
-        Button {
-          deleting = .schedule(schedule.uuid)
-        } label: {
-          RowIcon(Image(systemName: "trash"), label: row.deleteLabel)
-        }
-        .dangerRow()
-      }
-      .accentRow()
-      .buttonStyle(.borderless)
+      .rowPadding()
     }
-    .padding(12)
-    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color(.separator)))
+    .buttonStyle(.plain)
+    .contentShape(.contextMenuPreview, .formSection)
+    .contextMenu {
+      Button {
+        route = .logService(schedule: schedule.uuid)
+      } label: {
+        Label("Log service", icon: .clipboardCheck)
+      }
+      Button(
+        row.isPaused ? "Resume" : "Pause", systemImage: row.isPaused ? "play" : "pause"
+      ) {
+        queue(
+          .updateServiceSchedule(
+            .server(schedule.uuid), gearItem: ref,
+            GearServiceScheduleUpdate(active: !schedule.isActive)))
+      }
+      Button("Edit", systemImage: "pencil") { route = .editSchedule(schedule.uuid) }
+      Button("Delete", systemImage: "trash", role: .destructive) {
+        deleting = .schedule(schedule.uuid)
+      }
+    }
   }
 
-  private var history: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      subhead("Service History") {
-        NavigationLink {
-          ServiceRecordFormView(gearItem: ref, mode: .create)
-        } label: {
-          Label("Log service", systemImage: "plus")
-            .font(.subheadline)
-        }
-        .brandBorderedButton()
-      }
-      switch service.records.phase {
-      case .idle, .loading:
-        BubbleSpinner()
-          .frame(maxWidth: .infinity)
-      case .failed(let error):
-        failed(error) { await service.records.load() }
-      case .loaded where service.records.items.isEmpty:
-        Text(GearServiceCardContent.noRecords)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-      case .loaded:
-        ForEach(service.records.items) { record in
+  @ViewBuilder private var history: some View {
+    switch service.records.phase {
+    case .idle, .loading:
+      card { spinner }
+    case .failed(let error):
+      card { failed(error) { await service.records.load() } }
+    case .loaded where service.records.items.isEmpty:
+      card { message(GearServiceCardContent.noRecords) }
+    case .loaded:
+      card {
+        ForEach(Array(service.records.items.enumerated()), id: \.element.id) { index, record in
+          if index > 0 {
+            Divider().padding(.leading, 16)
+          }
           recordRow(record)
         }
         PageEndTrigger(list: service.records)
-        LoadMoreFooter(list: service.records)
       }
+      LoadMoreFooter(list: service.records)
     }
-    .padding(.top, 12)
   }
 
   private func recordRow(_ record: GearServiceRecordRead) -> some View {
     let row = GearServiceCardContent.row(record, contacts: lookups?.contacts ?? [])
-    return HStack(alignment: .top, spacing: 8) {
+    return Button {
+      route = .editRecord(record.uuid)
+    } label: {
       VStack(alignment: .leading, spacing: 2) {
         Text(
           "\(Text(row.kind).fontWeight(.medium))\(Text(Self.after(row)).foregroundStyle(.secondary))"
@@ -209,23 +205,39 @@ struct GearServiceCard: View {
         }
       }
       .font(.subheadline)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      HStack(spacing: 2) {
-        NavigationLink {
-          ServiceRecordFormView(gearItem: ref, mode: .edit(record.uuid))
-        } label: {
-          RowIcon(Image(systemName: "pencil"), label: row.editLabel)
-        }
-        Button {
-          deleting = .record(record.uuid)
-        } label: {
-          RowIcon(Image(systemName: "trash"), label: row.deleteLabel)
-        }
-        .dangerRow()
-      }
-      .accentRow()
-      .buttonStyle(.borderless)
+      .rowPadding()
     }
+    .buttonStyle(.plain)
+    .contentShape(.contextMenuPreview, .formSection)
+    .contextMenu {
+      Button("Edit", systemImage: "pencil") { route = .editRecord(record.uuid) }
+      Button("Delete", systemImage: "trash", role: .destructive) {
+        deleting = .record(record.uuid)
+      }
+    }
+  }
+
+  /// A card of rows, each drawing its own padding.
+  private func card(@ViewBuilder _ rows: () -> some View) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+      rows()
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color.cardFill, in: .formSection)
+    .clipShape(.formSection)
+  }
+
+  private var spinner: some View {
+    BubbleSpinner()
+      .frame(maxWidth: .infinity)
+      .rowPadding()
+  }
+
+  private func message(_ text: String) -> some View {
+    Text(text)
+      .font(.subheadline)
+      .foregroundStyle(.secondary)
+      .rowPadding()
   }
 
   private func failed(_ error: APIError, retry: @escaping () async -> Void) -> some View {
@@ -236,6 +248,7 @@ struct GearServiceCard: View {
       Button("Try again") { Task { await retry() } }
         .brandBorderedButton()
     }
+    .rowPadding()
   }
 
   private var ref: RecordRef { .server(gearItem.uuid) }
@@ -273,27 +286,39 @@ extension GearServiceCard {
   static func failure(_ error: APIError) -> String {
     error.isUnreachable ? OfflineText.gearServiceNotShown : error.message
   }
+
+  /// The form `route` names, for the item `gearItem`.
+  @ViewBuilder static func form(_ route: GearServiceRoute, gearItem: UUID) -> some View {
+    switch route {
+    case .logService(let schedule):
+      ServiceRecordFormView(gearItem: .server(gearItem), mode: .create, schedule: schedule)
+    case .editSchedule(let uuid):
+      ServiceScheduleFormView(gearItem: .server(gearItem), mode: .edit(uuid))
+    case .editRecord(let uuid):
+      ServiceRecordFormView(gearItem: .server(gearItem), mode: .edit(uuid))
+    }
+  }
 }
 
-/// One of a row's wordless controls, named for what it does to which row.
-private struct RowIcon: View {
-  let image: Image
-  let label: String
+/// The form a row of the service cards opens.
+enum GearServiceRoute: Hashable {
+  case logService(schedule: UUID)
+  case editSchedule(UUID)
+  case editRecord(UUID)
+}
 
-  init(_ image: Image, label: String) {
-    self.image = image
-    self.label = label
-  }
-
-  var body: some View {
-    image
-      .frame(width: 32, height: 32)
+extension View {
+  /// A row's padding on its card, which a whole row's width answers a tap on.
+  fileprivate func rowPadding() -> some View {
+    padding(.horizontal, 16)
+      .padding(.vertical, 12)
+      .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(.rect)
-      .accessibilityLabel(label)
   }
 }
 
 #Preview {
+  @Previewable @State var route: GearServiceRoute?
   let json = #"""
     {"uuid":"01a20000-0000-7000-8000-0000000000b1","name":"Twinset","brand":"Faber",
     "type":"cylinder","notes":"","rented":false,"volume":12,"working_pressure":232,
@@ -306,10 +331,12 @@ private struct RowIcon: View {
     NavigationStack {
       ScrollView {
         GearServiceCard(
-          gearItem: item, service: GearServiceModel(session: session, gearItemUUID: item.uuid)
+          gearItem: item, service: GearServiceModel(session: session, gearItemUUID: item.uuid),
+          route: $route
         )
         .padding()
       }
+      .navigationDestination(item: $route) { GearServiceCard.form($0, gearItem: item.uuid) }
     }
     .environment(session)
     .environment(OutboxModel(session: session))

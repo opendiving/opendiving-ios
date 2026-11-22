@@ -21,13 +21,6 @@ public enum GearServiceCardContent {
     public let due: String?
     /// *Every 12 months or every 100 dives · last done Mar 4, 2026*.
     public let intervals: String
-    /// The kind and label, which names the row's controls.
-    public let name: String
-
-    public var logLabel: String { "Log service for \(name)" }
-    public var toggleLabel: String { (isPaused ? "Resume " : "Pause ") + name + " schedule" }
-    public var editLabel: String { "Edit \(name) schedule" }
-    public var deleteLabel: String { "Delete \(name) schedule" }
   }
 
   /// One logged service's row.
@@ -39,11 +32,6 @@ public enum GearServiceCardContent {
     /// Where, then who: *Blue Ocean · Ahmed*; nil where neither is known.
     public let servicedBy: String?
     public let notes: String?
-    /// *Service (First stage) on Mar 12, 2025*: the date tells one entry of a kind from the next.
-    public let name: String
-
-    public var editLabel: String { "Edit \(name)" }
-    public var deleteLabel: String { "Delete \(name)" }
   }
 
   public static func row(
@@ -68,8 +56,7 @@ public enum GearServiceCardContent {
       due: active
         ? GearServiceText.due(schedule, diveCount: diveCount, diveTime: diveTime, today: today)
         : nil,
-      intervals: arms.joined(separator: " or ") + last,
-      name: GearServiceKinds.kindAndLabel(kind: schedule.kind, label: schedule.label))
+      intervals: arms.joined(separator: " or ") + last)
   }
 
   public static func row(_ record: GearServiceRecordRead, contacts: [ContactLookupItem])
@@ -83,9 +70,7 @@ public enum GearServiceCardContent {
     return RecordRow(
       id: record.uuid, kind: GearServiceKinds.label(record.kind), label: shown(record.label),
       date: date, servicedBy: by.isEmpty ? nil : by.joined(separator: " · "),
-      notes: record.notes.isEmpty ? nil : record.notes,
-      name: GearServiceKinds.kindAndLabel(kind: record.kind, label: record.label) + " on "
-        + DateText.date(record.servicedOn, relativeTo: nil))
+      notes: record.notes.isEmpty ? nil : record.notes)
   }
 
   /// Whether a schedule or a service for `gearItem` waits to be sent — a new one, or a change —

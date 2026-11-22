@@ -19,14 +19,6 @@ public enum GearServiceKinds {
     VocabularyLabels.labelOrFallback(labels, kind)
   }
 
-  /// The kind, and the free-text label after it in brackets where there is one: the pair the
-  /// API keys a schedule by, and what names a row's controls (`serviceKindAndLabel`).
-  public static func kindAndLabel(kind: String, label: String?) -> String {
-    let kind = self.label(kind)
-    guard let label, !label.isEmpty else { return kind }
-    return "\(kind) (\(label))"
-  }
-
   /// The picker's keys: the vocabulary, and `current` after it where the API sent one this
   /// build does not know, so the form still shows what the record holds.
   public static func options(including current: String) -> [String] {

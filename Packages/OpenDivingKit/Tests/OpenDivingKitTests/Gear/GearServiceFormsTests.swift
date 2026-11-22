@@ -211,8 +211,6 @@ struct GearServiceFormsTests {
     #expect(row.status == Badge("Due soon", style: .coral))
     #expect(row.due == "Due in 10 days")
     #expect(row.intervals == "Every 12 months or every 100 dives · last done Sep 1, 2025")
-    #expect(row.logLabel == "Log service for Service")
-    #expect(row.toggleLabel == "Pause Service schedule")
 
     let hours = GearServiceCardContent.row(
       try schedule([
@@ -220,8 +218,7 @@ struct GearServiceFormsTests {
         "last_service_on": NSNull(), "label": "First stage",
       ]), diveCount: 100, diveTime: 0, today: today)
     #expect(hours.intervals == "every 50 hours of diving · never serviced")
-    #expect(hours.name == "Service (First stage)")
-    #expect(hours.deleteLabel == "Delete Service (First stage) schedule")
+    #expect(hours.label == "First stage")
   }
 
   @Test func aScheduleDoneTodaySaysSoInItsSentence() throws {
@@ -236,7 +233,6 @@ struct GearServiceFormsTests {
     #expect(row.isPaused)
     #expect(row.status == nil)
     #expect(row.due == nil)
-    #expect(row.toggleLabel == "Resume Service schedule")
   }
 
   @Test func aServicesRowNamesWhereThenWhoAndTheDay() throws {
@@ -246,8 +242,6 @@ struct GearServiceFormsTests {
     #expect(row.date == "Sep 1, 2025")
     #expect(row.servicedBy == "Blue Ocean · Self")
     #expect(row.notes == "New HP seat.")
-    #expect(row.name == "Service (First stage) on Sep 1, 2025")
-    #expect(row.editLabel == "Edit Service (First stage) on Sep 1, 2025")
     let unnamed = GearServiceCardContent.row(
       try record(["performed_by": NSNull(), "notes": ""]), contacts: [])
     #expect(unnamed.servicedBy == nil)
