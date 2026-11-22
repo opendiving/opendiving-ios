@@ -14,7 +14,7 @@ struct RowSwipeAction: Identifiable {
 extension View {
   /// Swipe actions for a row outside a `List`, which alone takes `swipeActions`: a swipe right
   /// shows `leading`, a swipe left `trailing`, each a button that acts and closes the row, and a
-  /// tap on the open row closes it. VoiceOver reaches none of them, so each is in the row's
+  /// tap on the open row closes it. A swipe past half the row's width runs the side's first. VoiceOver reaches none of them, so each is in the row's
   /// context menu too.
   func rowSwipeActions(leading: [RowSwipeAction] = [], trailing: [RowSwipeAction] = [])
     -> some View
@@ -30,6 +30,7 @@ private struct RowSwipeActions: ViewModifier {
   @State private var offset: CGFloat = 0
   /// Where the row rested as the pan began.
   @State private var start: CGFloat = 0
+  @State private var rowWidth: CGFloat = 0
   @ScaledMetric private var buttonWidth: CGFloat = 76
 
   func body(content: Content) -> some View {
@@ -41,34 +42,49 @@ private struct RowSwipeActions: ViewModifier {
             .onTapGesture { settle(at: 0) }
         }
       }
+      .onGeometryChange(for: CGFloat.self) {
+        $0.size.width
+      } action: {
+        rowWidth = $0
+      }
       .offset(x: offset)
       .background(alignment: .leading) { buttons(leading, width: max(offset, 0)) }
       .background(alignment: .trailing) { buttons(trailing, width: max(-offset, 0)) }
       .gesture(
-        HorizontalPan(onBegan: { start = offset }, onChanged: moved, onEnded: ended))
+        HorizontalPan(onBegan: { start = offset }, onChanged: moved, onEnded: ended)
+      )
+      .sensoryFeedback(.impact, trigger: isFullSwipe) { _, isFull in isFull }
   }
 
   private func width(_ actions: [RowSwipeAction]) -> CGFloat {
     CGFloat(actions.count) * buttonWidth
   }
 
-  /// Follows the finger, a third as far past the buttons' width; nowhere toward a side with none.
+  /// How far a swipe goes to run its side's first action as it lets go.
+  private var fullSwipe: CGFloat {
+    max(rowWidth / 2, max(width(leading), width(trailing)) + 24)
+  }
+
+  private var isFullSwipe: Bool { abs(offset) >= fullSwipe }
+
+  /// Follows the finger across the row; nowhere toward a side with no actions.
   private func moved(_ translation: CGFloat) {
     let raw = start + translation
-    let limit = width(raw > 0 ? leading : trailing)
-    guard limit > 0 else {
+    guard width(raw > 0 ? leading : trailing) > 0 else {
       offset = 0
       return
     }
-    let distance = abs(raw)
-    let damped = distance > limit ? limit + (distance - limit) / 3 : distance
-    offset = raw > 0 ? damped : -damped
+    offset = raw > 0 ? min(raw, rowWidth) : max(raw, -rowWidth)
   }
 
-  /// Opens the side past half its buttons' width or flung toward, and closes otherwise.
+  /// Runs the side's first action past a full swipe, opens the side past half its buttons' width
+  /// or flung toward, and closes otherwise.
   private func ended(_ velocity: CGFloat) {
     let fling: CGFloat = 500
-    if offset > 0, velocity > -fling, offset > width(leading) / 2 || velocity > fling {
+    if isFullSwipe, let first = (offset > 0 ? leading : trailing).first {
+      settle(at: 0)
+      first.action()
+    } else if offset > 0, velocity > -fling, offset > width(leading) / 2 || velocity > fling {
       settle(at: width(leading))
     } else if offset < 0, velocity < fling, -offset > width(trailing) / 2 || velocity < -fling {
       settle(at: -width(trailing))
@@ -109,7 +125,8 @@ private struct RowSwipeActions: ViewModifier {
 }
 
 /// UIKit's pan, which begins only on a sideways swipe and so leaves an upward or downward one to
-/// the page's scroll, and only once the navigation's edge swipe back has let the touch go.
+/// the page's scroll, and only once the navigation's edge swipe back has let the touch go. The
+/// swipe back from anywhere on the page waits for it instead, as it does for a list's row.
 private struct HorizontalPan: UIGestureRecognizerRepresentable {
   let onBegan: () -> Void
   /// The pan's translation since it began, rightward positive.
@@ -153,6 +170,16 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
       shouldRequireFailureOf other: UIGestureRecognizer
     ) -> Bool {
       other is UIScreenEdgePanGestureRecognizer
+    }
+
+    func gestureRecognizer(
+      _ recognizer: UIGestureRecognizer,
+      shouldBeRequiredToFailBy other: UIGestureRecognizer
+    ) -> Bool {
+      guard other is UIPanGestureRecognizer, !(other is UIScreenEdgePanGestureRecognizer),
+        let view = recognizer.view, let otherView = other.view, !(otherView is UIScrollView)
+      else { return false }
+      return view.isDescendant(of: otherView)
     }
   }
 }
