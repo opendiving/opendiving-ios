@@ -31,6 +31,7 @@ private struct RowSwipeActions: ViewModifier {
   /// Where the row rested as the pan began.
   @State private var start: CGFloat = 0
   @State private var rowWidth: CGFloat = 0
+  @State private var isPanning = false
   @ScaledMetric private var buttonWidth: CGFloat = 76
 
   func body(content: Content) -> some View {
@@ -51,9 +52,15 @@ private struct RowSwipeActions: ViewModifier {
       .background(alignment: .leading) { buttons(leading, width: max(offset, 0)) }
       .background(alignment: .trailing) { buttons(trailing, width: max(-offset, 0)) }
       .gesture(
-        HorizontalPan(onBegan: { start = offset }, onChanged: moved, onEnded: ended)
+        HorizontalPan(
+          onBegan: {
+            start = offset
+            isPanning = true
+          }, onChanged: moved, onEnded: ended)
       )
-      .sensoryFeedback(.impact, trigger: isFullSwipe) { _, isFull in isFull }
+      // Crossing into a full swipe and back out of it, under the finger: the row settling as it
+      // lets go says nothing.
+      .sensoryFeedback(.impact, trigger: isFullSwipe) { _, _ in isPanning }
   }
 
   private func width(_ actions: [RowSwipeAction]) -> CGFloat {
@@ -80,6 +87,7 @@ private struct RowSwipeActions: ViewModifier {
   /// Runs the side's first action past a full swipe, opens the side past half its buttons' width
   /// or flung toward, and closes otherwise.
   private func ended(_ velocity: CGFloat) {
+    isPanning = false
     let fling: CGFloat = 500
     if isFullSwipe, let first = (offset > 0 ? leading : trailing).first {
       settle(at: 0)
