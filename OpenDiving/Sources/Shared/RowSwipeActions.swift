@@ -32,6 +32,8 @@ private struct RowSwipeActions: ViewModifier {
   @State private var start: CGFloat = 0
   @State private var rowWidth: CGFloat = 0
   @State private var isPanning = false
+  /// How far the first button's name has travelled from its middle to beside the row.
+  @State private var toRow: CGFloat = 0
   @ScaledMetric private var buttonWidth: CGFloat = 76
 
   func body(content: Content) -> some View {
@@ -65,6 +67,9 @@ private struct RowSwipeActions: ViewModifier {
       // Crossing into a full swipe and back out of it, under the finger: the row settling as it
       // lets go says nothing.
       .sensoryFeedback(.impact, trigger: isFullSwipe) { _, _ in isPanning }
+      .onChange(of: isFullSwipe) { _, isFull in
+        withAnimation(.smooth(duration: 0.25)) { toRow = isFull ? 1 : 0 }
+      }
   }
 
   private func width(_ actions: [RowSwipeAction]) -> CGFloat {
@@ -110,14 +115,12 @@ private struct RowSwipeActions: ViewModifier {
     withAnimation(.snappy(duration: 0.25)) { offset = target }
   }
 
-  /// A side's buttons across `width`, each name at the screen's edge; on a full swipe the first
-  /// alone, its name beside the row, which it runs if let go there.
+  /// A side's buttons across `width`, each name in its middle; on a full swipe the first alone,
+  /// its name gone beside the row, which it runs if let go there.
   private func buttons(_ actions: [RowSwipeAction], side: HorizontalEdge, width: CGFloat)
     -> some View
   {
     let isFull = isFullSwipe && (side == .leading) == (offset > 0)
-    let toRow: Alignment = side == .leading ? .trailing : .leading
-    let toEdge: Alignment = side == .leading ? .leading : .trailing
     return HStack(spacing: 0) {
       ForEach(Array(actions.enumerated()), id: \.element.id) { index, item in
         if index == 0 || !isFull {
@@ -125,25 +128,53 @@ private struct RowSwipeActions: ViewModifier {
             settle(at: 0)
             item.action()
           } label: {
-            VStack(spacing: 4) {
-              item.image.font(.title3)
-              Text(item.title).font(.caption.weight(.semibold))
+            SlidingName(toRow: index == 0 ? toRow : 0, side: side) {
+              VStack(spacing: 4) {
+                item.image.font(.title3)
+                Text(item.title).font(.caption.weight(.semibold))
+              }
+              .lineLimit(1)
+              .minimumScaleFactor(0.7)
+              .foregroundStyle(.white)
+              .frame(width: buttonWidth)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .foregroundStyle(.white)
-            .frame(width: buttonWidth)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isFull ? toRow : toEdge)
             .background(item.fill)
           }
           .buttonStyle(.plain)
         }
       }
     }
-    .animation(.snappy(duration: 0.2), value: isFull)
     .frame(width: width)
     .clipped()
     .accessibilityHidden(true)
+  }
+}
+
+/// A button's name, `toRow` of the way from its middle to the edge beside the row: a layout, so a
+/// name on its way there follows the button's width as the finger changes it.
+private struct SlidingName: Layout {
+  var toRow: CGFloat
+  let side: HorizontalEdge
+
+  var animatableData: CGFloat {
+    get { toRow }
+    set { toRow = newValue }
+  }
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    proposal.replacingUnspecifiedDimensions()
+  }
+
+  func placeSubviews(
+    in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
+  ) {
+    guard let name = subviews.first else { return }
+    let size = name.sizeThatFits(.unspecified)
+    let middle = bounds.midX - size.width / 2
+    let besideRow = side == .leading ? bounds.maxX - size.width : bounds.minX
+    name.place(
+      at: CGPoint(x: middle + (besideRow - middle) * toRow, y: bounds.midY - size.height / 2),
+      proposal: ProposedViewSize(size))
   }
 }
 
