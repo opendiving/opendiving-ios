@@ -12,7 +12,8 @@ import Testing
 struct PagedListTests {
   /// `GET trips` in three pages of one trip each, named by page, beside the account routes a
   /// refresh reloads.
-  private func transport(failPage: Int? = nil) throws -> StubTransport {
+  private func transport(failPage: Int? = nil, once: Bool = false) throws -> StubTransport {
+    let failing = Mutex(failPage)
     let user = try KitFixture.text("user")
     let people = try KitFixture.text("people-page")
     let trip = try KitFixture.text("trip")
@@ -23,7 +24,11 @@ struct PagedListTests {
       default:
         let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
         let page = Int(query?.first { $0.name == "page" }?.value ?? "1") ?? 1
-        if page == failPage { throw URLError(.timedOut) }
+        let fails = failing.withLock { failPage in
+          defer { if once, failPage == page { failPage = nil } }
+          return failPage == page
+        }
+        if fails { throw URLError(.timedOut) }
         let named = trip.replacingOccurrences(
           of: #""Dahab 2026 (September)""#, with: #""Trip \#(page)""#)
         return .json(
@@ -252,25 +257,48 @@ struct PagedListTests {
     #expect(list.pageError != nil)
   }
 
-  @Test func theRestIsEveryPageLeft() async throws {
+  private func everyTrip(_ session: Session) -> PagedList<TripRead> {
+    PagedList(session: session, itemsPerPage: 2, readsEveryPage: true) { client, page, perPage in
+      try await client.trips(page: page, itemsPerPage: perPage)
+    }
+  }
+
+  @Test func aListThatReadsEveryPageReadsThemOnLoad() async throws {
     let transport = try transport()
-    let list = trips(Session.stub(transport: transport))
+    let list = everyTrip(Session.stub(transport: transport))
     await list.load()
-    await list.loadRest()
     #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
     #expect(!list.hasMore)
-    await list.loadRest()
+    await list.loadMore()
     #expect(transport.requests.count == 3)
   }
 
-  @Test func theRestStopsAtAPageThatFails() async throws {
-    let transport = try transport(failPage: 2)
-    let list = trips(Session.stub(transport: transport))
+  @Test func aListThatReadsEveryPageStopsAtOneThatFailsAndARetryReadsTheRest() async throws {
+    let transport = try transport(failPage: 2, once: true)
+    let list = everyTrip(Session.stub(transport: transport))
     await list.load()
-    await list.loadRest()
     #expect(list.items.map(\.name) == ["Trip 1"])
     #expect(list.pageError != nil)
-    #expect(transport.requests.count == 2)
+    await list.loadMore()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
+    #expect(list.pageError == nil)
+  }
+
+  @Test func aListThatReadsEveryPageReadsThemAgainWhenTheRecordsChange() async throws {
+    let transport = try transport(failPage: 2, once: true)
+    let list = everyTrip(Session.stub(transport: transport))
+    await list.load()
+    #expect(list.items.map(\.name) == ["Trip 1"])
+    list.accountListsChanged()
+    await list.reloading?.value
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
+  }
+
+  @Test func aRefreshOfAListThatReadsEveryPageReadsThemAll() async throws {
+    let list = everyTrip(Session.stub(transport: try transport()))
+    await list.load()
+    await list.refresh()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
   }
 }
 

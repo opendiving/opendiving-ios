@@ -26,6 +26,10 @@ import Observation
 ///
 /// A load whose task is cancelled has no outcome: nothing it shows says it failed, and a list
 /// with nothing fetched is idle again, so the next ``load()`` asks once more.
+///
+/// A list made `readsEveryPage` goes on to its last page after every load that lands, for a
+/// screen that needs the whole list at once — an index of its letters — rather than the pages
+/// scrolled to. It stops at a page that fails, and the next load picks up from there.
 @MainActor
 @Observable
 public final class PagedList<Item: Codable & Sendable> {
@@ -70,6 +74,7 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private let fetch: Fetch
   @ObservationIgnored private let cacheKey: PageCacheKey<Item>?
   @ObservationIgnored private let routed: Bool
+  @ObservationIgnored private let readsEveryPage: Bool
   @ObservationIgnored private var fetched: [Item] = []
   @ObservationIgnored private var nextPage = 1
   @ObservationIgnored private var generation = 0
@@ -82,12 +87,14 @@ public final class PagedList<Item: Codable & Sendable> {
 
   public init(
     session: Session, itemsPerPage: Int = APIClient.listPageSize,
-    cache cacheKey: PageCacheKey<Item>? = nil, routed: Bool = false, fetch: @escaping Fetch
+    cache cacheKey: PageCacheKey<Item>? = nil, routed: Bool = false, readsEveryPage: Bool = false,
+    fetch: @escaping Fetch
   ) {
     self.session = session
     self.itemsPerPage = itemsPerPage
     self.cacheKey = cacheKey
     self.routed = routed
+    self.readsEveryPage = readsEveryPage
     self.fetch = fetch
   }
 
@@ -102,8 +109,25 @@ public final class PagedList<Item: Codable & Sendable> {
     }
   }
 
-  /// The next page, when there is one and none is on its way.
+  /// The next page, when there is one and none is on its way — and every page after it, for a
+  /// list that reads every page.
   public func loadMore() async {
+    await loadNextPage()
+    await readRest()
+  }
+
+  /// Every page still to come for a list that reads every page, until one fails. A load already
+  /// holding the list leaves it alone, since that load reads the rest once it lands.
+  private func readRest() async {
+    guard readsEveryPage else { return }
+    while hasMore, pageError == nil, !Task.isCancelled {
+      let page = nextPage
+      await loadNextPage()
+      guard nextPage > page else { return }
+    }
+  }
+
+  private func loadNextPage() async {
     guard phase == .loaded, hasMore, !isLoadingMore, !isReloadingPages else { return }
     isLoadingMore = true
     defer { isLoadingMore = false }
@@ -123,17 +147,6 @@ public final class PagedList<Item: Codable & Sendable> {
     } catch {
       guard generation == self.generation, !Task.isCancelled else { return }
       pageError = APIError(error)
-    }
-  }
-
-  /// Every page still to come, one after another, for a screen that needs the whole list — an
-  /// index of its letters — rather than the pages scrolled to. It stops at a page that fails,
-  /// and where another load holds the list, which asks again once it lands.
-  public func loadRest() async {
-    while hasMore, pageError == nil, !Task.isCancelled {
-      let page = nextPage
-      await loadMore()
-      guard nextPage > page else { return }
     }
   }
 
@@ -171,8 +184,14 @@ public final class PagedList<Item: Codable & Sendable> {
     await loadPages(through: 1)
   }
 
-  /// Pages 1 through `last` in place of every page, stopping where the server has no more.
+  /// Pages 1 through `last` in place of every page, stopping where the server has no more, then
+  /// the rest for a list that reads every page.
   private func loadPages(through last: Int) async {
+    await readPages(through: last)
+    await readRest()
+  }
+
+  private func readPages(through last: Int) async {
     generation += 1
     let generation = generation
     isReloadingPages = true

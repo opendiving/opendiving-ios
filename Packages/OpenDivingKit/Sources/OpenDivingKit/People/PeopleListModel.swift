@@ -13,7 +13,7 @@ public final class PeopleListModel {
 
   public init(session: Session) {
     self.session = session
-    people = PagedList(session: session, cache: .people, routed: true) {
+    people = PagedList(session: session, cache: .people, routed: true, readsEveryPage: true) {
       client, page, itemsPerPage in
       try await client.people(page: page, itemsPerPage: itemsPerPage)
     }
@@ -23,25 +23,19 @@ public final class PeopleListModel {
   /// again as a route appears, until the calling task is cancelled.
   public func show() async {
     let seen = session.connectivity.routeAppearances
-    await reread()
+    await people.rereadIfStale()
     // A route that appeared while the read was skipped has no moment left to wait for.
-    if session.connectivity.routeAppearances != seen { await reread() }
-    await session.connectivity.eachRouteAppearance { await reread() }
+    if session.connectivity.routeAppearances != seen { await people.rereadIfStale() }
+    await session.connectivity.eachRouteAppearance { await people.rereadIfStale() }
   }
 
   /// Pull-to-refresh, from the first page through the last.
   public func refresh() async {
     await people.refresh()
-    await people.loadRest()
   }
 
-  /// ``sections`` of the people shown.
+  /// The people shown, filed under their letters.
   public var sections: [PeopleLetterSection] { PeopleLetterSection.sections(people.items) }
-
-  private func reread() async {
-    await people.rereadIfStale()
-    await people.loadRest()
-  }
 
   /// Queues a person's delete, from their row or their page; the reason it could not, where the
   /// outbox refused it.
