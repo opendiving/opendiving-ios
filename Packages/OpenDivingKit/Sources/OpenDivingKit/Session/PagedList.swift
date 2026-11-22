@@ -243,13 +243,14 @@ public final class PagedList<Item: Codable & Sendable> {
   /// The first page if none was asked for, or every page shown again when what is shown is
   /// kept pages or a failure: for the page that owns a `routed` list, once a route appears, and
   /// for a list shown again, whose last read a cancelled task may have cut short behind the kept
-  /// pages.
+  /// pages. A list that reads every page and is fresh reads the pages a cancelled task left
+  /// unread.
   public func rereadIfStale() async {
     switch phase {
     case .loading: return
     case .idle: return await load()
     case .failed: break
-    case .loaded: guard fetchedAt != nil || pageError != nil else { return }
+    case .loaded: guard fetchedAt != nil || pageError != nil else { return await readRest() }
     }
     await loadPages(through: max(nextPage - 1, 1))
   }

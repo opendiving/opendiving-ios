@@ -294,6 +294,29 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
   }
 
+  @Test func aListThatReadsEveryPageCutShortReadsTheRestWhenShownAgain() async throws {
+    let session = Session.stub(transport: try transport())
+    let cut = Mutex(false)
+    let list = PagedList<TripRead>(session: session, itemsPerPage: 2, readsEveryPage: true) {
+      client, page, perPage in
+      if page == 2, !cut.withLock({ $0 }) {
+        cut.withLock { $0 = true }
+        while !Task.isCancelled { await Task.yield() }
+        throw URLError(.cancelled)
+      }
+      return try await client.trips(page: page, itemsPerPage: perPage)
+    }
+    let shown = Task { await list.load() }
+    while !cut.withLock({ $0 }) { await Task.yield() }
+    shown.cancel()
+    await shown.value
+    #expect(list.items.map(\.name) == ["Trip 1"])
+    #expect(list.pageError == nil)
+
+    await list.rereadIfStale()
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
+  }
+
   @Test func aRefreshOfAListThatReadsEveryPageReadsThemAll() async throws {
     let list = everyTrip(Session.stub(transport: try transport()))
     await list.load()
