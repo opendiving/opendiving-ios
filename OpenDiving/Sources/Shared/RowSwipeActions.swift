@@ -49,8 +49,12 @@ private struct RowSwipeActions: ViewModifier {
         rowWidth = $0
       }
       .offset(x: offset)
-      .background(alignment: .leading) { buttons(leading, width: max(offset, 0)) }
-      .background(alignment: .trailing) { buttons(trailing, width: max(-offset, 0)) }
+      .background(alignment: .leading) {
+        buttons(leading, side: .leading, width: max(offset, 0))
+      }
+      .background(alignment: .trailing) {
+        buttons(trailing, side: .trailing, width: max(-offset, 0))
+      }
       .gesture(
         HorizontalPan(
           onBegan: {
@@ -106,26 +110,37 @@ private struct RowSwipeActions: ViewModifier {
     withAnimation(.snappy(duration: 0.25)) { offset = target }
   }
 
-  private func buttons(_ actions: [RowSwipeAction], width: CGFloat) -> some View {
-    HStack(spacing: 0) {
-      ForEach(actions) { item in
-        Button {
-          settle(at: 0)
-          item.action()
-        } label: {
-          VStack(spacing: 4) {
-            item.image.font(.title3)
-            Text(item.title).font(.caption.weight(.semibold))
+  /// A side's buttons across `width`, each name at the screen's edge; on a full swipe the first
+  /// alone, its name beside the row, which it runs if let go there.
+  private func buttons(_ actions: [RowSwipeAction], side: HorizontalEdge, width: CGFloat)
+    -> some View
+  {
+    let isFull = isFullSwipe && (side == .leading) == (offset > 0)
+    let toRow: Alignment = side == .leading ? .trailing : .leading
+    let toEdge: Alignment = side == .leading ? .leading : .trailing
+    return HStack(spacing: 0) {
+      ForEach(Array(actions.enumerated()), id: \.element.id) { index, item in
+        if index == 0 || !isFull {
+          Button {
+            settle(at: 0)
+            item.action()
+          } label: {
+            VStack(spacing: 4) {
+              item.image.font(.title3)
+              Text(item.title).font(.caption.weight(.semibold))
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(.white)
+            .frame(width: buttonWidth)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isFull ? toRow : toEdge)
+            .background(item.fill)
           }
-          .lineLimit(1)
-          .minimumScaleFactor(0.7)
-          .foregroundStyle(.white)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .background(item.fill)
+          .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
       }
     }
+    .animation(.snappy(duration: 0.2), value: isFull)
     .frame(width: width)
     .clipped()
     .accessibilityHidden(true)
