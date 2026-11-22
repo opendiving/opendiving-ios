@@ -5,16 +5,18 @@ import Testing
 
 /// What the finder's rows say, and the fonts its cluster counts are drawn in.
 struct SiteFinderRowContentTests {
-  @Test func aSiteSaysHowFarItIsAndACommonsOneOwesItsCredit() throws {
+  @Test func aSiteSaysHowFarItIsAndACommonsOneOwesItsCreditButNoBadge() throws {
     let rows = try KitFixture.decode(DiveSiteSearchPage.self, "dive-site-search").rows
     let own = SiteFinderRowContent(rows[0], units: .metric)
     #expect(own.title == "Canyon")
     #expect(own.subtitle == "Dahab, South Sinai, Egypt")
     #expect(own.distance == "4.2 km")
     #expect(own.mark == .proposed)
+    #expect(own.badge == .proposed)
     #expect(own.credit == nil)
     let commons = SiteFinderRowContent(rows[1], units: .imperial)
     #expect(commons.mark == .commons)
+    #expect(commons.badge == nil)
     #expect(commons.credit?.contains("OpenStreetMap") == true)
     #expect(commons.distance == "1457.1 mi")
   }
@@ -24,6 +26,7 @@ struct SiteFinderRowContentTests {
     let place = SiteFinderRowContent(rows[2], units: .metric)
     #expect(place.isPlace)
     #expect(place.mark == nil)
+    #expect(place.badge == nil)
     #expect(place.title == "Canyon City")
     #expect(place.subtitle == "Canyon City, Colorado, United States")
     #expect(place.nearby == "No sites nearby")

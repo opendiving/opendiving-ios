@@ -857,7 +857,7 @@ private struct SiteFinderRow: View {
                   .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
                 Text(content.title).foregroundStyle(Color.primary)
               }
-              if let mark = content.mark {
+              if let mark = content.badge {
                 DiveSiteMarkBadge(mark: mark)
                   .alignmentGuide(.nameCentre) { $0[VerticalAlignment.center] }
               }
