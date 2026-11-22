@@ -156,6 +156,25 @@ struct DiveComputerEngineTests {
     #expect(watcher.take() == [.arm(F.perdixFound.id, after: DiveComputerWatch.revisitDelay)])
   }
 
+  @Test func anAppliedImportHasTheListsOverTheAccountReadAgain() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    let list = PagedList(session: session) { client, page, itemsPerPage in
+      try await client.dives(page: page, itemsPerPage: itemsPerPage)
+    }
+    await list.load()
+    let reads = { server.routes.filter { $0 == "GET dives" }.count }
+    #expect(reads() == 1)
+
+    let engine = engine(session)
+    watcher.send(.connected(F.perdixFound.id))
+    await engine.settled()
+    await list.reloading?.value
+    #expect(server.atOnce.count == 1)
+    #expect(reads() == 2)
+  }
+
   @Test func aComputerThatAnswersAsOneNotPairedIsClosedUnread() async throws {
     let session = try await session()
     try pair(session, F.perdix, at: F.perdixFound.id)

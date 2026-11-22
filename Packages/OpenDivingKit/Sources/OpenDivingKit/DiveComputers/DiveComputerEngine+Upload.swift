@@ -5,7 +5,7 @@ import Foundation
 /// where this process has not.
 ///
 /// - An applied import: the archive leaves the phone, its dives join what the server answered
-///   for, and the notification says what was imported.
+///   for, every list over the account reads again, and the notification says what was imported.
 /// - A pending import, a server that cannot apply in one request: that import, which the
 ///   upload made, is discarded and the archive kept as refused. A pending answer is never taken
 ///   for a written dive.
@@ -100,6 +100,9 @@ extension DiveComputerEngine {
       noteUpload(archive, "imported")
       try? downloads.deliver(archive.dives, of: archive.record)
       downloads.remove(archive)
+      if let stores = AccountStores.current(session) {
+        OutboxHub.hub(for: stores.directory).listsChanged()
+      }
       if let notice = DiveComputerNotice.imported(answer, from: computer, units: session.units) {
         notifier?.post(notice)
       }

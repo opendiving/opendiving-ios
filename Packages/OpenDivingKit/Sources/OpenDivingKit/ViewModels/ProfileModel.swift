@@ -5,7 +5,9 @@ import Observation
 /// phone's copy at once and then the server. A read that fails leaves the copy standing, and
 /// places that cannot be read are none, so the head draws the world — but not places whose read
 /// was cut short, which the next refresh asks for again before the map draws anything. With no
-/// route nothing is asked for, and ``followRoute()`` reads again once one appears.
+/// route nothing is asked for, and ``followRoute()`` reads again once one appears. Once read, the
+/// totals read again when the account's records change under them — an import applied, a queued
+/// write landed — as the dives listed under them do.
 @MainActor
 @Observable
 public final class ProfileModel {
@@ -13,6 +15,8 @@ public final class ProfileModel {
   public private(set) var places: [LocationRead]?
 
   @ObservationIgnored private let session: Session
+  /// The read a change to the account's records started.
+  @ObservationIgnored var reloading: Task<Void, Never>?
 
   public init(session: Session) {
     self.session = session
@@ -33,6 +37,7 @@ public final class ProfileModel {
     async let readStats = try? client.diveStats()
     async let readPlaces = try? client.tripPlaces()
     let (stats, places) = await (readStats, readPlaces)
+    if let stores { OutboxHub.hub(for: stores.directory).observeLists(self) }
     let cache = cacheForAnswer(fetchedUnder: stores, session: session)
     if let stats {
       self.stats = stats
@@ -49,5 +54,11 @@ public final class ProfileModel {
   /// Reads again each time a route appears, until the calling task is cancelled.
   public func followRoute() async {
     await session.connectivity.eachRouteAppearance { await refresh() }
+  }
+}
+
+extension ProfileModel: AccountListsObserver {
+  func accountListsChanged() {
+    reloading = Task { await refresh() }
   }
 }
