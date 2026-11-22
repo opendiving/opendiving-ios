@@ -48,6 +48,18 @@ struct ProfileModelTests {
     #expect(world.server.mark == mark)
   }
 
+  @Test func theTotalsReadAgainWhenTheAccountsRecordsChange() async throws {
+    let world = try await world()
+    let model = ProfileModel(session: world.session)
+    await model.refresh()
+    #expect(world.server.count("GET user/dive-stats") == 1)
+
+    let stores = try #require(AccountStores.current(world.session))
+    OutboxHub.hub(for: stores.directory).listsChanged()
+    await model.reloading?.value
+    #expect(world.server.count("GET user/dive-stats") == 2)
+  }
+
   @Test func placesThatCannotBeReadAreNone() async throws {
     let world = try OutboxWorld()
     try await world.load()
