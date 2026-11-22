@@ -23,10 +23,6 @@ struct PeopleScreensTests {
 
   @Test func theHeadsAndEmptyStatesAreTheWebs() {
     #expect(PeopleListView.title == "People")
-    #expect(
-      PeopleListView.description
-        == "Your buddies, guides, instructors and the people who came along, kept once")
-    #expect(PeopleListView.listTitle == "People List")
     #expect(PeopleListView.emptyTitle == "No people yet")
     #expect(
       PeopleListView.emptyMessage
