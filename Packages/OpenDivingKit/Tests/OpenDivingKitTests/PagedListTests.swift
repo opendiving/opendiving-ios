@@ -317,6 +317,32 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
   }
 
+  @Test func aReloadWhileALaterPageIsOnItsWayReadsTheRestItself() async throws {
+    let session = Session.stub(transport: try transport())
+    let gate = Gate()
+    let held = Mutex(false)
+    let list = PagedList<TripRead>(session: session, itemsPerPage: 2, readsEveryPage: true) {
+      client, page, perPage in
+      let hold = held.withLock { held in
+        defer { if page == 2 { held = true } }
+        return page == 2 && !held
+      }
+      if hold { await gate.pass() }
+      return try await client.trips(page: page, itemsPerPage: perPage)
+    }
+    let shown = Task { await list.load() }
+    await gate.untilArrived()
+    list.accountListsChanged()
+    await list.reloading?.value
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
+    #expect(!list.isLoadingMore)
+
+    await gate.open()
+    await shown.value
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
+    #expect(!list.isLoadingMore)
+  }
+
   @Test func aRefreshOfAListThatReadsEveryPageReadsThemAll() async throws {
     let list = everyTrip(Session.stub(transport: try transport()))
     await list.load()

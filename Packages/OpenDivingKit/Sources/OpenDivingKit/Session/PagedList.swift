@@ -130,8 +130,9 @@ public final class PagedList<Item: Codable & Sendable> {
   private func loadNextPage() async {
     guard phase == .loaded, hasMore, !isLoadingMore, !isReloadingPages else { return }
     isLoadingMore = true
-    defer { isLoadingMore = false }
     let generation = generation
+    // A reload that began meanwhile has taken the flag back, and may be loading a page of its own.
+    defer { if generation == self.generation { isLoadingMore = false } }
     do {
       let client = try client()
       let stores = AccountStores.current(session)
@@ -194,6 +195,8 @@ public final class PagedList<Item: Codable & Sendable> {
   private func readPages(through last: Int) async {
     generation += 1
     let generation = generation
+    // A later page on its way belongs to the pages this replaces, and is dropped when it lands.
+    isLoadingMore = false
     isReloadingPages = true
     isReading = session.connectivity.isRouteAvailable
     defer {
