@@ -3,8 +3,8 @@ import SwiftUI
 
 /// A gear item's service schedules, with their status, and its service history, each a card of
 /// rows under its title and the button that adds to it, under the item page's *Service* tab. A
-/// row opens its form; its other actions are in its context menu. Each write is queued, and its
-/// row shows once it lands.
+/// row opens its form, where it is deleted; a schedule is logged against, paused and resumed from
+/// its swipe actions and its context menu. Each write is queued, and its row shows once it lands.
 struct GearServiceCard: View {
   let gearItem: GearItemRead
   let service: GearServiceModel
@@ -14,20 +14,7 @@ struct GearServiceCard: View {
   @Environment(Session.self) private var session
   @Environment(OutboxModel.self) private var outbox
   @State private var lookups: LookupsModel?
-  @State private var deleting: Deleting?
   @State private var queueError: String?
-
-  /// The row whose delete is being confirmed.
-  private enum Deleting: Identifiable {
-    case schedule(UUID)
-    case record(UUID)
-
-    var id: UUID {
-      switch self {
-      case .schedule(let uuid), .record(let uuid): uuid
-      }
-    }
-  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -60,16 +47,6 @@ struct GearServiceCard: View {
       }
     }
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
-    .confirmationDialog(
-      deletingTitle, isPresented: isDeleting, titleVisibility: .visible, presenting: deleting
-    ) { target in
-      Button("Delete", role: .destructive) { delete(target) }
-    } message: { target in
-      switch target {
-      case .schedule: Text(RecordDeletionText.serviceSchedule)
-      case .record: Text(RecordDeletionText.serviceRecord)
-      }
-    }
     .alert(
       "Not saved",
       isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
@@ -138,6 +115,8 @@ struct GearServiceCard: View {
         }
       }
       .rowPadding()
+      // The context menu lifts the row, and a swipe slides it, on its own fill.
+      .background(Color.cardFill)
     }
     .buttonStyle(.plain)
     .contentShape(.contextMenuPreview, .formSection)
@@ -147,19 +126,35 @@ struct GearServiceCard: View {
       } label: {
         Label("Log service", icon: .clipboardCheck)
       }
-      Button(
-        row.isPaused ? "Resume" : "Pause", systemImage: row.isPaused ? "play" : "pause"
-      ) {
-        queue(
-          .updateServiceSchedule(
-            .server(schedule.uuid), gearItem: ref,
-            GearServiceScheduleUpdate(active: !schedule.isActive)))
-      }
-      Button("Edit", systemImage: "pencil") { route = .editSchedule(schedule.uuid) }
-      Button("Delete", systemImage: "trash", role: .destructive) {
-        deleting = .schedule(schedule.uuid)
-      }
+      Button(Self.toggleTitle(row), systemImage: Self.toggleSymbol(row)) { toggle(schedule) }
     }
+    .rowSwipeActions(
+      leading: [
+        RowSwipeAction(title: "Log", image: Image(.clipboardCheck), fill: .brandTeal) {
+          route = .logService(schedule: schedule.uuid)
+        }
+      ],
+      trailing: [
+        RowSwipeAction(
+          title: Self.toggleTitle(row), image: Image(systemName: Self.toggleSymbol(row)),
+          fill: Color(.systemGray)
+        ) { toggle(schedule) }
+      ])
+  }
+
+  private static func toggleTitle(_ row: GearServiceCardContent.ScheduleRow) -> String {
+    row.isPaused ? "Resume" : "Pause"
+  }
+
+  private static func toggleSymbol(_ row: GearServiceCardContent.ScheduleRow) -> String {
+    row.isPaused ? "play" : "pause"
+  }
+
+  private func toggle(_ schedule: GearServiceScheduleRead) {
+    queue(
+      .updateServiceSchedule(
+        .server(schedule.uuid), gearItem: ref,
+        GearServiceScheduleUpdate(active: !schedule.isActive)))
   }
 
   @ViewBuilder private var history: some View {
@@ -202,13 +197,6 @@ struct GearServiceCard: View {
       .rowPadding()
     }
     .buttonStyle(.plain)
-    .contentShape(.contextMenuPreview, .formSection)
-    .contextMenu {
-      Button("Edit", systemImage: "pencil") { route = .editRecord(record.uuid) }
-      Button("Delete", systemImage: "trash", role: .destructive) {
-        deleting = .record(record.uuid)
-      }
-    }
   }
 
   /// A card of rows, each drawing its own padding.
@@ -254,24 +242,6 @@ struct GearServiceCard: View {
     let kind = Text(row.kind).fontWeight(.medium)
     let label = Text(row.label.map { " (\($0))" } ?? "").foregroundStyle(.secondary)
     return Text("\(date)\(dot)\(kind)\(label)")
-  }
-
-  private var deletingTitle: String {
-    switch deleting {
-    case .record: "Delete service record"
-    default: "Delete service schedule"
-    }
-  }
-
-  private var isDeleting: Binding<Bool> {
-    Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })
-  }
-
-  private func delete(_ target: Deleting) {
-    switch target {
-    case .schedule(let uuid): queue(.deleteServiceSchedule(.server(uuid), gearItem: ref))
-    case .record(let uuid): queue(.deleteServiceRecord(.server(uuid), gearItem: ref))
-    }
   }
 
   private func queue(_ operation: OutboxOperation) {
