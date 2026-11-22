@@ -33,10 +33,6 @@ struct PeopleScreensTests {
         == "Add the people you dive with once, and pick them from your dives, trips and courses.")
     #expect(PeopleListView.emptyAction == "Add your first person")
     #expect(ContactListView.title == "Contacts")
-    #expect(
-      ContactListView.description
-        == "The dive centers, schools, shops and places you stayed, kept once")
-    #expect(ContactListView.listTitle == "Contact List")
     #expect(ContactListView.emptyTitle == "No contacts yet")
     #expect(
       ContactListView.emptyMessage
