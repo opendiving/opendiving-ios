@@ -58,10 +58,14 @@ struct GearItemSheetForm: View {
           message: model.message("brand"))
         Picker("Type", selection: type) {
           Text("No type").tag(String?.none)
-          ForEach(FormVocabulary.gearTypeGroups, id: \.title) { group in
-            Section(group.title) {
+          ForEach(FormVocabulary.gearTypeGroups, id: \.self) { group in
+            Section {
               ForEach(group.types, id: \.self) { type in
                 Text(VocabularyLabels.gearType(type) ?? type).tag(Optional(type))
+              }
+            } header: {
+              if let title = group.title {
+                Text(title)
               }
             }
           }
