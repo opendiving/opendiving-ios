@@ -98,7 +98,6 @@
     {"file": "request-import-apply.json", "is": [{"request": "POST /api/v1/import/{uuid}/apply"}]},
     {"file": "request-import-check-in.json", "is": [{"schema": "ImportCheckInSubmission"}]},
     {"file": "request-import-portrait.json", "is": [{"schema": "ImportPortraitChoice"}]},
-    {"file": "request-invitation-create.json", "is": [{"request": "POST /api/v1/user/invitations"}]},
     {"file": "request-passkey-update.json", "is": [{"request": "PATCH /api/v1/user/passkey/{uuid}"}]},
     {"file": "request-person-create.json", "is": [{"request": "POST /api/v1/person"}]},
     {"file": "request-person-update.json", "is": [{"request": "PATCH /api/v1/person/{uuid}"}]},

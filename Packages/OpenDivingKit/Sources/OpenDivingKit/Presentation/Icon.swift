@@ -50,7 +50,6 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case luggage
   case luggagePlus = "luggage-plus"
   case mail
-  case mailPlus = "mail-plus"
   case mapPin = "map-pin"
   case menu
   case monitor

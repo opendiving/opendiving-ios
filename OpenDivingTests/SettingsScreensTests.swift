@@ -15,7 +15,6 @@ struct SettingsScreensTests {
     ("Data", AnyView(DataScreen())),
     ("Notifications", AnyView(NotificationsScreen())),
     ("Preferences", AnyView(PreferencesScreen())),
-    ("Invitations", AnyView(InvitationsScreen())),
     ("Appearance", AnyView(AppearanceScreen())),
   ]
 

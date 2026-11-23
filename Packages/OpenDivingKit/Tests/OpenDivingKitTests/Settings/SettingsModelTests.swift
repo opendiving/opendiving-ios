@@ -50,37 +50,11 @@ struct SettingsModelTests {
     #expect(session.state == .signedIn(origin))
   }
 
-  @Test func theSectionsAreTheWebsInItsOrderAndInvitationsGoOnAnOpenInstance() async throws {
-    let open = try KitFixture.text("config").replacingOccurrences(
-      of: #""registration_mode": "invite""#, with: #""registration_mode": "open""#)
-    #expect(open.contains(#""registration_mode": "open""#))
-    let (model, _, session, _) = try signedIn([
-      "GET config": .json(open),
-      "GET health": .json(try KitFixture.text("health")),
-    ])
-    #expect(model.sections == SettingsSection.allCases)
-    #expect(InvitationsModel.isOffered(by: session.server?.config))
+  @Test func theSectionsAreTheWebsInItsOrder() {
     #expect(
-      model.sections.map(\.title) == [
+      SettingsSection.allCases.map(\.title) == [
         "Account", "Check-in", "Authentication", "Data", "Notifications", "Preferences",
-        "Invitations",
       ])
-    await model.load()
-    #expect(!model.sections.contains(.invitations))
-    #expect(!InvitationsModel.isOffered(by: session.server?.config))
-    #expect(model.sections.count == SettingsSection.allCases.count - 1)
-  }
-
-  @Test func anInviteOnlyInstanceListsInvitations() async throws {
-    let invite = try KitFixture.text("config")
-    #expect(invite.contains(#""registration_mode": "invite""#))
-    let (model, _, session, _) = try signedIn([
-      "GET config": .json(invite),
-      "GET health": .json(try KitFixture.text("health")),
-    ])
-    await model.load()
-    #expect(model.sections == SettingsSection.allCases)
-    #expect(InvitationsModel.isOffered(by: session.server?.config))
   }
 
   @Test func aFailedSignOutKeepsTheSessionAndSaysWhy() async throws {
