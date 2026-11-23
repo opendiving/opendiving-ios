@@ -4,9 +4,9 @@ import OpenDivingKit
 /// A link that replays scripted downloads: the scan finds what the test lists, and each
 /// download yields its script's events, calling the lookup as a conformance does once the
 /// identity is known and recording what it answered, and keeping each dive before it yields it.
-/// At a listing it asks `leaveOut` about the listing's downloads and waits for the answer, then
-/// yields the listing without what was left out, each such dive as skipped and the end counting
-/// them as waiting. Asked for only a paired computer, it ends a script whose identity has no
+/// At a listing it passes over the downloads `waiting` says the phone need not take, as the
+/// conformances do, asks `leaveOut` about the rest and waits for the answer, then yields the
+/// listing without either, each such dive as skipped and the end counting them as waiting. Asked for only a paired computer, it ends a script whose identity has no
 /// record there, unpaired.
 @MainActor
 final class FakeDiveComputerLink: DiveComputerLink {
@@ -110,10 +110,16 @@ final class FakeDiveComputerLink: DiveComputerLink {
         }
         if case .identified(let found) = event { identity = found }
         if case .listing(let listing) = event, let identity, !listing.downloads.isEmpty {
-          asked.append(listing.downloads)
-          logbook = await leaveOut(identity, listing.downloads)
-          leftOut.append(logbook)
-          let downloads = listing.downloads.filter { !logbook.contains($0.fingerprint) }
+          let passedOver = Set(
+            listing.downloads.map(\.fingerprint).filter { waiting(identity, $0) })
+          let rest = listing.downloads.filter { !passedOver.contains($0.fingerprint) }
+          if !rest.isEmpty {
+            asked.append(rest)
+            logbook = await leaveOut(identity, rest)
+            leftOut.append(logbook)
+          }
+          logbook.formUnion(passedOver)
+          let downloads = rest.filter { !logbook.contains($0.fingerprint) }
           event = .listing(
             DiveComputerListing(
               dives: listing.dives,
