@@ -51,6 +51,7 @@ private struct SitesFinder: View {
   @State private var weatherMorph = MapWeatherMorph()
   /// Where the weather bar is drawn, for its card to grow from.
   @State private var weatherBarFrame = CGRect.zero
+  @State private var weatherBarTextSize = MapWeatherBarLabel.size
   @Environment(Session.self) private var session
 
   init(session: Session, site: UUID?) {
@@ -94,7 +95,7 @@ private struct SitesFinder: View {
           if let content = weatherContent {
             MapWeatherBar(
               content: content, onTap: weatherMorph.open, onPull: weatherMorph.pull,
-              onPullEnded: weatherMorph.pullEnded
+              onPullEnded: weatherMorph.pullEnded, onTextSize: { weatherBarTextSize = $0 }
             )
             .onGeometryChange(for: CGRect.self) {
               $0.frame(in: .global)
@@ -120,7 +121,8 @@ private struct SitesFinder: View {
     .fullScreenCover(isPresented: $weatherMorph.isPresented) {
       if let content = weatherContent {
         MapWeatherExplainer(
-          content: content, title: weatherTitle, barFrame: weatherBarFrame, morph: weatherMorph
+          content: content, title: weatherTitle, barFrame: weatherBarFrame,
+          barSize: weatherBarTextSize, morph: weatherMorph
         )
         .presentationBackground(.clear)
       }

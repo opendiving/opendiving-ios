@@ -16,13 +16,14 @@ struct MapWeatherExplainer: View {
   let title: String?
   /// Where the bar is drawn, in the window's space.
   let barFrame: CGRect
+  /// The size the bar's text is drawn at, which the top bar caps short of the screen's own.
+  let barSize: CGFloat
   let morph: MapWeatherMorph
 
   /// Where the card stands open, in the window's space; nil until it is laid out.
   @State private var cardFrame: CGRect?
   @State private var barSlots: [MapWeatherPart: CGPoint] = [:]
   @State private var cardSlots: [MapWeatherPart: CGPoint] = [:]
-  @ScaledMetric(relativeTo: .subheadline) private var barSize = MapWeatherBarLabel.size
   @ScaledMetric(relativeTo: .title2) private var cardSize = MapWeatherCard.size
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.colorScheme) private var colorScheme
@@ -45,7 +46,7 @@ struct MapWeatherExplainer: View {
   /// The bar's copy, laid out where the bar is for its parts' places, and drawn by nothing.
   private var bar: some View {
     MapWeatherBarLabel(
-      content: content,
+      content: content, size: barSize,
       slots: MapWeatherSlots { part, point in
         barSlots[part] = point
         if barSlots.count == parts.count { morph.coversBar = true }
@@ -244,6 +245,7 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
 #Preview {
   @Previewable @State var morph = MapWeatherMorph()
   @Previewable @State var barFrame = CGRect.zero
+  @Previewable @State var barSize = MapWeatherBarLabel.size
   NavigationStack {
     Color.teal.opacity(0.3)
       .ignoresSafeArea()
@@ -251,7 +253,7 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
         ToolbarItem(placement: .principal) {
           MapWeatherBar(
             content: .sample, onTap: morph.open, onPull: morph.pull,
-            onPullEnded: morph.pullEnded
+            onPullEnded: morph.pullEnded, onTextSize: { barSize = $0 }
           )
           .onGeometryChange(for: CGRect.self) {
             $0.frame(in: .global)
@@ -264,7 +266,8 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
   }
   .fullScreenCover(isPresented: $morph.isPresented) {
     MapWeatherExplainer(
-      content: .sample, title: "Dahab, South Sinai, Egypt", barFrame: barFrame, morph: morph
+      content: .sample, title: "Dahab, South Sinai, Egypt", barFrame: barFrame,
+      barSize: barSize, morph: morph
     )
     .presentationBackground(.clear)
   }

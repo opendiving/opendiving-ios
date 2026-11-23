@@ -11,12 +11,17 @@ struct MapWeatherBar: View {
   let onPull: (CGFloat) -> Void
   /// The finger lifted, its pull heading for that far down; nil where the system cut it short.
   let onPullEnded: (CGFloat?) -> Void
+  /// The size the bar's text is drawn at, for the card's copy of it: the top bar caps Dynamic Type,
+  /// which the card, presented over everything, does not.
+  let onTextSize: (CGFloat) -> Void
   @GestureState private var isPulling = false
+  @ScaledMetric(relativeTo: .subheadline) private var textSize = MapWeatherBarLabel.size
 
   var body: some View {
     // Not a `Button`: the bar draws a button's label as its title or its icon alone, never both.
-    MapWeatherBarLabel(content: content)
+    MapWeatherBarLabel(content: content, size: textSize)
       .mapWeatherBarChrome()
+      .onChange(of: textSize, initial: true) { onTextSize(textSize) }
       // One gesture from the touch down, a tap being a touch that barely moved: every touch ends
       // in the card, so its presentation comes up as the finger lands and is ready to follow it.
       // Down, as the card hangs below the bar; on the window, since what follows the finger is
@@ -49,8 +54,8 @@ struct MapWeatherBar: View {
 /// its copy in the card's presentation, where `slots` marks where its parts fly from.
 struct MapWeatherBarLabel: View {
   let content: MapWeatherContent
+  let size: CGFloat
   var slots: MapWeatherSlots?
-  @ScaledMetric(relativeTo: .subheadline) private var size = MapWeatherBarLabel.size
 
   /// The bar's text size, before Dynamic Type scales it.
   static let size: CGFloat = 15
@@ -100,7 +105,9 @@ extension View {
       .ignoresSafeArea()
       .toolbar {
         ToolbarItem(placement: .principal) {
-          MapWeatherBar(content: .sample, onTap: {}, onPull: { _ in }, onPullEnded: { _ in })
+          MapWeatherBar(
+            content: .sample, onTap: {}, onPull: { _ in }, onPullEnded: { _ in },
+            onTextSize: { _ in })
         }
       }
   }
