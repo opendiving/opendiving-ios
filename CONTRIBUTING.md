@@ -135,6 +135,22 @@ xcrun simctl ui "$(scripts/simulator.sh)" increase_contrast enabled
 xcrun simctl ui "$(scripts/simulator.sh)" appearance dark
 ```
 
+## Running in the simulator, signed in
+
+A simulator starts on a blank device, and signing in by hand takes a code the server mails. Against
+a server running in Docker on this Mac with no mail transport, which logs the code instead, one
+command does it — after the build above, with an account that server holds:
+
+```bash
+scripts/simulator-sign-in.py diver@example.com
+```
+
+It asks the server for a code, reads it from the container's log, redeems it, and launches the app
+on this checkout's simulator pointed at `http://localhost:8000` and signed in. `--server` names
+another origin and `--device` another simulator; `OPENDIVING_SIGN_IN_EMAIL` stands in for the
+address. The app reads the server and the session from its launch arguments in a simulator build
+only. Every run is a sign-in to the server, which limits how many an address may ask for.
+
 ## Running on your iPhone
 
 A free Apple Account is enough to put the app on your own phone; no developer program membership.

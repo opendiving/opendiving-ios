@@ -10,10 +10,19 @@ extension Session {
     // Before the session reads the Keychain, so that a reinstall starts signed out. A clear
     // that fails leaves the old tokens for this launch and is retried at the next.
     try? InstallMarker().clearOnFirstLaunch(secrets)
+    let activeOrigin = DefaultsActiveOriginStore()
+    #if targetEnvironment(simulator)
+      // `scripts/simulator-sign-in.py` starts the app signed in; a device build has no such door.
+      if let signIn = LaunchArguments(ProcessInfo.processInfo.arguments).signIn {
+        try? ServerStateStore(
+          root: .applicationSupportDirectory, secrets: secrets, activeOrigin: activeOrigin
+        ).start(signIn)
+      }
+    #endif
     return Session(
       configuration: NetworkConfiguration.make(),
       secrets: secrets,
-      activeOrigin: DefaultsActiveOriginStore(),
+      activeOrigin: activeOrigin,
       background: ApplicationBackgroundExecution(),
       connectivity: PathMonitorConnectivity(),
       applicationSupport: URL.applicationSupportDirectory,
