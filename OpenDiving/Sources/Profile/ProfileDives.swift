@@ -15,6 +15,8 @@ struct ProfileDives: View {
       // What is waiting to sync, and the dives on their way, show however the list stands:
       // offline with nothing kept, the first page is a minute away.
       PendingSection(countsDownloads: Self.pendingCountsDownloads)
+      // Above the logbook rather than among its dives by date, which a paged list cannot place
+      // without every page.
       ForEach(rows) { row in
         DownloadRowView(row: row)
       }
