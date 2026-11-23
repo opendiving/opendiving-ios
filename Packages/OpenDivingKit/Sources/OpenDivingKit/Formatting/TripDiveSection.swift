@@ -113,6 +113,11 @@ public enum TripDiveSection<Item: Sendable>: Sendable {
     }
   }
 
+  /// The part this section is, by its index in the trip's own order; nil for loose dives.
+  public var partIndex: Int? {
+    if case .part(let index, _) = self { index } else { nil }
+  }
+
   private enum Slot {
     case part(Int)
     case loose([Item])

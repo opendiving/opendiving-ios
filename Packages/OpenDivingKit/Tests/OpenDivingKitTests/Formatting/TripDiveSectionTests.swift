@@ -131,4 +131,12 @@ struct TripDiveSectionTests {
         .part(4, []), .part(3, []), .part(2, ["sharm"]), .part(1, []), .part(0, []),
       ])
   }
+
+  @Test func namesThePartsInTheOrderThePageShowsThem() {
+    let dives = [
+      dive("after", "2026-04-14"), dive("sharm", "2026-04-12"), dive("dahab", "2026-04-08"),
+    ]
+    let sections = TripDiveSection.sections(dives, parts: [dahab, sharm], day: \.day)
+    #expect(sections.map(\.partIndex) == [nil, 1, 0])
+  }
 }
