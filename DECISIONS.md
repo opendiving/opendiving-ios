@@ -328,14 +328,14 @@ confirmed; a pace per family, which a computer's sample rate and the phone's lin
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a
-re-download is a dive the account already holds and links. A walk of new dives leaves out an entry
-whose uuid the phone keeps under the walk's mark, in an archive or a walk, or the server has
+re-download is a dive the account already holds and links, or a new one once deleted. A walk of new
+dives leaves out an entry whose uuid the phone keeps under the walk's mark, or the server has
 answered for or the diver did not choose since the fingerprint last moved; *Choose dives to
-download* leaves out only what the phone keeps. Then, before its first transfer, a walk with a route and a loaded account sends the rest's
-uuids and listed starts to `POST /dive-computers/known-dives` and leaves out what the logbook
-holds. A dive left out counts neither new nor downloaded. Rejected: a random uuid, which
-leaves every dedupe to the recording gates; comparing on the phone, which writes the server's
-clock rule twice; downloading a waiting dive again.
+download* leaves out only what the phone keeps. Then, before its first transfer, a walk with a route
+and a loaded account sends the rest's uuids and listed starts to `POST /dive-computers/known-dives`
+and leaves out what the logbook holds. A dive left out counts neither new nor downloaded. Rejected:
+a random uuid, which leaves every dedupe to the recording gates; comparing on the phone, which
+writes the server's clock rule twice; downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 

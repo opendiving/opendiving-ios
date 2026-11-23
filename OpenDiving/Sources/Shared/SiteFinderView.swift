@@ -344,47 +344,33 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
 
   // MARK: - An opened site
 
-  /// Where the search stood: the site's mark and tags, name and location, beside the way back to
-  /// the list with the host's action under it.
+  /// Where the search stood: the site's mark and tags beside the host's action and the way back to
+  /// the list, with its name and location under them across the panel's width.
   private func siteHead(_ opened: SiteFinderModel.OpenedSite) -> some View {
     let tags = opened.site?.tags ?? []
-    let hasBadges = opened.mark != nil || !tags.isEmpty
-    return HStack(alignment: .headFirstLine, spacing: 8) {
-      VStack(alignment: .leading, spacing: 4) {
-        if hasBadges {
-          FlowLayout(spacing: 6) {
-            if let mark = opened.mark {
-              DiveSiteMarkBadge(mark: mark)
-            }
-            ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
-              BadgeView(tag, style: .teal)
-            }
+    return VStack(alignment: .leading, spacing: 4) {
+      HStack(spacing: 8) {
+        FlowLayout(spacing: 6) {
+          if let mark = opened.mark {
+            DiveSiteMarkBadge(mark: mark)
           }
-          .alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
+          ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
+            BadgeView(tag, style: .teal)
+          }
         }
-        let name = Text(opened.name ?? "")
-          .font(.title2.bold())
-          .lineLimit(2)
-          .accessibilityAddTraits(.isHeader)
-        if hasBadges {
-          name
-        } else {
-          name.alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
-        }
-        if let location = opened.location, !location.isEmpty {
-          Text(location)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-        }
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      VStack(spacing: 8) {
-        // Its middle on the head's first line, so the badges stand as far below the handle as
-        // its ×.
-        closeButton("Close dive site") { model.closeSite() }
-          .alignmentGuide(.headFirstLine) { $0[VerticalAlignment.center] }
+        .frame(maxWidth: .infinity, alignment: .leading)
         siteAction(opened)
+        closeButton("Close dive site") { model.closeSite() }
+      }
+      Text(opened.name ?? "")
+        .font(.title2.bold())
+        .lineLimit(2)
+        .accessibilityAddTraits(.isHeader)
+      if let location = opened.location, !location.isEmpty {
+        Text(location)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
       }
     }
   }
@@ -887,16 +873,6 @@ private struct SiteFinderRow: View {
 }
 
 extension VerticalAlignment {
-  /// The middle of an opened site's first line — its badges, else its name — which its close
-  /// button is centred on.
-  private enum HeadFirstLine: AlignmentID {
-    static func defaultValue(in context: ViewDimensions) -> CGFloat {
-      context[VerticalAlignment.top]
-    }
-  }
-
-  fileprivate static let headFirstLine = VerticalAlignment(HeadFirstLine.self)
-
   /// The middle of a row's first line, which its icon and mark are centred on however many lines
   /// the name wraps to.
   private enum NameCentre: AlignmentID {

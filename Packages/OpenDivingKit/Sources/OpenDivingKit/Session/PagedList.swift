@@ -18,7 +18,7 @@ import Observation
 ///
 /// A list that names its rows' records leaves out a record whose delete is queued, offline too,
 /// and shows it again if the delete is discarded or refused; and, at once, one the server no
-/// longer has.
+/// longer has, until a page fetched since names it again.
 ///
 /// A list made `routed` asks for nothing while the phone believes it has no route: it fails at
 /// once with ``APIError/noRoute``, quietly behind kept pages, and the page that owns it reads
@@ -139,9 +139,11 @@ public final class PagedList<Item: Codable & Sendable> {
     do {
       let client = try client()
       let stores = AccountStores.current(session)
+      let began = Date()
       let response = try await fetch(client, nextPage, itemsPerPage)
       guard generation == self.generation else { return }
       fetched += response.data
+      takeBack(response.data, fetchedSince: began, under: stores)
       totalCount = response.totalCount
       showFetched()
       hasMore = response.hasMore && !response.data.isEmpty
@@ -227,6 +229,7 @@ public final class PagedList<Item: Codable & Sendable> {
         page += 1
       }
       fetched = pages
+      takeBack(pages, fetchedSince: began, under: stores)
       totalCount = total
       showFetched()
       hasMore = more
@@ -333,9 +336,16 @@ public final class PagedList<Item: Codable & Sendable> {
       items = fetched
       return
     }
-    let gone = OutboxHub.hub(for: stores.directory).deleted.union(
+    let gone = Set(OutboxHub.hub(for: stores.directory).deleted.keys).union(
       stores.outbox.items().filter { !$0.isFailed }.compactMap(\.operation.deletedRecord))
     items = gone.isEmpty ? fetched : fetched.filter { !gone.contains(record($0)) }
+  }
+
+  /// What a page fetched since the server said a record was gone still names is back, in every
+  /// list: imported again under its uuid.
+  private func takeBack(_ page: [Item], fetchedSince began: Date, under stores: AccountStores?) {
+    guard let record = cacheKey?.record, let stores else { return }
+    OutboxHub.hub(for: stores.directory).named(page.map(record), fetchedSince: began)
   }
 
   private func keep(fetchedUnder stores: AccountStores?, firstPage: Bool) {

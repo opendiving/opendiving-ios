@@ -11,8 +11,8 @@ public struct ImportDiveRow: Hashable, Sendable, Identifiable {
   /// Why a skipped dive was skipped.
   public let reason: String?
   /// The dive to open, where the row links one: every dive of a written import the apply did not
-  /// skip, whose uuid can name a dive gone since, and in a review only the dives the diver already
-  /// has.
+  /// skip, since a skipped row keeps the uuid its review gave a dive the apply did not write, and
+  /// in a review only the dives the diver already has.
   public let opens: UUID?
   public let notes: [ImportNoteRow]
   /// The sentence that says the API cut the row's notes.
