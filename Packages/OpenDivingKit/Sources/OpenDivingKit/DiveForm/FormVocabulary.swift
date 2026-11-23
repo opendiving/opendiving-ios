@@ -1,5 +1,6 @@
-/// Every pick-list the forms offer, in the order the web's menus offer it; the labels are
-/// ``VocabularyLabels``'. Each is a hand-kept mirror of an API enum, as the web's are.
+/// Every pick-list the forms offer, in the order the web's menus offer it but for the gear types,
+/// which ``gearTypeGroups`` orders; the labels are ``VocabularyLabels``'. Each is a hand-kept
+/// mirror of an API enum, as the web's are.
 public enum FormVocabulary {
   public static let waterTypes = ["salt", "fresh", "brackish"]
   public static let diveTypes = [
