@@ -263,7 +263,8 @@ struct DiveComputerListTests {
 
     #expect(model.orderQuestion == nil)
     #expect(server.orders.isEmpty)
-    #expect(server.atOnce.count == 1)
+    // The first dive while the walk runs, the rest at its end.
+    #expect(server.atOnce.count == 2)
     #expect(engine.archives.isEmpty)
   }
 
@@ -280,7 +281,7 @@ struct DiveComputerListTests {
     await model.settled()
     #expect(link.downloads == 1)
     #expect(model.orderQuestion == nil)
-    #expect(server.atOnce.count == 1)
+    #expect(server.atOnce.count == 2)
   }
 
   // MARK: - The order
