@@ -10,9 +10,6 @@ public final class GearServiceModel {
   public let schedules: PagedList<GearServiceScheduleRead>
   public let records: PagedList<GearServiceRecordRead>
 
-  /// Pauses and resumes that have landed, until the schedules are read again with them.
-  private var toggles: [UUID: Bool] = [:]
-
   @ObservationIgnored private let session: Session
 
   public init(session: Session, gearItemUUID: UUID) {
@@ -36,7 +33,7 @@ public final class GearServiceModel {
 
   /// Whether `schedule` runs as the diver last left it, which its row shows the moment they
   /// pause or resume it: a toggle still in `items`, or landed and not yet read back, over the
-  /// server's copy. One the server refused leaves the server's.
+  /// server's copy. One the server refused, or the diver discarded, leaves the server's.
   public func isActive(_ schedule: GearServiceScheduleRead, items: [OutboxItem]) -> Bool {
     let ref = RecordRef.server(schedule.uuid)
     for item in items.reversed() {
@@ -45,17 +42,17 @@ public final class GearServiceModel {
       else { continue }
       return item.isFailed ? schedule.isActive : active
     }
-    return toggles[schedule.uuid] ?? schedule.isActive
+    return hub?.landedToggles[schedule.uuid] ?? schedule.isActive
   }
 
-  /// Keeps a pause or resume showing past its landing, until ``schedulesRead()``.
-  public func toggled(_ schedule: UUID, active: Bool) {
-    toggles[schedule] = active
+  /// `read` came back from the server, with whatever toggles of theirs had landed.
+  public func schedulesRead(_ read: [GearServiceScheduleRead]) {
+    guard let hub else { return }
+    for schedule in read { hub.landedToggles[schedule.uuid] = nil }
   }
 
-  /// The schedules came back from the server, with whatever toggles had landed.
-  public func schedulesRead() {
-    toggles = [:]
+  private var hub: OutboxHub? {
+    AccountStores.current(session).map { OutboxHub.hub(for: $0.directory) }
   }
 
   public func rereadIfStale() async {

@@ -48,7 +48,7 @@ struct GearServiceCard: View {
       }
     }
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
-    .onChange(of: service.schedules.items) { service.schedulesRead() }
+    .onChange(of: service.schedules.items) { _, read in service.schedulesRead(read) }
     .alert(
       "Not saved",
       isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
@@ -150,7 +150,6 @@ struct GearServiceCard: View {
     queue(
       .updateServiceSchedule(
         .server(schedule.uuid), gearItem: ref, GearServiceScheduleUpdate(active: active)))
-    if queueError == nil { service.toggled(schedule.uuid, active: active) }
   }
 
   @ViewBuilder private var history: some View {

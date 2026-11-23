@@ -295,14 +295,36 @@ struct GearServiceFormsTests {
     _ = try outbox.queue(
       .updateServiceSchedule(
         .server(read.uuid), gearItem: gearItem, GearServiceScheduleUpdate(active: false)))
-    service.toggled(read.uuid, active: false)
     #expect(!service.isActive(read, items: outbox.items))
     // The row says it, so the card does not.
     #expect(!GearServiceCardContent.hasPendingWrite(outbox.items, gearItem: Self.item))
+
+    world.online()
+    outbox.syncNow()
+    await outbox.settled()
+    #expect(outbox.items.isEmpty)
     // Landed, and the list not yet read again.
-    #expect(!service.isActive(read, items: []))
-    service.schedulesRead()
-    #expect(service.isActive(read, items: []))
+    #expect(!service.isActive(read, items: outbox.items))
+    service.schedulesRead([read])
+    #expect(service.isActive(read, items: outbox.items))
+  }
+
+  @Test func aDiscardedPauseLeavesTheServersCopy() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.offline()
+    let outbox = world.outbox()
+    let service = GearServiceModel(session: world.session, gearItemUUID: Self.item)
+    let read = try schedule()
+    let pause = try outbox.queue(
+      .updateServiceSchedule(
+        .server(read.uuid), gearItem: gearItem, GearServiceScheduleUpdate(active: false)))
+    #expect(!service.isActive(read, items: outbox.items))
+
+    outbox.discard(pause.id)
+    #expect(outbox.items.isEmpty)
+    #expect(service.isActive(read, items: outbox.items))
+    await outbox.settled()
   }
 
   @Test func aQueuedServiceWriteForTheItemIsSaidOnItsCard() async throws {
