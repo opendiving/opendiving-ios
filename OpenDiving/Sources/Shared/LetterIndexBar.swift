@@ -1,11 +1,12 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The column of letters at a list's trailing edge, as the phone's contacts draw it: a touch on a
-/// letter, or a finger dragged down the column, picks it, with a tick for each letter crossed.
-/// VoiceOver reads it as one control, swiped up and down a letter at a time.
+/// The column of letters at a list's trailing edge, as the phone's contacts draw it: every letter,
+/// those the list has nothing under muted. A touch on a letter, or a finger dragged down the
+/// column, scrolls to it or to the nearest letter with items, with a tick for each letter crossed.
+/// VoiceOver reads it as one control, swiped up and down through the letters that have items.
 struct LetterIndexBar: View {
-  let letters: [String]
+  let column: LetterIndexColumn
   let onSelect: (String) -> Void
 
   @State private var selected: String?
@@ -13,9 +14,11 @@ struct LetterIndexBar: View {
 
   /// Each letter's share of the column, less where the screen leaves too little for them all.
   static let letterHeight: CGFloat = 16
-  static let width: CGFloat = 20
+  /// The page's margin, so the column stands beside a card rather than over its rows.
+  static let width: CGFloat = 16
 
   var body: some View {
+    let letters = column.letters
     GeometryReader { proxy in
       let rowHeight = min(Self.letterHeight, proxy.size.height / CGFloat(max(letters.count, 1)))
       VStack(spacing: 0) {
@@ -23,7 +26,9 @@ struct LetterIndexBar: View {
           Text(letter)
             .font(.caption2.weight(.semibold))
             .minimumScaleFactor(0.5)
-            .foregroundStyle(Color.accentText)
+            .foregroundStyle(
+              column.hasItems(letter) ? AnyShapeStyle(Color.accentText) : AnyShapeStyle(.tertiary)
+            )
             .frame(width: Self.width, height: rowHeight)
         }
       }
@@ -46,33 +51,36 @@ struct LetterIndexBar: View {
     .sensoryFeedback(.selection, trigger: selected) { _, new in new != nil }
     .accessibilityElement()
     .accessibilityLabel("Index")
-    .accessibilityValue(selected ?? letters.first ?? "")
+    .accessibilityValue(selected.flatMap(column.target(of:)) ?? column.filedLetters.first ?? "")
     .accessibilityAdjustableAction { direction in
+      let filed = column.filedLetters
       // With nothing picked the value reads the first letter, so a step moves on from it.
-      let current = selected.flatMap { letters.firstIndex(of: $0) } ?? 0
+      let current = selected.flatMap(column.target(of:)).flatMap { filed.firstIndex(of: $0) } ?? 0
       let next: Int
       switch direction {
       case .increment: next = current + 1
       case .decrement: next = current - 1
       @unknown default: return
       }
-      guard letters.indices.contains(next) else { return }
-      pick(letters[next])
+      guard filed.indices.contains(next) else { return }
+      pick(filed[next])
     }
   }
 
   private func pick(_ letter: String?) {
     guard let letter, letter != selected else { return }
     selected = letter
-    onSelect(letter)
+    if let target = column.target(of: letter) { onSelect(target) }
   }
 }
 
 #Preview {
   HStack {
     Spacer()
-    LetterIndexBar(letters: ["A", "B", "D", "K", "M", "S", "Z", "#"]) { _ in }
+    LetterIndexBar(column: LetterIndexColumn(filed: ["A", "B", "D", "K", "M", "S", "Z", "#"])) {
+      _ in
+    }
   }
-  .frame(height: 400)
+  .frame(height: 500)
   .background(Color.pageBackground)
 }

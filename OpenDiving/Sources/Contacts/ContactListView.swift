@@ -2,9 +2,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// More's *Contacts*: what is waiting to sync, then the diver's contacts on one card under the
-/// letters they start with, an index of those letters at the trailing edge to jump between them.
-/// Each opens the contact's form, as a contact has no page, and holds *Delete* under a long press —
-/// the pages the phone has shown first, from its copy.
+/// letters they start with, an index of every letter at the trailing edge to jump between them.
+/// Each opens the contact's form, as a contact has no page — the pages the phone has shown first,
+/// from its copy.
 struct ContactListView: View {
   @Environment(Session.self) private var session
 
@@ -35,10 +35,7 @@ private enum ContactFormRoute: Hashable {
 
 private struct ContactListContent: View {
   @State var model: ContactListModel
-  @Environment(OutboxModel.self) private var outbox
   @State private var route: ContactFormRoute?
-  @State private var deleting: ContactRead?
-  @State private var queueError: String?
 
   var body: some View {
     let sections =
@@ -53,16 +50,14 @@ private struct ContactListContent: View {
           contacts(sections)
         }
         .padding()
-        // The column of letters takes a gutter of its own, as the phone's contacts narrow theirs.
-        .padding(.trailing, indexed ? LetterIndexBar.width - 4 : 0)
       }
+      // In the page's trailing margin, beside the card rather than over its rows.
       .overlay(alignment: .trailing) {
         if indexed {
-          LetterIndexBar(letters: sections.map(\.letter)) { letter in
+          LetterIndexBar(column: LetterIndexColumn(filed: sections.map(\.letter))) { letter in
             scroller.scrollTo(letter, anchor: .top)
           }
           .padding(.vertical, 16)
-          .padding(.trailing, 2)
         }
       }
     }
@@ -80,25 +75,6 @@ private struct ContactListContent: View {
       case .create: ContactFormView(mode: .create)
       case .edit(let contact): ContactFormView(mode: .edit(contact))
       }
-    }
-    .confirmationDialog(
-      "Delete contact",
-      isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-      titleVisibility: .visible, presenting: deleting
-    ) { contact in
-      Button("Delete", role: .destructive) {
-        queueError = ContactListModel.delete(contact.uuid, in: outbox)
-      }
-    } message: { _ in
-      Text(RecordDeletionText.contact)
-    }
-    .alert(
-      "Not saved",
-      isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
-    ) {
-      Button("OK") {}
-    } message: {
-      Text(queueError ?? "")
     }
     .task { await model.show() }
   }
@@ -126,30 +102,23 @@ private struct ContactListContent: View {
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
       }
-      // Lazy, so the last row asks for the next page only as it scrolls into view.
-      LazyVStack(alignment: .leading, spacing: 0) {
+      // Not lazy, so the index can scroll to a letter that has not been drawn yet; the model
+      // reads every page rather than the rows asking for the next.
+      VStack(spacing: 0) {
         ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
           if index > 0 { Divider() }
-          Text(section.letter)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .accessibilityAddTraits(.isHeader)
+          ListLetterHeader(letter: section.letter)
             .id(section.letter)
-          ForEach(section.items) { contact in
-            Divider().padding(.leading, 12)
+          ForEach(Array(section.items.enumerated()), id: \.element.id) { index, contact in
+            if index > 0 {
+              Divider().padding(.leading, ListRowIcon.textInset)
+            }
             Button {
               route = .edit(contact)
             } label: {
               ContactRow(content: .contact(contact))
             }
             .buttonStyle(.plain)
-            .contentShape(.contextMenuPreview, .formSection)
-            .contextMenu {
-              Button("Delete", systemImage: "trash", role: .destructive) { deleting = contact }
-            }
-            .task { await list.loadMore(after: contact) }
           }
         }
       }
@@ -160,25 +129,27 @@ private struct ContactListContent: View {
   }
 }
 
-/// A contact's row on the list's card: its name with its roles beside it, its city under them.
+/// A contact's row on the list's card: the building icon in its circle, then its name with its
+/// roles beside it, its city under them.
 private struct ContactRow: View {
   let content: PlainCardContent
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      FlowLayout(spacing: 8, lineSpacing: 4) {
-        Text(content.title)
-          .font(.headline)
-        ForEach(Array(content.badges.enumerated()), id: \.offset) { _, badge in
-          BadgeView(badge)
+    HStack(spacing: 12) {
+      ListRowIcon(icon: .building2)
+      VStack(alignment: .leading, spacing: 2) {
+        FlowLayout(spacing: 8, lineSpacing: 4) {
+          Text(content.title)
+            .font(.headline)
+          ForEach(Array(content.badges.enumerated()), id: \.offset) { _, badge in
+            BadgeView(badge)
+          }
         }
+        FactsLine(facts: content.facts, color: .primary)
       }
-      FactsLine(facts: content.facts, color: .primary)
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(12)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    // A long press lifts the row alone, which takes a fill of its own.
-    .background(Color.cardFill)
     .contentShape(.rect)
     .accessibilityElement(children: .combine)
   }

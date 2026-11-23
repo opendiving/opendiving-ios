@@ -45,8 +45,6 @@ struct PeopleReadsTests {
 
   /// The first person of `people-page`.
   private static let ana = UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d")!
-  /// The first contact of `contacts-page`.
-  private static let bigBlue = UUID(uuidString: "01a0d9e9-bdd0-793a-829f-5dc90613f84f")!
 
   @Test func bothListsShowOfflineAndReadOnceARouteAppears() async throws {
     let first = try world()
@@ -132,6 +130,27 @@ struct PeopleReadsTests {
     #expect(model.sections.map(\.letter) == ["A", "B", "C", "Z"])
   }
 
+  @Test func theContactsReadEveryPageForTheirLetters() async throws {
+    let world = try OutboxWorld()
+    let first = try KitFixture.text("contacts-page")
+      .replacingOccurrences(of: #""has_more": false"#, with: #""has_more": true"#)
+    let second = try KitFixture.text("contacts-page")
+      .replacingOccurrences(of: "01a0d9e9", with: "02a0d9e9")
+      .replacingOccurrences(of: "Big Blue Tech", with: "Zenobia Wreck Tours")
+    world.server.override { request, _ in
+      guard request.route == "GET contacts" else { return nil }
+      return .json(request.url?.query?.contains("page=2") == true ? second : first)
+    }
+    try await world.load()
+    let model = ContactListModel(session: world.session)
+    let showing = Task { await model.show() }
+    while model.contacts.items.count < 4 { await Task.yield() }
+    showing.cancel()
+    #expect(!model.contacts.hasMore)
+    #expect(
+      LetterIndex.sections(model.contacts.items) { $0.name }.map(\.letter) == ["B", "E", "Z"])
+  }
+
   @Test func aQueuedDeleteTakesThePersonsRowAtOnce() async throws {
     let world = try world()
     try await world.load()
@@ -140,16 +159,6 @@ struct PeopleReadsTests {
     #expect(model.people.items.contains { $0.uuid == Self.ana })
     #expect(PeopleListModel.delete(Self.ana, in: world.outbox()) == nil)
     #expect(!model.people.items.contains { $0.uuid == Self.ana })
-  }
-
-  @Test func aQueuedDeleteTakesTheContactsRowAtOnce() async throws {
-    let world = try world()
-    try await world.load()
-    let model = ContactListModel(session: world.session)
-    await model.contacts.load()
-    #expect(model.contacts.items.contains { $0.uuid == Self.bigBlue })
-    #expect(ContactListModel.delete(Self.bigBlue, in: world.outbox()) == nil)
-    #expect(!model.contacts.items.contains { $0.uuid == Self.bigBlue })
   }
 
   @Test func thePageAsksForTheDivesThatNameThem() async throws {

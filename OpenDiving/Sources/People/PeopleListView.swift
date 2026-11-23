@@ -2,9 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// More's *People*: what is waiting to sync, then the diver's people on one card, filed under
-/// their letters with an index of them down the edge as Contacts has, each opening their page and
-/// holding *Edit* and *Delete* under a long press — the pages the phone has shown first, from its
-/// copy.
+/// their letters with an index of every letter down the edge as Contacts has, each opening their
+/// page — the pages the phone has shown first, from its copy.
 struct PeopleListView: View {
   @Environment(Session.self) private var session
 
@@ -26,21 +25,13 @@ extension PeopleListView {
   }
 }
 
-/// Where the list pushes a person's form.
-private enum PersonFormRoute: Hashable {
-  case create
-  case edit(PersonRead)
-}
-
 private struct PeopleListContent: View {
   @State var model: PeopleListModel
-  @Environment(OutboxModel.self) private var outbox
-  @State private var route: PersonFormRoute?
-  @State private var deleting: PersonRead?
-  @State private var queueError: String?
+  @State private var creating = false
 
   var body: some View {
     let sections = model.people.phase == .loaded ? model.sections : []
+    let indexed = sections.count > 1
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(spacing: 12) {
@@ -53,10 +44,11 @@ private struct PeopleListContent: View {
       }
       // In the page's trailing margin, beside the card rather than over its rows.
       .overlay(alignment: .trailing) {
-        if !sections.isEmpty {
-          SectionIndexBar(letters: sections.map(\.letter)) { letter in
+        if indexed {
+          LetterIndexBar(column: LetterIndexColumn(filed: sections.map(\.letter))) { letter in
             proxy.scrollTo(letter, anchor: .top)
           }
+          .padding(.vertical, 16)
         }
       }
     }
@@ -66,34 +58,10 @@ private struct PeopleListContent: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        Button("New person", systemImage: "plus") { route = .create }
+        Button("New person", systemImage: "plus") { creating = true }
       }
     }
-    .navigationDestination(item: $route) { route in
-      switch route {
-      case .create: PersonFormView(mode: .create)
-      case .edit(let person): PersonFormView(mode: .edit(person))
-      }
-    }
-    .confirmationDialog(
-      "Delete person",
-      isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-      titleVisibility: .visible, presenting: deleting
-    ) { person in
-      Button("Delete", role: .destructive) {
-        queueError = PeopleListModel.delete(person.uuid, in: outbox)
-      }
-    } message: { _ in
-      Text(RecordDeletionText.person)
-    }
-    .alert(
-      "Not saved",
-      isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
-    ) {
-      Button("OK") {}
-    } message: {
-      Text(queueError ?? "")
-    }
+    .navigationDestination(isPresented: $creating) { PersonFormView(mode: .create) }
     .task { await model.show() }
   }
 
@@ -113,7 +81,7 @@ private struct PeopleListContent: View {
       } description: {
         Text(PeopleListView.emptyMessage)
       } actions: {
-        Button(PeopleListView.emptyAction, systemImage: "plus") { route = .create }
+        Button(PeopleListView.emptyAction, systemImage: "plus") { creating = true }
           .brandProminentButton()
       }
     case .loaded:
@@ -125,11 +93,11 @@ private struct PeopleListContent: View {
       VStack(spacing: 0) {
         ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
           if index > 0 { Divider() }
-          PeopleLetterHeader(letter: section.letter)
+          ListLetterHeader(letter: section.letter)
             .id(section.letter)
           ForEach(Array(section.people.enumerated()), id: \.element.id) { index, person in
             if index > 0 {
-              Divider().padding(.leading, PersonListRow.textInset)
+              Divider().padding(.leading, ListRowIcon.textInset)
             }
             NavigationLink {
               PersonDetailView(personUUID: person.uuid)
@@ -137,11 +105,6 @@ private struct PeopleListContent: View {
               PersonListRow(content: .person(person))
             }
             .buttonStyle(.plain)
-            .contentShape(.contextMenuPreview, .formSection)
-            .contextMenu {
-              Button("Edit", systemImage: "pencil") { route = .edit(person) }
-              Button("Delete", systemImage: "trash", role: .destructive) { deleting = person }
-            }
           }
         }
       }
@@ -152,36 +115,14 @@ private struct PeopleListContent: View {
   }
 }
 
-/// The letter a run of the card's rows is filed under.
-private struct PeopleLetterHeader: View {
-  let letter: String
-
-  var body: some View {
-    Text(letter)
-      .font(.subheadline.weight(.semibold))
-      .foregroundStyle(.secondary)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 12)
-      .padding(.top, 10)
-      .padding(.bottom, 2)
-      .accessibilityAddTraits(.isHeader)
-  }
-}
-
 /// A person's row on the card: the user icon in its circle, then their name over the linked
 /// account's username and how many dives name them.
 private struct PersonListRow: View {
   let content: PlainCardContent
 
-  private static let iconSide: CGFloat = 36
-  /// Where the row's text starts, which the rule between two rows starts under.
-  static let textInset: CGFloat = 12 + iconSide + 12
-
   var body: some View {
     HStack(spacing: 12) {
-      UserAvatarView(initials: nil, picture: nil, side: Self.iconSide)
-        .foregroundStyle(.secondary)
-        .background(Color(.tertiarySystemFill), in: Circle())
+      ListRowIcon(icon: .user)
       VStack(alignment: .leading, spacing: 2) {
         Text(content.title)
           .font(.headline)
@@ -190,8 +131,6 @@ private struct PersonListRow: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(12)
-    // A long press lifts the row alone, which takes a fill of its own.
-    .background(Color.cardFill)
     .contentShape(.rect)
     .accessibilityElement(children: .combine)
   }
