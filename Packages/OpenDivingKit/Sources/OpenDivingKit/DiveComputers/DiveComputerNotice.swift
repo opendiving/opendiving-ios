@@ -33,7 +33,7 @@ public struct DiveComputerNotice: Hashable, Sendable {
     }
   }
 
-  /// One per archive or walk and kind, so a repeat replaces rather than adds.
+  /// One per download and kind, so a repeat replaces rather than adds.
   public let id: String
   public let title: String
   public let body: String
@@ -49,14 +49,19 @@ public struct DiveComputerNotice: Hashable, Sendable {
     self.passive = passive
   }
 
-  /// What an applied import says: its new dives, the recordings it added to dives already in
-  /// the logbook, or both; nil where it did neither.
+  /// What a download's applied imports say together, from the rows they answered: their new
+  /// dives, the recordings they added to dives already in the logbook, or both; nil where they
+  /// did neither. A tap opens the one new dive, else the one import's page, else the Dive
+  /// Computers screen, where there are several imports and no page shows them all. `download`
+  /// names the download.
   public static func imported(
-    _ answer: LogbookImportRead, from computer: String, units: UnitSystem
+    _ rows: [LogbookImportDive], imports: [UUID], download: UUID, from computer: String,
+    units: UnitSystem
   ) -> DiveComputerNotice? {
-    let new = answer.dives.filter { $0.outcome == "new" }
-    let added = answer.dives.filter { $0.outcome == "modified" }
-    let id = "import-" + answer.uuid.uuidString.lowercased()
+    let new = rows.filter { $0.outcome == "new" }
+    let added = rows.filter { $0.outcome == "modified" }
+    let id = "import-" + download.uuidString.lowercased()
+    let page: Target = imports.count == 1 ? .importPage(imports[0]) : .diveComputers
     let downloaded = "Downloaded from \(computer)."
     if new.isEmpty {
       guard !added.isEmpty else { return nil }
@@ -68,7 +73,7 @@ public struct DiveComputerNotice: Hashable, Sendable {
         id: id,
         title: added.count == 1
           ? "Recording added to 1 dive" : "Recordings added to \(added.count) dives",
-        body: body, target: .importPage(answer.uuid), passive: true)
+        body: body, target: page, passive: true)
     }
     let title = new.count == 1 ? "1 new dive imported" : "\(new.count) new dives imported"
     let body: String
@@ -84,8 +89,8 @@ public struct DiveComputerNotice: Hashable, Sendable {
     }
     let target: Target =
       new.count == 1 && added.isEmpty
-      ? (new[0].uuid ?? new[0].dive?.dive.uuid).map(Target.dive) ?? .importPage(answer.uuid)
-      : .importPage(answer.uuid)
+      ? (new[0].uuid ?? new[0].dive?.dive.uuid).map(Target.dive) ?? page
+      : page
     return DiveComputerNotice(id: id, title: title, body: body, target: target)
   }
 

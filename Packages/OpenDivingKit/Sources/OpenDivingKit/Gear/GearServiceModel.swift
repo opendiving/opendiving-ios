@@ -31,6 +31,29 @@ public final class GearServiceModel {
     }
   }
 
+  /// Whether `schedule` runs as the diver last left it, which its row shows the moment they
+  /// pause or resume it: a toggle still in `items`, or landed and not yet read back, over the
+  /// server's copy. One the server refused, or the diver discarded, leaves the server's.
+  public func isActive(_ schedule: GearServiceScheduleRead, items: [OutboxItem]) -> Bool {
+    let ref = RecordRef.server(schedule.uuid)
+    for item in items.reversed() {
+      guard case .updateServiceSchedule(ref, _, let update) = item.operation,
+        let active = update.isActive
+      else { continue }
+      return item.isFailed ? schedule.isActive : active
+    }
+    if let landed = hub?.landedToggles[schedule.uuid],
+      schedules.readSince.map({ $0 < landed.at }) ?? true
+    {
+      return landed.active
+    }
+    return schedule.isActive
+  }
+
+  private var hub: OutboxHub? {
+    AccountStores.current(session).map { OutboxHub.hub(for: $0.directory) }
+  }
+
   public func rereadIfStale() async {
     async let schedules: Void = schedules.rereadIfStale()
     async let records: Void = records.rereadIfStale()

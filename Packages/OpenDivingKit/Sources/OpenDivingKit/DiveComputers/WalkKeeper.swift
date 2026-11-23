@@ -6,7 +6,14 @@ import Synchronization
 final class WalkKeeper: Sendable {
   let id: UUID
   private let store: DownloadStore
-  private let walk: Mutex<KeptWalk>
+  private let state: Mutex<State>
+
+  private struct State {
+    var walk: KeptWalk
+    /// Files named so far: a dive cut into an archive leaves the walk, so its count would name
+    /// a later dive's file after one still kept.
+    var files = 0
+  }
 
   init(store: DownloadStore, marked: Bool, startedAt: Date) {
     let walk = KeptWalk(
@@ -14,37 +21,54 @@ final class WalkKeeper: Sendable {
       announced: false, dives: [])
     id = walk.id
     self.store = store
-    self.walk = Mutex(walk)
+    state = Mutex(State(walk: walk))
   }
 
   /// Writes the dive's files, then the record naming them. A dive that cannot be written is not
   /// kept, as an archive that cannot be written is not.
   func keep(_ dive: DownloadedDive) {
-    walk.withLock { walk in
-      let kept = KeptDive(dive, file: "\(walk.dives.count).bin")
-      let folder = store.folder(of: walk.id)
+    state.withLock { state in
+      let kept = KeptDive(dive, file: "\(state.files).bin")
+      state.files += 1
+      let folder = store.folder(of: state.walk.id)
       do {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try kept.write(dive, into: folder)
-        var next = walk
+        var next = state.walk
         next.dives.append(kept)
         try store.save(next)
-        walk = next
+        state.walk = next
       } catch {}
     }
   }
 
   /// The computer the walk identified, and the zone its watch reported.
   func identified(record: String?, zone: TimeZone?) {
-    walk.withLock { walk in
-      var next = walk
+    state.withLock { state in
+      var next = state.walk
       if let record { next.record = record }
       if let zone { next.zone = zone }
-      guard next != walk else { return }
-      walk = next
-      if !walk.dives.isEmpty { try? store.save(walk) }
+      guard next != state.walk else { return }
+      state.walk = next
+      if !next.dives.isEmpty { try? store.save(next) }
     }
   }
 
-  var kept: KeptWalk { walk.withLock { $0 } }
+  /// The dives an archive now holds leave the walk: the record first, then their files. A
+  /// record left naming them is read past by the next launch, which leaves out what an archive
+  /// holds.
+  func archived(_ fingerprints: Set<Data>) {
+    state.withLock { state in
+      let leaving = state.walk.dives.filter {
+        Hex.data($0.fingerprint).map(fingerprints.contains) ?? false
+      }
+      guard !leaving.isEmpty else { return }
+      state.walk.dives.removeAll { leaving.contains($0) }
+      guard (try? store.save(state.walk)) != nil else { return }
+      let folder = store.folder(of: state.walk.id)
+      for dive in leaving { dive.remove(from: folder) }
+    }
+  }
+
+  var kept: KeptWalk { state.withLock { $0.walk } }
 }

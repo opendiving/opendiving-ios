@@ -1,7 +1,7 @@
 import Observation
 
-/// *Settings*: the server card with the servers screen, a row per section, signing out, and
-/// the app.
+/// *Settings*: a row per section, signing out, the app, and last the server card with the
+/// servers screen.
 @MainActor
 @Observable
 public final class SettingsModel {

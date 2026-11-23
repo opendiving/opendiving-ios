@@ -1,7 +1,8 @@
 import Foundation
 
-/// One walk's dives as one archive on the phone, waiting to be imported: the only copy of them
-/// until the server has answered for it.
+/// Dives of one walk as an archive on the phone, waiting to be imported: those the walk kept
+/// since its archive before, or those that waited for a time zone. The only copy of them until
+/// the server has answered for it.
 public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
   /// Why the archive is not sent again by itself.
   public enum Refusal: Codable, Hashable, Sendable {
@@ -27,11 +28,16 @@ public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
   public var refusal: Refusal?
   /// The diver has been told the dives were downloaded and wait — for a route or a sign-in.
   public var announced: Bool
+  /// The walk it was cut from, whose archives the diver hears of together once it has ended;
+  /// nil for one that is a download of its own.
+  public let walk: UUID?
+  /// Its place among its walk's archives, which go up in that order.
+  public let part: Int?
 
   init(
     id: UUID = UUID(), key: UUID = UUID(), filename: String, summary: DownloadSummary,
     record: String, dives: [UUID], receivedBeforeAccountKnown: Bool, refusal: Refusal? = nil,
-    announced: Bool = false
+    announced: Bool = false, walk: UUID? = nil, part: Int? = nil
   ) {
     self.id = id
     self.key = key
@@ -42,7 +48,12 @@ public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
     self.receivedBeforeAccountKnown = receivedBeforeAccountKnown
     self.refusal = refusal
     self.announced = announced
+    self.walk = walk
+    self.part = part
   }
+
+  /// What the diver hears of together: its walk's archives, or it alone.
+  var group: UUID { walk ?? id }
 }
 
 /// A walk's dives as they arrive, kept until they become an archive: a walk under way, one an

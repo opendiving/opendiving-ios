@@ -3,8 +3,9 @@ import Observation
 
 /// The downloads from the phone's dive computers, for the app's whole process: a walk started by
 /// the watch when a paired computer connects, or by the diver from the screen, each dive kept on
-/// the phone as it arrives, each walk's dives one archive imported at once, and a notification
-/// from the answer.
+/// the phone as it arrives and imported at once while the walk goes on, in archives that each
+/// carry what arrived since the one before, and one notification for the walk once it has ended
+/// and its dives are answered for.
 ///
 /// **One walk at a time.** A computer that connects while another is walked waits its turn. A
 /// diver's tap is not a connection that waits: a walk nobody started ends with what it kept and
@@ -114,6 +115,17 @@ public final class DiveComputerEngine {
   @ObservationIgnored private var keepingAnswer: Task<Void, Never>?
   @ObservationIgnored var uploading: Task<Void, Never>?
   @ObservationIgnored var uploadAgain = false
+  /// The walk whose dives go up while it runs, as far as it has come.
+  @ObservationIgnored var inFlight: WalkInFlight?
+  /// When this walk's last upload began, which the next waits ``uploadFloor`` after.
+  @ObservationIgnored var lastUploadBegan: Date?
+  /// The next turn of ``uploadFloor`` while a walk runs, an occasion to upload.
+  @ObservationIgnored var turn: Task<Void, Never>?
+  /// An archive being cut from the walk in flight.
+  @ObservationIgnored var cutting: Task<Void, Never>?
+  /// What the server answered for each download's archives in this process, until it is told.
+  @ObservationIgnored var imported: [UUID: ImportedDownload] = [:]
+  @ObservationIgnored let sleep: @Sendable (Date) async throws -> Void
   @ObservationIgnored private var moments: Task<Void, Never>?
   /// The app is in the foreground, where a walk waiting for a lost link reopens it itself.
   @ObservationIgnored private var foreground = true
@@ -128,14 +140,17 @@ public final class DiveComputerEngine {
   /// before — the device's asks for Bluetooth. `loadAccount` loads the account quietly, for an
   /// upload in a process that has not loaded it. `workFolder` is where archives are written
   /// before they are kept; `now` and `zone` are the clock and the phone's zone, which a test
-  /// fixes.
+  /// fixes, and `sleep` waits until that clock reads a moment.
   public init(
     session: Session, makeLink: @escaping () -> any DiveComputerLink,
     generator: ComputerArchiveWriter.Generator, watch: DiveComputerWatch? = nil,
     notifier: (any DiveComputerNotifier)? = nil, wake: (any ServerWake)? = nil,
     loadAccount: @escaping () async -> Void = {}, workFolder: URL? = nil,
     now: @escaping @Sendable () -> Date = { Date() }, zone: TimeZone = .current,
-    waitLimit: Duration = automaticWaitLimit
+    waitLimit: Duration = automaticWaitLimit,
+    sleep: @escaping @Sendable (Date) async throws -> Void = {
+      try await Task.sleep(for: .seconds(max(0, $0.timeIntervalSinceNow)))
+    }
   ) {
     self.session = session
     self.makeLink = makeLink
@@ -152,6 +167,7 @@ public final class DiveComputerEngine {
     self.now = now
     phoneZone = zone
     self.waitLimit = waitLimit
+    self.sleep = sleep
     // Before the marks, which read an account's whole records as progress alone; here rather
     // than on a session change, so a cold start offline can download.
     DiveComputerStore.adoptAccountRecords(store: session.store)
@@ -416,6 +432,13 @@ public final class DiveComputerEngine {
       return waitingDives.contains(uuid) || delivered.contains(uuid)
     }
     let keeper = WalkKeeper(store: downloads, marked: marked, startedAt: now())
+    inFlight = WalkInFlight(keeper: keeper, downloads: downloads, store: store, marked: marked)
+    lastUploadBegan = nil
+    defer {
+      inFlight = nil
+      turn?.cancel()
+      turn = nil
+    }
     var watchZone: TimeZone?
     var dives: [DownloadedDive] = []
     var newest: Data?
@@ -436,6 +459,7 @@ public final class DiveComputerEngine {
       switch event {
       case .identified(let found):
         walk.identity = found
+        inFlight?.identity = found
         // A walk nobody started pairs nothing: the computer it opened may not be the paired one.
         if walk.watched || store.record(family: found.family, serial: found.serial) != nil {
           pair(found, computer: walk.computer, store: store, marked: marked)
@@ -446,6 +470,7 @@ public final class DiveComputerEngine {
         if walk.estimate.measured == nil { walk.estimate.kept = paired?.downloadPace }
       case .watchZone(let zone):
         watchZone = zone
+        inFlight?.watchZone = zone
         keeper.identified(record: nil, zone: zone)
       case .busy(.reported):
         walk.computerBusy = true
@@ -490,6 +515,8 @@ public final class DiveComputerEngine {
         newest = newest ?? dive.fingerprint
         dives.append(dive)
         walk.identity = walk.identity ?? dive.identity
+        inFlight?.identity = walk.identity
+        inFlight?.pending.append(dive)
         walk.divesDownloaded = dives.count
         walk.otherAppHandshaking = false
         walk.estimate.delivered(dive.fingerprint, at: now())
@@ -508,6 +535,7 @@ public final class DiveComputerEngine {
           bound = bounded()
         }
         diveKept?()
+        await uploadWhileWalking()
       case .skipped(let fingerprint):
         newest = newest ?? fingerprint
         walk.estimate.skipped(fingerprint, at: now())
@@ -526,6 +554,11 @@ public final class DiveComputerEngine {
       }
     }
     bound?.cancel()
+    inFlight?.ended = true
+    await cutting?.value
+    // The dives no archive cut while the walk ran holds.
+    let left = inFlight?.pending ?? dives
+    let parts = inFlight?.parts ?? 0
     let kept = keeper.kept
     if end.kind == .unpaired {
       downloads.remove(walk: kept.id)
@@ -562,14 +595,9 @@ public final class DiveComputerEngine {
     }
 
     var token = await session.background.begin(name: "Keeping the dives just downloaded")
-    let needsZone = dives.filter { dive in
-      guard case .instant(let instant)? = dive.dive?.start, dive.loggedZone == nil else {
-        return false
-      }
-      return watchZone == nil || now().timeIntervalSince(instant) > Self.watchZoneHolds
-    }
+    let needsZone = left.filter { waitsForZone($0, watchZone: watchZone) }
     var instantZone = watchZone
-    var going = dives
+    var going = left
     if !needsZone.isEmpty, walk.watched {
       await session.background.end(token)
       walk.suggestedZone = watchZone ?? phoneZone
@@ -585,7 +613,7 @@ public final class DiveComputerEngine {
       token = await session.background.begin(name: "Keeping the dives just downloaded")
     } else if !needsZone.isEmpty {
       let apart = Set(needsZone.map(\.fingerprint))
-      going = dives.filter { !apart.contains($0.fingerprint) }
+      going = left.filter { !apart.contains($0.fingerprint) }
     }
 
     let recordID = record?.id ?? DiveComputerRecord(identity: identity).id
@@ -594,7 +622,7 @@ public final class DiveComputerEngine {
       ? nil
       : await archive(
         going, identity: identity, record: recordID, instantZone: instantZone, marked: marked,
-        into: downloads)
+        walk: keeper.id, part: parts, into: downloads)
     let archived = failure == nil
     // The walk's record now holds only what waits for a zone, or goes.
     let heldWalk: KeptWalk? =
@@ -640,10 +668,21 @@ public final class DiveComputerEngine {
     }
   }
 
-  /// Writes `dives` as one archive and keeps it in `downloads`; why not, where it was not kept.
-  private func archive(
+  /// A dive whose start is an instant with no logged zone, where the watch's zone does not stand
+  /// for it: it waits for the diver's answer.
+  func waitsForZone(_ dive: DownloadedDive, watchZone: TimeZone?) -> Bool {
+    guard case .instant(let instant)? = dive.dive?.start, dive.loggedZone == nil else {
+      return false
+    }
+    return watchZone == nil || now().timeIntervalSince(instant) > Self.watchZoneHolds
+  }
+
+  /// Writes `dives` as one archive and keeps it in `downloads`, as `part` of `walk` where it was
+  /// cut from one; why not, where it was not kept.
+  func archive(
     _ dives: [DownloadedDive], identity: DiveComputerIdentity, record: String,
-    instantZone: TimeZone?, marked: Bool, into downloads: DownloadStore
+    instantZone: TimeZone?, marked: Bool, walk: UUID? = nil, part: Int? = nil,
+    into downloads: DownloadStore
   ) async -> (any Error)? {
     let folder = workFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -652,7 +691,7 @@ public final class DiveComputerEngine {
     let writer = writer
     do {
       let written = try await Task.detached { try writer.write(download, into: folder) }.value
-      _ = try downloads.add(written, record: record, marked: marked)
+      _ = try downloads.add(written, record: record, marked: marked, walk: walk, part: part)
       return nil
     } catch {
       return error
@@ -814,35 +853,39 @@ public final class DiveComputerEngine {
 
   // MARK: - What an ended process left
 
-  /// A walk an ended process left mid-way: its dives become an archive, the ones that would ask
-  /// the time-zone question held apart. The fingerprint stays, the walk not having completed.
+  /// A walk an ended process left mid-way: the dives no archive cut from it holds become its
+  /// last archive, the ones that would ask the time-zone question held apart. The fingerprint
+  /// stays, the walk not having completed.
   private func recoverEndedWalks() {
     guard let origin = session.state.origin else { return }
     for downloads in DownloadStore.all(store: session.store, origin: origin) {
       for kept in downloads.walks() where !kept.heldForZone {
-        let dives = downloads.dives(of: kept)
+        // A process ended between an archive's record and the walk's leaves a dive in both.
+        let cut = downloads.archives().filter { $0.walk == kept.id }
+        let archived = Set(cut.flatMap(\.dives))
+        let dives = downloads.dives(of: kept).filter {
+          !archived.contains(DiveComputerArchive.diveUUID($0.identity, fingerprint: $0.fingerprint))
+        }
         guard let identity = dives.first?.identity, let record = kept.record else {
           downloads.remove(walk: kept.id)
           continue
         }
         let watchZone = kept.zone
         let apart = Set(
-          dives.filter { dive in
-            guard case .instant(let instant)? = dive.dive?.start, dive.loggedZone == nil else {
-              return false
-            }
-            return watchZone == nil || now().timeIntervalSince(instant) > Self.watchZoneHolds
-          }.map(\.fingerprint))
+          dives.filter { waitsForZone($0, watchZone: watchZone) }.map(\.fingerprint))
         let going = dives.filter { !apart.contains($0.fingerprint) }
         let folder = workFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         if !going.isEmpty {
           let download = ComputerArchiveWriter.Download(
-            identity: identity, dives: going, moment: kept.startedAt, zone: phoneZone,
+            identity: identity, dives: going,
+            moment: cut.map(\.summary.downloadedAt).max() ?? kept.startedAt, zone: phoneZone,
             instantZone: watchZone)
+          let part = (cut.compactMap(\.part).max() ?? -1) + 1
           guard let written = try? writer.write(download, into: folder),
             (try? downloads.add(
-              written, record: record, marked: kept.receivedBeforeAccountKnown)) != nil
+              written, record: record, marked: kept.receivedBeforeAccountKnown, walk: kept.id,
+              part: part)) != nil
           else { continue }
         }
         if apart.isEmpty || hold(kept, keeping: apart, in: downloads) == nil {

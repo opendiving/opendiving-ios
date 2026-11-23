@@ -31,6 +31,8 @@ final class ImportServer: HTTPTransport {
   struct AtOnce: Hashable {
     var files: [String]
     var key: String?
+    /// Each file's bytes, in the order of ``files``.
+    var bytes: [Data] = []
   }
 
   private struct State {
@@ -47,6 +49,8 @@ final class ImportServer: HTTPTransport {
     var applyAtOnce: Answer = { _ in nil }
     var rows: [(outcome: String, start: String)] = [("new", "2026-09-08T15:17:38+03:00")]
     var ignoresApply = false
+    /// The uploads applied at once, by index, whose answer is lost after the import is made.
+    var lostAnswers: Set<Int> = []
     /// The parts each upload refuses as rows, past the files nothing reads.
     var refused: Set<Int> = []
     /// Answers an upload in place of the server when it does not answer nil.
@@ -87,6 +91,9 @@ final class ImportServer: HTTPTransport {
   func applyAtOnce(rows: [(outcome: String, start: String)]) {
     state.withLock { $0.rows = rows }
   }
+
+  /// Makes the imports of the uploads applied at once at these indices, then loses the answers.
+  func loseAnswers(at indices: Set<Int>) { state.withLock { $0.lostAnswers = indices } }
 
   /// A server from before `apply=true`, which answers with a pending import.
   func ignoreApply() { state.withLock { $0.ignoresApply = true } }
@@ -213,11 +220,13 @@ final class ImportServer: HTTPTransport {
         return .json(String(decoding: try JSONEncoder().encode(ordered), as: UTF8.self))
       }
     case "POST imports":
-      let names = try ReceivedPart.parts(of: request).compactMap(\.filename)
+      let files = try ReceivedPart.parts(of: request).filter { $0.filename != nil }
+      let names = files.compactMap(\.filename)
       let ignores = state.withLock { $0.ignoresApply }
       if !ignores, request.url?.query?.contains("apply=true") == true {
         return try await applyAtOnce(
-          names, key: request.value(forHTTPHeaderField: "Idempotency-Key"))
+          names, bytes: files.map(\.bytes),
+          key: request.value(forHTTPHeaderField: "Idempotency-Key"))
       }
       return try await upload(names)
     case "GET imports/pending":
@@ -280,15 +289,15 @@ final class ImportServer: HTTPTransport {
     }
   }
 
-  private func applyAtOnce(_ names: [String], key: String?) async throws
+  private func applyAtOnce(_ names: [String], bytes: [Data], key: String?) async throws
     -> StubTransport.Response
   {
     let (index, answer) = state.withLock { state in
-      state.atOnce.append(AtOnce(files: names, key: key))
+      state.atOnce.append(AtOnce(files: names, key: key, bytes: bytes))
       return (state.atOnce.count - 1, state.applyAtOnce)
     }
     if let answered = try await answer(index) { return answered }
-    return try state.withLock { state in
+    let response = try state.withLock { state -> StubTransport.Response in
       if let key, let made = state.keys[key] {
         guard state.held[made] != nil else {
           return .json(#"{"detail":"This import has since been deleted."}"#, status: 410)
@@ -300,6 +309,10 @@ final class ImportServer: HTTPTransport {
       if let key { state.keys[key] = uuid }
       return .json(try body(uuid, state), status: 201)
     }
+    if state.withLock({ $0.lostAnswers.contains(index) }) {
+      throw URLError(.networkConnectionLost)
+    }
+    return response
   }
 
   private static func pending(_ state: State) -> UUID? {
