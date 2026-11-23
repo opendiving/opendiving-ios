@@ -97,12 +97,13 @@ struct MapWeatherSea: View {
 }
 
 extension Color {
-  /// The colour a weather icon's tone is drawn in: the sun's yellow, or the teal of water, lighter
-  /// in the dark, where #008080 is too dim on dark glass.
+  /// The colour a weather icon's tone is drawn in: the sun's yellow, the teal of water, lighter in
+  /// the dark, where #008080 is too dim on dark glass, or the system's grey for a cloud.
   static func weather(_ tone: MapWeatherContent.Tone) -> Color {
     switch tone {
     case .sun: .sun
     case .water: .accentText
+    case .cloud: Color(.systemGray)
     }
   }
 }
