@@ -50,6 +50,13 @@ extension Color {
   /// The site finder's panel, and what stands pinned in it over what scrolls.
   static let panelFill = Color(.systemGroupedBackground)
 
+  /// A ticked row in a list to pick from: a step lighter than the system's selected grey in the
+  /// light, the system's own in the dark.
+  static let pickedRow = Color(
+    UIColor {
+      $0.userInterfaceStyle == .dark ? .systemGray4 : .systemGray5
+    })
+
   /// A card on such a page, set off from it in both appearances.
   static let cardFill = Color(.secondarySystemBackground)
 

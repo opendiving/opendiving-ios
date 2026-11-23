@@ -16,6 +16,18 @@ enum DivePreviewData {
       ]))
   }
 
+  /// A course for the course screens' previews: completed, with no people.
+  static var course: CourseRead {
+    try! APICoding.decoder().decode(CourseRead.self, from: Data(courseJSON.utf8))
+  }
+
+  private static let courseJSON: String =
+    #"{"uuid":"01a0a5da-6c85-770b-a009-8c7b4044c060","name":"Solo Diver","agency":"sdi","#
+    + #""agency_other":null,"status":"completed","start_date":"2025-09-24","end_date":"#
+    + #""2025-09-25","instructor_number":null,"notes":"","user_uuid":"#
+    + #""01a0a51f-afe3-7363-a0bc-b0d634c35923","contact_uuid":null,"people":[],"#
+    + #""created_at":"2026-09-15T16:15:50.405687Z"}"#
+
   /// The page's content, metric, with no people table.
   static var content: DiveDetailContent {
     let read = try! APICoding.decoder().decode(DiveReadWithMixtures.self, from: Data(dive.utf8))

@@ -71,15 +71,4 @@ public final class CourseDetailModel {
     async let dives: Void = self.dives.rereadIfStale()
     _ = await (certifications, dives)
   }
-
-  /// Queues the course's delete from its page; the reason it could not, where the outbox
-  /// refused it.
-  public static func delete(_ course: UUID, in outbox: OutboxModel) -> String? {
-    do {
-      try outbox.queue(.deleteCourse(.server(course)))
-      return nil
-    } catch {
-      return RecordSheetModel<CourseFormValues>.sentence(error)
-    }
-  }
 }
