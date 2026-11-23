@@ -174,6 +174,16 @@ struct GearContentTests {
     #expect(figure(overdue.figures, "Next service") == "Overdue")
   }
 
+  @Test func anArchivedItemsHeadStatesNoNextService() throws {
+    let archived = hero(
+      try item([
+        "dive_count": 1, "dive_time": 7200, "is_archived": true,
+        "service": [Self.schedule(["next_due_at_dive_time": 6300])],
+      ]))
+    #expect(figure(archived.figures, "Next service") == nil)
+    #expect(archived.figures.map(\.label) == ["Dives", "Dive time"])
+  }
+
   @Test func theNextServiceOnADateIsTheDate() throws {
     let content = hero(try item(["service": [Self.schedule(["next_due_on": "2027-01-05"])]]))
     #expect(figure(content.figures, "Next service") == "Jan 5, 2027")
