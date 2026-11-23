@@ -107,9 +107,6 @@ final class InvitationsServer: HTTPTransport {
     }
     return try state.withLock { state in
       if let failing = state.failing[route] { return failing }
-      let body = request.httpBody.flatMap {
-        try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
-      }
       func link() -> [String: Any]? {
         state.token.map { ["token": $0, "created_at": "2026-11-01T10:00:00Z"] }
       }
@@ -123,14 +120,6 @@ final class InvitationsServer: HTTPTransport {
           "data": Array(state.invitations[start..<end]), "total_count": state.invitations.count,
           "has_more": end < state.invitations.count, "page": page, "items_per_page": size,
         ])
-      case "POST user/invitations":
-        let email = (body?["email"] as? String ?? "").lowercased()
-        if state.invitations.contains(where: { $0["email"] as? String == email }) {
-          return .json(#"{"detail":"You have already invited that address."}"#, status: 409)
-        }
-        let row = Self.row(uuid: Self.uuid(state.invitations.count), email: email)
-        state.invitations.insert(row, at: 0)
-        return try Self.json(row, status: 201)
       case "GET user/invite-link":
         return try link().map { try Self.json($0) } ?? Self.notFound
       case "POST user/invite-link":

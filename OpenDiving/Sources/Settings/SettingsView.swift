@@ -82,7 +82,6 @@ private struct SettingsList: View {
     case .data: DataScreen()
     case .notifications: NotificationsScreen()
     case .preferences: PreferencesScreen()
-    case .invitations: InvitationsScreen()
     }
   }
 
