@@ -63,7 +63,7 @@ private struct TripDetailPage: View {
   @Environment(\.dismiss) private var dismiss
   @State private var tab = TripSection.info
   @State private var scroll = ScrollPosition(edge: .top)
-  @State private var tabsHeld = false
+  @State private var tabsStuck = false
   @State private var tabsTop: CGFloat = 0
   @State private var reselect = TabsReselect.head
   @State private var tabsBottom: CGFloat = 0
@@ -97,8 +97,8 @@ private struct TripDetailPage: View {
           }
           .padding(.horizontal)
         }
-        HoldingSectionTabs(
-          selection: $tab, isHeld: $tabsHeld, top: $tabsTop, title: tabTitle,
+        ScrollingSectionTabs(
+          selection: $tab, isStuck: $tabsStuck, top: $tabsTop, title: tabTitle,
           onReselect: scrollOnReselect
         )
         .onGeometryChange(for: CGFloat.self) {
@@ -147,18 +147,18 @@ private struct TripDetailPage: View {
     // A section chosen under the held tabs starts just under them, rather than wherever the
     // last one was scrolled to, which may be past the end of a shorter one.
     .onChange(of: tab) {
-      if tabsHeld, let offset = landings[.tabs] {
+      if tabsStuck, let offset = landings[.tabs] {
         scroll.scrollTo(y: offset)
       }
     }
     .overlay(alignment: .top) {
-      HeldSectionTabs(
-        selection: $tab, isHeld: tabsHeld, title: tabTitle, onReselect: scrollOnReselect)
+      StuckSectionTabs(
+        selection: $tab, isStuck: tabsStuck, title: tabTitle, onReselect: scrollOnReselect)
     }
     .heroUnderTopBar { await model.refresh() }
     .toolbar {
       ToolbarItemGroup(placement: .topBarTrailing) {
-        if tab == .dives, tabsHeld, trip.parts.count > 1 {
+        if tab == .dives, tabsStuck, trip.parts.count > 1 {
           partsMenu
         }
         NavigationLink {
