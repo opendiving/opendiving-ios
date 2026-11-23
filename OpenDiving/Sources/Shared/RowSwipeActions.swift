@@ -50,7 +50,7 @@ private struct RowSwipeActions: ViewModifier {
       } action: {
         rowWidth = $0
       }
-      .offset(x: offset)
+      .modifier(Slide(x: offset))
       .background(alignment: .leading) {
         buttons(leading, side: .leading, width: max(offset, 0))
       }
@@ -147,6 +147,22 @@ private struct RowSwipeActions: ViewModifier {
     .frame(width: width)
     .clipped()
     .accessibilityHidden(true)
+  }
+}
+
+/// The row's slide, one transform over all of it worked out at each frame. An `offset` animates
+/// each of the row's views on its own, so one the action puts in as the row slides back, a new
+/// badge, lands where the row comes to rest ahead of the rest.
+private struct Slide: GeometryEffect {
+  var x: CGFloat
+
+  var animatableData: CGFloat {
+    get { x }
+    set { x = newValue }
+  }
+
+  func effectValue(size: CGSize) -> ProjectionTransform {
+    ProjectionTransform(CGAffineTransform(translationX: x, y: 0))
   }
 }
 
