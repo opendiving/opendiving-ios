@@ -36,12 +36,15 @@ public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
   /// What the computer's list said of each of its dives, by the dive's uuid; nil for an archive
   /// an earlier build kept.
   public let facts: [UUID: ListedDiveFacts]?
+  /// Its dives the logbook holds without the computer's original download, by their uuids, each
+  /// with the logbook's dive that holds it; nil for an archive an earlier build kept.
+  public let updating: [UUID: UUID]?
 
   init(
     id: UUID = UUID(), key: UUID = UUID(), filename: String, summary: DownloadSummary,
     record: String, dives: [UUID], receivedBeforeAccountKnown: Bool, refusal: Refusal? = nil,
     announced: Bool = false, walk: UUID? = nil, part: Int? = nil,
-    facts: [UUID: ListedDiveFacts]? = nil
+    facts: [UUID: ListedDiveFacts]? = nil, updating: [UUID: UUID]? = nil
   ) {
     self.id = id
     self.key = key
@@ -55,6 +58,7 @@ public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
     self.walk = walk
     self.part = part
     self.facts = facts
+    self.updating = updating
   }
 
   /// What the diver hears of together: its walk's archives, or it alone.
@@ -79,6 +83,10 @@ struct KeptWalk: Codable, Hashable, Sendable, Identifiable {
   /// The diver has been told they wait.
   var announced: Bool
   var dives: [KeptDive]
+  /// The dives the walk takes because the logbook holds them without the computer's original
+  /// download, by their uuids, each with the logbook's dive that holds it; nil for a walk an
+  /// earlier build kept, or one that takes none.
+  var updating: [UUID: UUID]?
 
   var zone: TimeZone? {
     get {

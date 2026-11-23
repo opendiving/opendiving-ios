@@ -1,21 +1,23 @@
 import Foundation
 
 /// What the logbook holds of a walk's list: the server is asked, once in a walk, which of the
-/// dives the walk would otherwise take its logbook already holds, and the walk leaves those out
-/// before its first transfer. The server compares by its own import's rule, so the phone sends
-/// what the computer lists and compares nothing itself.
+/// dives the computer lists its logbook already holds, and whether each holding dive keeps the
+/// computer's original download. Before its first transfer the walk leaves out those held with
+/// it, and takes those held without it after the rest. The server compares by its own import's
+/// rule, so the phone sends what the computer lists and compares nothing itself.
 extension DiveComputerEngine {
   /// How long the walk waits for the server's answer before it goes on without one.
   static let knownDivesWait: TimeInterval = 10
 
-  /// The fingerprints of the listed dives the logbook of `account` holds. With no route, no
-  /// loaded account, a walk kept before the load, no listed start to send, a server without the
-  /// route, a refusal, or no answer within ``knownDivesWait``: nil, and the walk leaves out only
-  /// what the phone need not take. A list past ``KnownDivesQuery/maxDives`` is asked in parts.
+  /// The listed dives the logbook of `account` holds, by fingerprint, each with the server's row.
+  /// With no route, no loaded account, a walk kept before the load, no listed start to send, a
+  /// server without the route, a refusal, or no answer within ``knownDivesWait``: nil, and the
+  /// walk leaves out only what the phone need not take. A list past ``KnownDivesQuery/maxDives``
+  /// is asked in parts.
   func heldByLogbook(
     _ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download], account: UUID,
     marked: Bool
-  ) async -> Set<Data>? {
+  ) async -> [Data: KnownDive]? {
     guard !marked, !identity.serial.isEmpty, case .signedIn = session.state, session.accountLoaded,
       session.user?.uuid == account, session.connectivity.isRouteAvailable,
       let client = try? session.requireClient()
@@ -53,6 +55,10 @@ extension DiveComputerEngine {
       group.cancelAll()
       return first
     }
-    return known.map { Set($0.compactMap { fingerprints[$0.uuid] }) }
+    return known.map { rows in
+      Dictionary(
+        rows.compactMap { row in fingerprints[row.uuid].map { ($0, row) } },
+        uniquingKeysWith: { first, _ in first })
+    }
   }
 }

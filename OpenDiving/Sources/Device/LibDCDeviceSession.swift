@@ -36,9 +36,7 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     waitedForBluetooth: Int?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut:
-      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
-      Set<Data>,
+    decide: @escaping DiveComputerListing.Decide,
     keep: @escaping @Sendable (DownloadedDive) -> Void,
     into events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
@@ -59,7 +57,7 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     defer { if let resume { dc_buffer_free(resume) } }
     let walk = LibDCWalk(
       computer: computer, device: device, session: self, resume: resume, cancel: cancel,
-      lostLink: lostLink, lookup: lookup, waiting: waiting, leaveOut: leaveOut, keep: keep,
+      lostLink: lostLink, lookup: lookup, waiting: waiting, decide: decide, keep: keep,
       pairedOnly: pairedOnly,
       events: events)
     let end = walk.run()

@@ -131,7 +131,8 @@ public final class DiveComputerModel {
   public var identity: DiveComputerIdentity? { walk?.identity }
   public var divesDownloaded: Int { walk?.divesDownloaded ?? 0 }
   /// libdivecomputer's progress up to 1, where the family reports it; else, after a listing, the
-  /// dives downloaded over the new dives the listing named, as ``downloadingText`` counts them.
+  /// dives downloaded over those the listing said the walk takes, as ``downloadingText`` counts
+  /// them.
   /// Never below ``startingProgress``.
   public var progress: Double? { walk?.progress }
   /// The least of the bar, so a long first dive does not read as a download that has not begun.
@@ -172,8 +173,8 @@ public final class DiveComputerModel {
   /// The walk in flight is the diver's, which a tap does not replace.
   private var diverBusy: Bool { walk.map { $0.watched && $0.isBusy } ?? false }
 
-  /// *Downloading 2 of 3 new dives* while downloading after a listing, *Downloading dive 3*
-  /// without one.
+  /// *Downloading 2 of 3 new dives* while downloading after a listing, or *Downloading 2 of 41
+  /// dives* where the walk takes dives the logbook holds, *Downloading dive 3* without one.
   public var downloadingText: String? {
     guard phase == .downloading else { return nil }
     return walk?.downloadingText
@@ -188,9 +189,13 @@ public final class DiveComputerModel {
   }
 
   /// *3 new dives out of 11 on this computer*, or *11 dives on this computer* where the download
-  /// set no fingerprint: while downloading after a listing.
+  /// set no fingerprint, or *41 dives to download out of 55 on this computer* where it takes dives
+  /// the logbook holds: while downloading after a listing.
   public var countsText: String? {
     guard phase == .downloading, let listing else { return nil }
+    if listing.catchUp > 0 {
+      return DiveComputerText.toDownloadOnComputer(listing.newDives, of: listing.dives)
+    }
     return listedFromFingerprint
       ? DiveComputerText.newOnComputer(listing.newDives, of: listing.dives)
       : DiveComputerText.onComputer(listing.dives)

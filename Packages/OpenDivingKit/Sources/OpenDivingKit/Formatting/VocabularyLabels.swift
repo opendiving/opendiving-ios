@@ -172,10 +172,11 @@ public enum VocabularyLabels {
     "zip": "Zip",
     // A dive computer's original bytes, which the phone tags and the server reads.
     "libdivecomputer": "Dive computer original (.bin)",
-    // The import's key for any restored file this server does not read. The phone's downloads
-    // from before it tagged their originals are what carries it — a dive computer's bytes,
-    // kept as downloaded — so it is named for them; a restored file of another unread kind
-    // wears the same label.
+    // The import's key for any restored file this server does not read. What carries it in
+    // practice is a phone download from before the app tagged its originals, restored from an
+    // archive exported before the server labelled those it already held — a dive computer's
+    // bytes, kept as downloaded — so it is named for them; a restored file of another unread
+    // kind wears the same label.
     "divejson_import": "Dive computer original (.bin)",
   ]
 

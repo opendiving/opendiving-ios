@@ -47,6 +47,10 @@ public struct NauticSelection: Hashable, Sendable {
   /// The count, with the sports for the record: those the record remembered and those read,
   /// for the listed entries only.
   public let listing: DiveComputerListing
+  /// The listed entries counted as dives that the walk does not download among ``listing``'s,
+  /// newest first: those behind the fingerprint and those whose dive the phone need not take
+  /// again.
+  public let others: [DiveComputerListing.Download]
 
   /// The listed entries whose summary the walk reads: those `remembered` does not name, and those
   /// it names as a dive without the facts a summary gives, kept before they were read.
@@ -89,16 +93,30 @@ public struct NauticSelection: Hashable, Sendable {
       return NauticEntrySport(id: id, sport: sport, duration: duration, facts: facts)
     }
     let remembered = Dictionary(read.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    // An uncounted entry is left out: its download most often answers empty and yields nothing,
+    // which would leave it to come for the rest of the walk.
+    let downloads = entries.filter { $0.counted && $0.fate == .download }.map(\.id)
     listing = DiveComputerListing(
       dives: counted.count { $0 },
-      newDives: entries.count { $0.counted && $0.fate == .download },
+      newDives: downloads.count,
       sports: read,
-      // An uncounted entry is left out: its download most often answers empty and yields nothing,
-      // which would leave it to come for the rest of the walk.
-      downloads: entries.filter { $0.counted && $0.fate == .download }.map {
+      downloads: downloads.map {
         DiveComputerListing.Download(
-          fingerprint: Self.fingerprint($0.id), facts: Self.facts($0.id, remembered[$0.id]))
+          fingerprint: Self.fingerprint($0), facts: Self.facts($0, remembered[$0]))
       })
+    let taken = Set(downloads)
+    others = zip(ids, summaries).compactMap { id, summary in
+      guard !taken.contains(id), Self.counts(summary), Self.fate(summary) == .download else {
+        return nil
+      }
+      return DiveComputerListing.Download(
+        fingerprint: Self.fingerprint(id), facts: Self.facts(id, remembered[id]))
+    }
+  }
+
+  /// The ids of `ids`, the logbook's, newest first, whose fingerprints are in `catchUp`.
+  public static func taking(_ catchUp: Set<Data>, of ids: [UInt32]) -> [UInt32] {
+    ids.filter { catchUp.contains(fingerprint($0)) }
   }
 
   /// What the list says of an entry's dive: its start, the id, whatever its summary gave; the

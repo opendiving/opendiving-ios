@@ -34,12 +34,16 @@ public protocol DiveComputerLink: AnyObject {
   ///
   /// `waiting` says whether the dive of an identity and fingerprint is one the phone need not
   /// take again; a family that lists its entries leaves such an entry out and does not count it
-  /// new. Such a family then hands `leaveOut` the entries it would take, newest first, each with
-  /// what its list said of it, and waits for the answer before its first transfer, holding the
-  /// link: the fingerprints of entries left out the same way. A walk cancelled meanwhile stops
+  /// new. Such a family then hands `decide` the entries it would take, newest first, each with
+  /// what its list said of it, and every other entry it counts as a dive, and waits for the
+  /// answer before its first transfer, holding the link: the fingerprints of entries left out the
+  /// same way, and of listed dives to take after the rest, newest first, from wherever they sit
+  /// in the list. One of those it would have left out at its place in the walk is yielded there
+  /// as ``DiveComputerDownloadEvent/deferred(fingerprint:)``. A walk cancelled meanwhile stops
   /// waiting and takes nothing; a link lost meanwhile is found at the next transfer, as any lost
-  /// link is. The listing it yields counts what is left. `keep` is called with each dive, on the
-  /// walk's own thread, before the dive is yielded and before the next transfer starts.
+  /// link is. The listing it yields counts what is left, those taken after the rest among it.
+  /// `keep` is called with each dive, on the walk's own thread, before the dive is yielded and
+  /// before the next transfer starts.
   ///
   /// With `pairedOnly`, a computer whose family and serial `lookup` finds no record of is closed
   /// as soon as it is identified, with none of its entries listed or read, and the stream ends
@@ -57,9 +61,7 @@ public protocol DiveComputerLink: AnyObject {
     _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut:
-      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
-      Set<Data>,
+    decide: @escaping DiveComputerListing.Decide,
     keep: @escaping @Sendable (DownloadedDive) -> Void
   ) -> AsyncStream<DiveComputerDownloadEvent>
 

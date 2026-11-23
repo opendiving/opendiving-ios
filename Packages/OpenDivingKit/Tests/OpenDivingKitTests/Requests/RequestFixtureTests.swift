@@ -33,6 +33,7 @@ struct RequestFixtureTests {
     let known = try APICoding.decoder().decode(
       [KnownDive].self, from: KitFixture.data("dive-computers-known-dives"))
     #expect(known.map(\.uuid) == [query.dives[0].uuid])
+    #expect(known.map(\.hasOriginal) == [false])
   }
 
   @Test func diveSiteCreate() throws {

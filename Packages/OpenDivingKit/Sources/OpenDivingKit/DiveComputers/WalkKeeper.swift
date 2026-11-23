@@ -54,6 +54,18 @@ final class WalkKeeper: Sendable {
     }
   }
 
+  /// The dives the walk takes because the logbook holds them without the computer's original,
+  /// each with the dive that holds it: an ended process's archive of them still says so.
+  func updating(_ dives: [UUID: UUID]) {
+    state.withLock { state in
+      var next = state.walk
+      next.updating = dives.isEmpty ? nil : dives
+      guard next != state.walk else { return }
+      state.walk = next
+      if !next.dives.isEmpty { try? store.save(next) }
+    }
+  }
+
   /// The dives an archive now holds leave the walk: the record first, then their files. A
   /// record left naming them is read past by the next launch, which leaves out what an archive
   /// holds.
