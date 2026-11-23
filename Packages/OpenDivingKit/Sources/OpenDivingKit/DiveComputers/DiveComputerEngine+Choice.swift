@@ -65,6 +65,21 @@ extension DiveComputerEngine {
     return Set(declined.map(\.fingerprint))
   }
 
+  /// A watched walk whose list leaves nothing to take has nothing to ask, which counts as
+  /// answered: the link asks nothing of an empty list, and a computer left awaiting would never
+  /// download by itself.
+  func listedNothing(
+    _ walk: DiveComputerWalk, _ listing: DiveComputerListing, store: DiveComputerStore
+  ) {
+    guard walk.watched, !walk.choosing, !walk.cancelled, listing.newDives == 0,
+      listing.downloads.isEmpty, let identity = walk.identity,
+      var record = store.record(family: identity.family, serial: identity.serial),
+      record.awaitsQuestion
+    else { return }
+    record.answeredQuestion = true
+    try? store.save(record)
+  }
+
   /// *Choose dives*, at the question: the list in its place.
   public func showList(for walk: DiveComputerWalk) {
     guard walk === self.walk, walk.phase == .choosingDives, walk.choice?.stage == .question else {

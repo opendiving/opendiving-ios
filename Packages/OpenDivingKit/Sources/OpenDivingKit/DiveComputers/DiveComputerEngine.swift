@@ -524,6 +524,7 @@ public final class DiveComputerEngine {
         walk.linkLost = false
         takeBack()
       case .listing(let found):
+        listedNothing(walk, found, store: store)
         walk.listing = found
         walk.queue = found.downloads
         walk.computerBusy = false

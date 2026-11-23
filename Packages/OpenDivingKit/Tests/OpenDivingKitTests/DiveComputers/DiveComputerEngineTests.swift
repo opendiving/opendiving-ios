@@ -1911,6 +1911,22 @@ struct DiveComputerEngineTests {
     #expect(perdixRecord(session)?.answeredQuestion == true)
   }
 
+  /// A computer new to the account that lists nothing to take is answered, so a connection no
+  /// longer passes it by.
+  @Test func aWatchedWalkThatListsNothingCountsAsAnswered() async throws {
+    let session = try await session()
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 0, newDives: 0), [])
+    ]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+    #expect(walk.choice == nil)
+    let record = try #require(perdixRecord(session))
+    #expect(record.answeredQuestion)
+    #expect(!engine.awaitsQuestion(record, account: ImportServer.accountA))
+  }
+
   @Test func aWalkBrokenAfterAChoiceResumesWithWhatWasChosenAndAsksNothing() async throws {
     let session = try await session()
     let dives = listedPerdixDives(3)

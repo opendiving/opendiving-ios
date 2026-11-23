@@ -178,22 +178,21 @@ account's logbook holds, so each account keeps its own; shared, a second server'
 would stop at dives it never saw. It advances only after a completed walk with no empty read, once
 the walk's dives are kept on the phone for the account it began for — or, for a walk that skipped
 entries and delivered none, at its end; anything else leaves it, and the import's gates make dives
-walked again links. Whether the account has said which dives to download is kept beside it. Progress written before the load is removed, not moved, when the load names
+walked again links. Progress written before the load is removed, not moved, when the load names
 another account. Rejected: libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at
 import, which needs the upload to report back across a sign-out.
 
 ## A computer new to an account asks which dives to download
 
 Whether *Which dives do you want to download?* has been answered is the account's, kept with its
-progress for the computer: a computer awaits it on an account holding neither a fingerprint nor an
-answer, so a second account or server asks too. A watched walk asks once its list and the server's
-answer are in, holding the link, and the answer is written before the first transfer: the dives not
-chosen join those the server answered for until the fingerprint moves, and *Choose dives to
-download* sets the fingerprint aside until a walk completes, so a walk that breaks off resumes the
-choice unasked. A connection to a computer that awaits the question starts no walk. Rejected: a
-mark set at pairing, which is the phone's; taking every dive unwatched, the hours-long download the
-question offers a way out of; moving the fingerprint at the choice, which changes when it moves for
-every walk.
+progress: a computer awaits it on an account holding neither a fingerprint nor an answer, so a
+second account or server asks too. A watched walk asks once its list and the server's answer are in,
+holding the link, and writes the answer before the first transfer: the dives not chosen join those
+the server answered for until the fingerprint moves, and *Choose dives to download* sets the
+fingerprint aside until a walk completes, so a broken walk resumes the choice unasked. A connection
+to a computer that awaits the question starts no walk; a walk listing nothing counts as answered.
+Rejected: a mark set at pairing, which is the phone's; taking every dive unwatched, the hours-long
+download the question offers a way out of; moving the fingerprint at the choice.
 
 ## A computer that logs instants gets its zone per download
 
@@ -334,7 +333,7 @@ whose uuid the phone keeps under the walk's mark, in an archive or a walk, or th
 answered for or the diver did not choose since the fingerprint last moved; *Choose dives to
 download* leaves out only what the phone keeps. Then, before its first transfer, a walk with a route and a loaded account sends the rest's
 uuids and listed starts to `POST /dive-computers/known-dives` and leaves out what the logbook
-holds. A dive left out is counted neither new nor downloaded. Rejected: a random uuid, which
+holds. A dive left out counts neither new nor downloaded. Rejected: a random uuid, which
 leaves every dedupe to the recording gates; comparing on the phone, which writes the server's
 clock rule twice; downloading a waiting dive again.
 
