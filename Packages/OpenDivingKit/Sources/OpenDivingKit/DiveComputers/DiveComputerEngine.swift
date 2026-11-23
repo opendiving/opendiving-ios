@@ -573,10 +573,14 @@ public final class DiveComputerEngine {
         newest = newest ?? fingerprint
         walk.took(fingerprint)
         walk.estimate.skipped(fingerprint, at: now())
-        if let identity = walk.identity,
-          waitingDives.contains(DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint))
-        {
-          skippedWaiting += 1
+        if let identity = walk.identity {
+          let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
+          if waitingDives.contains(uuid) {
+            skippedWaiting += 1
+          } else if delivered.contains(uuid) {
+            // Passed over as answered for or not chosen, which says nothing of the logbook.
+            walk.logbookHoldsAll = false
+          }
         }
         walkedOne()
       case .finished(let finished):

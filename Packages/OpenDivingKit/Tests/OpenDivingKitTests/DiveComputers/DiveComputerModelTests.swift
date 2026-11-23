@@ -1385,9 +1385,9 @@ struct DiveComputerModelTests {
       bytes: Data("perdix dive \(fingerprint)".utf8), reading: .dive(F.perdixDive))
   }
 
-  /// A completed walk whose every new dive already waits on the phone says so, offers *Download
-  /// all dives*, and moves the fingerprint past them; one whose new dives the server has answered
-  /// for has nothing new.
+  /// A completed walk whose every new dive already waits on the phone says so, offers *Choose
+  /// dives to download*, and moves the fingerprint past them; one whose new dives the server has
+  /// answered for has nothing new.
   @Test func aWalkWhoseEveryNewDiveIsWaitingSaysSo() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()

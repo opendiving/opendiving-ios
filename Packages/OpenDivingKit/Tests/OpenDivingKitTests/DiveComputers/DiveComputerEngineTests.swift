@@ -2029,6 +2029,34 @@ struct DiveComputerEngineTests {
     #expect(empty.outcome?.sentence == DiveComputerText.noDives)
   }
 
+  /// A walk resuming a choice passes over the dives the diver did not choose: the logbook holding
+  /// the rest is not every dive on the computer.
+  @Test func aResumedChoiceWithDivesNotChosenDoesNotSayTheLogbookHoldsEveryDive() async throws {
+    let session = try await session()
+    var record = DiveComputerRecord(
+      identity: F.perdix, peripheral: F.perdixFound.id, fingerprint: F.fingerprint(9))
+    record.answeredQuestion = true
+    record.fingerprintSetAside = true
+    try computers(session).save(record)
+    let dives = listedPerdixDives(2)
+    try downloads(session).choose([], declined: [uuid(dives[0])], of: record.id)
+    server.holdInLogbook([uuid(dives[1])])
+    // As the link walks it: the dive not chosen passed over before the rest is listed.
+    link.scripts = [
+      [
+        .identified(F.perdix), .listing(listing([dives[1]])),
+        .skipped(fingerprint: dives[0].fingerprint),
+        .dive(dives[1]), .finished(.init(.complete)),
+      ]
+    ]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+    #expect(walk.divesDownloaded == 0)
+    #expect(walk.outcome?.kind != .inLogbook)
+    #expect(walk.outcome?.kind == .nothingNew)
+  }
+
   @Test func withNoAnswerTheListHoldsWhatThePhoneKnowsAndSaysSo() async throws {
     let session = try await session()
     route.isRouteAvailable = false
