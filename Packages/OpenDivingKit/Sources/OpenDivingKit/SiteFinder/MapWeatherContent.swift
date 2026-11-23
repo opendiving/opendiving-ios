@@ -12,8 +12,8 @@ public struct MapWeatherContent: Hashable, Sendable {
   }
 
   /// The sky's icon as layers drawn one over another, each in its own tone: a cloud with a sun or
-  /// with rain is drawn as its parts, so only the sun and the drops take a colour. Empty for a sky
-  /// the provider gave no code for that the table lists.
+  /// with rain is drawn as its parts, so the cloud is grey under a yellow sun or teal drops. Empty
+  /// for a sky the provider gave no code for that the table lists.
   public let sky: [IconLayer]
   /// `24°C`, whole.
   public let temperature: String?
@@ -164,7 +164,7 @@ public struct MapWeatherContent: Hashable, Sendable {
 
   /// A colour the bar's icons are drawn in, which the app names.
   public enum Tone: Hashable, Sendable {
-    case sun, water
+    case sun, water, cloud
   }
 
   /// One symbol of an icon drawn in layers, and its tone; nil, the text's colour.
@@ -180,12 +180,12 @@ public struct MapWeatherContent: Hashable, Sendable {
 
   static let skies: [String: [IconLayer]] = [
     "clear": [IconLayer(.sun, .sun)],
-    "partly_cloudy": [IconLayer(.cloudSunSun, .sun), IconLayer(.cloudSunCloud)],
-    "overcast": [IconLayer(.cloud)],
-    "rain": [IconLayer(.cloudRainWindCloud), IconLayer(.cloudRainWindDrops, .water)],
-    "storm": [IconLayer(.cloudLightning)],
-    "snow": [IconLayer(.cloudSnow)],
-    "fog": [IconLayer(.cloudFog)],
+    "partly_cloudy": [IconLayer(.cloudSunSun, .sun), IconLayer(.cloudSunCloud, .cloud)],
+    "overcast": [IconLayer(.cloud, .cloud)],
+    "rain": [IconLayer(.cloudRainWindCloud, .cloud), IconLayer(.cloudRainWindDrops, .water)],
+    "storm": [IconLayer(.cloudLightning, .cloud)],
+    "snow": [IconLayer(.cloudSnow, .cloud)],
+    "fog": [IconLayer(.cloudFog, .cloud)],
   ]
 
   /// The nearest of the sixteen compass points to a bearing, in words.

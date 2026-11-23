@@ -318,7 +318,7 @@ struct MapWeatherTests {
     #expect(MapWeatherContent(Self.read(empty), units: .metric) == nil)
   }
 
-  @Test func onlyTheSunAndTheDropsTakeAColour() throws {
+  @Test func theCloudIsGreyUnderTheSunAndTheDrops() throws {
     func sky(_ code: Int) throws -> [MapWeatherContent.IconLayer] {
       try #require(
         MapWeatherContent(
@@ -329,11 +329,11 @@ struct MapWeatherTests {
       ).sky
     }
     #expect(try sky(0).map(\.tone) == [.sun])
-    #expect(try sky(2).map(\.tone) == [.sun, nil])
-    #expect(try sky(61).map(\.tone) == [nil, .water])
+    #expect(try sky(2).map(\.tone) == [.sun, .cloud])
+    #expect(try sky(61).map(\.tone) == [.cloud, .water])
     #expect(try sky(61).map(\.icon) == [.cloudRainWindCloud, .cloudRainWindDrops])
-    #expect(try sky(3).map(\.tone) == [nil])
-    #expect(try sky(95).map(\.tone) == [nil])
+    #expect(try sky(3).map(\.tone) == [.cloud])
+    #expect(try sky(95).map(\.tone) == [.cloud])
   }
 
   @Test func everyCodeTheInstanceFillsHasAnIcon() {
