@@ -14,6 +14,10 @@ The commands — generate, build, test, format, install on a phone — are in `C
 its *Building and testing* section is this repo's test suite: run all of it before you hand a
 change over.
 
+To look at a change in the simulator against a local server, `scripts/simulator-sign-in.py` points
+the app at the server and signs it in — `CONTRIBUTING.md`, *Running in the simulator, signed in*.
+Never tap through the server and sign-in screens to get there, unless they are what changed.
+
 ## Layout
 
 - `project.yml` is the Xcode project. `OpenDiving.xcodeproj` is generated from it by

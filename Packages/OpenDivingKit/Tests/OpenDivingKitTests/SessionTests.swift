@@ -68,6 +68,34 @@ struct SessionTests {
     #expect(second.user?.username == "testdiver")
   }
 
+  @Test func aLaunchHandedASessionStartsSignedIn() throws {
+    let secrets = InMemorySecretStore()
+    let pointer = InMemoryActiveOriginStore()
+    try ServerStateStore(root: root, secrets: secrets, activeOrigin: pointer)
+      .start(LaunchSignIn(origin: origin, refreshToken: "handed"))
+    let session = Session(
+      transport: StubTransport { _ in .unauthorized }, secrets: secrets, activeOrigin: pointer,
+      background: NoBackgroundExecution(), applicationSupport: root,
+      userAgent: ClientHarness.userAgent)
+    #expect(session.state == .signedIn(origin))
+    #expect(session.savedServers == [origin])
+  }
+
+  @Test func aSessionHandedOverAnotherForgetsWhoseTheOtherWas() async throws {
+    let transport = StubTransport(routes: try Self.accountRoutes())
+    let (first, secrets, pointer) = session(
+      pointer: origin, refreshToken: "refresh-0", transport: transport)
+    try await first.resume()
+    try first.store.start(LaunchSignIn(origin: origin, refreshToken: "handed"))
+    let second = Session(
+      transport: transport, secrets: secrets, activeOrigin: pointer,
+      background: NoBackgroundExecution(), applicationSupport: root,
+      userAgent: ClientHarness.userAgent)
+    #expect(second.state == .signedIn(origin))
+    #expect(second.user == nil)
+    #expect(try secrets.secret(for: origin.description) == "handed")
+  }
+
   @Test func aRefusedRefreshSignsOutAndKeepsThePointer() async throws {
     let (session, secrets, pointer) = session(pointer: origin, refreshToken: "refresh-0")
     await #expect(throws: APIError.signedOut) { try await session.resume() }
