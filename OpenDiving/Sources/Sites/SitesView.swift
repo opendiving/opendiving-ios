@@ -125,8 +125,6 @@ private struct SitesFinder: View {
         .presentationBackground(.clear)
       }
     }
-    // Here rather than in the card, which is gone by the time the bar lands.
-    .sensoryFeedback(.impact, trigger: weatherMorph.switches)
     // A failed ask or a lost session takes the weather away with the card open: with nothing left
     // to draw, nor to close it from, the presentation ends rather than stay over the app.
     .onChange(of: weatherContent == nil) { _, isGone in

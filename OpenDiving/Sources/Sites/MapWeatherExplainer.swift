@@ -150,9 +150,11 @@ private struct MapWeatherMorphScene<Bar: View, Card: View>: View, Animatable {
   let bar: Bar
   let card: Card
 
+  /// Never short of the bar: the spring's bounce on the way back would otherwise shrink the
+  /// glass below the bar's size just before the bar stands in for it again.
   var animatableData: CGFloat {
     get { progress }
-    set { progress = newValue }
+    set { progress = max(newValue, 0) }
   }
 
   var body: some View {
