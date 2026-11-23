@@ -321,10 +321,9 @@ whose uuid the phone keeps under the walk's mark, in an archive or a walk, or th
 answered for since the fingerprint last moved; *Download all dives* leaves out only what the phone
 keeps. Then, before its first transfer, a walk with a route and a loaded account sends the rest's
 uuids and listed starts to `POST /dive-computers/known-dives` and leaves out what the logbook
-holds, holding the link up to 10 seconds; with no answer it goes on without. A dive left out is
-counted neither new nor downloaded. Rejected: a random uuid, which leaves every dedupe to the
-recording gates; comparing on the phone, which writes the server's clock rule a second time;
-downloading a waiting dive again.
+holds. A dive left out is counted neither new nor downloaded. Rejected: a random uuid, which
+leaves every dedupe to the recording gates; comparing on the phone, which writes the server's
+clock rule twice; downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 
