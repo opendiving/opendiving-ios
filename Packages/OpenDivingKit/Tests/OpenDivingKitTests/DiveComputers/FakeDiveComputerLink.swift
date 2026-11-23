@@ -97,6 +97,15 @@ final class FakeDiveComputerLink: DiveComputerLink {
       var later: [DownloadedDive] = []
       for (index, scripted) in script.enumerated() {
         var event = scripted
+        // The dives taken after the rest come before the end, and before a hold of it.
+        if case .finished = event, !cancelledDownloads.contains(download) {
+          for dive in later {
+            keep(dive)
+            continuation.yield(.dive(dive))
+            await Task.yield()
+          }
+          later = []
+        }
         if case .identified(let identity) = event {
           let record = lookup(identity.family, identity.serial.lowercased())
           fingerprintsSet.append(record?.fingerprint)
@@ -156,13 +165,6 @@ final class FakeDiveComputerLink: DiveComputerLink {
           event =
             later.contains { $0.fingerprint == dive.fingerprint }
             ? .deferred(fingerprint: dive.fingerprint) : .skipped(fingerprint: dive.fingerprint)
-        }
-        if case .finished = event, !cancelledDownloads.contains(download) {
-          for dive in later {
-            keep(dive)
-            continuation.yield(.dive(dive))
-            await Task.yield()
-          }
         }
         if case .finished(let end) = event, !logbook.isEmpty {
           event = .finished(

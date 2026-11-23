@@ -131,6 +131,93 @@ struct DiveComputerNoticeTests {
     #expect(recordings.target == .diveComputers)
   }
 
+  /// The dives of `read` at `indexes`, the ones the download took the computer's original to.
+  private func updating(_ read: LogbookImportRead, _ indexes: [Int]) -> Set<UUID> {
+    Set(indexes.compactMap { read.dives[$0].uuid })
+  }
+
+  @Test func updatedDivesAloneArePassiveAndNameTheirFacts() throws {
+    let one = try answer([("modified", "2026-10-12T09:41:00+03:00")])
+    let notice = try #require(
+      DiveComputerNotice.imported(
+        one.dives, imports: [one.uuid], download: UUID(), from: perdix,
+        updating: updating(one, [0]), units: .metric))
+    #expect(notice.title == "1 dive updated")
+    #expect(
+      notice.body == "12 October, 09:41 · 19.0 m · 51 min. Downloaded from Shearwater Perdix 3.")
+    #expect(notice.passive)
+    #expect(notice.target == .dive(try #require(one.dives.first?.uuid)))
+
+    let three = try answer([
+      ("modified", "2026-10-14T09:00:00+03:00"), ("modified", "2026-10-13T09:00:00+03:00"),
+      ("modified", "2026-10-12T09:00:00+03:00"), ("unchanged", "2026-10-01T09:00:00+03:00"),
+    ])
+    let several = try #require(
+      DiveComputerNotice.imported(
+        three.dives, imports: [three.uuid], download: UUID(), from: perdix,
+        updating: updating(three, [0, 1, 2, 3]), units: .metric))
+    #expect(several.title == "3 dives updated")
+    #expect(several.body == "12–14 October. Downloaded from Shearwater Perdix 3.")
+    #expect(several.passive)
+    #expect(several.target == .importPage(three.uuid))
+  }
+
+  @Test func updatedDivesBesideNewOnesOrRecordingsAreCountedInTheBody() throws {
+    let new = try answer([
+      ("new", "2026-10-12T09:41:00+03:00"), ("modified", "2026-10-11T09:41:00+03:00"),
+    ])
+    let withNew = try #require(
+      DiveComputerNotice.imported(
+        new.dives, imports: [new.uuid], download: UUID(), from: perdix,
+        updating: updating(new, [1]), units: .metric))
+    #expect(withNew.title == "1 new dive imported")
+    #expect(
+      withNew.body
+        == "12 October, 09:41 · 19.0 m · 51 min. 1 other dive updated."
+        + " Downloaded from Shearwater Perdix 3.")
+    #expect(withNew.target == .dive(try #require(new.dives.first?.uuid)))
+    #expect(!withNew.passive)
+
+    let mixed = try answer([
+      ("new", "2026-10-14T09:00:00+03:00"), ("new", "2026-10-13T09:00:00+03:00"),
+      ("modified", "2026-10-11T09:41:00+03:00"), ("modified", "2026-10-10T09:41:00+03:00"),
+      ("modified", "2026-10-09T09:41:00+03:00"), ("modified", "2026-10-08T09:41:00+03:00"),
+    ])
+    let all = try #require(
+      DiveComputerNotice.imported(
+        mixed.dives, imports: [mixed.uuid], download: UUID(), from: perdix,
+        updating: updating(mixed, [3, 4, 5]), units: .metric))
+    #expect(all.title == "2 new dives imported")
+    #expect(
+      all.body
+        == "A recording was added to 1 other dive. 3 other dives updated."
+        + " Downloaded from Shearwater Perdix 3.")
+
+    // Recordings alone: no *Downloaded from*, so the count ends the body.
+    let recorded = try answer([
+      ("modified", "2026-10-12T09:41:00+03:00"), ("modified", "2026-10-11T09:41:00+03:00"),
+    ])
+    let recordings = try #require(
+      DiveComputerNotice.imported(
+        recorded.dives, imports: [recorded.uuid], download: UUID(), from: perdix,
+        updating: updating(recorded, [1]), units: .metric))
+    #expect(recordings.title == "Recording added to 1 dive")
+    #expect(
+      recordings.body
+        == "Shearwater Perdix 3 also recorded your dive of 12 October, 09:41."
+        + " 1 other dive updated.")
+    #expect(recordings.passive)
+  }
+
+  /// A dive the download took the original to that the import left unchanged is told nowhere.
+  @Test func anUnchangedDiveIsNotUpdated() throws {
+    let read = try answer([("unchanged", "2026-10-12T09:41:00+03:00")])
+    #expect(
+      DiveComputerNotice.imported(
+        read.dives, imports: [read.uuid], download: UUID(), from: perdix,
+        updating: updating(read, [0]), units: .metric) == nil)
+  }
+
   @Test func anImportOfNothingNewSaysNothing() throws {
     let read = try answer([("unchanged", "2026-10-12T09:41:00+03:00"), ("skipped", "2026-10-11")])
     #expect(told(read, from: perdix, units: .metric) == nil)

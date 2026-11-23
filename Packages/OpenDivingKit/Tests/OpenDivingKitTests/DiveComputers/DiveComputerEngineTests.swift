@@ -2191,4 +2191,287 @@ struct DiveComputerEngineTests {
     #expect(server.atOnce.isEmpty)
     #expect(perdixRecord(session)?.awaitsQuestion == true)
   }
+
+  // MARK: - Dives the logbook holds without the computer's original
+
+  /// Pairs the Perdix with `fingerprint` set, its question answered.
+  private func pairPerdix(_ session: Session, fingerprint: Data?) throws {
+    var record = DiveComputerRecord(
+      identity: F.perdix, peripheral: F.perdixFound.id, fingerprint: fingerprint)
+    record.answeredQuestion = true
+    try computers(session).save(record)
+  }
+
+  private func listed(_ dives: [DownloadedDive]) -> [DiveComputerListing.Download] {
+    dives.map { .init(fingerprint: $0.fingerprint, facts: $0.facts ?? .init()) }
+  }
+
+  @Test func aWalkTakesWhatTheLogbookLacksThenWhatItHoldsWithoutTheOriginalNewestFirst()
+    async throws
+  {
+    let session = try await session()
+    // Newer than the fingerprint: 0 lacked, 1 held without its original, 2 held with it,
+    // 3 lacked. Behind it: 4 held without, 5 held with, 6 lacked, the fingerprint's own.
+    let dives = listedPerdixDives(7)
+    let new = Array(dives[0..<4])
+    try pairPerdix(session, fingerprint: dives[6].fingerprint)
+    let holding = [uuid(dives[1]): UUID(), uuid(dives[4]): UUID()]
+    server.holdInLogbook([uuid(dives[2]), uuid(dives[5])], withoutOriginal: holding)
+    link.listedBehind = listed(Array(dives[4...]))
+    link.catchUpDives = [dives[1], dives[4]]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(new), new)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+
+    // Every listed dive is asked about, behind the fingerprint too.
+    #expect(server.knownQueries.flatMap(\.dives).map(\.uuid) == dives.map(uuid))
+    #expect(link.leftOut == [[dives[1].fingerprint, dives[2].fingerprint]])
+    #expect(link.catchUps == [[dives[1].fingerprint, dives[4].fingerprint]])
+    #expect(walk.listing?.newDives == 4)
+    #expect(walk.listing?.catchUp == 2)
+    #expect(
+      try sentDives().flatMap { $0 }
+        == ["perdix dive 0", "perdix dive 3", "perdix dive 1", "perdix dive 4"])
+    #expect(walk.outcome?.sentence == "4 dives downloaded.")
+    #expect(perdixRecord(session)?.fingerprint == dives[0].fingerprint)
+    #expect(downloads(session).allSentForOriginal() == [uuid(dives[1]), uuid(dives[4])])
+  }
+
+  @Test func aHeldDiveBehindTheFingerprintIsTakenAndTheFingerprintStaysWhereItWas()
+    async throws
+  {
+    let session = try await session()
+    let dives = listedPerdixDives(2)
+    try pairPerdix(session, fingerprint: dives[0].fingerprint)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): UUID()])
+    link.listedBehind = listed(dives)
+    link.catchUpDives = [dives[1]]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 2, newDives: 0), [])
+    ]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+
+    #expect(walk.listing?.newDives == 1)
+    #expect(walk.downloadingText == "Downloading 1 of 1 dive")
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 1"])
+    #expect(walk.outcome?.sentence == "1 dive downloaded.")
+    let record = try #require(perdixRecord(session))
+    #expect(record.fingerprint == dives[0].fingerprint)
+    #expect(record.lastDownloaded == F.moment)
+  }
+
+  /// Where today's walk would leave a newer held dive out, at its place, the fingerprint moves as
+  /// it would have; the dive is taken after the rest.
+  @Test func aHeldDiveNewerThanTheFingerprintIsTakenAndTheFingerprintEndsWhereItWouldHave()
+    async throws
+  {
+    let session = try await session()
+    let dives = listedPerdixDives(2)
+    try pairPerdix(session, fingerprint: F.fingerprint(1))
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[0]): UUID()])
+    link.catchUpDives = [dives[0]]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 1", "perdix dive 0"])
+    #expect(walk.divesDownloaded == 2)
+    #expect(perdixRecord(session)?.fingerprint == dives[0].fingerprint)
+  }
+
+  /// A walk broken off while it takes held dives is not complete: the fingerprint stays.
+  @Test func aWalkBrokenOffDuringTheHeldDivesLeavesTheFingerprint() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(3)
+    try pairPerdix(session, fingerprint: dives[1].fingerprint)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[2]): UUID()])
+    link.listedBehind = listed(Array(dives[1...]))
+    link.catchUpDives = [dives[2]]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.perdix, listing: listing([dives[0]]), [dives[0]], end: .init(.cancelled))
+    ]
+    let engine = engine(session)
+    engine.start(F.perdixFound, choosing: false)
+    await engine.settled()
+    #expect(perdixRecord(session)?.fingerprint == dives[1].fingerprint)
+  }
+
+  /// A server that does not say whether a held dive has the computer's original is read as saying
+  /// it has: the walk takes what today's takes.
+  @Test func anAnswerThatDoesNotSayTakesWhatTodaysWalkTakes() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(3)
+    try pairPerdix(session, fingerprint: dives[2].fingerprint)
+    server.holdInLogbook([uuid(dives[1]), uuid(dives[2])])
+    link.listedBehind = listed([dives[2]])
+    link.catchUpDives = [dives[1], dives[2]]
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.perdix, listing: listing(Array(dives[..<2])), Array(dives[..<2]))
+    ]
+    let engine = engine(session)
+    engine.start(F.perdixFound, choosing: false)
+    await engine.settled()
+    #expect(link.catchUps == [[]])
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 0"])
+  }
+
+  @Test func withNoAnswerNoHeldDiveIsTaken() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(2)
+    try pairPerdix(session, fingerprint: dives[1].fingerprint)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): UUID()])
+    server.answerKnownDives { _ in .json(#"{"detail":"No"}"#, status: 500) }
+    link.listedBehind = listed([dives[1]])
+    link.catchUpDives = [dives[1]]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing([dives[0]]), [dives[0]])]
+    let engine = engine(session)
+    engine.start(F.perdixFound, choosing: false)
+    await engine.settled()
+    #expect(link.catchUps == [[]])
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 0"])
+  }
+
+  /// Once answered, a dive taken for its original is not taken for it again, though the server
+  /// still says it lacks it and the fingerprint has moved since.
+  @Test func aDiveSentForItsOriginalIsNotTakenAgain() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(3)
+    try pairPerdix(session, fingerprint: dives[2].fingerprint)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): UUID()])
+    link.listedBehind = listed(Array(dives[1...]))
+    link.catchUpDives = [dives[1]]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing([dives[0]]), [dives[0]])]
+    let engine = engine(session)
+    engine.start(F.perdixFound, choosing: false)
+    await engine.settled()
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 0", "perdix dive 1"])
+    #expect(perdixRecord(session)?.fingerprint == dives[0].fingerprint)
+
+    server.holdInLogbook([uuid(dives[0])], withoutOriginal: [uuid(dives[1]): UUID()])
+    link.listedBehind = listed(dives)
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 3, newDives: 0), [])
+    ]
+    let again = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+    #expect(server.knownQueries.count == 2)
+    #expect(link.catchUps.last == [])
+    #expect(again.divesDownloaded == 0)
+    #expect(server.atOnce.count == 2)
+  }
+
+  /// What an earlier build kept of a computer's progress reads as having sent nothing for the
+  /// original: a dive it answered for and one the diver did not choose are still taken for it.
+  @Test func progressFromAnEarlierBuildHasSentNothingForTheOriginal() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(3)
+    try pairPerdix(session, fingerprint: dives[0].fingerprint)
+    let record = DiveComputerRecord(identity: F.perdix).id
+    try downloads(session).choose([], declined: [uuid(dives[1])], of: record)
+    try downloads(session).deliver([uuid(dives[2])], of: record)
+    #expect(downloads(session).allSentForOriginal().isEmpty)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): UUID(), uuid(dives[2]): UUID()])
+    link.listedBehind = listed(dives)
+    link.catchUpDives = [dives[1], dives[2]]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 3, newDives: 0), [])
+    ]
+    let engine = engine(session)
+    engine.start(F.perdixFound, choosing: false)
+    await engine.settled()
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 1", "perdix dive 2"])
+  }
+
+  /// The question asks only of the dives the logbook lacks; *Only future dives* takes none of
+  /// them, and the held dive not chosen is taken all the same.
+  @Test func aHeldDiveTheDiverDidNotChooseIsTakenForItsOriginal() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(2)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): UUID()])
+    link.catchUpDives = [dives[1]]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    let choice = try await asked(walk)
+    #expect(choice.dives.map(\.fingerprint) == [dives[0].fingerprint])
+    engine.choose([], for: walk)
+    await engine.settled()
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 1"])
+    #expect(perdixRecord(session)?.answeredQuestion == true)
+  }
+
+  @Test func aConnectionToAComputerAwaitingItsQuestionTakesNoHeldDive() async throws {
+    let session = try await session()
+    try computers(session).save(
+      DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id))
+    let dives = listedPerdixDives(1)
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[0]): UUID()])
+    link.catchUpDives = dives
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    watcher.send(.connected(F.perdixFound.id))
+    await engine.settled()
+    #expect(link.downloads == 0)
+    #expect(server.atOnce.isEmpty)
+  }
+
+  /// The download's notification tells a held dive the import changed as updated, and one it
+  /// left unchanged not at all.
+  @Test(arguments: ["modified", "unchanged"])
+  func aHeldDiveTheImportChangedIsToldAsUpdated(_ outcome: String) async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(2)
+    try pairPerdix(session, fingerprint: dives[0].fingerprint)
+    let holding = UUID()
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): holding])
+    server.applyAtOnce(rows: [(outcome, "2026-10-24T09:14:07+03:00")], dives: [0: holding])
+    link.listedBehind = listed(dives)
+    link.catchUpDives = [dives[1]]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 2, newDives: 0), [])
+    ]
+    let engine = engine(session)
+    engine.start(F.perdixFound, choosing: false)
+    await engine.settled()
+    if outcome == "modified" {
+      #expect(notifier.posted.map(\.title) == ["1 dive updated"])
+      #expect(notifier.posted.first?.target == .dive(holding))
+      #expect(notifier.posted.first?.passive == true)
+    } else {
+      #expect(notifier.posted.isEmpty)
+    }
+    // Answered either way, so it is not taken for its original again.
+    #expect(downloads(session).allSentForOriginal() == [uuid(dives[1])])
+  }
+
+  /// A walk keeps on disk which of its dives it took for their original, as an ended process
+  /// leaves it for the next launch's archive, and its archive says so.
+  @Test func aWalkKeepsWhatItTookForTheOriginalAndItsArchiveSaysSo() async throws {
+    let session = try await session()
+    // The archive waits on the phone.
+    server.answerAtOnce { _ in .json(#"{"detail":"Busy"}"#, status: 503) }
+    let dives = listedPerdixDives(2)
+    try pairPerdix(session, fingerprint: dives[0].fingerprint)
+    let holding = UUID()
+    server.holdInLogbook([], withoutOriginal: [uuid(dives[1]): holding])
+    link.listedBehind = listed(dives)
+    link.catchUpDives = [dives[1]]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 2, newDives: 0), [])
+    ]
+    link.holdBeforeEnd = true
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await until { walk.divesDownloaded == 1 }
+    #expect(downloads(session).walks().first?.updating == [uuid(dives[1]): holding])
+    link.release()
+    await engine.settled()
+    #expect(downloads(session).archives().first?.updating == [uuid(dives[1]): holding])
+  }
 }

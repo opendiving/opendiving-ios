@@ -733,6 +733,35 @@ struct DiveComputerModelTests {
     #expect(link.fingerprintsSet == [nil, F.fingerprint(1)])
   }
 
+  /// A walk that takes dives the logbook holds counts every dive it takes in one count, without
+  /// *new*, beside the computer's, the single and the plural.
+  @Test(arguments: [(41, "41 dives", "dives"), (1, "1 dive", "dive")])
+  func aListingThatTakesDivesTheLogbookHoldsCountsThemAllInOne(
+    taken: Int, counted: String, noun: String
+  ) async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let listing = DiveComputerListing(dives: 55, newDives: taken, catchUp: 1)
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, Array(F.perdixDownload.suffix(1))),
+      FakeDiveComputerLink.script(F.perdix, listing: listing, Array(F.perdixDownload.prefix(1))),
+    ]
+    let model = model(session, link)
+    try await download(model)
+
+    link.holdBefore = 2
+    model.connect(try #require(model.rows.first))
+    await held(link)
+    await until { model.listing != nil }
+    #expect(model.phase == .downloading)
+    #expect(model.countsText == "\(counted) to download out of 55 on this computer")
+    #expect(model.downloadingText == "Downloading 1 of \(taken) \(noun)")
+    #expect(model.progress == DiveComputerModel.startingProgress)
+    await next(link, holding: nil)
+    await model.settled()
+  }
+
   /// The time left starts from the pace the computer's earlier walks kept, moves to the walk's
   /// own once a dive is timed, and the walk's pace is kept with the earlier one.
   @Test func theTimeLeftIsReckonedFromTheKeptPaceThenTheWalksAndTheWalksIsKept() async throws {

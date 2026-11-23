@@ -79,8 +79,8 @@ public struct DiveComputerNotice: Hashable, Sendable {
       let one = updated.count == 1
       let body =
         (one
-          ? facts(updated[0], units: units)
-          : days(updated.compactMap { $0.startTime ?? $0.dive?.dive.startTime }))
+        ? facts(updated[0], units: units)
+        : days(updated.compactMap { $0.startTime ?? $0.dive?.dive.startTime }))
         .map { $0 + ". " } ?? ""
       return DiveComputerNotice(
         id: id, title: one ? "1 dive updated" : "\(updated.count) dives updated",
