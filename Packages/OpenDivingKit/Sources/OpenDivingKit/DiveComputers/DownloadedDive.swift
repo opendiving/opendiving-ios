@@ -1,7 +1,7 @@
 import Foundation
 
-/// One dive off a computer: its original bytes, libdivecomputer's fingerprint for it, and what
-/// the parser made of the bytes.
+/// One dive off a computer: its original bytes, libdivecomputer's fingerprint for it, what the
+/// parser made of the bytes, and what the computer's list said of it before it was read.
 public struct DownloadedDive: Hashable, Sendable {
   /// What the parser made of a dive's bytes.
   public enum Reading: Hashable, Sendable {
@@ -16,13 +16,22 @@ public struct DownloadedDive: Hashable, Sendable {
   public let fingerprint: Data
   public let bytes: Data
   public let reading: Reading
+  /// Nil for a family that lists nothing before it reads, and for a dive an earlier build kept.
+  public let facts: ListedDiveFacts?
 
-  public init(identity: DiveComputerIdentity, fingerprint: Data, bytes: Data, reading: Reading) {
+  public init(
+    identity: DiveComputerIdentity, fingerprint: Data, bytes: Data, reading: Reading,
+    facts: ListedDiveFacts? = nil
+  ) {
     self.identity = identity
     self.fingerprint = fingerprint
     self.bytes = bytes
     self.reading = reading
+    self.facts = facts
   }
+
+  /// The uuid the dive is imported under.
+  var uuid: UUID { DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint) }
 
   public var dive: ComputerDive? {
     if case .dive(let dive) = reading { return dive }

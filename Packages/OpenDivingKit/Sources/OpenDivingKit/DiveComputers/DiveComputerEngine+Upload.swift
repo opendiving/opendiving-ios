@@ -66,6 +66,8 @@ extension DiveComputerEngine {
   /// iOS completing the request left with it, *Sync now*. While a walk runs, one waits for the
   /// floor as a dive kept does.
   public func upload() {
+    // A route or a sign-in moves what the dives on the phone wait for.
+    refreshDivesOnPhone()
     if inFlight?.ended == false {
       Task { await uploadWhileWalking() }
       return

@@ -2,8 +2,9 @@ import Foundation
 
 /// A Shearwater Petrel-family computer's dive index, read before any dive: pages of 32-byte
 /// records, newest first, at ``address``. Each record is big-endian — a marker, the dive number,
-/// the start (the dive's fingerprint), the end, the dive time in seconds, the depths, the dive's
-/// address from the log format's base — and the first record with neither marker ends the index.
+/// the start (the dive's fingerprint), the end, the dive time in seconds, the max depth in
+/// decimetres and two bytes more, the dive's address from the log format's base — and the first
+/// record with neither marker ends the index.
 public enum PetrelManifest {
   /// Where the index is read, one ``pageSize`` page per read; the computer serves the next page
   /// on the next read.
@@ -21,12 +22,30 @@ public enum PetrelManifest {
     public let address: UInt32
     /// How long the dive lasted, in seconds.
     public let diveTime: UInt32
+    /// The max depth in decimetres, bytes 16 and 17, read as metres whatever unit the computer
+    /// shows: no fixture holds a dive logged in feet.
+    public let maxDepth: UInt16
 
-    public init(isDeleted: Bool, start: Data, address: UInt32, diveTime: UInt32 = 0) {
+    public init(
+      isDeleted: Bool, start: Data, address: UInt32, diveTime: UInt32 = 0, maxDepth: UInt16 = 0
+    ) {
       self.isDeleted = isDeleted
       self.start = start
       self.address = address
       self.diveTime = diveTime
+      self.maxDepth = maxDepth
+    }
+
+    /// The start read as a wall clock with no zone, which is how the computer keeps it; the
+    /// length and the depth where they are above zero.
+    public var facts: ListedDiveFacts {
+      let seconds = start.reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
+      let clock = DiveComputerArchive.clock(
+        Date(timeIntervalSince1970: TimeInterval(seconds)), in: TimeZone(secondsFromGMT: 0)!)
+      return ListedDiveFacts(
+        start: start.count == 4 ? .wallClock(clock) : nil,
+        length: diveTime > 0 ? TimeInterval(diveTime) : nil,
+        maxDepth: maxDepth > 0 ? Double(maxDepth) / 10 : nil)
     }
   }
 
@@ -53,7 +72,8 @@ public enum PetrelManifest {
           Record(
             isDeleted: marker == PetrelManifest.deleted,
             start: Data(data[(offset + 4)..<(offset + 8)]), address: word(20),
-            diveTime: word(12)))
+            diveTime: word(12), maxDepth: UInt16(data[offset + 16]) << 8 | UInt16(data[offset + 17])
+          ))
         offset += PetrelManifest.recordSize
       }
       self.records = records
@@ -89,7 +109,7 @@ public enum PetrelManifest {
       listing: DiveComputerListing(
         dives: live.count, newDives: downloads.count,
         downloads: downloads.map {
-          DiveComputerListing.Download(fingerprint: $0.start, length: TimeInterval($0.diveTime))
+          DiveComputerListing.Download(fingerprint: $0.start, facts: $0.facts)
         }))
   }
 

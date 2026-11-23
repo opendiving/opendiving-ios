@@ -22,4 +22,13 @@ extension APIClient {
         method: "PUT", path: "dive-computers/order",
         body: Self.json(DiveComputerOrder(serials: serials))))
   }
+
+  /// `POST /dive-computers/known-dives`: which of the listed dives the logbook holds, a row for
+  /// each, in the order sent; none for a dive it does not hold. A 404 from a server without the
+  /// route. Writes nothing.
+  public func knownDives(_ query: KnownDivesQuery) async throws -> [KnownDive] {
+    try await authorizedDecoded(
+      [KnownDive].self,
+      Call(method: "POST", path: "dive-computers/known-dives", body: Self.json(query)))
+  }
 }

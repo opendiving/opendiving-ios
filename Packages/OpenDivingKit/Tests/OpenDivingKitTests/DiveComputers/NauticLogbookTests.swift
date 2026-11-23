@@ -103,11 +103,48 @@ struct NauticLogbookTests {
     #expect(descriptors.sport(inSummary: summary.dropLast()) == nil)
   }
 
+  /// Each scuba summary's start, offset, dive time and max depth, and the run's, which logs no
+  /// dive time and so gives its duration.
+  @Test func theSummariesSayWhatTheyHoldOfTheDive() throws {
+    let descriptors = NauticDescriptors(try captured("descriptors"))
+    let expected: [(String, offset: Int, length: Double, depth: Double)] = [
+      ("1793610559-scuba", 7200, 3368.873, 19.930),
+      ("1793433197-scuba", 7200, 4032.671, 11.243),
+      ("1793016109-scuba", 10800, 4644.548, 48.146),
+      ("1792852533-run", 10800, 2178.378, 0.008),
+    ]
+    for (name, offset, length, depth) in expected {
+      let id = try #require(UInt32(name.prefix(10)))
+      let facts = descriptors.facts(inSummary: try captured("summary-\(name)"), id: id)
+      #expect(
+        facts.start
+          == .instant(Date(timeIntervalSince1970: TimeInterval(id)), offsetSeconds: offset))
+      #expect(abs((facts.length ?? 0) - length) < 0.001, "\(name)")
+      #expect(abs((facts.maxDepth ?? 0) - depth) < 0.001, "\(name)")
+    }
+    // A dive the Perdix also recorded: its 15:03:23 at +03:00 is this entry's 15:01:49.
+    let shared = descriptors.facts(inSummary: try captured("summary-1793016109-scuba"), id: 1_793_016_109)
+    #expect(shared.listedStart == "2026-10-26T15:01:49+03:00")
+    // A summary that fits nothing still has the id's start, in no offset.
+    let none = descriptors.facts(inSummary: Data(), id: 1_793_016_109)
+    #expect(
+      none
+        == ListedDiveFacts(
+          start: .instant(Date(timeIntervalSince1970: 1_793_016_109), offsetSeconds: nil)))
+    #expect(none.listedStart == "2026-10-26T12:01:49+00:00")
+  }
+
   @Test func everyEntryIsSummarisedUnlessTheRecordRemembersIt() {
     #expect(NauticSelection.summariesNeeded(ids: ids, remembered: nil) == ids)
-    let remembered: [NauticEntrySport] = ids.prefix(4).map(sport)
+    let remembered: [NauticEntrySport] = ids.prefix(4).map {
+      NauticEntrySport(id: $0, sport: sport($0).sport, facts: ListedDiveFacts())
+    }
     #expect(
       NauticSelection.summariesNeeded(ids: ids, remembered: remembered) == Array(ids.dropFirst(4)))
+    // Kept before a summary's facts were read: a dive's entry is read again, the run's is not.
+    #expect(
+      NauticSelection.summariesNeeded(ids: ids, remembered: ids.prefix(4).map(sport))
+        == Array(ids.prefix(3)) + Array(ids.dropFirst(4)))
   }
 
   /// The probe's sport for an entry: the run's 3, scuba's 51 for every other.
@@ -172,9 +209,41 @@ struct NauticLogbookTests {
     #expect(selection.listing == expected)
   }
 
-  /// The entries a walk downloads, of no known length.
+  /// The entries a walk downloads, their start the id's and of no known length.
   private func downloads(_ ids: some Sequence<UInt32>) -> [DiveComputerListing.Download] {
-    ids.map { .init(fingerprint: NauticSelection.fingerprint($0), length: nil) }
+    ids.map {
+      .init(
+        fingerprint: NauticSelection.fingerprint($0),
+        facts: ListedDiveFacts(start: start($0)))
+    }
+  }
+
+  private func start(_ id: UInt32) -> ListedDiveFacts.Start {
+    .instant(Date(timeIntervalSince1970: TimeInterval(id)), offsetSeconds: nil)
+  }
+
+  /// A summary read this walk stands over what the record kept, and its facts go with the
+  /// entry's download and stay with its sport; a remembered entry's facts go with it unread.
+  @Test func eachDownloadCarriesWhatItsSummarySaidOfTheDive() {
+    let read = ListedDiveFacts(start: start(ids[0]), length: 3368, maxDepth: 19.9)
+    let kept = ListedDiveFacts(start: start(ids[1]), length: 4032, maxDepth: 11.2)
+    let remembered = [
+      NauticEntrySport(id: ids[0], sport: 51, duration: 3000),
+      NauticEntrySport(id: ids[1], sport: 51, duration: 4334, facts: kept),
+    ]
+    var summaries = learned(ids.dropFirst(2).prefix(2))
+    summaries[ids[0]] = .read(sport: 51, duration: 3675, facts: read)
+    let selection = NauticSelection(
+      ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: remembered,
+      learned: summaries)
+    #expect(selection.listing.downloads.map(\.facts).prefix(2) == [read, kept])
+    #expect(selection.listing.downloads.map(\.length).prefix(2) == [3368, 4032])
+    #expect(
+      selection.listing.sports?.prefix(2)
+        == [
+          NauticEntrySport(id: ids[0], sport: 51, duration: 3675, facts: read),
+          NauticEntrySport(id: ids[1], sport: 51, duration: 4334, facts: kept),
+        ])
   }
 
   /// A length a summary gave, this walk's or one the record kept, goes with the entry's download
@@ -225,3 +294,4 @@ struct NauticLogbookTests {
         .listing.dives == 16)
   }
 }
+

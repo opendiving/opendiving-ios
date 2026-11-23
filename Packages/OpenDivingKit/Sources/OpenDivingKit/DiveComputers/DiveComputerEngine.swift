@@ -36,7 +36,7 @@ import Observation
 /// it kept.
 ///
 /// **A walk the diver started waits for a lost link**, of a family the link walks itself
-/// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:keep:)``). In the
+/// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:leaveOut:keep:)``). In the
 /// foreground the link reopens the computer itself until it is back or the diver cancels. Behind, the walk is handed to the
 /// watch's connection request (``DiveComputerWatch/handOver(_:)``), so iOS connects the computer
 /// when it is back and the walk carries on; back in front first, the walk reopens it again. A walk
@@ -50,6 +50,11 @@ public final class DiveComputerEngine {
   public private(set) var archives: [DownloadArchive] = []
   /// That account's dives waiting for the diver's time zone, a walk's at a time, oldest first.
   public private(set) var held: [HeldDives] = []
+  /// That account's downloaded dives the server has not answered for, each with what the
+  /// computer's list said of it and what it waits for: the archives' oldest first, then those
+  /// held for a zone, then those the walk in flight keeps. The dives the walk will still take are
+  /// its ``DiveComputerWalk/queue``.
+  public private(set) var divesOnPhone: [DiveOnPhone] = []
   /// The account's dive computers in its order, as `GET /dive-computers` last answered in this
   /// process; nil before a read, or where the server keeps no order.
   public internal(set) var order: [DiveComputerRead]?
@@ -431,6 +436,11 @@ public final class DiveComputerEngine {
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
       return waitingDives.contains(uuid) || delivered.contains(uuid)
     }
+    let leaveOut: @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<
+      Data
+    > = { [weak self] identity, listed in
+      await self?.heldByLogbook(identity, listed, account: account, marked: marked) ?? []
+    }
     let keeper = WalkKeeper(store: downloads, marked: marked, startedAt: now())
     inFlight = WalkInFlight(keeper: keeper, downloads: downloads, store: store, marked: marked)
     lastUploadBegan = nil
@@ -438,6 +448,7 @@ public final class DiveComputerEngine {
       inFlight = nil
       turn?.cancel()
       turn = nil
+      refreshDivesOnPhone()
     }
     var watchZone: TimeZone?
     var dives: [DownloadedDive] = []
@@ -454,7 +465,7 @@ public final class DiveComputerEngine {
     }
     let events = link.download(
       walk.computer, pairedOnly: !walk.watched, waitsForLink: walk.watched, lookup: lookup,
-      waiting: notAgain, keep: { keeper.keep($0) })
+      waiting: notAgain, leaveOut: leaveOut, keep: { keeper.keep($0) })
     for await event in events {
       switch event {
       case .identified(let found):
@@ -495,6 +506,7 @@ public final class DiveComputerEngine {
         takeBack()
       case .listing(let found):
         walk.listing = found
+        walk.queue = found.downloads
         walk.computerBusy = false
         walk.estimate.listed(found, at: now())
         walk.listedFromFingerprint =
@@ -517,6 +529,8 @@ public final class DiveComputerEngine {
         walk.identity = walk.identity ?? dive.identity
         inFlight?.identity = walk.identity
         inFlight?.pending.append(dive)
+        walk.took(dive.fingerprint)
+        refreshDivesOnPhone()
         walk.divesDownloaded = dives.count
         walk.otherAppHandshaking = false
         walk.estimate.delivered(dive.fingerprint, at: now())
@@ -538,6 +552,7 @@ public final class DiveComputerEngine {
         await uploadWhileWalking()
       case .skipped(let fingerprint):
         newest = newest ?? fingerprint
+        walk.took(fingerprint)
         walk.estimate.skipped(fingerprint, at: now())
         if let identity = walk.identity,
           waitingDives.contains(DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint))
@@ -691,11 +706,23 @@ public final class DiveComputerEngine {
     let writer = writer
     do {
       let written = try await Task.detached { try writer.write(download, into: folder) }.value
-      _ = try downloads.add(written, record: record, marked: marked, walk: walk, part: part)
+      _ = try downloads.add(
+        written, record: record, marked: marked, walk: walk, part: part,
+        facts: Self.facts(of: dives, instantZone: instantZone))
       return nil
     } catch {
       return error
     }
+  }
+
+  /// What the list said of each dive, by its uuid, an instant with no offset of its own taking
+  /// the one its document is written in.
+  static func facts(of dives: [DownloadedDive], instantZone: TimeZone?) -> [UUID: ListedDiveFacts]
+  {
+    Dictionary(
+      dives.compactMap { dive in
+        dive.facts.map { (dive.uuid, $0.written(in: dive.loggedZone ?? instantZone)) }
+      }, uniquingKeysWith: { first, _ in first })
   }
 
   /// The walk's record cut down to the dives that wait for a zone, their bytes kept and the
@@ -785,6 +812,7 @@ public final class DiveComputerEngine {
 
   private func finish(_ walk: DiveComputerWalk, _ outcome: DiveComputerWalk.Outcome) {
     walk.outcome = outcome
+    walk.queue = []
     walk.phase = .finished
   }
 
@@ -885,7 +913,7 @@ public final class DiveComputerEngine {
           guard let written = try? writer.write(download, into: folder),
             (try? downloads.add(
               written, record: record, marked: kept.receivedBeforeAccountKnown, walk: kept.id,
-              part: part)) != nil
+              part: part, facts: Self.facts(of: going, instantZone: watchZone))) != nil
           else { continue }
         }
         if apart.isEmpty || hold(kept, keeping: apart, in: downloads) == nil {
@@ -962,6 +990,7 @@ public final class DiveComputerEngine {
     guard let (account, _) = keeping(), let origin = session.state.origin else {
       archives = []
       held = []
+      divesOnPhone = []
       return
     }
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
@@ -975,5 +1004,60 @@ public final class DiveComputerEngine {
         id: walk.id, dives: walk.dives.count, computer: identity.title, record: walk.record,
         watchZone: walk.zone)
     }
+    refreshDivesOnPhone()
+  }
+
+  /// ``divesOnPhone`` over what the keeping account's store holds now and the walk in flight
+  /// keeps.
+  func refreshDivesOnPhone() {
+    guard let (account, _) = keeping(), let origin = session.state.origin else {
+      divesOnPhone = []
+      return
+    }
+    let downloads = DownloadStore(store: session.store, origin: origin, account: account)
+    let awaiting = awaitingOrder(origin: origin, account: account)
+    let signedIn = if case .signedIn = session.state { true } else { false }
+    func wait(_ record: String?) -> DiveOnPhone.Wait {
+      if let record, awaiting.contains(record) { return .order }
+      if !signedIn { return .signIn }
+      return session.connectivity.isRouteAvailable ? .nothing : .route
+    }
+    var dives: [DiveOnPhone] = []
+    // A walk's dives are in its last archive before the walk leaves the engine.
+    var seen: Set<UUID> = []
+    for archive in archives {
+      let held: DiveOnPhone.Wait = archive.refusal == nil ? wait(archive.record) : .refused
+      let computer = archive.summary.computers.first?.title ?? ""
+      for uuid in archive.dives where seen.insert(uuid).inserted {
+        dives.append(
+          DiveOnPhone(
+            id: uuid, computer: computer, facts: archive.facts?[uuid], watchZone: nil, wait: held,
+            archive: archive.id))
+      }
+    }
+    for walk in downloads.walks() where walk.heldForZone && !answering.contains(walk.id) {
+      for dive in walk.dives {
+        guard let fingerprint = Hex.data(dive.fingerprint) else { continue }
+        let uuid = DiveComputerArchive.diveUUID(dive.identity, fingerprint: fingerprint)
+        guard seen.insert(uuid).inserted else { continue }
+        dives.append(
+          DiveOnPhone(
+            id: uuid,
+            computer: dive.identity.title, facts: dive.facts, watchZone: walk.zone,
+            wait: .timeZone, archive: nil))
+      }
+    }
+    if let flight = inFlight, flight.downloads.account == account {
+      let record = flight.identity.map { DiveComputerRecord(identity: $0).id }
+      for dive in flight.pending where seen.insert(dive.uuid).inserted {
+        dives.append(
+          DiveOnPhone(
+            id: dive.uuid, computer: dive.identity.title, facts: dive.facts,
+            watchZone: flight.watchZone,
+            wait: waitsForZone(dive, watchZone: flight.watchZone) ? .timeZone : wait(record),
+            archive: nil))
+      }
+    }
+    divesOnPhone = dives
   }
 }

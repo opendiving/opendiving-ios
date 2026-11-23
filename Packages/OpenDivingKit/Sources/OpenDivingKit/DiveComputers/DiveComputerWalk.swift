@@ -64,6 +64,10 @@ public final class DiveComputerWalk: Identifiable {
   var walkProgress: Double?
   /// The walk's count, once the computer listed its entries.
   public internal(set) var listing: DiveComputerListing?
+  /// The dives the walk will still take, in the order it takes them, each with what the
+  /// computer's list said of it: the listing's, each leaving as it is read or passed over. Empty
+  /// before a listing, for a family that lists nothing, and once the walk has ended.
+  public internal(set) var queue: [DiveComputerListing.Download] = []
   /// The computer last said it was busy with another app.
   public internal(set) var computerBusy = false
   /// Another app's handshake broke a transfer since the walk started or last delivered a dive.
@@ -90,6 +94,23 @@ public final class DiveComputerWalk: Identifiable {
 
   /// A walk is in flight: from connecting to the time-zone question's answer.
   public var isBusy: Bool { phase != .finished }
+
+  /// The dive of ``queue`` being read now, its first, while the walk downloads.
+  public var inTransfer: DiveComputerListing.Download? {
+    phase == .downloading ? queue.first : nil
+  }
+
+  /// The uuid a dive of the queue is imported under, once the computer identified itself.
+  public func diveUUID(_ dive: DiveComputerListing.Download) -> UUID? {
+    identity.map { DiveComputerArchive.diveUUID($0, fingerprint: dive.fingerprint) }
+  }
+
+  /// The listed entry `fingerprint` was read or passed over.
+  func took(_ fingerprint: Data) {
+    if let index = queue.firstIndex(where: { $0.fingerprint == fingerprint }) {
+      queue.remove(at: index)
+    }
+  }
 
   /// *Downloading 2 of 3 new dives* after a listing, *Downloading dive 3* without one.
   public var downloadingText: String {

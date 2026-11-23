@@ -78,14 +78,16 @@ public struct DownloadStore: Sendable {
   }
 
   /// Takes the written zip in and records it: the bytes first, so a record never names a zip
-  /// that is not there. `walk` and `part` place it among the archives cut from one walk.
+  /// that is not there. `walk` and `part` place it among the archives cut from one walk; `facts`
+  /// is what the list said of its dives.
   func add(
     _ written: ComputerArchiveWriter.Written, record: String, marked: Bool, walk: UUID? = nil,
-    part: Int? = nil
+    part: Int? = nil, facts: [UUID: ListedDiveFacts] = [:]
   ) throws -> DownloadArchive {
     let archive = DownloadArchive(
       filename: written.url.lastPathComponent, summary: written.summary, record: record,
-      dives: written.dives, receivedBeforeAccountKnown: marked, walk: walk, part: part)
+      dives: written.dives, receivedBeforeAccountKnown: marked, walk: walk, part: part,
+      facts: facts.filter { written.dives.contains($0.key) })
     let target = url(for: archive)
     try FileManager.default.createDirectory(
       at: target.deletingLastPathComponent(), withIntermediateDirectories: true)

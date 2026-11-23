@@ -128,6 +128,8 @@ final class LibDCDiveComputerLink: DiveComputerLink {
     _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
+    leaveOut: @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
+      Set<Data>,
     keep: @escaping @Sendable (DownloadedDive) -> Void
   ) -> AsyncStream<DiveComputerDownloadEvent> {
     let (stream, continuation) = AsyncStream.makeStream(of: DiveComputerDownloadEvent.self)
@@ -143,7 +145,7 @@ final class LibDCDiveComputerLink: DiveComputerLink {
       session.queue.async {
         session.download(
           computer, pairedOnly: pairedOnly, cancel: cancel, lostLink: lostLink,
-          waitedForBluetooth: waited, lookup: lookup, waiting: waiting, keep: keep,
+          waitedForBluetooth: waited, lookup: lookup, waiting: waiting, leaveOut: leaveOut, keep: keep,
           into: continuation)
       }
     }
