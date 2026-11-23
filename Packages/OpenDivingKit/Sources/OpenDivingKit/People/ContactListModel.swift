@@ -33,15 +33,4 @@ public final class ContactListModel {
   public func refresh() async {
     await contacts.refresh()
   }
-
-  /// Queues a contact's delete from its row; the reason it could not, where the outbox refused
-  /// it.
-  public static func delete(_ contact: UUID, in outbox: OutboxModel) -> String? {
-    do {
-      try outbox.queue(.deleteContact(.server(contact)))
-      return nil
-    } catch {
-      return RecordSheetModel<ContactFormValues>.sentence(error)
-    }
-  }
 }

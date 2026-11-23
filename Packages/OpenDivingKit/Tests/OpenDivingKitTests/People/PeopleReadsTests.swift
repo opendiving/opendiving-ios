@@ -45,8 +45,6 @@ struct PeopleReadsTests {
 
   /// The first person of `people-page`.
   private static let ana = UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d")!
-  /// The first contact of `contacts-page`.
-  private static let bigBlue = UUID(uuidString: "01a0d9e9-bdd0-793a-829f-5dc90613f84f")!
 
   @Test func bothListsShowOfflineAndReadOnceARouteAppears() async throws {
     let first = try world()
@@ -140,16 +138,6 @@ struct PeopleReadsTests {
     #expect(model.people.items.contains { $0.uuid == Self.ana })
     #expect(PeopleListModel.delete(Self.ana, in: world.outbox()) == nil)
     #expect(!model.people.items.contains { $0.uuid == Self.ana })
-  }
-
-  @Test func aQueuedDeleteTakesTheContactsRowAtOnce() async throws {
-    let world = try world()
-    try await world.load()
-    let model = ContactListModel(session: world.session)
-    await model.contacts.load()
-    #expect(model.contacts.items.contains { $0.uuid == Self.bigBlue })
-    #expect(ContactListModel.delete(Self.bigBlue, in: world.outbox()) == nil)
-    #expect(!model.contacts.items.contains { $0.uuid == Self.bigBlue })
   }
 
   @Test func thePageAsksForTheDivesThatNameThem() async throws {
