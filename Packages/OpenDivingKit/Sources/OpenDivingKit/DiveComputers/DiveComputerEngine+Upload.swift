@@ -393,7 +393,7 @@ extension DiveComputerEngine {
   }
 
   /// Removes a download that waits from the phone, after the diver confirmed
-  /// ``DiveComputerText/removeDownloadWarning``.
+  /// ``DiveComputerText/removeDownloadWarning(record:)``.
   public func remove(_ archive: DownloadArchive) {
     guard let downloads = keptDownloads() else { return }
     downloads.remove(archive)

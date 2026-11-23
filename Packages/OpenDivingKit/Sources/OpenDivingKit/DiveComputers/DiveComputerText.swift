@@ -129,8 +129,12 @@ public enum DiveComputerText {
   // MARK: - Forgetting
 
   public static let forget = "Forget this dive computer"
-  public static let forgetMessage =
-    "Its next download, on any server, asks which of its dives to download."
+  /// What forgetting `record` means for its next download.
+  public static func forgetMessage(_ record: DiveComputerRecord) -> String {
+    record.family.listsBeforeReading
+      ? "Its next download, on any server, asks which of its dives to download."
+      : "Its next download, on any server, takes all of its dives."
+  }
 
   /// *Forget Perdix 3?*
   public static func forgetTitle(_ record: DiveComputerRecord) -> String {
@@ -146,10 +150,15 @@ public enum DiveComputerText {
 
   // MARK: - Waiting
 
-  /// Asked before a download waiting to be imported is removed from the phone.
-  public static let removeDownloadWarning =
-    "These dives have not been imported. The next download takes them again only if you choose"
-    + " them with Choose dives to download."
+  /// Asked before a download waiting to be imported is removed from the phone: `record` is its
+  /// computer's record id.
+  public static func removeDownloadWarning(record: String?) -> String {
+    guard let record, DiveComputerRecord.family(of: record).listsBeforeReading else {
+      return "These dives have not been imported, and the next download does not take them again."
+    }
+    return "These dives have not been imported. The next download takes them again only if you"
+      + " choose them with Choose dives to download."
+  }
 
   /// *3 dives waiting to upload*.
   public static func waitingToUpload(_ dives: Int) -> String {

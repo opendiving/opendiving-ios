@@ -235,7 +235,7 @@ struct DiveComputerWalkSections: View {
       if let outcome = model.outcome {
         Section {
           Text(outcome.sentence)
-          if outcome.offersChoosing {
+          if model.offersChoosing {
             Button(DiveComputerText.chooseDives) { model.chooseDives() }
               .accentRow()
           }

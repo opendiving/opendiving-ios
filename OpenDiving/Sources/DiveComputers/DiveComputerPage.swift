@@ -67,9 +67,11 @@ struct DiveComputerPage: View {
       Button(DiveComputerText.downloadNew) { model.download(record, choosing: false) }
         .accentRow()
         .disabled(!model.canDownload(record))
-      Button(DiveComputerText.chooseDives) { model.download(record, choosing: true) }
-        .accentRow()
-        .disabled(!model.canDownload(record))
+      if model.canChoose(record) {
+        Button(DiveComputerText.chooseDives) { model.download(record, choosing: true) }
+          .accentRow()
+          .disabled(!model.canDownload(record))
+      }
     } footer: {
       if let blocker = model.blocker {
         Text(blocker)

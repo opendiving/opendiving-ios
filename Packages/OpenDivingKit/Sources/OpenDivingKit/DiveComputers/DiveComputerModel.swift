@@ -556,8 +556,21 @@ public final class DiveComputerModel {
   /// *Choose dives to download*, after a download that took nothing: the same computer again,
   /// its fingerprint set aside, to the list.
   public func chooseDives() {
-    guard let lastComputer, outcome?.offersChoosing == true else { return }
+    guard let lastComputer, offersChoosing else { return }
     start(lastComputer, choosing: true)
+  }
+
+  /// The outcome offers *Choose dives to download*: a download that took nothing, of a computer
+  /// whose walk lists its dives.
+  public var offersChoosing: Bool {
+    guard outcome?.offersChoosing == true else { return false }
+    let family = walk?.identity?.family ?? lastComputer?.family
+    return family?.listsBeforeReading == true
+  }
+
+  /// A computer's page offers *Choose dives to download*: its walk lists its dives.
+  public func canChoose(_ record: DiveComputerRecord) -> Bool {
+    record.family.listsBeforeReading
   }
 
   // MARK: - Which dives to download

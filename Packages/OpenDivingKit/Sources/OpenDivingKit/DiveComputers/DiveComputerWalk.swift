@@ -49,7 +49,8 @@ public final class DiveComputerWalk: Identifiable {
   /// The diver started it from the screen and is watching: it may ask the time-zone question,
   /// and waits on a busy computer or a lost link for as long as the diver does.
   public let watched: Bool
-  /// *Choose dives to download*: the fingerprint is set aside, and the walk shows the list.
+  /// *Choose dives to download*: the fingerprint is set aside, and the walk shows the list,
+  /// offered only for a family that lists its entries before reading them.
   public let choosing: Bool
   /// The paired record a connection started it for; nil for the diver's.
   let record: String?

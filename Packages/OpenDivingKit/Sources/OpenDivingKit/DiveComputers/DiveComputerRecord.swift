@@ -93,6 +93,11 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   /// *Shearwater Perdix 3*.
   public var title: String { DiveComputerText.title(vendor: vendor, product: product) }
 
+  /// The family a record's ``id`` names.
+  public static func family(of id: String) -> DiveComputerFamily {
+    DiveComputerFamily(rawValue: String(id.prefix { $0 != "_" }))
+  }
+
   static func name(family: DiveComputerFamily, serial: String) -> String {
     let safe = serial.uppercased().unicodeScalars.map {
       ("A"..."Z").contains($0) || ("0"..."9").contains($0) ? String($0) : "-"

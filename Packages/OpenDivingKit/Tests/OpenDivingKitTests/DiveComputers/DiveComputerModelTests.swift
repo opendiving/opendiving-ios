@@ -1629,4 +1629,29 @@ struct DiveComputerModelTests {
     #expect(link.fingerprintsSet.last == F.fingerprint(3))
     #expect(model.outcome?.kind == .nothingNew)
   }
+
+  /// The list is offered only for a computer whose walk lists its dives before reading them; any
+  /// other is downloaded whole, and its words say so.
+  @Test func onlyAComputerWhoseWalkListsItsDivesIsOfferedTheList() async throws {
+    let session = try await session(try ImportServer())
+    let model = model(session, FakeDiveComputerLink())
+    let perdix = DiveComputerRecord(identity: F.perdix)
+    let other = DiveComputerRecord(
+      identity: DiveComputerIdentity(
+        family: DiveComputerFamily(rawValue: "mares-icon-hd"), vendor: "Mares", product: "Smart",
+        serial: "12345", firmware: nil, familyNumber: 0, modelNumber: 0))
+    #expect(model.canChoose(perdix))
+    #expect(model.canChoose(DiveComputerRecord(identity: F.ocean)))
+    #expect(!model.canChoose(other))
+    #expect(DiveComputerText.forgetMessage(perdix).contains("asks which of its dives"))
+    #expect(DiveComputerText.forgetMessage(other).contains("takes all of its dives"))
+    #expect(
+      DiveComputerText.removeDownloadWarning(record: perdix.id).contains(
+        DiveComputerText.chooseDives))
+    #expect(
+      !DiveComputerText.removeDownloadWarning(record: other.id).contains(
+        DiveComputerText.chooseDives))
+    #expect(
+      !DiveComputerText.removeDownloadWarning(record: nil).contains(DiveComputerText.chooseDives))
+  }
 }
