@@ -62,6 +62,14 @@ final class ImportServer: HTTPTransport {
     var computers: [DiveComputerRead]? = nil
     /// The serials of each `PUT /dive-computers/order`.
     var orders: [[String]] = []
+    /// The uuids of the listed dives the logbook holds; nil for a server without
+    /// `POST /dive-computers/known-dives`, a 404.
+    var logbook: Set<UUID>? = nil
+    /// Answers each known-dives question, by its index, in place of the server when it does not
+    /// answer nil.
+    var knownAnswer: Answer = { _ in nil }
+    /// Each known-dives question as sent.
+    var known: [KnownDivesQuery] = []
   }
 
   private let state = Mutex(State())
@@ -157,6 +165,16 @@ final class ImportServer: HTTPTransport {
   /// The serials of each order set.
   var orders: [[String]] { state.withLock { $0.orders } }
 
+  /// The listed dives, by uuid, the logbook holds, which `POST /dive-computers/known-dives`
+  /// answers from now on.
+  func holdInLogbook(_ dives: Set<UUID>) { state.withLock { $0.logbook = dives } }
+
+  /// Answers each known-dives question, by its index among them, in place of the server.
+  func answerKnownDives(_ answer: @escaping Answer) { state.withLock { $0.knownAnswer = answer } }
+
+  /// Each known-dives question, in the order asked.
+  var knownQueries: [KnownDivesQuery] { state.withLock { $0.known } }
+
   /// Keeps an order of dive computers, which `GET /dive-computers` answers from now on.
   func keepComputers(_ computers: [DiveComputerRead]) {
     state.withLock { $0.computers = computers }
@@ -218,6 +236,24 @@ final class ImportServer: HTTPTransport {
         }
         state.computers = ordered
         return .json(String(decoding: try JSONEncoder().encode(ordered), as: UTF8.self))
+      }
+    case "POST dive-computers/known-dives":
+      let query = try APICoding.decoder().decode(
+        KnownDivesQuery.self, from: request.httpBody ?? Data())
+      let (index, answer) = state.withLock { state in
+        state.known.append(query)
+        return (state.known.count - 1, state.knownAnswer)
+      }
+      if let answered = try await answer(index) { return answered }
+      return state.withLock { state in
+        guard let logbook = state.logbook else {
+          return .json(#"{"detail":"Not Found"}"#, status: 404)
+        }
+        let rows = query.dives.filter { logbook.contains($0.uuid) }.map {
+          #"{"uuid":"\#($0.uuid.uuidString.lowercased())","#
+            + #""dive_uuid":"\#(UUID().uuidString.lowercased())"}"#
+        }
+        return .json("[" + rows.joined(separator: ",") + "]")
       }
     case "POST imports":
       let files = try ReceivedPart.parts(of: request).filter { $0.filename != nil }

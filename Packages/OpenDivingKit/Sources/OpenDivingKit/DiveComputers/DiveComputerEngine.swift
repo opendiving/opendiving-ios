@@ -1017,6 +1017,7 @@ public final class DiveComputerEngine {
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
     let awaiting = awaitingOrder(origin: origin, account: account)
     let signedIn = if case .signedIn = session.state { true } else { false }
+    // As `sendable`, `send` and, for the walk in flight, `canCut` hold a dive back.
     func wait(_ record: String?) -> DiveOnPhone.Wait {
       if let record, awaiting.contains(record) { return .order }
       if !signedIn { return .signIn }
@@ -1026,7 +1027,9 @@ public final class DiveComputerEngine {
     // A walk's dives are in its last archive before the walk leaves the engine.
     var seen: Set<UUID> = []
     for archive in archives {
-      let held: DiveOnPhone.Wait = archive.refusal == nil ? wait(archive.record) : .refused
+      var held = wait(archive.record)
+      if held != .order, archive.refusal != nil { held = .refused }
+      if held == .nothing, lastTries[archive.id] != nil { held = .retry }
       let computer = archive.summary.computers.first?.title ?? ""
       for uuid in archive.dives where seen.insert(uuid).inserted {
         dives.append(
@@ -1049,12 +1052,18 @@ public final class DiveComputerEngine {
     }
     if let flight = inFlight, flight.downloads.account == account {
       let record = flight.identity.map { DiveComputerRecord(identity: $0).id }
+      var held = wait(record)
+      if held == .nothing,
+        flight.marked || !session.accountLoaded || session.user?.uuid != account
+      {
+        held = .walkEnd
+      }
       for dive in flight.pending where seen.insert(dive.uuid).inserted {
         dives.append(
           DiveOnPhone(
             id: dive.uuid, computer: dive.identity.title, facts: dive.facts,
             watchZone: flight.watchZone,
-            wait: waitsForZone(dive, watchZone: flight.watchZone) ? .timeZone : wait(record),
+            wait: waitsForZone(dive, watchZone: flight.watchZone) ? .timeZone : held,
             archive: nil))
       }
     }
