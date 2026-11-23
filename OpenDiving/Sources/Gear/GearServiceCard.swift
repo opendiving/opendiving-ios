@@ -4,7 +4,8 @@ import SwiftUI
 /// A gear item's service schedules, with their status, and its service history, each a card of
 /// rows under its title and the button that adds to it, under the item page's *Service* tab. A
 /// row opens its form, where it is deleted; a schedule is logged against, paused and resumed from
-/// its swipe actions and its context menu. Each write is queued, and its row shows once it lands.
+/// its swipe actions and its context menu. Each write is queued: a pause or resume shows on its
+/// row at once, anything else once it lands.
 struct GearServiceCard: View {
   let gearItem: GearItemRead
   let service: GearServiceModel
@@ -93,6 +94,8 @@ struct GearServiceCard: View {
     let row = GearServiceCardContent.row(
       schedule, isActive: isActive, diveCount: gearItem.diveCount, diveTime: gearItem.diveTime,
       today: CalendarDate.today())
+    let toggleTitle = isActive ? "Pause" : "Resume"
+    let toggleSymbol = isActive ? "pause" : "play"
     return Button {
       route = .editSchedule(schedule.uuid)
     } label: {
@@ -128,9 +131,7 @@ struct GearServiceCard: View {
       } label: {
         Label("Log service", icon: .clipboardCheck)
       }
-      Button(Self.toggleTitle(row), systemImage: Self.toggleSymbol(row)) {
-        toggle(schedule, to: !isActive)
-      }
+      Button(toggleTitle, systemImage: toggleSymbol) { toggle(schedule, to: !isActive) }
     }
     .rowSwipeActions(
       leading: [
@@ -140,18 +141,9 @@ struct GearServiceCard: View {
       ],
       trailing: [
         RowSwipeAction(
-          title: Self.toggleTitle(row), image: Image(systemName: Self.toggleSymbol(row)),
-          fill: Color(.systemGray)
+          title: toggleTitle, image: Image(systemName: toggleSymbol), fill: Color(.systemGray)
         ) { toggle(schedule, to: !isActive) }
       ])
-  }
-
-  private static func toggleTitle(_ row: GearServiceCardContent.ScheduleRow) -> String {
-    row.isPaused ? "Resume" : "Pause"
-  }
-
-  private static func toggleSymbol(_ row: GearServiceCardContent.ScheduleRow) -> String {
-    row.isPaused ? "play" : "pause"
   }
 
   private func toggle(_ schedule: GearServiceScheduleRead, to active: Bool) {

@@ -19,7 +19,7 @@ public enum GearServiceCardContent {
     /// The status badge at the title line's end; nil while paused, whose badge stands there
     /// instead.
     public let status: Badge?
-    /// At the row's foot, paused or not.
+    /// Said paused or not.
     public let due: String?
     /// *Every 12 months or every 100 dives · last done Mar 4, 2026*.
     public let intervals: String

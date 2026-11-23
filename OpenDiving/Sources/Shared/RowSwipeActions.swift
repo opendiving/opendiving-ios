@@ -14,7 +14,8 @@ struct RowSwipeAction: Identifiable {
 extension View {
   /// Swipe actions for a row outside a `List`, which alone takes `swipeActions`: a swipe right
   /// shows `leading`, a swipe left `trailing`, each a button that acts and closes the row, and a
-  /// tap on the open row closes it. A swipe past half the row's width runs the side's first. VoiceOver reaches none of them, so each is in the row's
+  /// tap on the open row closes it. A swipe past half the row, or well past its buttons, runs the
+  /// side's first as it lets go. VoiceOver reaches none of them, so each belongs in the row's
   /// context menu too.
   func rowSwipeActions(leading: [RowSwipeAction] = [], trailing: [RowSwipeAction] = [])
     -> some View
