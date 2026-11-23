@@ -144,6 +144,7 @@ private struct TripDetailPage: View {
     }
     .tabsReselect($reselect, tabsTop: tabsTop)
     .offsetsToBar($landings, tops: landingTops)
+    .readsTabsStuck($tabsStuck, tabsTop: tabsTop)
     // A section chosen under the held tabs starts just under them, rather than wherever the
     // last one was scrolled to, which may be past the end of a shorter one.
     .onChange(of: tab) {
@@ -158,7 +159,7 @@ private struct TripDetailPage: View {
     .heroUnderTopBar { await model.refresh() }
     .toolbar {
       ToolbarItemGroup(placement: .topBarTrailing) {
-        if tab == .dives, tabsStuck, trip.parts.count > 1 {
+        if tab == .dives, diveSections != nil {
           partsMenu
         }
         NavigationLink {
@@ -249,6 +250,31 @@ extension View {
 }
 
 /// Read in the scroll view, under ``View/heroUnderTopBar(refresh:)``, which sets the inset.
+extension View {
+  /// Whether the tabs are at the bar, by the page's offset rather than by the tabs alone: a
+  /// part picked from the menu jumps the page past them, and the lazy stack lets them go before
+  /// they can say they reached it.
+  fileprivate func readsTabsStuck(_ isStuck: Binding<Bool>, tabsTop: CGFloat) -> some View {
+    modifier(TabsStuckReading(isStuck: isStuck, tabsTop: tabsTop))
+  }
+}
+
+private struct TabsStuckReading: ViewModifier {
+  @Binding var isStuck: Bool
+  let tabsTop: CGFloat
+  @Environment(\.heroTopInset) private var topInset
+
+  func body(content: Content) -> some View {
+    content.onScrollGeometryChange(for: Bool.self) {
+      [tabsTop, topInset] geometry in
+      // Nothing before the tabs are measured: a top of nought would read as at the bar.
+      tabsTop > 0 && geometry.contentOffset.y >= tabsTop - topInset
+    } action: {
+      isStuck = $1
+    }
+  }
+}
+
 private struct OffsetsToBarReading: ViewModifier {
   @Binding var offsets: [Landing: CGFloat]
   let tops: [Landing: CGFloat]
