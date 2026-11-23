@@ -33,7 +33,7 @@ public struct RecordDivesContent: Hashable, Sendable {
   public static let course = RecordDivesContent(
     title: "Dives on This Course", description: "All dives logged as part of this course",
     emptyTitle: "No dives logged for this course yet",
-    emptyMessage: "Log a dive and assign it to this course to see it here.",
+    emptyMessage: "Add the dives you made on this course to see them here.",
     logDiveLabel: "Log a dive for this course")
 
   /// A person's page.
