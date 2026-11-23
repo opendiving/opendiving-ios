@@ -38,7 +38,8 @@ public final class DiveComputerWalk: Identifiable {
     public let kind: Kind
     public let sentence: String
 
-    /// *Choose dives to download* is offered.
+    /// *Choose dives to download* is offered, or for a computer whose family lists nothing,
+    /// *Download all dives*.
     public var offersChoosing: Bool {
       kind == .nothingNew || kind == .alreadyWaiting || kind == .notDownloaded
     }
@@ -49,8 +50,8 @@ public final class DiveComputerWalk: Identifiable {
   /// The diver started it from the screen and is watching: it may ask the time-zone question,
   /// and waits on a busy computer or a lost link for as long as the diver does.
   public let watched: Bool
-  /// *Choose dives to download*: the fingerprint is set aside, and the walk shows the list,
-  /// offered only for a family that lists its entries before reading them.
+  /// *Choose dives to download*, whose walk shows the list, or for a family that lists nothing
+  /// before reading it *Download all dives*: either way the fingerprint is set aside.
   public let choosing: Bool
   /// The paired record a connection started it for; nil for the diver's.
   let record: String?

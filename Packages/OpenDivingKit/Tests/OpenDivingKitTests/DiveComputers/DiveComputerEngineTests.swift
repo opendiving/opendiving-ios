@@ -2089,6 +2089,22 @@ struct DiveComputerEngineTests {
     #expect(downloads(session).allDeclined().isEmpty)
   }
 
+  /// A computer of a family that lists nothing never awaits the question: its first connection
+  /// downloads every dive, as it always did.
+  @Test func aComputerWhoseFamilyListsNothingDownloadsAtItsFirstConnection() async throws {
+    let session = try await session()
+    try computers(session).save(DiveComputerRecord(identity: F.mares, peripheral: F.maresFound.id))
+    link.scripts = [FakeDiveComputerLink.script(F.mares, F.maresDownload)]
+    let engine = engine(session)
+    watcher.send(.connected(F.maresFound.id))
+    await engine.settled()
+    #expect(link.downloads == 1)
+    #expect(!server.atOnce.isEmpty)
+    let record = try #require(computers(session).record(family: F.mares.family, serial: "12345"))
+    #expect(record.fingerprint == F.fingerprint(3))
+    #expect(!record.answeredQuestion)
+  }
+
   @Test func withNoAnswerTheListHoldsWhatThePhoneKnowsAndSaysSo() async throws {
     let session = try await session()
     route.isRouteAvailable = false

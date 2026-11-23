@@ -63,6 +63,9 @@ public enum DiveComputerText {
     + " swipe the app away, and it can stop after you turn Bluetooth off or use flight mode."
     + " Open the app to start it again."
   public static let downloadNew = "Download new dives"
+  /// For a computer whose family lists nothing before reading it: every dive on it, the
+  /// fingerprint set aside.
+  public static let downloadAll = "Download all dives"
   /// Lists every dive on the computer that the logbook lacks, to choose from.
   public static let chooseDives = "Choose dives to download"
 
@@ -154,7 +157,8 @@ public enum DiveComputerText {
   /// computer's record id.
   public static func removeDownloadWarning(record: String?) -> String {
     guard let record, DiveComputerRecord.family(of: record).listsBeforeReading else {
-      return "These dives have not been imported, and the next download does not take them again."
+      return "These dives have not been imported. The next download takes them again only with"
+        + " Download all dives."
     }
     return "These dives have not been imported. The next download takes them again only if you"
       + " choose them with Choose dives to download."

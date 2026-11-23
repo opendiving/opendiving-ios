@@ -531,8 +531,9 @@ public final class DiveComputerModel {
     start(row.computer, choosing: false)
   }
 
-  /// *Download new dives* or *Choose dives to download*, on a paired computer's page: opened
-  /// under the identifier the phone last saw it under.
+  /// *Download new dives*, or *Choose dives to download* or *Download all dives* with
+  /// `choosing`, on a paired computer's page: opened under the identifier the phone last saw it
+  /// under.
   public func download(_ record: DiveComputerRecord, choosing: Bool) {
     guard canDownload(record) else { return }
     if let peripheral = record.peripheral {
@@ -568,9 +569,25 @@ public final class DiveComputerModel {
     return family?.listsBeforeReading == true
   }
 
-  /// A computer's page offers *Choose dives to download*: its walk lists its dives.
+  /// A computer's page offers *Choose dives to download*: its walk lists its dives. Any other
+  /// offers *Download all dives*.
   public func canChoose(_ record: DiveComputerRecord) -> Bool {
     record.family.listsBeforeReading
+  }
+
+  /// The outcome offers *Download all dives*: a download that took nothing, of a computer whose
+  /// walk lists nothing before reading it.
+  public var offersDownloadAll: Bool {
+    guard outcome?.offersChoosing == true else { return false }
+    let family = walk?.identity?.family ?? lastComputer?.family
+    return family?.listsBeforeReading == false
+  }
+
+  /// *Download all dives*, after a download that took nothing: the same computer again, its
+  /// fingerprint set aside, every dive taken.
+  public func downloadAll() {
+    guard let lastComputer, offersDownloadAll else { return }
+    start(lastComputer, choosing: true)
   }
 
   // MARK: - Which dives to download

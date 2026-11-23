@@ -238,6 +238,9 @@ struct DiveComputerWalkSections: View {
           if model.offersChoosing {
             Button(DiveComputerText.chooseDives) { model.chooseDives() }
               .accentRow()
+          } else if model.offersDownloadAll {
+            Button(DiveComputerText.downloadAll) { model.downloadAll() }
+              .accentRow()
           }
         }
       }

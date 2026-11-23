@@ -44,9 +44,12 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   /// whole computer for the dives chosen and not yet kept.
   public var fingerprintSetAside = false
 
-  /// The account has neither a fingerprint nor an answer for it: a watched walk asks which dives
-  /// to download, and a walk nobody watches takes none.
-  public var awaitsQuestion: Bool { fingerprint == nil && !answeredQuestion }
+  /// Of a family that lists its dives before reading them, with neither a fingerprint nor an
+  /// answer on the account: a watched walk asks which dives to download, and a walk nobody
+  /// watches takes none. A computer of any other family downloads as it always has.
+  public var awaitsQuestion: Bool {
+    family.listsBeforeReading && fingerprint == nil && !answeredQuestion
+  }
 
   public init(
     identity: DiveComputerIdentity, peripheral: UUID? = nil, fingerprint: Data? = nil,

@@ -28,6 +28,21 @@ enum DiveComputerFixtures {
     family: .suuntoNautic, vendor: "Suunto", product: "Ocean", serial: "253810000400",
     firmware: "2.4.6", familyNumber: 25 << 16, modelNumber: 1)
 
+  /// A computer of a family the app does not walk itself, which lists nothing before reading it.
+  static let mares = DiveComputerIdentity(
+    family: DiveComputerFamily(rawValue: "mares-icon-hd"), vendor: "Mares", product: "Smart",
+    serial: "12345", firmware: nil, familyNumber: 0, modelNumber: 0)
+
+  static let maresFound = FoundComputer(
+    id: UUID(uuidString: "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b")!, name: "Mares Smart",
+    family: DiveComputerFamily(rawValue: "mares-icon-hd"), vendor: "Mares", product: "Smart")
+
+  /// The Perdix's download as a Mares computer's.
+  static let maresDownload: [DownloadedDive] = perdixDownload.map {
+    DownloadedDive(
+      identity: mares, fingerprint: $0.fingerprint, bytes: $0.bytes, reading: $0.reading)
+  }
+
   static let perdixFound = FoundComputer(
     id: UUID(uuidString: "6f0c7c1e-2b3a-4d5e-8f90-a1b2c3d4e5f6")!, name: "Perdix 3",
     family: .shearwaterPetrel, vendor: "Shearwater", product: "Perdix 3", modelNumber: 14)

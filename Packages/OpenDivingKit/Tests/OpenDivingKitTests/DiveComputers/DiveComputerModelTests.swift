@@ -1636,10 +1636,7 @@ struct DiveComputerModelTests {
     let session = try await session(try ImportServer())
     let model = model(session, FakeDiveComputerLink())
     let perdix = DiveComputerRecord(identity: F.perdix)
-    let other = DiveComputerRecord(
-      identity: DiveComputerIdentity(
-        family: DiveComputerFamily(rawValue: "mares-icon-hd"), vendor: "Mares", product: "Smart",
-        serial: "12345", firmware: nil, familyNumber: 0, modelNumber: 0))
+    let other = DiveComputerRecord(identity: F.mares)
     #expect(model.canChoose(perdix))
     #expect(model.canChoose(DiveComputerRecord(identity: F.ocean)))
     #expect(!model.canChoose(other))
@@ -1649,9 +1646,37 @@ struct DiveComputerModelTests {
       DiveComputerText.removeDownloadWarning(record: perdix.id).contains(
         DiveComputerText.chooseDives))
     #expect(
-      !DiveComputerText.removeDownloadWarning(record: other.id).contains(
-        DiveComputerText.chooseDives))
+      DiveComputerText.removeDownloadWarning(record: other.id).contains(
+        DiveComputerText.downloadAll))
     #expect(
-      !DiveComputerText.removeDownloadWarning(record: nil).contains(DiveComputerText.chooseDives))
+      DiveComputerText.removeDownloadWarning(record: nil).contains(DiveComputerText.downloadAll))
+    #expect(!other.awaitsQuestion)
+    #expect(perdix.awaitsQuestion)
+  }
+
+  /// A computer of a family that lists nothing is downloaded as it always was: its first
+  /// download takes every dive unasked, and a download that took nothing offers *Download all
+  /// dives*, which sets the fingerprint aside.
+  @Test func aComputerWhoseFamilyListsNothingKeepsDownloadAllDives() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.maresFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.mares, F.maresDownload),
+      FakeDiveComputerLink.script(F.mares, []),
+      FakeDiveComputerLink.script(F.mares, Array(F.maresDownload.prefix(1))),
+    ]
+    let model = model(session, link)
+    try await download(model)
+    #expect(model.outcome?.kind == .kept)
+    try await download(model)
+    #expect(model.outcome?.kind == .nothingNew)
+    #expect(model.offersDownloadAll)
+    #expect(!model.offersChoosing)
+
+    model.downloadAll()
+    await model.settled()
+    #expect(link.fingerprintsSet == [nil, F.fingerprint(3), nil])
+    #expect(model.outcome?.kind == .kept)
   }
 }
