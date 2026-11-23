@@ -141,6 +141,9 @@ private struct CertificationSheetList: View {
         }
       }
     }
+    // The bar ends 10 points below its buttons, so this puts the card the list's section spacing
+    // below them: the gap above it matches the one under it.
+    .contentMargins(.top, 25, for: .scrollContent)
   }
 }
 

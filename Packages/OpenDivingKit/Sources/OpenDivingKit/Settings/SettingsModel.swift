@@ -1,7 +1,7 @@
 import Observation
 
-/// *Settings*: the server card with the servers screen, a row per section, signing out, and
-/// the app.
+/// *Settings*: a row per section, signing out, the app, and last the server card with the
+/// servers screen.
 @MainActor
 @Observable
 public final class SettingsModel {
@@ -24,10 +24,8 @@ public final class SettingsModel {
   /// The build the server last reported, updating while ``load()`` asks it again.
   public var card: ServerCardContent? { session.serverCard }
 
-  /// The sections the active server offers, in the web's order.
-  public var sections: [SettingsSection] {
-    SettingsSection.offered(by: session.server?.config)
-  }
+  /// The sections, in the web's order.
+  public var sections: [SettingsSection] { SettingsSection.allCases }
 
   public func load() async {
     await session.loadServerInfo()

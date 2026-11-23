@@ -33,7 +33,7 @@ private struct ProfileContent: View {
   @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
   @State private var isShowingInvite = false
-  @State private var tabsHeld = false
+  @State private var tabsStuck = false
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsTop: CGFloat = 0
   @State private var reselect = TabsReselect.head
@@ -66,8 +66,8 @@ private struct ProfileContent: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Account")
           }
-          HoldingSectionTabs(
-            selection: $section, isHeld: $tabsHeld, top: $tabsTop, onReselect: scrollOnReselect)
+          ScrollingSectionTabs(
+            selection: $section, isStuck: $tabsStuck, top: $tabsTop, onReselect: scrollOnReselect)
         }
         Group {
           switch section {
@@ -91,7 +91,7 @@ private struct ProfileContent: View {
     .scrollPosition($scroll)
     .tabsReselect($reselect, tabsTop: tabsTop)
     .overlay(alignment: .top) {
-      HeldSectionTabs(selection: $section, isHeld: tabsHeld, onReselect: scrollOnReselect)
+      StuckSectionTabs(selection: $section, isStuck: tabsStuck, onReselect: scrollOnReselect)
     }
     .floatingAddButton(
       adding?.title ?? "", icon: adding?.icon ?? .plus, fill: adding?.fill ?? .clear,

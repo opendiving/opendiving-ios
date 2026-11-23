@@ -63,7 +63,7 @@ private struct InviteQRPane: View {
     }
     if model.list.isAbsent {
       ContentUnavailableView {
-        Label(SettingsSection.invitations.title, systemImage: "envelope.badge.person.crop")
+        Label(InvitationsModel.title, systemImage: "envelope.badge.person.crop")
       } description: {
         Text(InvitationsModel.openInstance)
       }

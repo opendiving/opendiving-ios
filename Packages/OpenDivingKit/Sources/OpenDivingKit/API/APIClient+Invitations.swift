@@ -14,15 +14,6 @@ extension APIClient {
       Call(path: "user/invitations", query: Self.paging(page, itemsPerPage)))
   }
 
-  /// `POST /user/invitations`, answering the row it made. Its refusals — the address has an
-  /// account, it is already invited, the quota or the throttle, a malformed address — each
-  /// carry the API's sentence.
-  public func sendInvitation(_ body: InvitationCreate) async throws -> InvitationRead {
-    try await authorizedDecoded(
-      InvitationRead.self,
-      Call(method: "POST", path: "user/invitations", body: Self.json(body)))
-  }
-
   /// `DELETE /user/invitation/{uuid}`: the row stays, stamped revoked. An accepted one is a 409.
   public func revokeInvitation(_ uuid: UUID) async throws {
     try await authorizedChecked(
