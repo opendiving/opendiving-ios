@@ -12,7 +12,7 @@ enum DiveComputerArchive {
 
   /// The namespace every dive and stored-file uuid the writer derives is in. Fixed: a dive
   /// downloaded twice carries the same uuid, which the import reads as a dive the account
-  /// already holds.
+  /// already holds, or as a new one where the diver deleted it.
   static let namespace = UUID(uuidString: "27d3f9c0-84dc-45e8-b2ea-c8171381fb80")!
 
   /// The dive's uuid: its computer's family and serial and its fingerprint.

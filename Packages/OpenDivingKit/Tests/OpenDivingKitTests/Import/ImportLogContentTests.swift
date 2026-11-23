@@ -60,7 +60,7 @@ struct ImportLogContentTests {
     #expect(try opens("unchanged", false) == uuid)
     #expect(try opens("skipped", false) == nil)
     #expect(try opens("new", true) == uuid)
-    // A row the apply skipped keeps the uuid the review gave it, of a dive gone since.
+    // A row the apply skipped keeps the uuid the review gave it, of a dive the apply did not write.
     #expect(try opens("skipped", true) == nil)
     let unshown = try notes("new", uuid: nil)
     #expect(ImportDiveRow.rows([unshown], written: true)[0].opens == nil)

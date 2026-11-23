@@ -167,8 +167,8 @@ struct MoreRecordCacheTests {
   }
 
   /// A list on screen that holds ``uuid``'s row, whose page the server then answers 404 for on a
-  /// pull: the row goes at once, stays gone when the list reads again — here from a server that
-  /// still lists it — and is gone from the list opened afresh.
+  /// pull: the row goes at once, stays gone when the list reads again, and is gone from the list
+  /// opened afresh.
   private func aGoneRecordLeaves<Record, Row: Identifiable>(
     _ list: @MainActor (Session) -> PagedList<Row>, route: String, page fixture: String,
     _ page: @MainActor (Session) -> RecordPage<Record>, pageRoute: String
@@ -181,11 +181,15 @@ struct MoreRecordCacheTests {
     object["data"] = rows
     let listed = String(
       decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+    object["data"] = Array(rows.dropFirst())
+    object["total_count"] = rows.count - 1
+    let unlisted = String(
+      decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
     let answers = try answers()
     let recordRoute = "\(pageRoute)/\(wire)"
     let gone = Mutex(false)
     world.server.override { request, _ in
-      if request.route == route { return .json(listed) }
+      if request.route == route { return .json(gone.withLock { $0 } ? unlisted : listed) }
       if request.route == recordRoute, gone.withLock({ $0 }) {
         return .json(#"{"detail":"Not Found"}"#, status: 404)
       }

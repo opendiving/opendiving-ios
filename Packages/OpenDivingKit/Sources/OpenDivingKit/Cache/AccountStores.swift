@@ -51,7 +51,7 @@ struct AccountStores: Sendable {
   func forgetRecord<Record>(_ kind: KeptRecordKind<Record>, _ uuid: UUID) {
     cache.removeRecord(kind, uuid)
     let hub = OutboxHub.hub(for: directory)
-    hub.deleted.insert(uuid)
+    hub.gone(uuid)
     hub.changed()
     hub.listsChanged()
   }
