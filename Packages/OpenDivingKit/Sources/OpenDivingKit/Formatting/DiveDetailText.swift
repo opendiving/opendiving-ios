@@ -36,7 +36,9 @@ public enum DiveDetailText {
     case "divejson_import":
       return "No file kept — these samples were imported through the converter."
     case "merge":
-      return "No file kept — these samples were merged from two recordings."
+      // A merge moves every file its records held onto the recording it leaves.
+      return
+        "No file kept — these samples come from a merge, which carries over every file the merged records held."
     default:
       return "No file kept — nothing was stored here to re-read this recording from."
     }

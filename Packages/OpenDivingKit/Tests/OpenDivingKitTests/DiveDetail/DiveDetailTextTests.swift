@@ -40,7 +40,8 @@ struct DiveDetailTextTests {
         == "No file kept — these samples were imported through the converter.")
     #expect(
       DiveDetailText.noFileKeptSentence(fileCount: 0, provenance: "merge")
-        == "No file kept — these samples were merged from two recordings.")
+        == "No file kept — these samples come from a merge, which carries over every file the merged records held."
+    )
     #expect(
       DiveDetailText.noFileKeptSentence(fileCount: 0, provenance: nil)
         == "No file kept — nothing was stored here to re-read this recording from.")
