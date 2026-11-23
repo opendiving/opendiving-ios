@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Settings*, pushed from the profile: the server card with the servers screen, a row per
-/// section in the web's order, signing out, and the app — its appearance and its version.
+/// *Settings*, pushed from the profile: a row per section in the web's order, signing out, the
+/// app — its appearance and its version — and last the server card with the servers screen.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
@@ -22,17 +22,6 @@ private struct SettingsList: View {
 
   var body: some View {
     List {
-      if let card = model.card {
-        ServerCard(content: card) {
-          NavigationLink("Change server") {
-            // A notice from an earlier visit is not this one's; one set while here, by a page
-            // pushed over the list, is.
-            ServerScreen(flow: model.signIn)
-              .onFirstAppear { model.signIn.dismissNotice() }
-          }
-          .disabled(model.isWorking)
-        }
-      }
       Section {
         ForEach(model.sections) { section in
           NavigationLink {
@@ -66,6 +55,17 @@ private struct SettingsList: View {
           Text(Self.appVersion)
         } label: {
           Label(row: "Version", icon: .dive)
+        }
+      }
+      if let card = model.card {
+        ServerCard(content: card) {
+          NavigationLink("Change server") {
+            // A notice from an earlier visit is not this one's; one set while here, by a page
+            // pushed over the list, is.
+            ServerScreen(flow: model.signIn)
+              .onFirstAppear { model.signIn.dismissNotice() }
+          }
+          .disabled(model.isWorking)
         }
       }
     }
