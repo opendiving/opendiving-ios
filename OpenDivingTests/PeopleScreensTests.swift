@@ -23,20 +23,12 @@ struct PeopleScreensTests {
 
   @Test func theHeadsAndEmptyStatesAreTheWebs() {
     #expect(PeopleListView.title == "People")
-    #expect(
-      PeopleListView.description
-        == "Your buddies, guides, instructors and the people who came along, kept once")
-    #expect(PeopleListView.listTitle == "People List")
     #expect(PeopleListView.emptyTitle == "No people yet")
     #expect(
       PeopleListView.emptyMessage
         == "Add the people you dive with once, and pick them from your dives, trips and courses.")
     #expect(PeopleListView.emptyAction == "Add your first person")
     #expect(ContactListView.title == "Contacts")
-    #expect(
-      ContactListView.description
-        == "The dive centers, schools, shops and places you stayed, kept once")
-    #expect(ContactListView.listTitle == "Contact List")
     #expect(ContactListView.emptyTitle == "No contacts yet")
     #expect(
       ContactListView.emptyMessage

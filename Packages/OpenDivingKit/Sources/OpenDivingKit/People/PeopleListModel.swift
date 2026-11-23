@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// More's *People*: the diver's people in the API's order, a page at a time over the account's
-/// copy of the pages it has shown. With no route nothing is asked for, and the list reads again
-/// once one appears.
+/// More's *People*: the diver's people in the API's order, every page of them over the account's
+/// copy of the pages it has shown, since the page's letter index names every letter at once.
+/// With no route nothing is asked for, and the list reads again once one appears.
 @MainActor
 @Observable
 public final class PeopleListModel {
@@ -13,7 +13,7 @@ public final class PeopleListModel {
 
   public init(session: Session) {
     self.session = session
-    people = PagedList(session: session, cache: .people, routed: true) {
+    people = PagedList(session: session, cache: .people, routed: true, readsEveryPage: true) {
       client, page, itemsPerPage in
       try await client.people(page: page, itemsPerPage: itemsPerPage)
     }
@@ -29,10 +29,13 @@ public final class PeopleListModel {
     await session.connectivity.eachRouteAppearance { await people.rereadIfStale() }
   }
 
-  /// Pull-to-refresh, from the first page.
+  /// Pull-to-refresh, from the first page through the last.
   public func refresh() async {
     await people.refresh()
   }
+
+  /// The people shown, filed under their letters.
+  public var sections: [PeopleLetterSection] { PeopleLetterSection.sections(people.items) }
 
   /// Queues a person's delete, from their row or their page; the reason it could not, where the
   /// outbox refused it.

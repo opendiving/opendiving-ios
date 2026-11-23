@@ -1,5 +1,5 @@
 extension PlainCardContent {
-  /// A person's card on More's *People*: their name, and under it the linked account's username
+  /// A person's row on More's *People*: their name, and under it the linked account's username
   /// and how many dives name them.
   public static func person(_ person: PersonRead) -> PlainCardContent {
     PlainCardContent(

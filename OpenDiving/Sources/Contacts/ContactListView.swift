@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *Contacts*: what is waiting to sync, then the diver's contacts in the API's order, each
-/// opening the contact's form, as a contact has no page, and holding *Delete* under a long press —
+/// More's *Contacts*: what is waiting to sync, then the diver's contacts on one card under the
+/// letters they start with, an index of those letters at the trailing edge to jump between them.
+/// Each opens the contact's form, as a contact has no page, and holds *Delete* under a long press —
 /// the pages the phone has shown first, from its copy.
 struct ContactListView: View {
   @Environment(Session.self) private var session
@@ -14,8 +15,6 @@ struct ContactListView: View {
 
 extension ContactListView {
   static let title = "Contacts"
-  static let description = "The dive centers, schools, shops and places you stayed, kept once"
-  static let listTitle = "Contact List"
   static let emptyTitle = "No contacts yet"
   static let emptyMessage =
     "Add the dive centers, shops and places you stay at once, and pick them from your dives, courses and trips."
@@ -42,18 +41,30 @@ private struct ContactListContent: View {
   @State private var queueError: String?
 
   var body: some View {
-    ScrollView {
-      LazyVStack(spacing: 12) {
-        Text(ContactListView.description)
-          .font(.subheadline)
-          .foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity, alignment: .leading)
-        // A queued create is not a row until it lands; what waits shows here however the
-        // list stands.
-        PendingSection()
-        contacts
+    let sections =
+      model.contacts.phase == .loaded ? LetterIndex.sections(model.contacts.items) { $0.name } : []
+    let indexed = sections.count > 1
+    ScrollViewReader { scroller in
+      ScrollView {
+        VStack(spacing: 12) {
+          // A queued create is not a row until it lands; what waits shows here however the
+          // list stands.
+          PendingSection()
+          contacts(sections)
+        }
+        .padding()
+        // The column of letters takes a gutter of its own, as the phone's contacts narrow theirs.
+        .padding(.trailing, indexed ? LetterIndexBar.width - 4 : 0)
       }
-      .padding()
+      .overlay(alignment: .trailing) {
+        if indexed {
+          LetterIndexBar(letters: sections.map(\.letter)) { letter in
+            scroller.scrollTo(letter, anchor: .top)
+          }
+          .padding(.vertical, 16)
+          .padding(.trailing, 2)
+        }
+      }
     }
     .background(Color.pageBackground)
     .bubbleRefreshable { await model.refresh() }
@@ -92,7 +103,7 @@ private struct ContactListContent: View {
     .task { await model.show() }
   }
 
-  @ViewBuilder private var contacts: some View {
+  @ViewBuilder private func contacts(_ sections: [LetterSection<ContactRead>]) -> some View {
     let list = model.contacts
     switch list.phase {
     case .idle, .loading:
@@ -112,32 +123,64 @@ private struct ContactListContent: View {
           .brandProminentButton()
       }
     case .loaded:
-      HStack(spacing: 8) {
-        Image(.bookUser)
-          .foregroundStyle(.secondary)
-          .accessibilityHidden(true)
-        Text(ContactListView.listTitle)
-          .font(.headline)
-          .accessibilityAddTraits(.isHeader)
-        Spacer()
-      }
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
       }
-      ForEach(list.items) { contact in
-        Button {
-          route = .edit(contact)
-        } label: {
-          PlainCardView(content: .contact(contact))
+      // Lazy, so the last row asks for the next page only as it scrolls into view.
+      LazyVStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+          if index > 0 { Divider() }
+          Text(section.letter)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .accessibilityAddTraits(.isHeader)
+            .id(section.letter)
+          ForEach(section.items) { contact in
+            Divider().padding(.leading, 12)
+            Button {
+              route = .edit(contact)
+            } label: {
+              ContactRow(content: .contact(contact))
+            }
+            .buttonStyle(.plain)
+            .contentShape(.contextMenuPreview, .formSection)
+            .contextMenu {
+              Button("Delete", systemImage: "trash", role: .destructive) { deleting = contact }
+            }
+            .task { await list.loadMore(after: contact) }
+          }
         }
-        .buttonStyle(.plain)
-        .contextMenu {
-          Button("Delete", systemImage: "trash", role: .destructive) { deleting = contact }
-        }
-        .task { await list.loadMore(after: contact) }
       }
+      .background(Color.cardFill, in: .formSection)
+      .clipShape(.formSection)
       LoadMoreFooter(list: list)
     }
+  }
+}
+
+/// A contact's row on the list's card: its name with its roles beside it, its city under them.
+private struct ContactRow: View {
+  let content: PlainCardContent
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      FlowLayout(spacing: 8, lineSpacing: 4) {
+        Text(content.title)
+          .font(.headline)
+        ForEach(Array(content.badges.enumerated()), id: \.offset) { _, badge in
+          BadgeView(badge)
+        }
+      }
+      FactsLine(facts: content.facts, color: .primary)
+    }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    // A long press lifts the row alone, which takes a fill of its own.
+    .background(Color.cardFill)
+    .contentShape(.rect)
+    .accessibilityElement(children: .combine)
   }
 }
 
