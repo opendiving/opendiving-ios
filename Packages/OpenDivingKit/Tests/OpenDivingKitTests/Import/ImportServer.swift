@@ -12,7 +12,7 @@ import Testing
 /// `apply=true` with its `Idempotency-Key` — a repeat answering the first's import — and each
 /// test can answer an upload or an apply its own way, act as another device, or be a server from
 /// before `apply=true`, which ignores it. It counts the uploads and keeps the filenames each was
-/// sent.
+/// sent, and answers which of a computer's listed dives the logbook holds where a test says.
 final class ImportServer: HTTPTransport {
   static let origin = ServerOrigin("https://dive.example.org")!
   static let accountA = UUID(uuidString: "01a0a51f-afe3-7363-a0bc-b0d634c35923")!

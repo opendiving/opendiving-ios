@@ -36,7 +36,8 @@ nonisolated final class LibDCDeviceSession: @unchecked Sendable {
     waitedForBluetooth: Int?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut: @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
+    leaveOut:
+      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
       Set<Data>,
     keep: @escaping @Sendable (DownloadedDive) -> Void,
     into events: AsyncStream<DiveComputerDownloadEvent>.Continuation

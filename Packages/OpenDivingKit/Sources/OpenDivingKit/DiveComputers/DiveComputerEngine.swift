@@ -26,7 +26,9 @@ import Observation
 /// **The fingerprint advances only on a completed walk that met no empty read**, to the newest
 /// entry walked, once the walk's dives are kept on the phone for the account it began for.
 /// Before that the dives a walk kept, and those the server has answered for, are what a walk of
-/// new dives does not take again (``DownloadStore``).
+/// new dives does not take again (``DownloadStore``). Nor does any walk take a dive the logbook
+/// already holds, which the server is asked before the first transfer
+/// (``heldByLogbook(_:_:account:marked:)``).
 ///
 /// **No guessed time zone.** A dive whose start is an instant with no logged zone takes the
 /// watch's zone while under a day old. Otherwise a walk the diver watches asks after the walk;
@@ -436,11 +438,12 @@ public final class DiveComputerEngine {
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
       return waitingDives.contains(uuid) || delivered.contains(uuid)
     }
-    let leaveOut: @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<
-      Data
-    > = { [weak self] identity, listed in
-      await self?.heldByLogbook(identity, listed, account: account, marked: marked) ?? []
-    }
+    let leaveOut:
+      @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<
+        Data
+      > = { [weak self] identity, listed in
+        await self?.heldByLogbook(identity, listed, account: account, marked: marked) ?? []
+      }
     let keeper = WalkKeeper(store: downloads, marked: marked, startedAt: now())
     inFlight = WalkInFlight(keeper: keeper, downloads: downloads, store: store, marked: marked)
     lastUploadBegan = nil
@@ -717,8 +720,7 @@ public final class DiveComputerEngine {
 
   /// What the list said of each dive, by its uuid, an instant with no offset of its own taking
   /// the one its document is written in.
-  static func facts(of dives: [DownloadedDive], instantZone: TimeZone?) -> [UUID: ListedDiveFacts]
-  {
+  static func facts(of dives: [DownloadedDive], instantZone: TimeZone?) -> [UUID: ListedDiveFacts] {
     Dictionary(
       dives.compactMap { dive in
         dive.facts.map { (dive.uuid, $0.written(in: dive.loggedZone ?? instantZone)) }

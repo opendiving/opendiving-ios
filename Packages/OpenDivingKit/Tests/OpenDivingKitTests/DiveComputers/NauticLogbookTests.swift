@@ -123,7 +123,8 @@ struct NauticLogbookTests {
       #expect(abs((facts.maxDepth ?? 0) - depth) < 0.001, "\(name)")
     }
     // A dive the Perdix also recorded: its 15:03:23 at +03:00 is this entry's 15:01:49.
-    let shared = descriptors.facts(inSummary: try captured("summary-1793016109-scuba"), id: 1_793_016_109)
+    let shared = descriptors.facts(
+      inSummary: try captured("summary-1793016109-scuba"), id: 1_793_016_109)
     #expect(shared.listedStart == "2026-10-26T15:01:49+03:00")
     // A summary that fits nothing still has the id's start, in no offset.
     let none = descriptors.facts(inSummary: Data(), id: 1_793_016_109)
@@ -294,4 +295,3 @@ struct NauticLogbookTests {
         .listing.dives == 16)
   }
 }
-

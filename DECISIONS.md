@@ -255,16 +255,17 @@ app, which the link does not show; patching the pinned fork.
 
 ## The app walks the Perdix and the Ocean itself
 
-A download names the computer's dives and the new ones before the first is read. `dc_device_foreach`
-gives no total before its first dive and downloads an Ocean entry before its sport is known, and a
-Perdix 3 answers a second manifest read on one connection with zeros, so no list of the app's can
-precede it. Both families are walked by the app on one connection, reopened only after an Ocean's
-timeout or a lost link: the Ocean through the fork's public by-id calls, the Perdix through
-`shearwater_common_rdbi` and `shearwater_common_download`, libdivecomputer internals declared in
-`ShearwaterCommon.swift`. Those are safe only while `project.yml` pins libdc-swift exactly; re-read
-their prototypes at every pin move. Every live manifest record is taken, where libdivecomputer's
-per-page slice drops live dives that deleted ones sit among. Rejected: a list read on a second
-connection, which rests on the Perdix surviving libdivecomputer's shutdown write.
+A download names the computer's dives, each with its start, length and depth, before reading one.
+`dc_device_foreach` gives no total before its first dive and downloads an Ocean entry before its
+sport is known, and a Perdix 3 answers a second manifest read on one connection with zeros, so no
+list of the app's can precede it. The app walks both on one connection, reopened only after a
+timeout or a lost link: the Ocean by the fork's public by-id calls, the Perdix by
+`shearwater_common_rdbi` and `shearwater_common_download`, internals declared in
+`ShearwaterCommon.swift`, safe only while `project.yml` pins libdc-swift exactly: re-read them at
+every pin move. Every live manifest record is taken, which libdivecomputer's per-page slice does
+not do. A record's depth reads as metres, no fixture holding a dive logged in feet. Rejected: a
+list read on a second connection, which rests on the Perdix surviving libdivecomputer's shutdown
+write.
 
 ## Paired computers are watched by a central of the app's own
 
@@ -317,9 +318,12 @@ confirmed; a pace per family, which a computer's sample rate and the phone's lin
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a
 re-download is a dive the account already holds and links. A walk of new dives leaves out an entry
 whose uuid the phone keeps under the walk's mark, in an archive or a walk, or the server has
-answered for since the fingerprint last moved, counting it neither new nor downloaded; *Download all
-dives* leaves out only what the phone keeps. So a dive the diver deleted is, to the phone, one
-already delivered. Rejected: a random uuid, which leaves every dedupe to the recording gates;
+answered for since the fingerprint last moved; *Download all dives* leaves out only what the phone
+keeps. Then, before its first transfer, a walk with a route and a loaded account sends the rest's
+uuids and listed starts to `POST /dive-computers/known-dives` and leaves out what the logbook
+holds, holding the link up to 10 seconds; with no answer it goes on without. A dive left out is
+counted neither new nor downloaded. Rejected: a random uuid, which leaves every dedupe to the
+recording gates; comparing on the phone, which writes the server's clock rule a second time;
 downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it

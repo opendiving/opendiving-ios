@@ -68,7 +68,8 @@ final class FakeDiveComputerLink: DiveComputerLink {
     _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut: @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
+    leaveOut:
+      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
       Set<Data>,
     keep: @escaping @Sendable (DownloadedDive) -> Void
   ) -> AsyncStream<DiveComputerDownloadEvent> {

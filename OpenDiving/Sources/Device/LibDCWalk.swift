@@ -69,7 +69,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     lostLink: LostLinkWait?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut: @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
+    leaveOut:
+      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
       Set<Data>,
     keep: @escaping @Sendable (DownloadedDive) -> Void, pairedOnly: Bool,
     events: AsyncStream<DiveComputerDownloadEvent>.Continuation
