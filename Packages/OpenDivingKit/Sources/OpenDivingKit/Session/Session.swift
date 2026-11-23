@@ -396,6 +396,10 @@ public final class Session {
     guard take(user, readBy: client, at: generation) else { return }
     self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
     accountLoaded = true
+    if let stores = AccountStores.current(self) {
+      stores.cache.removeRetiredInvitations()
+      try? store.removeRetiredInviteLinkToken(for: stores.origin, account: stores.account)
+    }
   }
 
   /// Every page of `GET /people` again, after a write to a person landed. A failure leaves the

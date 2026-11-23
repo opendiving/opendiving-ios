@@ -25,6 +25,8 @@ extension OutboxOperation {
     case .updatePerson(let ref, let body):
       return ("PATCH", try path("person", ref), try APIClient.json(body))
     case .deletePerson(let ref): return ("DELETE", try path("person", ref), nil)
+    case .disconnectPerson(let ref):
+      return ("POST", try path("person", ref, "/disconnect"), nil)
     case .createTrip(let body): return ("POST", "trip", try APIClient.json(body))
     case .updateTrip(let ref, let body):
       return ("PATCH", try path("trip", ref), try APIClient.json(body))

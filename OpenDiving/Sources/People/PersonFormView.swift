@@ -13,12 +13,12 @@ struct PersonFormView: View {
     case .create:
       form(RecordSheetModel(outbox: OutboxModel(session: session), values: PersonFormValues()))
     case .edit(let person):
-      form(edit(person, failedItem: nil))
+      form(edit(person, failedItem: nil), person: person)
     case .failed(let item, let uuid):
       RecordFormLoader {
         try await session.requireClient().person(uuid)
       } content: { person in
-        form(edit(person, failedItem: item))
+        form(edit(person, failedItem: item), person: person)
       }
     }
   }
@@ -29,8 +29,10 @@ struct PersonFormView: View {
       read: PersonFormValues(editing: person), failedItem: failedItem)
   }
 
-  private func form(_ model: RecordSheetModel<PersonFormValues>) -> some View {
-    PersonSheetForm(model: model, isPushed: true, onCreated: { _ in })
+  private func form(
+    _ model: RecordSheetModel<PersonFormValues>, person: PersonRead? = nil
+  ) -> some View {
+    PersonSheetForm(model: model, isPushed: true, person: person, onCreated: { _ in })
   }
 }
 

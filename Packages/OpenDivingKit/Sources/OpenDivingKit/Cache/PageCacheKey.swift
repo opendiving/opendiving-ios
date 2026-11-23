@@ -132,6 +132,12 @@ extension PageCacheKey where Item == PersonRead {
   public static var people: Self { Self("people", record: \.uuid) }
 }
 
+extension PageCacheKey where Item == AddedYouRow {
+  /// *Added you*, over More's *People*. A row hidden, disconnected or added leaves it as a
+  /// deleted record leaves a list, by the account's uuid, which names no record of the diver's.
+  public static var addedYou: Self { Self("added-you", record: \.uuid) }
+}
+
 extension PageCacheKey where Item == ContactRead {
   /// More's *Contacts*.
   public static var contacts: Self { Self("contacts", record: \.uuid) }

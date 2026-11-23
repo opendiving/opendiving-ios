@@ -5,7 +5,7 @@ import UIKit
 
 @testable import OpenDiving
 
-/// The profile, its invite pane and the dive page, hosted under a session over a stub transport:
+/// The profile, its connect link's pane and the dive page, hosted under a session over a stub transport:
 /// each asks the API for what it draws.
 @MainActor
 struct DiveScreensTests {
@@ -57,18 +57,11 @@ struct DiveScreensTests {
     #expect(query.contains("items_per_page=50"))
   }
 
-  @Test func theInvitePaneAsksForTheInvitationsThenTheLink() async throws {
-    let transport = StubTransport(routes: [
-      "GET user/invitations": .json(
-        #"{"data":[],"total_count":0,"has_more":false,"page":1,"items_per_page":20}"#)
-    ])
-    let window = host(InviteQRSheet(), session: Session.stub(transport: transport))
+  @Test func theConnectLinkPaneAsksForTheLink() async throws {
+    let transport = StubTransport(routes: [:])
+    let window = host(ConnectLinkSheet(), session: Session.stub(transport: transport))
     defer { window?.isHidden = true }
-    #expect(await waitFor("GET user/invite-link", on: transport))
-    let routes = transport.requests.map(StubTransport.routeKey)
-    let list = try #require(routes.firstIndex(of: "GET user/invitations"))
-    let link = try #require(routes.firstIndex(of: "GET user/invite-link"))
-    #expect(list < link)
+    #expect(await waitFor("GET user/connect-link", on: transport))
   }
 
   @Test func thePageAsksForTheDiveThenItsNeighbours() async throws {

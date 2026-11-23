@@ -4,9 +4,9 @@ import Foundation
 /// account's directory so it shows at once, and offline: the lists' pages, the dives, sites,
 /// trips and More's records opened, the species photos and card images drawn, the dive drafts,
 /// the pickers' lookups, the highest dive number seen, the profile's figures, places and
-/// picture, and what Settings' storage, tags, invitations, passkeys, signed-in devices and API
-/// keys showed. Nothing is fetched to fill it. A file this build cannot read is dropped and
-/// fetched again.
+/// picture, the pictures of connected people, and what Settings' storage, tags, passkeys,
+/// signed-in devices and API keys and the connect link showed. Nothing is fetched to fill it. A
+/// file this build cannot read is dropped and fetched again.
 public struct AccountCache: Sendable {
   /// A cached value and when the server answered it.
   public struct Entry<Value: Codable & Sendable>: Codable, Sendable {
@@ -274,12 +274,43 @@ public struct AccountCache: Sendable {
     prune("species-photos", limit: Self.speciesPhotoLimit)
   }
 
-  /// Nil for anything but a lowercase hex digest, so a version is never a path.
   private static func speciesPhotoPath(_ version: String) -> String? {
+    digestPath("species-photos", version)
+  }
+
+  // MARK: - Pictures of connected people
+
+  /// How many pictures of connected accounts are kept; the least recently drawn go first.
+  public static let connectedPictureLimit = 500
+
+  /// The picture whose version is `version`, as last fetched, or nil when it is not kept.
+  public func connectedPicture(version: String) -> Data? {
+    guard let path = Self.digestPath("connected-pictures", version) else { return nil }
+    return try? Data(contentsOf: file(path))
+  }
+
+  /// Counts a kept picture drawn as drawn, for the bound.
+  func touchConnectedPicture(version: String) {
+    if let path = Self.digestPath("connected-pictures", version) { touch(path) }
+  }
+
+  /// Kept by its digest, which names the bytes whichever person or row shows them.
+  func writeConnectedPicture(_ data: Data, version: String) {
+    guard let path = Self.digestPath("connected-pictures", version) else { return }
+    let url = file(path)
+    try? FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    guard (try? data.write(to: url, options: .atomic)) != nil else { return }
+    prune("connected-pictures", limit: Self.connectedPictureLimit)
+  }
+
+  /// `version` in `folder`; nil for anything but a lowercase hex digest, so a version is never a
+  /// path.
+  private static func digestPath(_ folder: String, _ version: String) -> String? {
     guard !version.isEmpty, version.count <= 128,
       version.allSatisfy({ ("0"..."9").contains($0) || ("a"..."f").contains($0) })
     else { return nil }
-    return "species-photos/\(version)"
+    return "\(folder)/\(version)"
   }
 
   /// The number of the newest-dated dive the phone has seen: the first row of the dives page
@@ -357,6 +388,13 @@ public struct AccountCache: Sendable {
 
   private static func settingPath(_ setting: KeptSetting) -> String {
     "settings/\(setting.rawValue).json"
+  }
+
+  /// Removes what a build before connect links kept of the invite link and of the invitations
+  /// the diver sent, addresses among them, which nothing reads now.
+  func removeRetiredInvitations() {
+    remove("settings/invitations.json")
+    remove("settings/invite-link.json")
   }
 
   // MARK: - The profile
@@ -496,16 +534,16 @@ public struct AccountCache: Sendable {
   }
 }
 
-/// The invite link as the cache keeps it: that there is one and when it was made. Its token is
+/// The connect link as the cache keeps it: that there is one and when it was made. Its token is
 /// a secret, kept beside the session's (``ServerStateStore``).
-struct KeptInviteLink: Codable, Hashable, Sendable {
+struct KeptConnectLink: Codable, Hashable, Sendable {
   let createdAt: DiveTimestamp
 }
 
 /// The settings reads the cache keeps, each one file.
 public enum KeptSetting: String, Sendable {
-  case storage, tags, invitations, passkeys
-  case inviteLink = "invite-link"
+  case storage, tags, passkeys
+  case connectLink = "connect-link"
   case signedInDevices = "signed-in-devices"
   case apiKeys = "api-keys"
 }

@@ -47,4 +47,15 @@ public final class PeopleListModel {
       return RecordSheetModel<PersonFormValues>.sentence(error)
     }
   }
+
+  /// Queues a person's disconnect from their page; the reason it could not, where the outbox
+  /// refused it.
+  public static func disconnect(_ person: UUID, in outbox: OutboxModel) -> String? {
+    do {
+      try outbox.queue(.disconnectPerson(.server(person)))
+      return nil
+    } catch {
+      return RecordSheetModel<PersonFormValues>.sentence(error)
+    }
+  }
 }

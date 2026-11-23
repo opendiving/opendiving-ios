@@ -1,16 +1,28 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One person on a dive, a trip or a course: the name, opening their page where the server
-/// has them, the linked account's `@username`, and the role under them.
+/// One person on a dive, a trip or a course: the connected account's picture or the user icon,
+/// the name, opening their page where the server has them, the connected account's `@username`,
+/// and the role under them.
 struct PersonRowView: View {
   let content: PersonRowContent
 
+  /// The picture's side, the size the icon it stands in for draws at.
+  @ScaledMetric(relativeTo: .subheadline) private var pictureSide = 20.0
+
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Image(.user)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
+      Group {
+        if let picture = content.picture {
+          ConnectedPictureView(picture: picture, side: pictureSide)
+            // Its middle on the name's, as the icon's is.
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + $0.height * 0.3 }
+        } else {
+          Image(.user)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           if let uuid = content.uuid {
