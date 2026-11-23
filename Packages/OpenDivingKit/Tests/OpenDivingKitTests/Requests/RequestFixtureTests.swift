@@ -35,6 +35,11 @@ struct RequestFixtureTests {
     #expect(known.map(\.uuid) == [query.dives[0].uuid])
   }
 
+  @Test func divesRenumber() throws {
+    let request = try sendsItsFixture(DiveRenumberRequest.self, "request-dives-renumber")
+    #expect(request.fromStartTime?.utcOffsetMinutes == 120)
+  }
+
   @Test func diveSiteCreate() throws {
     _ = try sendsItsFixture(DiveSiteCreate.self, "request-dive-site-create")
   }

@@ -1,13 +1,17 @@
 import OpenDivingKit
 import SwiftUI
 
-/// What an import wrote, straight after the apply and from the history alike. `onDone` is the
-/// way back where the screen has no back button of its own to offer.
+/// What an import wrote, straight after the apply and from the history alike, with the offer to
+/// renumber where it tangled the log's numbering. `onDone` is the way back where the screen has no
+/// back button of its own to offer.
 struct ImportResultSections: View {
   let result: LogbookImportRead
-  let numbering: String?
+  let numbering: RenumberSuggestion?
   let units: UnitSystem
   var onDone: (() -> Void)?
+
+  @State private var isRenumbering = false
+  @State private var renumbered = false
 
   var body: some View {
     Section {
@@ -21,7 +25,16 @@ struct ImportResultSections: View {
     ImportBodySections(read: result, units: units)
     if let numbering {
       Section {
-        Text(numbering).font(.footnote).foregroundStyle(.secondary)
+        if renumbered {
+          Text(DiveNumberingText.renumbered).font(.footnote).foregroundStyle(.secondary)
+        } else {
+          Text(numbering.text).font(.footnote).foregroundStyle(.secondary)
+          Button("Renumber") { isRenumbering = true }
+            .accentRow()
+        }
+      }
+      .sheet(isPresented: $isRenumbering) {
+        RenumberDivesSheet(defaults: numbering.defaults) { renumbered = true }
       }
     }
     ImportReportSections(report: result)
@@ -42,7 +55,11 @@ struct ImportResultSections: View {
     List {
       ImportResultSections(
         result: ImportPreviewData.applied,
-        numbering: "Numbered #1–#3 — 2 dives share a number.", units: .metric
+        numbering: RenumberSuggestion(
+          text: "Numbered #1–#3 — 2 dives share a number. Renumbering from Sep 8, 2026 numbers "
+            + "every dive from then on in date order.",
+          defaults: RenumberDefaults(
+            startAt: 3, fromDate: CalendarDate(year: 2026, month: 9, day: 8))), units: .metric
       ) {}
     }
   }

@@ -12,8 +12,8 @@ public final class ImportDetailModel {
   }
 
   public private(set) var phase = Phase.loading
-  /// The numbering sentence, where the import tangled the log's numbering.
-  public private(set) var numbering: String?
+  /// The offer to renumber, where the import tangled the log's numbering.
+  public private(set) var numbering: RenumberSuggestion?
   public private(set) var isDeleting = false
   /// Why the last delete failed.
   public private(set) var deleteError: String?
@@ -32,9 +32,7 @@ public final class ImportDetailModel {
     do {
       let client = try session.requireClient()
       let read = try await client.logbookImport(uuid)
-      let after = try? await client.diveNumbering()
-      numbering = ImportText.numberingSuggestion(
-        before: read.numbering, after: after, dives: read.dives)
+      numbering = await RenumberSuggestion.read(after: read, client: client)
       phase = .loaded(read)
     } catch {
       phase = .failed(APIError(error))

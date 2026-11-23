@@ -16,7 +16,7 @@ struct ImportDetailModelTests {
   private let tangled =
     #"{"total_dives":3,"lowest":1,"highest":2,"missing_count":0,"duplicate_count":1,"out_of_date_order_count":0,"is_sequential":false}"#
 
-  @Test func loadsTheImportAndItsNumberingSentence() async throws {
+  @Test func loadsTheImportWithNoOfferWhereItLeftTheNumberingTidy() async throws {
     let applied = try KitFixture.text("import-applied")
     let model = ImportDetailModel(
       session: Session.stub(
@@ -33,7 +33,7 @@ struct ImportDetailModelTests {
     #expect(model.numbering == nil)
   }
 
-  @Test func saysWhereTheImportTangledTheNumbering() async throws {
+  @Test func offersToRenumberWhereTheImportTangledTheNumbering() async throws {
     let pending = try JSONSerialization.jsonObject(with: KitFixture.data("import-pending"))
     var object = pending as! [String: Any]
     object["status"] = "applied"
@@ -42,10 +42,12 @@ struct ImportDetailModelTests {
       session: Session.stub(
         transport: StubTransport(routes: [
           "GET \(route)": .json(body), "GET dives/numbering": .json(tangled),
+          "GET dives/next-number": .json(try KitFixture.text("dive-number-suggestion")),
         ])),
       uuid: uuid)
     await model.load()
-    #expect(model.numbering?.hasSuffix("Renumber them on the web, from the Dives page.") == true)
+    #expect(model.numbering?.defaults.startAt == 215)
+    #expect(model.numbering?.text.hasPrefix("Numbered #1–#2 — 1 dive shares a number.") == true)
   }
 
   @Test func anImportGoneSinceFailsWithThe404() async {

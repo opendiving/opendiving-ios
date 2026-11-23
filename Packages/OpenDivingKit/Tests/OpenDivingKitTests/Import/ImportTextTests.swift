@@ -113,21 +113,4 @@ struct ImportTextTests {
       PendingText.fileStage(.uploaded) == "Uploaded, waiting for the import to be finished")
     #expect(PendingText.fileStage(.refused("Too large.")) == "Refused: Too large.")
   }
-
-  @Test func theNumberingSentenceAppearsOnlyWhereTheImportTangledIt() throws {
-    let pending = try KitFixture.decode(LogbookImportRead.self, "import-pending")
-    let tidy = DiveNumberingSummary(
-      totalDives: 3, lowest: 1, highest: 3, missingCount: 0, duplicateCount: 0,
-      outOfDateOrderCount: 0, isSequential: true)
-    let shared = DiveNumberingSummary(
-      totalDives: 4, lowest: 1, highest: 3, missingCount: 0, duplicateCount: 2,
-      outOfDateOrderCount: 0, isSequential: false)
-    #expect(
-      ImportText.numberingSuggestion(before: tidy, after: shared, dives: pending.dives)
-        == "Numbered #1–#3 — 2 dives share a number. Renumber them on the web, from the Dives page."
-    )
-    #expect(
-      ImportText.numberingSuggestion(before: shared, after: shared, dives: pending.dives) == nil)
-    #expect(ImportText.numberingSuggestion(before: tidy, after: nil, dives: pending.dives) == nil)
-  }
 }
