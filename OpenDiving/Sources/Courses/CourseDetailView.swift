@@ -255,7 +255,7 @@ private struct CourseInformationCard: View {
           .joined(separator: " · "))
     case .person(let person):
       personRow(
-        person, icon: .user, title: person.name,
+        person, icon: .user, picture: person.picture, title: person.name,
         detail: [person.username.map { "@" + $0 }, person.role].compactMap { $0 }
           .joined(separator: " · "))
     case .notes(let notes):
@@ -264,18 +264,20 @@ private struct CourseInformationCard: View {
   }
 
   @ViewBuilder private func personRow(
-    _ person: PersonRowContent?, icon: Icon, title: String, detail: String?
+    _ person: PersonRowContent?, icon: Icon, picture: ConnectedPicture? = nil, title: String,
+    detail: String?
   ) -> some View {
     let detail = detail?.isEmpty == true ? nil : detail
     if let uuid = person?.uuid {
       NavigationLink {
         PersonDetailView(personUUID: uuid)
       } label: {
-        CourseInformationRow(icon: icon, title: title, detail: detail, opens: true)
+        CourseInformationRow(
+          icon: icon, picture: picture, title: title, detail: detail, opens: true)
       }
       .buttonStyle(.plain)
     } else {
-      CourseInformationRow(icon: icon, title: title, detail: detail)
+      CourseInformationRow(icon: icon, picture: picture, title: title, detail: detail)
     }
   }
 }
@@ -284,16 +286,26 @@ private struct CourseInformationCard: View {
 /// one, and a chevron where the row opens a page.
 private struct CourseInformationRow: View {
   let icon: Icon
+  /// A connected person's picture, drawn in the icon's place.
+  var picture: ConnectedPicture?
   let title: String
   var detail: String?
   var opens = false
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 12) {
-      Image(icon)
-        .foregroundStyle(.secondary)
-        .frame(width: 24)
-        .accessibilityHidden(true)
+      Group {
+        if let picture {
+          ConnectedPictureView(picture: picture, side: 24)
+            // Its middle on the title's, as the icon's is.
+            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + $0.height * 0.3 }
+        } else {
+          Image(icon)
+            .foregroundStyle(.secondary)
+        }
+      }
+      .frame(width: 24)
+      .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
         if let detail {

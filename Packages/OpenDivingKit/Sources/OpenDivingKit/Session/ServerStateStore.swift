@@ -1,7 +1,7 @@
 import Foundation
 
 /// Everything the phone keeps about one server, as one thing: the refresh token and each
-/// account's invite-link token in the ``SecretStore``, the remembered account, a directory under Application Support that other
+/// account's connect-link token in the ``SecretStore``, the remembered account, a directory under Application Support that other
 /// features write into — the check-in sheet among them — its place on the saved list, and
 /// when it was last used, the build it last said it runs and whether it last said it edits the
 /// Commons.
@@ -120,13 +120,15 @@ public struct ServerStateStore: Sendable {
   }
 
   /// A session ended, by sign-out or by the server refusing it: the tokens — the session's and
-  /// every account's invite link — and the account go; the directory, the last-account pointer and the active-origin pointer stay.
+  /// every account's connect link — and the account go; the directory, the last-account pointer and the active-origin pointer stay.
   func endSession(for origin: ServerOrigin) throws {
     try secrets.removeSecret(for: origin.description)
     try removeIfPresent(userFile(for: origin))
-    for account in accounts(on: origin) where inviteLinkToken(for: origin, account: account) != nil
-    {
-      try secrets.removeSecret(for: Self.inviteLinkKey(origin, account))
+    for account in accounts(on: origin) {
+      if connectLinkToken(for: origin, account: account) != nil {
+        try secrets.removeSecret(for: Self.connectLinkKey(origin, account))
+      }
+      try removeRetiredInviteLinkToken(for: origin, account: account)
     }
   }
 
@@ -139,25 +141,32 @@ public struct ServerStateStore: Sendable {
     activeOrigin.save(signIn.origin)
   }
 
-  /// The account's invite-link token, a bearer credential, kept as a secret while the account's
+  /// The account's connect-link token, a bearer credential, kept as a secret while the account's
   /// cache keeps the rest of the link.
-  func inviteLinkToken(for origin: ServerOrigin, account: UUID) -> String? {
-    try? secrets.secret(for: Self.inviteLinkKey(origin, account))
+  func connectLinkToken(for origin: ServerOrigin, account: UUID) -> String? {
+    try? secrets.secret(for: Self.connectLinkKey(origin, account))
   }
 
   /// Keeps `token`, or removes the one kept when it is nil. The account's directory is made
   /// first, since it is what ending the session finds the token by.
-  func setInviteLinkToken(_ token: String?, for origin: ServerOrigin, account: UUID) throws {
-    let key = Self.inviteLinkKey(origin, account)
+  func setConnectLinkToken(_ token: String?, for origin: ServerOrigin, account: UUID) throws {
+    let key = Self.connectLinkKey(origin, account)
     guard let token else { return try secrets.removeSecret(for: key) }
     try FileManager.default.createDirectory(
       at: directory(for: origin, account: account), withIntermediateDirectories: true)
     try secrets.setSecret(token, for: key)
   }
 
+  /// Removes the token a build before connect links kept under the invite link's name, which
+  /// nothing reads now.
+  func removeRetiredInviteLinkToken(for origin: ServerOrigin, account: UUID) throws {
+    try secrets.removeSecret(
+      for: "\(origin.description) invite-link \(account.uuidString.lowercased())")
+  }
+
   /// Keyed by account as well as server: two accounts on one server each have a link.
-  private static func inviteLinkKey(_ origin: ServerOrigin, _ account: UUID) -> String {
-    "\(origin.description) invite-link \(account.uuidString.lowercased())"
+  private static func connectLinkKey(_ origin: ServerOrigin, _ account: UUID) -> String {
+    "\(origin.description) connect-link \(account.uuidString.lowercased())"
   }
 
   /// The accounts with a directory on `origin`.

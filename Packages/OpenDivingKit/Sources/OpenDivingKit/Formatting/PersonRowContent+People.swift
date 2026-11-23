@@ -12,6 +12,7 @@ extension PersonRowContent {
       return PersonRowContent(
         uuid: reference.person.serverUUID, name: person.name,
         username: person.username.flatMap { $0.isEmpty ? nil : $0 },
+        picture: reference.person.isLocal ? nil : ConnectedPicture.of(person),
         role: reference.role.flatMap { $0.isEmpty ? nil : VocabularyLabels.personRole($0) })
     }
   }

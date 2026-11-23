@@ -324,9 +324,10 @@ struct PendingScreen: View {
       return .route(.serviceSchedule(gearItem: body.gearItem, .create, failedItem: item.id))
     case .createServiceRecord(let body):
       return .route(.serviceRecord(gearItem: body.gearItem, .create, failedItem: item.id))
-    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deletePerson, .deleteTrip, .deleteCourse,
-      .deleteContact, .deleteGearItem, .deleteGearSet, .deleteServiceSchedule,
-      .deleteServiceRecord, .deleteCertification, .deleteCertificationFile:
+    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deletePerson, .disconnectPerson,
+      .deleteTrip, .deleteCourse, .deleteContact, .deleteGearItem, .deleteGearSet,
+      .deleteServiceSchedule, .deleteServiceRecord, .deleteCertification,
+      .deleteCertificationFile:
       return nil
     case .createDiveDraft, .updateDiveDraft, .deleteDiveDraft:
       return (item.creates ?? item.operation.target).map { .form(.draft($0)) }

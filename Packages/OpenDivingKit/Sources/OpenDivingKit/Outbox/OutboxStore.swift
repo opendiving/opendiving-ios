@@ -65,12 +65,38 @@ public struct OutboxStore: Sendable {
 
   /// The readable items in queue order. One found in flight is pending again.
   public func items() -> [OutboxItem] {
-    itemFolder.load().values.map { entry in
+    let loaded = itemFolder.load().values.map { entry in
       var item = entry.value
       if item.state == .inFlight { item.state = .pending(lastAnswer: .unreachable) }
       return item
     }
-    .sorted { ($0.sequence, $0.queuedAt) < ($1.sequence, $1.queuedAt) }
+    return loaded.flatMap(disconnectingQueuedUsername)
+      .sorted { ($0.sequence, $0.queuedAt) < ($1.sequence, $1.queuedAt) }
+  }
+
+  /// A person's update queued with `username` sent as null detached the person, which is the
+  /// person's disconnect now, a request of its own: the update becomes it, or, where it changes
+  /// more, is followed by it in the same place in the queue. Both are written at once, since the
+  /// mark that tells such an update is never written back.
+  private func disconnectingQueuedUsername(_ item: OutboxItem) -> [OutboxItem] {
+    guard case .updatePerson(let ref, var body) = item.operation, body.queuedDisconnect else {
+      return [item]
+    }
+    body.queuedDisconnect = false
+    var update = item
+    if body.isEmpty {
+      update.operation = .disconnectPerson(ref)
+      try? save(update)
+      return [update]
+    }
+    // Queued after the update it follows, at its sequence: the same place, behind it.
+    let disconnect = OutboxItem(
+      operation: .disconnectPerson(ref), sequence: item.sequence,
+      marked: item.writtenBeforeAccountKnown, now: max(Date(), item.queuedAt.addingTimeInterval(1)))
+    guard (try? save(disconnect)) != nil else { return [item] }
+    update.operation = .updatePerson(ref, body)
+    try? save(update)
+    return [update, disconnect]
   }
 
   /// The item files this build cannot read, by name: listed as saved by another version of

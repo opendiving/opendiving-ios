@@ -452,7 +452,11 @@ struct DiveDetailContentTests {
       rows.first
         == PersonRowContent(
           uuid: UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d"), name: "Ana Diaz",
-          username: "ana", role: "Buddy"))
+          username: "ana",
+          picture: ConnectedPicture(
+            source: .person(UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d")!),
+            version: "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c"),
+          role: "Buddy"))
     #expect(content(try dive("dive-two-recordings")).people.isEmpty)
   }
 

@@ -1,10 +1,10 @@
 import Foundation
 
-/// What the invite link's QR code draws, in modules with (0, 0) at the symbol's top-left corner,
+/// What the connect link's QR code draws, in modules with (0, 0) at the symbol's top-left corner,
 /// quiet zone not counted: the finders and alignment patterns as whole shapes, the data modules
 /// around them, and the brand mark at the centre with the modules near its bubbles left out.
 /// The web draws the same symbol from the same numbers.
-public struct InviteQRLayout: Sendable {
+public struct ConnectQRLayout: Sendable {
   /// A module's corners, for a module drawn rounded where nothing drawn meets it.
   public struct Corners: OptionSet, Sendable, Hashable {
     public let rawValue: UInt8

@@ -14,6 +14,8 @@ public enum OutboxOperation: Hashable, Sendable {
   case createPerson(PersonCreate)
   case updatePerson(RecordRef, PersonUpdate)
   case deletePerson(RecordRef)
+  /// Drops the person's tie to the account it is connected to, keeping the person.
+  case disconnectPerson(RecordRef)
   case createTrip(TripCreate)
   case updateTrip(RecordRef, TripUpdate)
   case deleteTrip(RecordRef)
@@ -58,7 +60,7 @@ public enum OutboxOperation: Hashable, Sendable {
     switch self {
     case .createDive, .updateDive, .deleteDive, .logDive: .dive
     case .createDiveSite, .updateDiveSite, .deleteDiveSite, .saveDiveSite: .diveSite
-    case .createPerson, .updatePerson, .deletePerson: .person
+    case .createPerson, .updatePerson, .deletePerson, .disconnectPerson: .person
     case .createTrip, .updateTrip, .deleteTrip: .trip
     case .createCourse, .updateCourse, .deleteCourse: .course
     case .createContact, .updateContact, .deleteContact: .contact
@@ -98,7 +100,8 @@ public enum OutboxOperation: Hashable, Sendable {
   var changesLookups: Bool {
     switch self {
     case .updateDiveSite, .deleteDiveSite, .saveDiveSite, .updatePerson, .deletePerson,
-      .updateTrip, .deleteTrip, .updateCourse, .deleteCourse, .updateContact, .deleteContact,
+      .disconnectPerson, .updateTrip, .deleteTrip, .updateCourse, .deleteCourse, .updateContact,
+      .deleteContact,
       .updateGearItem, .deleteGearItem, .updateGearSet, .deleteGearSet:
       true
     default: false
@@ -108,7 +111,7 @@ public enum OutboxOperation: Hashable, Sendable {
   /// Whether landing it changes the people the session names everyone by.
   var changesPeople: Bool {
     switch self {
-    case .createPerson, .updatePerson, .deletePerson: true
+    case .createPerson, .updatePerson, .deletePerson, .disconnectPerson: true
     default: false
     }
   }
@@ -129,10 +132,13 @@ public enum OutboxOperation: Hashable, Sendable {
     }
   }
 
-  /// Whether a 404 is what the write asked for: a record already gone, a side with no image.
+  /// Whether a 404 is what the write asked for: a record already gone, a side with no image, a
+  /// person gone with their tie.
   var isDoneWhenGone: Bool {
-    if case .deleteCertificationFile = self { return true }
-    return deletedRecord != nil
+    switch self {
+    case .deleteCertificationFile, .disconnectPerson: return true
+    default: return deletedRecord != nil
+    }
   }
 
   /// The record an update, a delete or a log writes to; nil for a plain create.
@@ -144,8 +150,9 @@ public enum OutboxOperation: Hashable, Sendable {
       .updateServiceSchedule(let ref, _, _), .updateServiceRecord(let ref, _, _),
       .updateCertification(let ref, _), .putCertificationFile(let ref, _),
       .deleteCertificationFile(let ref, _), .updateDiveDraft(let ref, _), .deleteDive(let ref),
-      .deleteDiveSite(let ref), .deletePerson(let ref), .deleteTrip(let ref),
-      .deleteCourse(let ref), .deleteContact(let ref), .deleteGearItem(let ref),
+      .deleteDiveSite(let ref), .deletePerson(let ref), .disconnectPerson(let ref),
+      .deleteTrip(let ref), .deleteCourse(let ref), .deleteContact(let ref),
+      .deleteGearItem(let ref),
       .deleteGearSet(let ref), .deleteServiceSchedule(let ref, _),
       .deleteServiceRecord(let ref, _), .deleteCertification(let ref),
       .deleteDiveDraft(let ref), .logDive(let ref, _):
@@ -215,6 +222,7 @@ extension OutboxOperation: RewritesLocalRefs {
     case .createPerson(let b): self = .createPerson(body(b))
     case .updatePerson(let ref, let b): self = .updatePerson(retarget(ref), body(b))
     case .deletePerson(let ref): self = .deletePerson(retarget(ref))
+    case .disconnectPerson(let ref): self = .disconnectPerson(retarget(ref))
     case .createTrip(let b): self = .createTrip(body(b))
     case .updateTrip(let ref, let b): self = .updateTrip(retarget(ref), body(b))
     case .deleteTrip(let ref): self = .deleteTrip(retarget(ref))
@@ -264,7 +272,7 @@ extension OutboxOperation: Codable {
       deleteCourse, updateContact, deleteContact, updateGearItem, deleteGearItem, deleteGearSet,
       createServiceSchedule, updateServiceSchedule, deleteServiceSchedule, createServiceRecord,
       updateServiceRecord, deleteServiceRecord, createCertification, updateCertification,
-      deleteCertification, putCertificationFile, deleteCertificationFile
+      deleteCertification, putCertificationFile, deleteCertificationFile, disconnectPerson
   }
 
   private enum CodingKeys: String, CodingKey {
@@ -288,6 +296,7 @@ extension OutboxOperation: Codable {
     case .createPerson: self = .createPerson(try body(PersonCreate.self))
     case .updatePerson: self = .updatePerson(try target(), try body(PersonUpdate.self))
     case .deletePerson: self = .deletePerson(try target())
+    case .disconnectPerson: self = .disconnectPerson(try target())
     case .createTrip: self = .createTrip(try body(TripCreate.self))
     case .updateTrip: self = .updateTrip(try target(), try body(TripUpdate.self))
     case .deleteTrip: self = .deleteTrip(try target())
@@ -354,6 +363,7 @@ extension OutboxOperation: Codable {
     case .createPerson(let b): try write(.createPerson, b)
     case .updatePerson(_, let b): try write(.updatePerson, b)
     case .deletePerson: try write(.deletePerson)
+    case .disconnectPerson: try write(.disconnectPerson)
     case .createTrip(let b): try write(.createTrip, b)
     case .updateTrip(_, let b): try write(.updateTrip, b)
     case .deleteTrip: try write(.deleteTrip)

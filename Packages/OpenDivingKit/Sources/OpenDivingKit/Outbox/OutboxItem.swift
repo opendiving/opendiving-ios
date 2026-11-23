@@ -78,8 +78,8 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
   /// An update of any record but a dive or a gear set only once it has failed, and a card image
   /// likewise, which reopens its certification's form: the phone keeps no copy of the record to
   /// open it over without a read, and one still waiting is changed from the record's page. A
-  /// delete, a card image's removal, an archive and a pause offer none: no form shows the switch,
-  /// so one saved over it would drop it.
+  /// delete, a card image's removal, a person's disconnect, an archive and a pause offer none: no
+  /// form shows the switch, so one saved over it would drop it.
   public var isEditable: Bool {
     if state == .inFlight || failure?.kind == .wrongAccount { return false }
     switch operation {
@@ -94,9 +94,10 @@ public struct OutboxItem: Codable, Hashable, Sendable, Identifiable {
       .putCertificationFile:
       return isFailed && failure?.status != 404
     case .updateDiveDraft: return true
-    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deletePerson, .deleteTrip, .deleteCourse,
-      .deleteContact, .deleteGearItem, .deleteGearSet, .deleteServiceSchedule,
-      .deleteServiceRecord, .deleteCertification, .deleteCertificationFile, .deleteDiveDraft:
+    case .deleteDive, .deleteDiveSite, .saveDiveSite, .deletePerson, .disconnectPerson,
+      .deleteTrip, .deleteCourse, .deleteContact, .deleteGearItem, .deleteGearSet,
+      .deleteServiceSchedule, .deleteServiceRecord, .deleteCertification,
+      .deleteCertificationFile, .deleteDiveDraft:
       return false
     default: return holdsNothing
     }

@@ -113,7 +113,7 @@ public struct TripLookupPart: Codable, Hashable, Sendable {
 public struct PersonLookupItem: LookupRow {
   public var ref: RecordRef
   public var name: String
-  /// The linked account's username.
+  /// The connected account's username.
   public var username: String?
 
   enum CodingKeys: String, CodingKey {

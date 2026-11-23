@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The diver's own page, opened from the sites map by their picture: their name over the places
 /// their trips went, with the logbook's figures, as the web's Home has it; the way back to the
-/// map, the dive-computer button, the QR code that opens the diver's invite link, and the
+/// map, the dive-computer button, the QR code that opens the diver's connect link, and the
 /// settings in the top bar; their picture, which opens *Account*; under the head their dives,
 /// their trips, their check-in sheet or *More*, the menu of the rest, one at a time; and over
 /// the dives and the trips, the button that adds one.
@@ -32,7 +32,7 @@ private struct ProfileContent: View {
   @State private var pictures = PictureCache()
   @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
-  @State private var isShowingInvite = false
+  @State private var isShowingConnectLink = false
   @State private var tabsStuck = false
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsTop: CGFloat = 0
@@ -124,9 +124,7 @@ private struct ProfileContent: View {
       ToolbarIslandGap(placement: .topBarLeading)
       DiveComputerToolbarItem { route = .diveComputer }
       ToolbarItemGroup(placement: .topBarTrailing) {
-        if InvitationsModel.isOffered(by: session.server?.config) {
-          Button("Invite link", systemImage: "qrcode") { isShowingInvite = true }
-        }
+        Button(ConnectLinkModel.showButton, systemImage: "qrcode") { isShowingConnectLink = true }
         Button("Settings", systemImage: "gearshape") { route = .settings }
       }
     }
@@ -139,7 +137,7 @@ private struct ProfileContent: View {
       case .addTrip: TripFormView(mode: .create)
       }
     }
-    .sheet(isPresented: $isShowingInvite) { InviteQRSheet() }
+    .sheet(isPresented: $isShowingConnectLink) { ConnectLinkSheet() }
     .task {
       await model.refresh()
       await model.followRoute()

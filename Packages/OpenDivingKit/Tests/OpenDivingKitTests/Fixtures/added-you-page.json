@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35924",
+      "name": "Robin Diver",
+      "username": "robin",
+      "avatar_sha256": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b"
+    },
+    {
+      "uuid": "01a0a51f-afe3-7363-a0bc-b0d634c35925",
+      "name": "Sam Rivera",
+      "username": "samr",
+      "avatar_sha256": null
+    }
+  ],
+  "total_count": 2,
+  "has_more": false,
+  "page": 1,
+  "items_per_page": 50
+}

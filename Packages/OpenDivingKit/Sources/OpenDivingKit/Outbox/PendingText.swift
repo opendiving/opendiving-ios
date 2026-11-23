@@ -107,6 +107,7 @@ public enum PendingText {
     case .updatePerson(_, let body):
       return body.name.map { named("Changes to person", $0) } ?? "Changes to a person"
     case .deletePerson: return "A deleted person"
+    case .disconnectPerson: return "A person disconnected from their account"
     case .createTrip(let body): return named("Trip", body.name)
     case .updateTrip(_, let body):
       return body.name.map { named("Changes to trip", $0) } ?? "Changes to a trip"

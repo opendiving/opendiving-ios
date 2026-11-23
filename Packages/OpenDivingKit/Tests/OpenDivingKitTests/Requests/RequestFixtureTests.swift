@@ -115,6 +115,14 @@ struct RequestFixtureTests {
 
   @Test func personCreate() throws {
     _ = try sendsItsFixture(PersonCreate.self, "request-person-create")
+    let connect = try sendsItsFixture(PersonCreate.self, "request-person-create-connect")
+    #expect(connect.connectAccount == UUID(uuidString: "01a0a51f-afe3-7363-a0bc-b0d634c35924"))
+  }
+
+  @Test func personUpdateConnectingAnAccount() throws {
+    let update = try sendsItsFixture(PersonUpdate.self, "request-person-update-connect")
+    #expect(update == PersonUpdate(connectAccount: update.connectAccount))
+    #expect(update.connectAccount != nil)
   }
 
   @Test func courseCreate() throws {

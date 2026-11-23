@@ -6,7 +6,7 @@ Choices the code cannot explain by itself. Each says what was chosen, what was r
 ## Credentials live in the Keychain, never `UserDefaults`
 
 Anything credential-shaped the app keeps across launches is a Keychain item, keyed by server origin,
-and by account uuid too where it is one account's: the invite link's token, apart from the rest of
+and by account uuid too where it is one account's: the connect link's token, apart from the rest of
 the link the cache keeps, and removed when the session ends. `UserDefaults` is a plist on disk,
 unencrypted at rest and included in backups. The refresh token does not live in `HTTPCookieStorage`
 either, although the API sends it as a cookie: the app reads it off `Set-Cookie`, stores it itself
@@ -163,12 +163,12 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives, sites, trips, More's records, Settings' storage, tags, invitations and
-*Authentication* lists, species photos and drafts are written when a screen loads them, never
-fetched to fill the cache, and each kind of detail is bounded to the two hundred most recently
-opened, a species photo to the five hundred most recently drawn. It exists so a screen shows at once
-and offline, not as a copy of the logbook. Rejected: a sync that pulls every dive; showing the cache
-only once a fetch has failed, a minute of spinner offline.
+Pages, dives, sites, trips, More's records, Settings' storage, tags and *Authentication* lists,
+the connect link, species photos, the pictures of connected people and drafts are written when a
+screen loads them, never fetched to fill the cache, and each kind of detail is bounded to the two
+hundred most recently opened, a species photo or a picture to the five hundred most recently drawn.
+It exists so a screen shows at once and offline, not as a copy of the logbook. Rejected: a sync
+that pulls every dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 
 ## A computer's pairing is the phone's, its fingerprint the account's, and it moves only once the archive is kept
 
