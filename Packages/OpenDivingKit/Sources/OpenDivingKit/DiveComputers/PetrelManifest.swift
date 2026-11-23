@@ -89,6 +89,22 @@ public enum PetrelManifest {
     /// skipped, not downloaded again.
     public let waiting: Set<Data>
     public let listing: DiveComputerListing
+    /// Every live record, newest first.
+    public let live: [Record]
+
+    /// The live records the walk does not count among its downloads, newest first: those behind
+    /// the fingerprint and those in ``waiting``.
+    public var others: [DiveComputerListing.Download] {
+      let taken = Set(listing.downloads.map(\.fingerprint))
+      return live.filter { !taken.contains($0.start) }.map {
+        DiveComputerListing.Download(fingerprint: $0.start, facts: $0.facts)
+      }
+    }
+
+    /// The live records whose starts are in `catchUp`, newest first.
+    public func taking(_ catchUp: Set<Data>) -> [Record] {
+      live.filter { catchUp.contains($0.start) }
+    }
   }
 
   /// The live records before the one whose start is `fingerprint`, or every live one where none
@@ -110,7 +126,7 @@ public enum PetrelManifest {
         dives: live.count, newDives: downloads.count,
         downloads: downloads.map {
           DiveComputerListing.Download(fingerprint: $0.start, facts: $0.facts)
-        }))
+        }), live: live)
   }
 
   static let live: UInt16 = 0xA5C4

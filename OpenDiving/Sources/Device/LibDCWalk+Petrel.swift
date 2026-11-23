@@ -5,8 +5,10 @@ import OpenDivingKit
 /// A Shearwater Petrel-family computer, walked as `shearwater_petrel_device_foreach` walks it but
 /// with the whole manifest read first, so the count comes before the first dive: the identity by
 /// identifier, every manifest page, the engine's answer for what to leave out — what the logbook
-/// holds, or the diver did not choose — then each new record's dive but those the phone need not
-/// take again or the engine left out. One connection, since a Perdix 3 answers a second manifest read on it with an
+/// holds, or the diver did not choose — and what to take after the rest, then each new record's
+/// dive but those the phone need not take again or the engine left out, then the dive of each
+/// record the engine takes after the rest — one the logbook holds without the computer's
+/// original, behind the fingerprint or not. One connection, since a Perdix 3 answers a second manifest read on it with an
 /// all-zero index — but where the computer drops the link in a walk the diver started, which is
 /// waited out (``waitForLink(after:)``): the transfer it lost is made again on the next, the
 /// manifest read again from its first page, and with no resume buffer an interrupted dive read
@@ -44,40 +46,56 @@ nonisolated extension LibDCWalk {
     }
 
     let phone = PetrelManifest.select(records, fingerprint: fingerprint) { waiting(identity, $0) }
-    let held = leftOut(identity, phone.listing.downloads)
+    let decision = decided(identity, phone.listing.downloads, others: phone.others)
+    let held = decision.leftOut
     let selection =
       held.isEmpty
       ? phone
       : PetrelManifest.select(records, fingerprint: fingerprint) {
         waiting(identity, $0) || held.contains($0)
       }
+    let later = phone.taking(decision.catchUp)
+    let listing = selection.listing.takingAfter(
+      later.map { DiveComputerListing.Download(fingerprint: $0.start, facts: $0.facts) })
     listedFacts = Dictionary(
-      selection.listing.downloads.map { ($0.fingerprint, $0.facts) },
+      listing.downloads.map { ($0.fingerprint, $0.facts) },
       uniquingKeysWith: { first, _ in first })
-    events.yield(.listing(selection.listing))
+    events.yield(.listing(listing))
     for record in selection.new {
       if cancel.isSet { break }
       if selection.waiting.contains(record.start) {
+        if decision.catchUp.contains(record.start) {
+          events.yield(.deferred(fingerprint: record.start))
+          continue
+        }
         waitingSkipped += 1
         events.yield(.skipped(fingerprint: record.start))
         continue
       }
-      var bytes = Data()
-      while true {
-        guard let handle = device?.pointee.device else { return petrelEnd(DC_STATUS_NODEVICE) }
-        let (status, read) = Self.buffered {
-          shearwaterCommonDownload(handle, $0, base &+ record.address, Self.petrelDiveSize, 1, nil)
-        }
-        if status == DC_STATUS_SUCCESS {
-          bytes = read
-          break
-        }
-        if let stopped = petrelLost(status) { return petrelEnd(stopped) }
-      }
-      // The start the dive's own header carries, as libdivecomputer's walk hands it on.
-      guard dive(bytes, fingerprint: Data(bytes.dropFirst(12).prefix(4))) else { break }
+      if let stopped = petrelDive(record, base: base) { return petrelEnd(stopped) }
+    }
+    for record in later {
+      if cancel.isSet { break }
+      if let stopped = petrelDive(record, base: base) { return petrelEnd(stopped) }
     }
     return petrelEnd(DC_STATUS_SUCCESS)
+  }
+
+  /// Reads `record`'s dive and hands it on: nil to go on, else the status the walk ends on, a
+  /// success where the walk was cancelled meanwhile.
+  private func petrelDive(_ record: PetrelManifest.Record, base: UInt32) -> dc_status_t? {
+    while true {
+      guard let handle = device?.pointee.device else { return DC_STATUS_NODEVICE }
+      let (status, bytes) = Self.buffered {
+        shearwaterCommonDownload(handle, $0, base &+ record.address, Self.petrelDiveSize, 1, nil)
+      }
+      if status == DC_STATUS_SUCCESS {
+        // The start the dive's own header carries, as libdivecomputer's walk hands it on.
+        return dive(bytes, fingerprint: Data(bytes.dropFirst(12).prefix(4)))
+          ? nil : DC_STATUS_SUCCESS
+      }
+      if let stopped = petrelLost(status) { return stopped }
+    }
   }
 
   /// The identity, read again on the next connection where the link is lost.

@@ -23,8 +23,9 @@ final class ImportServer: HTTPTransport {
   private struct Held {
     var files: [String]
     var applied = false
-    /// The rows an import applied at once answers: each row's outcome and start.
-    var rows: [(outcome: String, start: String)]? = nil
+    /// The rows an import applied at once answers: each row's outcome and start, and the dive it
+    /// names where the test gave one.
+    var rows: [(outcome: String, start: String, dive: UUID?)]? = nil
   }
 
   /// One `POST /imports?apply=true` as sent.
@@ -47,7 +48,9 @@ final class ImportServer: HTTPTransport {
     var keys: [String: UUID] = [:]
     /// Answers an upload applied at once in place of the server when it does not answer nil.
     var applyAtOnce: Answer = { _ in nil }
-    var rows: [(outcome: String, start: String)] = [("new", "2026-09-08T15:17:38+03:00")]
+    var rows: [(outcome: String, start: String, dive: UUID?)] = [
+      ("new", "2026-09-08T15:17:38+03:00", nil)
+    ]
     var ignoresApply = false
     /// The uploads applied at once, by index, whose answer is lost after the import is made.
     var lostAnswers: Set<Int> = []
@@ -65,6 +68,9 @@ final class ImportServer: HTTPTransport {
     /// The uuids of the listed dives the logbook holds; nil for a server without
     /// `POST /dive-computers/known-dives`, a 404.
     var logbook: Set<UUID>? = nil
+    /// The listed dives the logbook holds without the computer's original, each with the dive
+    /// that holds it; nil for a server that does not say whether a dive has it.
+    var withoutOriginal: [UUID: UUID]? = nil
     /// Answers each known-dives question, by its index, in place of the server when it does not
     /// answer nil.
     var knownAnswer: Answer = { _ in nil }
@@ -95,9 +101,12 @@ final class ImportServer: HTTPTransport {
   /// Answers each upload applied at once, by its index among them, in place of the server.
   func answerAtOnce(_ answer: @escaping Answer) { state.withLock { $0.applyAtOnce = answer } }
 
-  /// The rows the next imports applied at once answer, each an outcome and a start.
-  func applyAtOnce(rows: [(outcome: String, start: String)]) {
-    state.withLock { $0.rows = rows }
+  /// The rows the next imports applied at once answer, each an outcome and a start, and for those
+  /// `dives` names by their place, that dive.
+  func applyAtOnce(rows: [(outcome: String, start: String)], dives: [Int: UUID] = [:]) {
+    state.withLock {
+      $0.rows = rows.enumerated().map { ($1.outcome, $1.start, dives[$0]) }
+    }
   }
 
   /// Makes the imports of the uploads applied at once at these indices, then loses the answers.
@@ -166,8 +175,15 @@ final class ImportServer: HTTPTransport {
   var orders: [[String]] { state.withLock { $0.orders } }
 
   /// The listed dives, by uuid, the logbook holds, which `POST /dive-computers/known-dives`
-  /// answers from now on.
-  func holdInLogbook(_ dives: Set<UUID>) { state.withLock { $0.logbook = dives } }
+  /// answers from now on. With `withoutOriginal`, each row says whether its dive has the
+  /// computer's original: those it names, by uuid, lack it and are held by the dive it gives,
+  /// and every one of `dives` has it.
+  func holdInLogbook(_ dives: Set<UUID>, withoutOriginal: [UUID: UUID]? = nil) {
+    state.withLock {
+      $0.logbook = dives.union(withoutOriginal.map { Set($0.keys) } ?? [])
+      $0.withoutOriginal = withoutOriginal
+    }
+  }
 
   /// Answers each known-dives question, by its index among them, in place of the server.
   func answerKnownDives(_ answer: @escaping Answer) { state.withLock { $0.knownAnswer = answer } }
@@ -249,9 +265,12 @@ final class ImportServer: HTTPTransport {
         guard let logbook = state.logbook else {
           return .json(#"{"detail":"Not Found"}"#, status: 404)
         }
-        let rows = query.dives.filter { logbook.contains($0.uuid) }.map {
-          #"{"uuid":"\#($0.uuid.uuidString.lowercased())","#
-            + #""dive_uuid":"\#(UUID().uuidString.lowercased())"}"#
+        let rows = query.dives.filter { logbook.contains($0.uuid) }.map { dive in
+          let holding = state.withoutOriginal?[dive.uuid]
+          let original =
+            state.withoutOriginal == nil ? "" : #","has_original":\#(holding == nil)"#
+          return #"{"uuid":"\#(dive.uuid.uuidString.lowercased())","#
+            + #""dive_uuid":"\#((holding ?? UUID()).uuidString.lowercased())""# + original + "}"
         }
         return .json("[" + rows.joined(separator: ",") + "]")
       }
@@ -384,7 +403,7 @@ final class ImportServer: HTTPTransport {
     if let rows = held.rows, let template = (json["dives"] as? [[String: Any]])?.first {
       json["dives"] = rows.map { row in
         var dive = template
-        let uuid = UUID().uuidString.lowercased()
+        let uuid = (row.dive ?? UUID()).uuidString.lowercased()
         dive["uuid"] = uuid
         dive["outcome"] = row.outcome
         dive["start_time"] = row.start

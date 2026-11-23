@@ -50,21 +50,44 @@ public struct DiveComputerNotice: Hashable, Sendable {
   }
 
   /// What a download's applied imports say together, from the rows they answered: their new
-  /// dives, the recordings they added to dives already in the logbook, or both; nil where they
-  /// did neither. A tap opens the one new dive, else the one import's page, else the Dive
-  /// Computers screen, where there are several imports and no page shows them all. `download`
-  /// names the download.
+  /// dives, the recordings they added to dives already in the logbook, the dives `updating` names
+  /// that they changed — those the download took the computer's original to — or any of them
+  /// together; nil where they did none of it. A tap opens the one new dive, or the one updated
+  /// dive told alone, else the one import's page, else the Dive Computers screen, where there are
+  /// several imports and no page shows them all. `download` names the download.
   public static func imported(
     _ rows: [LogbookImportDive], imports: [UUID], download: UUID, from computer: String,
-    units: UnitSystem
+    updating: Set<UUID> = [], units: UnitSystem
   ) -> DiveComputerNotice? {
     let new = rows.filter { $0.outcome == "new" }
-    let added = rows.filter { $0.outcome == "modified" }
+    let modified = rows.filter { $0.outcome == "modified" }
+    var seen: Set<UUID> = []
+    let updated = modified.filter { row in
+      guard let uuid = Self.uuid(row), updating.contains(uuid) else { return false }
+      return seen.insert(uuid).inserted
+    }
+    let added = modified.filter { Self.uuid($0).map { !updating.contains($0) } ?? true }
     let id = "import-" + download.uuidString.lowercased()
     let page: Target = imports.count == 1 ? .importPage(imports[0]) : .diveComputers
     let downloaded = "Downloaded from \(computer)."
+    let others =
+      updated.isEmpty
+      ? nil
+      : updated.count == 1 ? "1 other dive updated." : "\(updated.count) other dives updated."
+    if new.isEmpty, added.isEmpty {
+      guard !updated.isEmpty else { return nil }
+      let one = updated.count == 1
+      let body =
+        (one
+          ? facts(updated[0], units: units)
+          : days(updated.compactMap { $0.startTime ?? $0.dive?.dive.startTime }))
+        .map { $0 + ". " } ?? ""
+      return DiveComputerNotice(
+        id: id, title: one ? "1 dive updated" : "\(updated.count) dives updated",
+        body: body + downloaded,
+        target: one ? Self.uuid(updated[0]).map(Target.dive) ?? page : page, passive: true)
+    }
     if new.isEmpty {
-      guard !added.isEmpty else { return nil }
       let body =
         added.count == 1
         ? "\(computer) also recorded your dive of \(when(added[0]) ?? "")."
@@ -73,23 +96,24 @@ public struct DiveComputerNotice: Hashable, Sendable {
         id: id,
         title: added.count == 1
           ? "Recording added to 1 dive" : "Recordings added to \(added.count) dives",
-        body: body, target: page, passive: true)
+        body: others.map { body + " " + $0 } ?? body, target: page, passive: true)
     }
     let title = new.count == 1 ? "1 new dive imported" : "\(new.count) new dives imported"
+    let told = others.map { $0 + " " + downloaded } ?? downloaded
     let body: String
     if !added.isEmpty {
       body =
         (added.count == 1
           ? "A recording was added to 1 other dive."
-          : "Recordings were added to \(added.count) other dives.") + " " + downloaded
+          : "Recordings were added to \(added.count) other dives.") + " " + told
     } else if new.count == 1 {
-      body = (facts(new[0], units: units).map { $0 + ". " } ?? "") + downloaded
+      body = (facts(new[0], units: units).map { $0 + ". " } ?? "") + told
     } else {
-      body = (days(new.compactMap(\.startTime)).map { $0 + ". " } ?? "") + downloaded
+      body = (days(new.compactMap(\.startTime)).map { $0 + ". " } ?? "") + told
     }
     let target: Target =
       new.count == 1 && added.isEmpty
-      ? (new[0].uuid ?? new[0].dive?.dive.uuid).map(Target.dive) ?? page
+      ? Self.uuid(new[0]).map(Target.dive) ?? page
       : page
     return DiveComputerNotice(id: id, title: title, body: body, target: target)
   }
@@ -125,6 +149,11 @@ public struct DiveComputerNotice: Hashable, Sendable {
   }
 
   // MARK: - Pieces
+
+  /// The row's dive: a new one as it will be written, or the logbook's it changed.
+  private static func uuid(_ row: LogbookImportDive) -> UUID? {
+    row.uuid ?? row.dive?.dive.uuid
+  }
 
   /// *12 October, 09:41 · 28.4 m · 46 min*.
   private static func facts(_ row: LogbookImportDive, units: UnitSystem) -> String? {

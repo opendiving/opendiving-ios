@@ -202,9 +202,9 @@ public enum DiveComputerText {
   /// *Downloading dive 3*.
   public static func downloading(_ dive: Int) -> String { "Downloading dive \(dive)" }
 
-  /// *Downloading 2 of 3 new dives*.
-  public static func downloading(_ dive: Int, of total: Int) -> String {
-    "Downloading \(dive) of \(total) new " + (total == 1 ? "dive" : "dives")
+  /// *Downloading 2 of 3 new dives*, or without `new` *Downloading 2 of 41 dives*.
+  public static func downloading(_ dive: Int, of total: Int, new: Bool = true) -> String {
+    "Downloading \(dive) of \(total) " + (new ? "new " : "") + (total == 1 ? "dive" : "dives")
   }
 
   /// While a download has dives to come and nothing yet to reckon their time by.
@@ -240,6 +240,12 @@ public enum DiveComputerText {
   /// fingerprint.
   public static func newOnComputer(_ new: Int, of dives: Int) -> String {
     (new == 1 ? "1 new dive" : "\(new) new dives") + " out of \(dives) on this computer"
+  }
+
+  /// *41 dives to download out of 55 on this computer*: the count, where the download takes dives
+  /// the logbook holds.
+  public static func toDownloadOnComputer(_ taken: Int, of dives: Int) -> String {
+    "\(count(taken)) to download out of \(dives) on this computer"
   }
 
   /// While the computer says it is busy with another app, which the phone cannot see, before any

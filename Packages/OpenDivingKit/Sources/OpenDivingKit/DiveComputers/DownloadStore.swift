@@ -2,9 +2,11 @@ import Foundation
 
 /// One account's downloads on the phone, under `Downloads/` in its directory: the walks whose
 /// dives are being kept as they arrive or wait for a time zone, each a record beside a folder of
-/// the dives' bytes; the archives waiting to be imported, each a record beside its zip; and, per
+/// the dives' bytes; the archives waiting to be imported, each a record beside its zip; per
 /// computer, the dives the server has answered for and, apart, those the diver did not choose to
-/// download, which a walk does not take again until the computer's fingerprint has passed them.
+/// download, which a walk does not take again until the computer's fingerprint has passed them;
+/// and, per computer, the dives sent only for the computer's original download, which no walk
+/// takes for that reason again.
 ///
 /// A record this build cannot read is kept and never overwritten (``KeptFolder``), and the bytes
 /// beside it with it.
@@ -15,6 +17,7 @@ public struct DownloadStore: Sendable {
   private let archiveRecords: KeptFolder<DownloadArchive>
   private let deliveredRecords: KeptFolder<[UUID]>
   private let declinedRecords: KeptFolder<[UUID]>
+  private let originalRecords: KeptFolder<[UUID]>
 
   public init(store: ServerStateStore, origin: ServerOrigin, account: UUID) {
     self.account = account
@@ -24,6 +27,7 @@ public struct DownloadStore: Sendable {
     archiveRecords = KeptFolder(url: root.appendingPathComponent("Archives", isDirectory: true))
     deliveredRecords = Self.delivered(in: root)
     declinedRecords = Self.declined(in: root)
+    originalRecords = KeptFolder(url: root.appendingPathComponent("Originals", isDirectory: true))
   }
 
   private static func delivered(in root: URL) -> KeptFolder<[UUID]> {
@@ -89,15 +93,18 @@ public struct DownloadStore: Sendable {
 
   /// Takes the written zip in and records it: the bytes first, so a record never names a zip
   /// that is not there. `walk` and `part` place it among the archives cut from one walk; `facts`
-  /// is what the list said of its dives.
+  /// is what the list said of its dives, and `updating` names those the logbook holds without the
+  /// computer's original, with the dives that hold them.
   func add(
     _ written: ComputerArchiveWriter.Written, record: String, marked: Bool, walk: UUID? = nil,
-    part: Int? = nil, facts: [UUID: ListedDiveFacts] = [:]
+    part: Int? = nil, facts: [UUID: ListedDiveFacts] = [:], updating: [UUID: UUID] = [:]
   ) throws -> DownloadArchive {
+    let updated = updating.filter { written.dives.contains($0.key) }
     let archive = DownloadArchive(
       filename: written.url.lastPathComponent, summary: written.summary, record: record,
       dives: written.dives, receivedBeforeAccountKnown: marked, walk: walk, part: part,
-      facts: facts.filter { written.dives.contains($0.key) })
+      facts: facts.filter { written.dives.contains($0.key) },
+      updating: updated.isEmpty ? nil : updated)
     let target = url(for: archive)
     try FileManager.default.createDirectory(
       at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -150,6 +157,19 @@ public struct DownloadStore: Sendable {
     try declinedRecords.write(declined.sorted { $0.uuidString < $1.uuidString }, name: record)
   }
 
+  /// Every computer's dives sent for the computer's original download and answered for. Neither
+  /// the fingerprint moving nor the computer forgotten drops them: a dive whose original never
+  /// joins it would otherwise be downloaded at every sync.
+  func allSentForOriginal() -> Set<UUID> {
+    Set(originalRecords.load().values.flatMap(\.value))
+  }
+
+  func sentForOriginal(_ dives: [UUID], of record: String) throws {
+    guard !dives.isEmpty else { return }
+    let kept = Set(originalRecords.read(record) ?? []).union(dives)
+    try originalRecords.write(kept.sorted { $0.uuidString < $1.uuidString }, name: record)
+  }
+
   /// The computer's fingerprint moved past every dive a complete walk saw, these among them.
   func clearDelivered(_ record: String) {
     deliveredRecords.remove(record)
@@ -159,7 +179,9 @@ public struct DownloadStore: Sendable {
   /// *Forget this dive computer*: what any account's diver chose not to download from it goes
   /// with it, so pairing it again asks afresh. So does what the server answered for, which stands
   /// in for the fingerprint until it moves: left behind, the next walk would pass those dives over
-  /// without asking the server, and so could not say that the logbook holds them.
+  /// without asking the server, and so could not say that the logbook holds them. What was sent
+  /// for the computer's original stays: the logbook holds those dives whichever computer reads
+  /// them next.
   static func forgetComputer(_ record: String, store: ServerStateStore) {
     for directory in store.accountDirectories() {
       let downloads = directory.appendingPathComponent("Downloads", isDirectory: true)
