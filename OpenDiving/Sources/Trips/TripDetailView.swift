@@ -15,7 +15,6 @@ struct TripDetailView: View {
 
 private struct TripDetailContent: View {
   @Environment(Session.self) private var session
-  @Environment(\.dismiss) private var dismiss
   @State private var model: TripDetailModel
 
   init(model: TripDetailModel) {
@@ -45,17 +44,6 @@ private struct TripDetailContent: View {
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
-    .toolbar {
-      if case .loaded(let trip) = model.phase {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-          NavigationLink {
-            TripFormView(mode: .edit(trip)) { dismiss() }
-          } label: {
-            Label("Edit trip", systemImage: "pencil")
-          }
-        }
-      }
-    }
     .task {
       await model.load()
       await model.followRoute()
@@ -72,15 +60,23 @@ private struct TripDetailPage: View {
   let model: TripDetailModel
 
   @Environment(Session.self) private var session
+  @Environment(\.dismiss) private var dismiss
   @State private var tab = TripSection.info
   @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsHeld = false
   @State private var tabsTop: CGFloat = 0
   @State private var reselect = TabsReselect.head
   @State private var tabsBottom: CGFloat = 0
   @State private var visibleHeight: CGFloat = 0
+  /// Where each part's heading among the dives sits down the page, by the part's index.
+  @State private var partTops: [Int: CGFloat] = [:]
+  /// The content offset that brings each landing to the bar.
+  @State private var landings: [Landing: CGFloat] = [:]
 
+  /// The stack's gap between its rows.
+  private static let gap: CGFloat = 16
   /// The stack's gap under the tabs and the page's foot.
-  private static let emptyGaps: CGFloat = 16 + 16
+  private static let emptyGaps: CGFloat = gap + 16
   /// What a message keeps where the head leaves less of the screen.
   private static let emptyMinHeight: CGFloat = 240
 
@@ -88,7 +84,7 @@ private struct TripDetailPage: View {
     ScrollView {
       // Lazy, so the dives' last page asks for the next and each species card for its photo
       // as it scrolls into reach.
-      LazyVStack(spacing: 16) {
+      LazyVStack(spacing: Self.gap) {
         HeroView(content: TripSummary.hero(trip), detailsOnGlass: true)
         if model.lastUpdated != nil || model.hasPendingEdit {
           VStack(spacing: 16) {
@@ -101,18 +97,10 @@ private struct TripDetailPage: View {
           }
           .padding(.horizontal)
         }
-        SectionTabs(
-          selection: $tab,
-          title: { tab in
-            switch tab {
-            case .info: tab.title
-            case .dives: DiveSiteSummary.counted(tab.title, trip.diveCount)
-            case .aquaticLife: DiveSiteSummary.counted(tab.title, trip.speciesCount)
-            }
-          },
-          onReselect: { withAnimation { scroll.scroll(to: reselect) } }
+        HoldingSectionTabs(
+          selection: $tab, isHeld: $tabsHeld, top: $tabsTop, title: tabTitle,
+          onReselect: scrollOnReselect
         )
-        .readsTabsTop($tabsTop)
         .onGeometryChange(for: CGFloat.self) {
           $0.frame(in: .pageContent).maxY
         } action: {
@@ -131,7 +119,9 @@ private struct TripDetailPage: View {
               empty(
                 .empty(icon: .dive, title: "No dives logged for this trip yet", message: nil))
             } else {
-              TripDives(trip: trip, list: model.dives, units: session.units)
+              TripDives(
+                trip: trip, sections: diveSections, list: model.dives, units: session.units,
+                partTops: $partTops)
               PageEndTrigger(list: model.dives)
               LoadMoreFooter(list: model.dives)
             }
@@ -140,6 +130,7 @@ private struct TripDetailPage: View {
           }
         }
         .padding(.horizontal)
+        .hiddenUnderTopBar()
       }
       .coordinateSpace(.pageContent)
       .padding(.bottom)
@@ -152,7 +143,84 @@ private struct TripDetailPage: View {
       visibleHeight = $1
     }
     .tabsReselect($reselect, tabsTop: tabsTop)
+    .offsetsToBar($landings, tops: landingTops)
+    // A section chosen under the held tabs starts just under them, rather than wherever the
+    // last one was scrolled to, which may be past the end of a shorter one.
+    .onChange(of: tab) {
+      if tabsHeld, let offset = landings[.tabs] {
+        scroll.scrollTo(y: offset)
+      }
+    }
+    .overlay(alignment: .top) {
+      HeldSectionTabs(
+        selection: $tab, isHeld: tabsHeld, title: tabTitle, onReselect: scrollOnReselect)
+    }
     .heroUnderTopBar { await model.refresh() }
+    .toolbar {
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        if tab == .dives, tabsHeld, trip.parts.count > 1 {
+          partsMenu
+        }
+        NavigationLink {
+          TripFormView(mode: .edit(trip)) { dismiss() }
+        } label: {
+          Label("Edit trip", systemImage: "pencil")
+        }
+      }
+    }
+  }
+
+  private func tabTitle(_ tab: TripSection) -> String {
+    switch tab {
+    case .info: tab.title
+    case .dives: DiveSiteSummary.counted(tab.title, trip.diveCount)
+    case .aquaticLife: DiveSiteSummary.counted(tab.title, trip.speciesCount)
+    }
+  }
+
+  private func scrollOnReselect() {
+    withAnimation { scroll.scroll(to: reselect) }
+  }
+
+  /// The dives under the parts they were made on, for a trip of more than one; nil until the
+  /// dives are read.
+  private var diveSections: [TripDiveSection<DiveListItem>]? {
+    guard trip.parts.count > 1, model.dives.phase == .loaded else { return nil }
+    let list = model.dives
+    return TripDiveSection.sections(
+      list.items, parts: TripSummary.spans(trip.parts), complete: !list.hasMore
+    ) { $0.startTime.calendarDate }
+  }
+
+  /// The parts the dives show, in their order down the page, each scrolling its heading to just
+  /// under the held tabs.
+  private var partsMenu: some View {
+    Menu("Parts", systemImage: "list.bullet") {
+      ForEach(diveSections?.compactMap(\.partIndex) ?? [], id: \.self) { index in
+        let heading = TripSummary.partHeading(trip.parts[index])
+        Button {
+          if let offset = landings[.part(index)] {
+            withAnimation { scroll.scrollTo(y: offset) }
+          }
+        } label: {
+          Text(heading.title)
+          if let subtitle = heading.subtitle {
+            Text(subtitle)
+          }
+        }
+      }
+    }
+  }
+
+  /// What lands at the bar's foot for each landing: the tabs' top, and each part's heading the
+  /// tabs' height and the gap under them further down, so it shows just under the held tabs.
+  private var landingTops: [Landing: CGFloat] {
+    var tops: [Landing: CGFloat] = [.tabs: tabsTop]
+    let under = tabsBottom - tabsTop + Self.gap
+    for (index, top) in partTops {
+      tops[.part(index)] = top - under
+    }
+    return tops
   }
 
   /// In the middle of what the screen shows under the tabs, at their place at rest.
@@ -162,14 +230,54 @@ private struct TripDetailPage: View {
   }
 }
 
+/// Where the trip's page scrolls something to the top bar's foot: its tabs, or a part's
+/// heading among the dives.
+private enum Landing: Hashable {
+  case tabs
+  case part(Int)
+}
+
+extension View {
+  /// Keeps `offsets` at the content offset that brings each of `tops`, a place down the
+  /// ``NamedCoordinateSpace/pageContent``, to the top bar's foot, or as near as this scroll view
+  /// goes.
+  fileprivate func offsetsToBar(
+    _ offsets: Binding<[Landing: CGFloat]>, tops: [Landing: CGFloat]
+  ) -> some View {
+    modifier(OffsetsToBarReading(offsets: offsets, tops: tops))
+  }
+}
+
+/// Read in the scroll view, under ``View/heroUnderTopBar(refresh:)``, which sets the inset.
+private struct OffsetsToBarReading: ViewModifier {
+  @Binding var offsets: [Landing: CGFloat]
+  let tops: [Landing: CGFloat]
+  @Environment(\.heroTopInset) private var topInset
+
+  func body(content: Content) -> some View {
+    content.onScrollGeometryChange(for: [Landing: CGFloat].self) {
+      [tops, topInset] geometry in
+      let top = -geometry.contentInsets.top
+      // The container is the scroll view's height less its insets.
+      let bottom = max(top, top + geometry.contentSize.height - geometry.containerSize.height)
+      return tops.mapValues { min(max($0 - topInset, top), bottom) }
+    } action: {
+      offsets = $1
+    }
+  }
+}
+
 /// The trip's dives as cards, each part's under its place and dates, with the dives no part
 /// covers between them. The tab names them, so they stand in no card of their own, and a
 /// trip of one part is that part, whose place and dates the hero already gives, so its dives
 /// stand under no heading.
 private struct TripDives: View {
   let trip: TripRead
+  /// The dives under their parts, for a trip of more than one.
+  let sections: [TripDiveSection<DiveListItem>]?
   let list: PagedList<DiveListItem>
   let units: UnitSystem
+  @Binding var partTops: [Int: CGFloat]
 
   var body: some View {
     switch list.phase {
@@ -188,32 +296,44 @@ private struct TripDives: View {
           .brandBorderedButton()
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-    case .loaded where trip.parts.count < 2:
-      DiveCardLinks(items: list.items, units: units)
     case .loaded:
-      let sections = TripDiveSection.sections(
-        list.items, parts: TripSummary.spans(trip.parts), complete: !list.hasMore
-      ) { $0.startTime.calendarDate }
-      ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
-        switch section {
-        case .loose(let items):
-          DiveCardLinks(items: items, units: units)
-        case .part(let index, let items):
-          let heading = TripSummary.partHeading(trip.parts[index])
-          VStack(alignment: .leading, spacing: 8) {
-            SectionTitle(title: heading.title, icon: .mapPin, subtitle: heading.subtitle)
-            if items.isEmpty {
-              Text("No dives logged for this part yet")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            } else {
+      if let sections {
+        // Laid out together, as each part's cards already are, so the parts menu knows where
+        // every part's heading sits before the page scrolls to it.
+        VStack(spacing: 16) {
+          ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
+            switch section {
+            case .loose(let items):
               DiveCardLinks(items: items, units: units)
+            case .part(let index, let items):
+              part(index, items: items)
             }
           }
         }
+      } else {
+        DiveCardLinks(items: list.items, units: units)
       }
+    }
+  }
+
+  private func part(_ index: Int, items: [DiveListItem]) -> some View {
+    let heading = TripSummary.partHeading(trip.parts[index])
+    return VStack(alignment: .leading, spacing: 8) {
+      SectionTitle(title: heading.title, icon: .mapPin, subtitle: heading.subtitle)
+      if items.isEmpty {
+        Text("No dives logged for this part yet")
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 8)
+      } else {
+        DiveCardLinks(items: items, units: units)
+      }
+    }
+    .onGeometryChange(for: CGFloat.self) {
+      $0.frame(in: .pageContent).minY
+    } action: {
+      partTops[index] = $0
     }
   }
 }
