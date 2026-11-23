@@ -146,8 +146,6 @@ private struct TripDetailPage: View {
     .tabsReselect($reselect, tabsTop: tabsTop)
     .offsetsToBar($landings, tops: landingTops)
     .readsTabsStuck($tabsStuck, tabsTop: tabsTop)
-    // A section chosen under the held tabs starts just under them, rather than wherever the
-    // last one was scrolled to, which may be past the end of a shorter one.
     // The parts button comes and goes animated, whatever changed: the dives landing is no
     // animation of its own, and the first switch to them lays every card out in one long frame
     // the button's own animation would otherwise share.
@@ -156,6 +154,8 @@ private struct TripDetailPage: View {
         withAnimation(.easeOut(duration: 0.2)) { showsParts = shows }
       }
     }
+    // A section chosen under the held tabs starts just under them, rather than wherever the
+    // last one was scrolled to, which may be past the end of a shorter one.
     .onChange(of: tab) {
       if tabsStuck, let offset = landings[.tabs] {
         scroll.scrollTo(y: offset)
