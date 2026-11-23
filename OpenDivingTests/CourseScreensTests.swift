@@ -32,8 +32,7 @@ struct CourseScreensTests {
     #expect(CourseDetailView.certificationsEmptyTitle == "No certifications from this course yet")
     #expect(
       CourseDetailView.certificationsEmptyMessage
-        == "Add the card this training issued, or name this course from an existing card's form."
-    )
+        == "Add the cards this training issued to see them here.")
     #expect(CourseDetailView.addDives == "Add dives")
     #expect(CourseDetailView.addCertifications == "Add certifications")
   }

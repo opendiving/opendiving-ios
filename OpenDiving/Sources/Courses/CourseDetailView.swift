@@ -18,13 +18,9 @@ struct CourseDetailView: View {
 extension CourseDetailView {
   static let notFound = "Course not found."
   static let certificationsEmptyTitle = "No certifications from this course yet"
-  static let certificationsEmptyMessage =
-    "Add the card this training issued, or name this course from an existing card's form."
+  static let certificationsEmptyMessage = "Add the cards this training issued to see them here."
   /// The Info tab's buttons, which the empty Dives and Certifications tabs repeat.
   static let addDives = "Add dives"
-  /// What the empty tabs' buttons add to the system's side padding, which on iOS 26 leaves less
-  /// room at a button's ends than between its icon and its words.
-  static let emptyActionInset: CGFloat = 4
   static let addCertifications = "Add certifications"
 
   /// What a page that could not be read says: offline, that it shows once it can be.
@@ -93,13 +89,7 @@ private struct CourseDetailContent: View {
                 RecordDivesSection(
                   list: model.dives, content: .course, units: session.units, isCarded: false
                 ) {
-                  NavigationLink {
-                    CourseAddDivesView(course: course)
-                  } label: {
-                    Label(CourseDetailView.addDives, icon: .dive)
-                      .padding(.horizontal, CourseDetailView.emptyActionInset)
-                  }
-                  .brandProminentButton(.brandCoral)
+                  CourseAddLink(kind: .dives, course: course)
                 }
               }
             }
@@ -209,13 +199,7 @@ private struct CourseCertificationsSection: View {
     } description: {
       Text(CourseDetailView.certificationsEmptyMessage)
     } actions: {
-      NavigationLink {
-        CourseAddCertificationsView(course: course)
-      } label: {
-        Label(CourseDetailView.addCertifications, icon: .badgeCheck)
-          .padding(.horizontal, CourseDetailView.emptyActionInset)
-      }
-      .brandBorderedButton()
+      CourseAddLink(kind: .certifications, course: course)
     }
   }
 }
@@ -334,10 +318,9 @@ private struct CourseInformationRow: View {
   }
 }
 
-/// *Add dives*, in the coral the profile's own *Log a dive* takes, beside *Add certifications*,
-/// each opening a list of the diver's records to put on the course: each button as wide as its
-/// label plus an equal share of what is left of the row, so both keep the same padding. Over it
-/// where the row leaves no room.
+/// *Add dives* beside *Add certifications*, each opening a list of the diver's records to put on
+/// the course: each button as wide as its label plus an equal share of what is left of the row,
+/// so both keep the same padding. Over it where the row leaves no room.
 private struct CourseActions: View {
   let course: CourseRead
 
@@ -349,20 +332,45 @@ private struct CourseActions: View {
   }
 
   @ViewBuilder private var buttons: some View {
-    NavigationLink {
-      CourseAddDivesView(course: course)
-    } label: {
-      Label(CourseDetailView.addDives, icon: .dive)
-        .frame(maxWidth: .infinity)
+    CourseAddLink(kind: .dives, course: course, fillsWidth: true)
+    CourseAddLink(kind: .certifications, course: course, fillsWidth: true)
+  }
+}
+
+/// *Add dives*, in the coral the profile's own *Log a dive* takes, or *Add certifications*: the
+/// Info tab's pair, as wide as their row gives them, or an empty tab's own, as wide as its label
+/// and a little more at its ends, which on iOS 26 otherwise have less room than its icon and its
+/// words have between them.
+private struct CourseAddLink: View {
+  enum Kind { case dives, certifications }
+
+  let kind: Kind
+  let course: CourseRead
+  var fillsWidth = false
+
+  var body: some View {
+    switch kind {
+    case .dives:
+      NavigationLink {
+        CourseAddDivesView(course: course)
+      } label: {
+        label(CourseDetailView.addDives, icon: .dive)
+      }
+      .brandProminentButton(.brandCoral)
+    case .certifications:
+      NavigationLink {
+        CourseAddCertificationsView(course: course)
+      } label: {
+        label(CourseDetailView.addCertifications, icon: .badgeCheck)
+      }
+      .brandBorderedButton()
     }
-    .brandProminentButton(.brandCoral)
-    NavigationLink {
-      CourseAddCertificationsView(course: course)
-    } label: {
-      Label(CourseDetailView.addCertifications, icon: .badgeCheck)
-        .frame(maxWidth: .infinity)
-    }
-    .brandBorderedButton()
+  }
+
+  private func label(_ title: String, icon: Icon) -> some View {
+    Label(title, icon: icon)
+      .frame(maxWidth: fillsWidth ? .infinity : nil)
+      .padding(.horizontal, fillsWidth ? 0 : 4)
   }
 }
 

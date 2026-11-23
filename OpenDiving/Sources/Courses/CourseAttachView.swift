@@ -60,7 +60,7 @@ where Item.ID == UUID {
       }
     case .loaded:
       let items = offered(list.items)
-      if items.isEmpty, list.hasMore {
+      if items.isEmpty, list.hasMore, list.pageError == nil {
         // Every row read so far is on the course already: read on until one is not.
         BubbleSpinner()
           .frame(maxWidth: .infinity, maxHeight: .infinity)
