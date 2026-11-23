@@ -308,7 +308,11 @@ struct RecordEditQueueTests {
     let world = try OutboxWorld()
     try await world.load()
     let page = try tripsPage()
-    world.server.override { request, _ in request.route == "GET trips" ? .json(page) : nil }
+    // The read the landed delete starts fails, so the list keeps the page it had.
+    world.server.override { request, index in
+      guard request.route == "GET trips" else { return nil }
+      return index == 0 ? .json(page) : .status(500, "Down")
+    }
     let list = PagedList<TripRead>(session: world.session, cache: .trips) { client, page, count in
       try await client.trips(page: page, itemsPerPage: count)
     }
@@ -318,6 +322,7 @@ struct RecordEditQueueTests {
     try outbox.queue(.deleteTrip(trip))
     await outbox.settled()
     await list.reloading?.value
+    #expect(list.pageError != nil)
     #expect(list.items.isEmpty)
   }
 

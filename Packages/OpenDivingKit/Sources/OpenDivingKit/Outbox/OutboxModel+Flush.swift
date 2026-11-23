@@ -337,7 +337,7 @@ private struct Flush {
       cache.upsertLookupRow(site, table: .diveSites)
     }
     // Before the item goes, so its list never shows the record between the two.
-    if let deleted = item.operation.deletedRecord { hub.deleted.insert(deleted) }
+    if let deleted = item.operation.deletedRecord { hub.gone(deleted) }
     if case .updateServiceSchedule(let ref, _, let update) = item.operation,
       let active = update.isActive, let uuid = ref.serverUUID
     {

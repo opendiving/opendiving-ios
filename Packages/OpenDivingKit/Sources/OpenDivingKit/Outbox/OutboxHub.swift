@@ -83,9 +83,12 @@ final class OutboxHub {
   /// Drafts being changed in a form: their queued writes wait for it to be left or for the
   /// changes to pause, so a flush running meanwhile does not send every keystroke.
   var editing: Set<RecordRef> = []
-  /// Records the server no longer has since launch — a delete landed, or a page was answered
-  /// 404 — which a list's pages may still hold until its next fetch.
-  var deleted: Set<UUID> = []
+  /// Records the server said it no longer has since launch — a delete landed, or a page was
+  /// answered 404 — and when, since a list's pages fetched before then may still hold one. A
+  /// page whose fetch began after then and names one finds it back, imported again under its
+  /// uuid, so it leaves the set. A write still queued against a record imported back is then
+  /// sent to it, which takes a phone offline from before the delete until after the import.
+  private(set) var deleted: [UUID: Date] = [:]
   /// The latest pause or resume of each service schedule that landed since launch, and when: a
   /// list read before then shows the schedule as it was.
   var landedToggles: [UUID: (active: Bool, at: Date)] = [:]
@@ -94,6 +97,21 @@ final class OutboxHub {
 
   private var observers: [WeakObserver] = []
   private var listObservers: [WeakListObserver] = []
+
+  /// The server answered that it no longer has `uuid`.
+  func gone(_ uuid: UUID) {
+    deleted[uuid] = Date()
+  }
+
+  /// Takes back what a page whose fetch began at `began` names, of the records the server said
+  /// were gone before then, and has every list show them again.
+  func named(_ records: some Sequence<UUID>, fetchedSince began: Date) {
+    guard !deleted.isEmpty else { return }
+    let back = records.filter { deleted[$0].map { $0 <= began } ?? false }
+    guard !back.isEmpty else { return }
+    for uuid in back { deleted[uuid] = nil }
+    changed()
+  }
 
   func observe(_ observer: some AccountStoresObserver) {
     observers.removeAll { $0.value == nil || $0.value === observer }
