@@ -61,11 +61,51 @@ public struct NauticDescriptors: Sendable {
     value(at: "Header.Duration", inSummary: summary).flatMap { $0 > 0 ? $0 : nil }
   }
 
+  /// What the summary of entry `id` says of its dive, each read as ``sport(inSummary:)`` reads
+  /// the sport and none where it is missing, at its nil value, or zero or less: the start, which
+  /// is the id, with the offset `Header.DateTime` logged where its clock less that offset is the
+  /// id; the length, `Header.DiveTime`, else `Header.Duration`; the depth, `Header.Depth.Max`.
+  public func facts(inSummary summary: Data, id: UInt32) -> ListedDiveFacts {
+    func positive(_ path: String) -> Double? {
+      value(at: path, inSummary: summary).flatMap { $0 > 0 ? $0 : nil }
+    }
+    let instant = Date(timeIntervalSince1970: TimeInterval(id))
+    return ListedDiveFacts(
+      start: .instant(instant, offsetSeconds: loggedOffset(inSummary: summary, at: instant)),
+      length: positive("Header.DiveTime") ?? positive("Header.Duration"),
+      maxDepth: positive("Header.Depth.Max"))
+  }
+
+  /// The offset of `Header.DateTime`, a `local64`: seven little-endian bytes of the wall clock
+  /// in milliseconds, then a signed byte of the offset in quarter hours. Nil where its clock
+  /// less its offset is not `instant`, which is what stands behind the sign.
+  private func loggedOffset(inSummary summary: Data, at instant: Date) -> Int? {
+    guard let (field, bytes) = self.field(at: "Header.DateTime", inSummary: summary),
+      field.format.hasPrefix("local64"), bytes.count == 8
+    else { return nil }
+    let value = [UInt8](bytes)
+    let wallClock = value.prefix(7).reversed().reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
+    let offset = Int(Int8(bitPattern: value[7])) * 15 * 60
+    let logged = Double(wallClock) / 1000 - Double(offset)
+    return abs(logged - instant.timeIntervalSince1970) < 60 ? offset : nil
+  }
+
   /// The number at the first field whose path is `path` or ends `.` and `path`, scaled by its
-  /// `<MOD>`; nil under the same conditions ``sport(inSummary:)`` gives.
+  /// `<MOD>`; nil at the format's `nillable` value, and under the same conditions
+  /// ``sport(inSummary:)`` gives.
   private func value(at path: String, inSummary summary: Data) -> Double? {
+    guard let (field, bytes) = field(at: path, inSummary: summary),
+      let raw = Self.number(field.format, bytes)
+    else { return nil }
+    if let none = Self.nillable(field.format), raw == none { return nil }
+    return raw / field.divisor
+  }
+
+  /// The field at `path` and its bytes in the summary; nil where no record carries it, or any
+  /// record does not fit these descriptors.
+  private func field(at path: String, inSummary summary: Data) -> (Field, Data.SubSequence)? {
     guard let records = Self.records(summary) else { return nil }
-    var found: Double?
+    var found: (Field, Data.SubSequence)?
     for (id, value) in records {
       guard let group = groups[id] else { return nil }
       var offset = value.startIndex
@@ -74,15 +114,21 @@ public struct NauticDescriptors: Sendable {
         else { return nil }
         guard offset + size <= value.endIndex else { return nil }
         if found == nil, let named = field.path, named == path || named.hasSuffix("." + path) {
-          found = Self.number(field.format, value[offset..<(offset + size)]).map {
-            $0 / field.divisor
-          }
+          found = (field, value[offset..<(offset + size)])
         }
         offset += size
       }
       guard offset == value.endIndex else { return nil }
     }
     return found
+  }
+
+  /// A format's `nillable=` value, which stands for no value.
+  private static func nillable(_ format: String) -> Double? {
+    format.split(separator: ",").lazy.compactMap { part -> Double? in
+      guard part.hasPrefix("nillable=") else { return nil }
+      return Double(part.dropFirst("nillable=".count))
+    }.first
   }
 
   /// The watch's hardware, `Seal_RevA3`: the label of the only value of the enumeration at the

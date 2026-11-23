@@ -27,6 +27,14 @@ struct RequestFixtureTests {
     #expect(update.diveSites == [])
   }
 
+  @Test func knownDives() throws {
+    let query = try sendsItsFixture(KnownDivesQuery.self, "request-dive-computers-known-dives")
+    #expect(query.dives.map(\.startedAt) == ["2026-10-26T15:03:23", "2026-10-26T15:01:49+03:00"])
+    let known = try APICoding.decoder().decode(
+      [KnownDive].self, from: KitFixture.data("dive-computers-known-dives"))
+    #expect(known.map(\.uuid) == [query.dives[0].uuid])
+  }
+
   @Test func diveSiteCreate() throws {
     _ = try sendsItsFixture(DiveSiteCreate.self, "request-dive-site-create")
   }

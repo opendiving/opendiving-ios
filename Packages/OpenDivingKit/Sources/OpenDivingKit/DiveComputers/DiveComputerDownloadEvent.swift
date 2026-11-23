@@ -11,7 +11,7 @@ public enum DiveComputerDownloadEvent: Hashable, Sendable {
   /// point of the walk, from a family that can tell.
   case busy(DiveComputerBusy)
   /// The computer dropped the link during a walk that waits for it to come back
-  /// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:keep:)``), and again
+  /// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:leaveOut:keep:)``), and again
   /// after each reopen that did not open it.
   case linkLost
   /// A reopen after ``linkLost`` opened the computer, and the walk carries on.
@@ -24,7 +24,8 @@ public enum DiveComputerDownloadEvent: Hashable, Sendable {
   case dive(DownloadedDive)
   /// An entry the walk left out — one the computer logged that is no dive, a Suunto watch's run
   /// or a session that holds none, its profile unread where its summary named the sport; one
-  /// whose dive the phone need not take again; or one whose download kept failing. Only its
+  /// whose dive the phone need not take again, or the logbook holds; or one whose download kept
+  /// failing. Only its
   /// fingerprint is kept, which the record moves past as it does a dive's.
   case skipped(fingerprint: Data)
   case finished(DiveComputerDownloadEnd)

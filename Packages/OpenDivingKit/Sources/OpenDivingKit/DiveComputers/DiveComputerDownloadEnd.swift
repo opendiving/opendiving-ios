@@ -20,7 +20,7 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
   /// Records the parser could not read, delivered as ``DownloadedDive/Reading/refused(start:)``.
   public let refused: Int
   /// New entries left out because the phone need not take their dive again — it waits to be
-  /// imported, or the server has answered for it — yielded as
+  /// imported, the server has answered for it, or the logbook holds it — yielded as
   /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``.
   public let waiting: Int
   /// Entries left out because their download failed the same way on every attempt, yielded as

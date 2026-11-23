@@ -1431,4 +1431,331 @@ struct DiveComputerEngineTests {
     #expect(server.atOnce.isEmpty)
     #expect(notifier.posted.isEmpty)
   }
+
+  // MARK: - What the logbook holds
+
+  /// `count` of the Perdix's dives as ``perdixDives(_:)`` makes them, each with the facts its
+  /// index record gives: a wall clock a day apart, the length and the depth.
+  private func listedPerdixDives(_ count: Int) -> [DownloadedDive] {
+    perdixDives(count).enumerated().map { index, dive in
+      DownloadedDive(
+        identity: dive.identity, fingerprint: dive.fingerprint, bytes: dive.bytes,
+        reading: dive.reading,
+        facts: ListedDiveFacts(
+          start: .wallClock(F.clock("2026-10-\(25 - index)T09:14:07")),
+          length: TimeInterval(3000 + index), maxDepth: 30 + Double(index)))
+    }
+  }
+
+  /// The listing a family that lists before it reads yields for `dives`, each new.
+  private func listing(_ dives: [DownloadedDive]) -> DiveComputerListing {
+    DiveComputerListing(
+      dives: dives.count, newDives: dives.count,
+      downloads: dives.map { .init(fingerprint: $0.fingerprint, facts: $0.facts ?? .init()) })
+  }
+
+  private func uuid(_ dive: DownloadedDive) -> UUID {
+    DiveComputerArchive.diveUUID(dive.identity, fingerprint: dive.fingerprint)
+  }
+
+  @Test func aDiveTheLogbookHoldsIsLeftOutAndTheWalkTakesTheRestInOrder() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(3)
+    server.holdInLogbook([uuid(dives[1])])
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await engine.settled()
+
+    #expect(
+      server.knownQueries
+        == [
+          KnownDivesQuery(
+            serial: "D9772626",
+            dives: [
+              .init(uuid: uuid(dives[0]), startedAt: "2026-10-25T09:14:07"),
+              .init(uuid: uuid(dives[1]), startedAt: "2026-10-24T09:14:07"),
+              .init(uuid: uuid(dives[2]), startedAt: "2026-10-23T09:14:07"),
+            ])
+        ])
+    #expect(link.leftOut == [[dives[1].fingerprint]])
+    #expect(walk.listing?.newDives == 2)
+    #expect(walk.divesDownloaded == 2)
+    #expect(walk.outcome?.sentence == "2 dives downloaded.")
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 0", "perdix dive 2"])
+    // The fingerprint moves past what was left out as past what was taken.
+    #expect(
+      computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint
+        == dives[0].fingerprint)
+  }
+
+  @Test func aWalkWhoseEveryDiveTheLogbookHoldsTakesNoneAndSaysNothingIsNew() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(2)
+    server.holdInLogbook(Set(dives.map(uuid)))
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await engine.settled()
+
+    #expect(walk.listing?.newDives == 0)
+    #expect(walk.divesDownloaded == 0)
+    #expect(walk.outcome?.kind == .nothingNew)
+    #expect(walk.outcome?.sentence == "No new dives since 25 October. 2 dives on this computer.")
+    #expect(server.atOnce.isEmpty)
+    #expect(downloads(session).walks().isEmpty)
+    #expect(
+      computers(session).record(family: .shearwaterPetrel, serial: "D9772626")?.fingerprint
+        == dives[0].fingerprint)
+  }
+
+  /// A server without the route, one that refuses the question, and one that fails: the walk
+  /// takes what it takes today.
+  @Test(arguments: [nil, 403, 500] as [Int?])
+  func withNoAnswerFromTheServerTheWalkTakesWhatItTakesToday(status: Int?) async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(3)
+    if let status {
+      server.holdInLogbook(Set(dives.map(uuid)))
+      server.answerKnownDives { _ in .json(#"{"detail":"No"}"#, status: status) }
+    }
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await engine.settled()
+    #expect(server.knownQueries.count == 1)
+    #expect(link.leftOut == [[]])
+    #expect(walk.divesDownloaded == 3)
+  }
+
+  @Test func withNoRouteTheServerIsNotAskedAndTheWalkTakesEveryDive() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(3)
+    server.holdInLogbook(Set(dives.map(uuid)))
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await engine.settled()
+    #expect(server.knownQueries.isEmpty)
+    #expect(walk.divesDownloaded == 3)
+  }
+
+  /// A walk kept for the last account before this process loaded one may be another account's.
+  @Test func beforeTheAccountLoadsTheServerIsNotAsked() async throws {
+    let earlier = try await session()
+    let fresh = Session(
+      transport: server,
+      secrets: InMemorySecretStore([ImportServer.origin.description: "refresh"]),
+      activeOrigin: InMemoryActiveOriginStore(ImportServer.origin),
+      background: NoBackgroundExecution(), connectivity: route, applicationSupport: root,
+      userAgent: ClientHarness.userAgent, accessToken: "live")
+    _ = earlier
+    try pair(fresh, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(2)
+    server.holdInLogbook(Set(dives.map(uuid)))
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(fresh)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await engine.settled()
+    #expect(server.knownQueries.isEmpty)
+    #expect(walk.divesDownloaded == 2)
+  }
+
+  @Test func aServerThatDoesNotAnswerWithinTenSecondsIsNotWaitedFor() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(2)
+    server.holdInLogbook(Set(dives.map(uuid)))
+    server.answerKnownDives { _ in
+      try await Task.sleep(for: .seconds(60 * 60))
+      return nil
+    }
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let clock = MovingClock(F.moment)
+    let engine = engine(session, clock: clock)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await until { server.knownQueries.count == 1 && clock.sleeping > 0 }
+    clock.pass(9)
+    for _ in 0..<100 { await Task.yield() }
+    #expect(link.leftOut.isEmpty)
+    #expect(walk.divesDownloaded == 0)
+    clock.pass(1)
+    await until { !link.leftOut.isEmpty }
+    #expect(link.leftOut == [[]])
+    await until { walk.divesDownloaded == 2 }
+    #expect(walk.divesDownloaded == 2)
+    await engine.settled()
+  }
+
+  /// No dive is read while the engine waits for the server: the link holds until it answers.
+  @Test func noDiveIsReadBeforeTheServerHasAnswered() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(2)
+    server.holdInLogbook([uuid(dives[0])])
+    let (gate, open) = AsyncStream<Void>.makeStream()
+    server.answerKnownDives { _ in
+      for await _ in gate { break }
+      return nil
+    }
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await until { server.knownQueries.count == 1 }
+    for _ in 0..<100 { await Task.yield() }
+    #expect(walk.divesDownloaded == 0)
+    #expect(walk.listing == nil)
+    #expect(downloads(session).walks().isEmpty)
+    open.yield()
+    await engine.settled()
+    #expect(link.leftOut == [[dives[0].fingerprint]])
+    #expect(walk.divesDownloaded == 1)
+  }
+
+  /// A Nautic's start is an instant: in the offset its summary logged, else in UTC.
+  @Test func anOceansDivesAreAskedForByTheirInstant() async throws {
+    let session = try await session()
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    let logged = Date(timeIntervalSince1970: 1_793_016_109)
+    let unlogged = Date(timeIntervalSince1970: 1_792_836_000)
+    let dives = zip(F.oceanDownload, [(logged, 10800), (unlogged, nil)] as [(Date, Int?)]).map {
+      dive, start in
+      DownloadedDive(
+        identity: dive.identity, fingerprint: dive.fingerprint, bytes: dive.bytes,
+        reading: dive.reading,
+        facts: ListedDiveFacts(start: .instant(start.0, offsetSeconds: start.1)))
+    }
+    server.holdInLogbook([])
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.oceanFound, all: false))
+    // The dives logged no zone, and the watch reported none.
+    await until { walk.phase == .askingTimeZone }
+    engine.cancel(walk)
+    await engine.settled()
+    #expect(
+      server.knownQueries.first?.dives
+        == [
+          .init(uuid: uuid(dives[0]), startedAt: "2026-10-26T15:01:49+03:00"),
+          .init(uuid: uuid(dives[1]), startedAt: "2026-10-24T10:00:00+00:00"),
+        ])
+    #expect(server.knownQueries.first?.serial == "253810000400")
+  }
+
+  @Test func aListPastTheBoundIsAskedInParts() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let downloads = (0..<2001).map { index in
+      DiveComputerListing.Download(
+        fingerprint: Data([UInt8(index >> 8), UInt8(index & 0xFF), 0, 1]),
+        facts: ListedDiveFacts(start: .wallClock(F.clock("2026-10-25T09:14:07"))))
+    }
+    let held = downloads[2000]
+    server.holdInLogbook([DiveComputerArchive.diveUUID(F.perdix, fingerprint: held.fingerprint)])
+    link.scripts = [
+      FakeDiveComputerLink.script(
+        F.perdix, listing: DiveComputerListing(dives: 2001, newDives: 2001, downloads: downloads),
+        [])
+    ]
+    let engine = engine(session)
+    engine.start(F.perdixFound, all: false)
+    await engine.settled()
+    #expect(server.knownQueries.map(\.dives.count) == [2000, 1])
+    #expect(link.leftOut == [[held.fingerprint]])
+  }
+
+  /// From the list until the server answers, a dive's facts are where the dive is: with the
+  /// walk's queue, the dive the walk keeps, and its archive.
+  @Test func theFactsStayWithADiveUntilItsImportIsAnswered() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(3)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    link.holdBefore = 3
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await link.untilHeld()
+    await until { walk.divesDownloaded == 1 }
+    #expect(walk.queue.map(\.fingerprint) == dives.dropFirst().map(\.fingerprint))
+    #expect(walk.inTransfer?.facts == dives[1].facts)
+    #expect(walk.diveUUID(try #require(walk.queue.first)) == uuid(dives[1]))
+    #expect(
+      engine.divesOnPhone.map(\.id) == [uuid(dives[0])]
+        && engine.divesOnPhone.first?.facts == dives[0].facts
+        && engine.divesOnPhone.first?.wait == .route)
+    let kept = try #require(downloads(session).walks().first)
+    #expect(kept.dives.map(\.facts) == [dives[0].facts])
+    link.release()
+    await engine.settled()
+
+    #expect(walk.queue.isEmpty)
+    let archive = try #require(downloads(session).archives().first)
+    #expect(archive.facts == Dictionary(uniqueKeysWithValues: dives.map { (uuid($0), $0.facts!) }))
+    #expect(engine.divesOnPhone.map(\.id) == dives.map(uuid))
+    #expect(engine.divesOnPhone.map(\.archive) == Array(repeating: archive.id, count: 3))
+    #expect(engine.divesOnPhone.map(\.wait) == Array(repeating: .route, count: 3))
+
+    route.isRouteAvailable = true
+    engine.upload()
+    await engine.settled()
+    #expect(engine.divesOnPhone.isEmpty)
+  }
+
+  @Test func whatTheDivesOnThePhoneWaitForFollowsTheirArchive() async throws {
+    let session = try await session()
+    let engine = try await walked(session, route: false, dives: listedPerdixDives(1))
+    #expect(engine.divesOnPhone.map(\.wait) == [.route])
+    let archive = try #require(engine.archives.first)
+    var refused = archive
+    refused.refusal = .server(message: nil)
+    try downloads(session).save(refused)
+    engine.reload()
+    #expect(engine.divesOnPhone.map(\.wait) == [.refused])
+    var record = try #require(
+      computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))
+    record.awaitsOrder = true
+    try computers(session).save(record)
+    try downloads(session).save(archive)
+    engine.reload()
+    #expect(engine.divesOnPhone.map(\.wait) == [.order])
+  }
+
+  @Test func anArchiveTheServerDidNotTakeOnItsLastTryWaitsToBeTriedAgain() async throws {
+    let session = try await session()
+    server.answerAtOnce { _ in .json(#"{"detail":"Try later"}"#, status: 503) }
+    let engine = try await walked(session, dives: listedPerdixDives(1))
+    #expect(engine.divesOnPhone.map(\.wait) == [.retry])
+  }
+
+  /// A walk kept for the last account before this process loaded one keeps its dives until it
+  /// ends, which asks nothing of the diver; with no route they wait for the route.
+  @Test func aWalkBegunBeforeTheAccountLoadedKeepsItsDivesUntilItEnds() async throws {
+    _ = try await session()
+    let fresh = Session(
+      transport: server,
+      secrets: InMemorySecretStore([ImportServer.origin.description: "refresh"]),
+      activeOrigin: InMemoryActiveOriginStore(ImportServer.origin),
+      background: NoBackgroundExecution(), connectivity: route, applicationSupport: root,
+      userAgent: ClientHarness.userAgent, accessToken: "live")
+    try pair(fresh, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(2)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    link.holdBefore = 3
+    let engine = engine(fresh)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await link.untilHeld()
+    await until { walk.divesDownloaded == 1 }
+    #expect(engine.divesOnPhone.map(\.wait) == [.walkEnd])
+    route.isRouteAvailable = false
+    engine.upload()
+    #expect(engine.divesOnPhone.map(\.wait) == [.route])
+    link.release()
+    await engine.settled()
+  }
 }

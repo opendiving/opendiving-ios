@@ -48,6 +48,24 @@ struct PetrelManifestTests {
     #expect(page.records.last?.start == start(0x6AA0_2732))
   }
 
+  /// The newest record's start, read as a wall clock with no zone, its dive time and its max
+  /// depth: the api reads that dive's own bytes to the same start and 47.7 m.
+  @Test func eachRecordSaysWhenItsDiveStartedHowLongItLastedAndHowDeep() throws {
+    let records = PetrelManifest.Page(try probePage()).records
+    let newest = try #require(records.first)
+    let day = try #require(CalendarDate(year: 2026, month: 10, day: 26))
+    let clock = try #require(LocalDateTime(date: day, hour: 15, minute: 3, second: 23))
+    #expect(newest.facts == ListedDiveFacts(start: .wallClock(clock), length: 4577, maxDepth: 47.7))
+    #expect(newest.facts.listedStart == "2026-10-26T15:03:23")
+    #expect(records.allSatisfy { $0.facts.maxDepth != nil && $0.facts.length != nil })
+    let listed = PetrelManifest.select(records, fingerprint: nil).listing.downloads
+    #expect(listed.map(\.facts) == records.map(\.facts))
+    // A record with no dive time and no depth says nothing of either.
+    let empty = try #require(PetrelManifest.Page(page([record(start: 10)])).records.first)
+    #expect(empty.facts.length == nil)
+    #expect(empty.facts.maxDepth == nil)
+  }
+
   @Test func theNewDivesAreThoseBeforeTheFingerprint() throws {
     let records = PetrelManifest.Page(try probePage()).records
     let all = PetrelManifest.select(records, fingerprint: nil)

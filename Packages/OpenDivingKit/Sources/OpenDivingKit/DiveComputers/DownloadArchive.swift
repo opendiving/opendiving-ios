@@ -33,11 +33,15 @@ public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
   public let walk: UUID?
   /// Its place among its walk's archives, which go up in that order.
   public let part: Int?
+  /// What the computer's list said of each of its dives, by the dive's uuid; nil for an archive
+  /// an earlier build kept.
+  public let facts: [UUID: ListedDiveFacts]?
 
   init(
     id: UUID = UUID(), key: UUID = UUID(), filename: String, summary: DownloadSummary,
     record: String, dives: [UUID], receivedBeforeAccountKnown: Bool, refusal: Refusal? = nil,
-    announced: Bool = false, walk: UUID? = nil, part: Int? = nil
+    announced: Bool = false, walk: UUID? = nil, part: Int? = nil,
+    facts: [UUID: ListedDiveFacts]? = nil
   ) {
     self.id = id
     self.key = key
@@ -50,6 +54,7 @@ public struct DownloadArchive: Codable, Hashable, Sendable, Identifiable {
     self.announced = announced
     self.walk = walk
     self.part = part
+    self.facts = facts
   }
 
   /// What the diver hears of together: its walk's archives, or it alone.

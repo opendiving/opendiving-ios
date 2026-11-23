@@ -15,6 +15,9 @@ struct KeptDive: Codable, Hashable, Sendable {
   var fingerprint: String
   /// The bytes' file, inside the walk's folder; the reading's is ``readingFile``.
   var file: String
+  /// What the computer's list said of the dive; nil where it said nothing, or an earlier build
+  /// kept it.
+  var facts: ListedDiveFacts?
 
   var readingFile: String { file + ".reading.json" }
 
@@ -22,6 +25,7 @@ struct KeptDive: Codable, Hashable, Sendable {
     identity = dive.identity
     fingerprint = Hex.lowercase(dive.fingerprint)
     self.file = file
+    facts = dive.facts
   }
 
   /// What the parser made of the dive, as its reading's file holds it.
@@ -66,7 +70,8 @@ struct KeptDive: Codable, Hashable, Sendable {
     case .refused(let start):
       read = .refused(start: start?.start)
     }
-    return DownloadedDive(identity: identity, fingerprint: fingerprint, bytes: bytes, reading: read)
+    return DownloadedDive(
+      identity: identity, fingerprint: fingerprint, bytes: bytes, reading: read, facts: facts)
   }
 }
 

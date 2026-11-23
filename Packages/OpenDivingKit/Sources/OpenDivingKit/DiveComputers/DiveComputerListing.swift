@@ -7,26 +7,33 @@ public struct DiveComputerListing: Hashable, Sendable {
   public struct Download: Hashable, Sendable {
     /// The fingerprint its dive, or its skip, is yielded with.
     public let fingerprint: Data
-    /// How long the dive lasted, in seconds, as the computer's index or summary gave it before the
-    /// download; nil where neither did.
-    public let length: TimeInterval?
+    /// What the computer's index or summary said of the dive before the download.
+    public let facts: ListedDiveFacts
+
+    public init(fingerprint: Data, facts: ListedDiveFacts) {
+      self.fingerprint = fingerprint
+      self.facts = facts
+    }
 
     public init(fingerprint: Data, length: TimeInterval?) {
-      self.fingerprint = fingerprint
-      self.length = length
+      self.init(fingerprint: fingerprint, facts: ListedDiveFacts(length: length))
     }
+
+    /// How long the dive lasted, in seconds; nil where the list did not say.
+    public var length: TimeInterval? { facts.length }
   }
 
   /// The dives on the computer.
   public let dives: Int
   /// The dives this download takes: those walked before the stored fingerprint's entry, or every
-  /// one where none was set, less those the phone need not take again.
+  /// one where none was set, less those the phone need not take again and those the logbook
+  /// holds.
   public let newDives: Int
   /// For the Nautic family, what each listed entry's summary said of its sport, for the record
   /// to keep (``DiveComputerRecord/nauticSports``); nil for a family whose entries are all dives.
   public let sports: [NauticEntrySport]?
-  /// The counted entries the walk downloads, newest first, which the walk's time left is reckoned
-  /// over. Empty for a family that does not say.
+  /// The counted entries the walk downloads, newest first, each with what the list said of it,
+  /// which the walk's time left is reckoned over. Empty for a family that does not say.
   public let downloads: [Download]
 
   public init(

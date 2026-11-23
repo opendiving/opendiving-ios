@@ -4,10 +4,11 @@ This repository is the iPhone app: a client of an OpenDiving server, holding on 
 needs to stay signed in, to show your check-in sheet and the pages of your logbook, gear,
 training, people and aquatic life it has shown without signal, to keep the drafts, the writes
 waiting to sync, the card images waiting to be sent, the files waiting to be read and the dives
-downloaded from a dive computer waiting to be imported until the server has them, to remember
-which of those dives the server has answered for, and to remember the dive computers it has paired
-with, beside a log of the last download from one and a log of when it looked for them, neither
-naming an account. A flaw in this code affects everyone who runs the app, and we would much
+downloaded from a dive computer waiting to be imported until the server has them, each with the
+start, length and depth its computer listed, to remember which of those dives the server has
+answered for, and to remember the dive computers it has paired with and what a watch's logbook
+said of each entry, beside a log of the last download from one and a log of when it looked for
+them, neither naming an account. A flaw in this code affects everyone who runs the app, and we would much
 rather hear about one privately than read about it in a public issue.
 
 **No running instance is a target for testing, and the one this project operates,

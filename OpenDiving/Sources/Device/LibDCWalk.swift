@@ -30,6 +30,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
   /// Whether a dive is one the phone need not take again, which a walk that lists leaves out.
   let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool
+  /// Which of the entries a walk that lists would take it leaves out, asked before its first
+  /// transfer (``leftOut(_:_:)``).
+  let leaveOut: @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<Data>
   /// Keeps each dive on the phone before the walk goes on.
   let keep: @Sendable (DownloadedDive) -> Void
   /// A computer no record names is closed unread (``DiveComputerLink``).
@@ -57,6 +60,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   private(set) var unpaired = false
   /// The serial a record was found for, so the check is not read again for each dive.
   private var pairedSerial: String?
+  /// What the listing said of each entry the walk takes, by fingerprint, which each dive carries.
+  var listedFacts: [Data: ListedDiveFacts] = [:]
 
   init(
     computer: FoundComputer, device: UnsafeMutablePointer<device_data_t>,
@@ -64,6 +69,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     lostLink: LostLinkWait?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
+    leaveOut:
+      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
+      Set<Data>,
     keep: @escaping @Sendable (DownloadedDive) -> Void, pairedOnly: Bool,
     events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
@@ -75,6 +83,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     self.lostLink = lostLink
     self.lookup = lookup
     self.waiting = waiting
+    self.leaveOut = leaveOut
     self.keep = keep
     self.pairedOnly = pairedOnly
     self.events = events
@@ -237,6 +246,29 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
   }
 
+  /// The entries of `listed`, those the walk would take, that ``leaveOut`` leaves out: the walk
+  /// waits for the answer on its own queue, holding the link, and a cancel ends the wait with
+  /// none left out, the walk then taking nothing. Where nothing is listed nothing is asked.
+  func leftOut(_ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download])
+    -> Set<Data>
+  {
+    guard !listed.isEmpty else { return [] }
+    let answer = LeftOut()
+    let leaveOut = leaveOut
+    let asking = Task {
+      answer.set(await leaveOut(identity, listed))
+    }
+    while answer.done.wait(timeout: .now() + .milliseconds(100)) == .timedOut {
+      if cancel.isSet {
+        asking.cancel()
+        return []
+      }
+    }
+    let held = answer.value
+    if !held.isEmpty { log("listed \(listed.count), the logbook holds \(held.count)") }
+    return held
+  }
+
   /// Unhooks and closes the open device, if any.
   private func closeDevice() {
     guard let device else { return }
@@ -386,7 +418,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
     delivered += 1
     let downloaded = DownloadedDive(
-      identity: identity, fingerprint: fingerprint, bytes: bytes, reading: reading)
+      identity: identity, fingerprint: fingerprint, bytes: bytes, reading: reading,
+      facts: listedFacts[fingerprint])
     keep(downloaded)
     events.yield(.dive(downloaded))
     return true
@@ -499,3 +532,17 @@ private nonisolated let fingerprintLookup:
     guard let walk = walk(userdata), let serial else { return nil }
     return walk.deviceInfo(serial: String(cString: serial), size: size)
   }
+
+/// The answer ``LibDCWalk/leftOut(_:_:)`` waits for, set once from the engine's task.
+private nonisolated final class LeftOut: @unchecked Sendable {
+  let done = DispatchSemaphore(value: 0)
+  private let lock = NSLock()
+  private var held: Set<Data> = []
+
+  func set(_ value: Set<Data>) {
+    lock.withLock { held = value }
+    done.signal()
+  }
+
+  var value: Set<Data> { lock.withLock { held } }
+}
