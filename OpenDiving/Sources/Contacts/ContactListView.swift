@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *Contacts*: what is waiting to sync, then the diver's contacts on one card under the
-/// letters they start with, an index of those letters at the trailing edge to jump between them.
+/// More's *Contacts*: what is waiting to sync, then the diver's contacts on one card, with an index
+/// of the letters they start with at the trailing edge to jump between them.
 /// Each opens the contact's form, as a contact has no page, and holds *Delete* under a long press —
 /// the pages the phone has shown first, from its copy.
 struct ContactListView: View {
@@ -58,7 +58,7 @@ private struct ContactListContent: View {
       }
       .overlay(alignment: .trailing) {
         if indexed {
-          LetterIndexBar(letters: sections.map(\.letter)) { letter in
+          LetterIndexBar(column: LetterIndexColumn(filed: sections.map(\.letter))) { letter in
             scroller.scrollTo(letter, anchor: .top)
           }
           .padding(.vertical, 16)
@@ -128,17 +128,9 @@ private struct ContactListContent: View {
       }
       // Lazy, so the last row asks for the next page only as it scrolls into view.
       LazyVStack(alignment: .leading, spacing: 0) {
-        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-          if index > 0 { Divider() }
-          Text(section.letter)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .accessibilityAddTraits(.isHeader)
-            .id(section.letter)
-          ForEach(section.items) { contact in
-            Divider().padding(.leading, 12)
+        ForEach(Array(sections.enumerated()), id: \.element.id) { sectionIndex, section in
+          ForEach(Array(section.items.enumerated()), id: \.element.id) { index, contact in
+            if sectionIndex > 0 || index > 0 { Divider().padding(.leading, 12) }
             Button {
               route = .edit(contact)
             } label: {
@@ -149,6 +141,8 @@ private struct ContactListContent: View {
             .contextMenu {
               Button("Delete", systemImage: "trash", role: .destructive) { deleting = contact }
             }
+            // The index scrolls to a letter's first row, as the list draws no letters of its own.
+            .id(index == 0 ? section.letter : contact.uuid.uuidString)
             .task { await list.loadMore(after: contact) }
           }
         }

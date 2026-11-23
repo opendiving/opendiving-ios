@@ -1,10 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *People*: what is waiting to sync, then the diver's people on one card, filed under
-/// their letters with an index of them down the edge as Contacts has, each opening their page and
-/// holding *Edit* and *Delete* under a long press — the pages the phone has shown first, from its
-/// copy.
+/// More's *People*: what is waiting to sync, then the diver's people on one card with an index of
+/// their letters down the edge as Contacts has, each opening their page and holding *Edit* and
+/// *Delete* under a long press — the pages the phone has shown first, from its copy.
 struct PeopleListView: View {
   @Environment(Session.self) private var session
 
@@ -41,6 +40,7 @@ private struct PeopleListContent: View {
 
   var body: some View {
     let sections = model.people.phase == .loaded ? model.sections : []
+    let indexed = sections.count > 1
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(spacing: 12) {
@@ -50,13 +50,16 @@ private struct PeopleListContent: View {
           people(sections)
         }
         .padding()
+        // The column of letters takes a gutter of its own, as the phone's contacts narrow theirs.
+        .padding(.trailing, indexed ? LetterIndexBar.width - 4 : 0)
       }
-      // In the page's trailing margin, beside the card rather than over its rows.
       .overlay(alignment: .trailing) {
-        if !sections.isEmpty {
-          SectionIndexBar(letters: sections.map(\.letter)) { letter in
+        if indexed {
+          LetterIndexBar(column: LetterIndexColumn(filed: sections.map(\.letter))) { letter in
             proxy.scrollTo(letter, anchor: .top)
           }
+          .padding(.vertical, 16)
+          .padding(.trailing, 2)
         }
       }
     }
@@ -123,12 +126,9 @@ private struct PeopleListContent: View {
       // Not lazy, so the index can scroll to a letter that has not been drawn yet; the model
       // reads every page rather than the rows asking for the next.
       VStack(spacing: 0) {
-        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-          if index > 0 { Divider() }
-          PeopleLetterHeader(letter: section.letter)
-            .id(section.letter)
+        ForEach(Array(sections.enumerated()), id: \.element.id) { sectionIndex, section in
           ForEach(Array(section.people.enumerated()), id: \.element.id) { index, person in
-            if index > 0 {
+            if sectionIndex > 0 || index > 0 {
               Divider().padding(.leading, PersonListRow.textInset)
             }
             NavigationLink {
@@ -142,6 +142,8 @@ private struct PeopleListContent: View {
               Button("Edit", systemImage: "pencil") { route = .edit(person) }
               Button("Delete", systemImage: "trash", role: .destructive) { deleting = person }
             }
+            // The index scrolls to a letter's first row, as the list draws no letters of its own.
+            .id(index == 0 ? section.letter : person.uuid.uuidString)
           }
         }
       }
@@ -149,22 +151,6 @@ private struct PeopleListContent: View {
       .clipShape(.formSection)
       LoadMoreFooter(list: list)
     }
-  }
-}
-
-/// The letter a run of the card's rows is filed under.
-private struct PeopleLetterHeader: View {
-  let letter: String
-
-  var body: some View {
-    Text(letter)
-      .font(.subheadline.weight(.semibold))
-      .foregroundStyle(.secondary)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 12)
-      .padding(.top, 10)
-      .padding(.bottom, 2)
-      .accessibilityAddTraits(.isHeader)
   }
 }
 
