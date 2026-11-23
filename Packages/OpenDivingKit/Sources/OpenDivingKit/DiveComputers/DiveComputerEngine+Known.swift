@@ -9,17 +9,17 @@ extension DiveComputerEngine {
   static let knownDivesWait: TimeInterval = 10
 
   /// The fingerprints of the listed dives the logbook of `account` holds. With no route, no
-  /// loaded account, a walk kept before the load, a server without the route, a refusal, or no
-  /// answer within ``knownDivesWait``: none, and the walk takes what it takes today. A list past
-  /// ``KnownDivesQuery/maxDives`` is asked in parts.
+  /// loaded account, a walk kept before the load, no listed start to send, a server without the
+  /// route, a refusal, or no answer within ``knownDivesWait``: nil, and the walk leaves out only
+  /// what the phone need not take. A list past ``KnownDivesQuery/maxDives`` is asked in parts.
   func heldByLogbook(
     _ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download], account: UUID,
     marked: Bool
-  ) async -> Set<Data> {
+  ) async -> Set<Data>? {
     guard !marked, !identity.serial.isEmpty, case .signedIn = session.state, session.accountLoaded,
       session.user?.uuid == account, session.connectivity.isRouteAvailable,
       let client = try? session.requireClient()
-    else { return [] }
+    else { return nil }
     var fingerprints: [UUID: Data] = [:]
     var rows: [KnownDivesQuery.Dive] = []
     for dive in listed {
@@ -28,7 +28,7 @@ extension DiveComputerEngine {
       guard fingerprints.updateValue(dive.fingerprint, forKey: uuid) == nil else { continue }
       rows.append(KnownDivesQuery.Dive(uuid: uuid, startedAt: start))
     }
-    guard !rows.isEmpty else { return [] }
+    guard !rows.isEmpty else { return nil }
     let queries = stride(from: 0, to: rows.count, by: KnownDivesQuery.maxDives).map {
       KnownDivesQuery(
         serial: identity.serial,
@@ -53,6 +53,6 @@ extension DiveComputerEngine {
       group.cancelAll()
       return first
     }
-    return Set((known ?? []).compactMap { fingerprints[$0.uuid] })
+    return known.map { Set($0.compactMap { fingerprints[$0.uuid] }) }
   }
 }
