@@ -64,6 +64,7 @@ private struct TripDetailPage: View {
   @State private var tab = TripSection.info
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsStuck = false
+  @State private var showsParts = false
   @State private var tabsTop: CGFloat = 0
   @State private var reselect = TabsReselect.head
   @State private var tabsBottom: CGFloat = 0
@@ -147,6 +148,14 @@ private struct TripDetailPage: View {
     .readsTabsStuck($tabsStuck, tabsTop: tabsTop)
     // A section chosen under the held tabs starts just under them, rather than wherever the
     // last one was scrolled to, which may be past the end of a shorter one.
+    // The parts button comes and goes animated, whatever changed: the dives landing is no
+    // animation of its own, and the first switch to them lays every card out in one long frame
+    // the button's own animation would otherwise share.
+    .onChange(of: tab == .dives && diveSections != nil, initial: true) { _, shows in
+      Task {
+        withAnimation(.easeOut(duration: 0.2)) { showsParts = shows }
+      }
+    }
     .onChange(of: tab) {
       if tabsStuck, let offset = landings[.tabs] {
         scroll.scrollTo(y: offset)
@@ -159,7 +168,7 @@ private struct TripDetailPage: View {
     .heroUnderTopBar { await model.refresh() }
     .toolbar {
       ToolbarItemGroup(placement: .topBarTrailing) {
-        if tab == .dives, diveSections != nil {
+        if showsParts {
           partsMenu
         }
         NavigationLink {
