@@ -163,6 +163,26 @@ struct VocabularyLabelsTests {
     #expect(Set(FormVocabulary.gearTypes) == Set(Labels.gearTypes.keys))
   }
 
+  /// A type under two headings would be two rows with one tag in the picker.
+  @Test func eachGearTypeSitsUnderOneHeading() {
+    #expect(FormVocabulary.gearTypes.count == Set(FormVocabulary.gearTypes).count)
+    #expect(
+      FormVocabulary.gearTypeGroups.map(\.title) == [
+        "Basics", "Exposure", "SCUBA", "Instruments", "Safety", "Accessories", nil,
+      ])
+  }
+
+  @Test func exposureReadsHeadToToe() {
+    let exposure = FormVocabulary.gearTypeGroups.first { $0.title == "Exposure" }
+    #expect(exposure?.types.first == "hood")
+    #expect(exposure?.types.last == "boots")
+  }
+
+  /// A heading over the one row that repeats it says nothing.
+  @Test func otherStandsLastUnderNoHeading() {
+    #expect(FormVocabulary.gearTypeGroups.last == GearTypeGroup(title: nil, types: ["other"]))
+  }
+
   @Test func cdaaIscAndIseReadAsTheirShortNames() {
     #expect(Labels.certificationAgency("cdaa") == "CDAA")
     #expect(Labels.certificationAgency("isc") == "ISC")

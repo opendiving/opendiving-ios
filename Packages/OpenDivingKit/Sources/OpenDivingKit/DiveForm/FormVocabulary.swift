@@ -1,5 +1,6 @@
-/// Every pick-list the forms offer, in the order the web's menus offer it; the labels are
-/// ``VocabularyLabels``'. Each is a hand-kept mirror of an API enum, as the web's are.
+/// Every pick-list the forms offer, in the order the web's menus offer it but for the gear types,
+/// which ``gearTypeGroups`` orders; the labels are ``VocabularyLabels``'. Each is a hand-kept
+/// mirror of an API enum, as the web's are.
 public enum FormVocabulary {
   public static let waterTypes = ["salt", "fresh", "brackish"]
   public static let diveTypes = [
@@ -15,13 +16,27 @@ public enum FormVocabulary {
   public static let tankUsages = ["parallel", "staged"]
   public static let abundances = ["few", "many", "abundant"]
   public static let personRoles = ["buddy", "guide", "instructor", "student", "companion"]
-  /// The way a diver lays kit out, mask first.
-  public static let gearTypes = [
-    "mask", "snorkel", "fins", "wetsuit", "drysuit", "vest", "undergarment", "hood", "gloves",
-    "boots", "tech_shorts", "bcd", "backplate", "wing", "regulator", "rebreather", "computer",
-    "transmitter", "cylinder", "light", "scooter", "smb", "mirror", "whistle", "reel", "knife",
-    "line_cutter", "shears", "compass", "slate", "camera", "other",
+  /// The Type picker's headings, which the web's flat menu lacks, in the order a diver kits up.
+  /// Exposure reads head to toe, a suit before the layers worn with it.
+  public static let gearTypeGroups = [
+    GearTypeGroup(title: "Basics", types: ["mask", "snorkel", "fins"]),
+    GearTypeGroup(
+      title: "Exposure",
+      types: [
+        "hood", "wetsuit", "drysuit", "vest", "undergarment", "gloves", "tech_shorts", "boots",
+      ]),
+    // The breathing and buoyancy unit alone: what a diver assembles on the cylinder.
+    GearTypeGroup(
+      title: "SCUBA",
+      types: ["bcd", "backplate", "wing", "regulator", "cylinder", "rebreather"]),
+    GearTypeGroup(title: "Instruments", types: ["computer", "transmitter", "compass"]),
+    GearTypeGroup(
+      title: "Safety",
+      types: ["smb", "reel", "whistle", "mirror", "knife", "line_cutter", "shears"]),
+    GearTypeGroup(title: "Accessories", types: ["light", "slate", "camera", "scooter"]),
+    GearTypeGroup(title: nil, types: ["other"]),
   ]
+  public static let gearTypes = gearTypeGroups.flatMap(\.types)
   public static let cylinderMaterials = ["steel", "aluminium", "carbon"]
   public static let contactRoles = [
     "dive_center", "school", "shop", "accommodation", "liveaboard", "club", "other",
