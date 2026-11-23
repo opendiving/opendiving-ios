@@ -7,7 +7,6 @@ public enum SettingsSection: String, CaseIterable, Hashable, Sendable, Identifia
   case data
   case notifications
   case preferences
-  case invitations
 
   public var id: Self { self }
 
@@ -19,7 +18,6 @@ public enum SettingsSection: String, CaseIterable, Hashable, Sendable, Identifia
     case .data: "Data"
     case .notifications: "Notifications"
     case .preferences: "Preferences"
-    case .invitations: "Invitations"
     }
   }
 
@@ -31,14 +29,6 @@ public enum SettingsSection: String, CaseIterable, Hashable, Sendable, Identifia
     case .data: .hardDrive
     case .notifications: .bell
     case .preferences: .slidersHorizontal
-    case .invitations: .mailPlus
     }
-  }
-
-  /// The sections a server offers: every one, except *Invitations* once the server has said
-  /// anyone may register, which leaves nobody to invite. Until it has answered the row stays,
-  /// since the screen behind it answers for itself either way.
-  public static func offered(by config: InstanceConfigRead?) -> [SettingsSection] {
-    allCases.filter { $0 != .invitations || InvitationsModel.isOffered(by: config) }
   }
 }

@@ -1,10 +1,10 @@
 import Foundation
 import Observation
 
-/// *Invitations*: the diver's invite link over the invitations they sent and the form that sends
-/// another. Direct calls, online only; every refusal is the API's sentence as it is.
+/// *Invitations*: the diver's invite link over the invitations they sent. Direct calls, online
+/// only; every refusal is the API's sentence as it is.
 ///
-/// An instance anyone may join answers the list's read with 404, and the section is left out.
+/// An instance anyone may join answers the list's read with 404, and the pane says so.
 /// The link's own read answers 404 there too, so it is asked only once the list has answered:
 /// from then on its 404 means the diver has no link yet. Both show the phone's copy at once while
 /// they are read, and keep it standing under ``lastUpdated`` when a read fails. The link's token
@@ -51,17 +51,6 @@ public final class InvitationsModel {
   /// Why the last create, reset or removal failed.
   public private(set) var linkFailure: String?
 
-  /// The address to invite.
-  public var email = ""
-  /// What is wrong with ``email``, once a send has been tried with it.
-  public private(set) var emailError: String?
-  public private(set) var isSending = false
-  /// Why the last send invited nobody: the API's sentence.
-  public private(set) var sendFailure: String?
-  /// What the last send did, until the next change made on this screen — a send, a revocation
-  /// or a change to the link — which it would no longer describe.
-  public private(set) var sentNote: String?
-
   public private(set) var isLoadingMore = false
   /// Why the last *Show older invitations* read nothing.
   public private(set) var loadMoreFailure: String?
@@ -105,7 +94,7 @@ public final class InvitationsModel {
     config?.registrationMode != "open"
   }
 
-  /// When the oldest of what the screen shows from the phone's copy was fetched; nil once
+  /// When the oldest of what the pane shows from the phone's copy was fetched; nil once
   /// nothing on it is.
   public var lastUpdated: Date? {
     let link = isReadingLink ? nil : linkFetchedAt
@@ -197,7 +186,6 @@ public final class InvitationsModel {
     guard !isChangingLink else { return }
     confirmingLink = nil
     linkFailure = nil
-    sentNote = nil
     isChangingLink = true
     defer { isChangingLink = false }
     let stores = AccountStores.current(session)
@@ -229,7 +217,6 @@ public final class InvitationsModel {
     guard !isChangingLink else { return }
     confirmingLink = nil
     linkFailure = nil
-    sentNote = nil
     isChangingLink = true
     defer { isChangingLink = false }
     let stores = AccountStores.current(session)
@@ -239,30 +226,6 @@ public final class InvitationsModel {
     } catch {
       linkFailure = APIError(error).message
     }
-  }
-
-  // MARK: - Sending
-
-  public func send() async {
-    guard !isSending else { return }
-    let address = email.trimmedOfWhitespace
-    emailError = RecordFormRules.isEmail(address) ? nil : "Please enter a valid email address"
-    sendFailure = nil
-    sentNote = nil
-    guard emailError == nil else { return }
-    isSending = true
-    defer { isSending = false }
-    let created: InvitationRead
-    do {
-      created = try await session.routedClient().sendInvitation(InvitationCreate(email: address))
-    } catch {
-      sendFailure = APIError(error).message
-      return
-    }
-    // Prepended from the answer rather than read again: the list is newest first.
-    list.update { Self.prepending(created, to: $0) }
-    email = ""
-    sentNote = "\(created.email ?? address) can now create an account here."
   }
 
   // MARK: - Paging
@@ -287,15 +250,8 @@ public final class InvitationsModel {
     }
   }
 
-  nonisolated static func prepending(_ invitation: InvitationRead, to loaded: Loaded) -> Loaded {
-    var loaded = loaded
-    loaded.invitations =
-      [invitation] + loaded.invitations.filter { $0.uuid != invitation.uuid }
-    return loaded
-  }
-
   /// The route pages by offset over a newest-first order, so every invitation made since the
-  /// first page was read — a send here, one from the web or the operator's queue — shifts the
+  /// first page was read — one from the web or the operator's queue — shifts the
   /// next page down and repeats a row already shown. Dropping what is known by uuid is what
   /// keeps each invitation to one row.
   nonisolated static func appending(
@@ -318,7 +274,6 @@ public final class InvitationsModel {
     guard revoking == nil else { return }
     confirmingRevoke = nil
     revokeFailure = nil
-    sentNote = nil
     revoking = invitation.uuid
     defer { revoking = nil }
     do {
@@ -330,17 +285,12 @@ public final class InvitationsModel {
     await list.load()
   }
 
-  // MARK: - What the section says
+  // MARK: - What the pane says
 
-  public static let description =
-    "New accounts on this instance are by invitation. Invite someone and they can sign in with"
-    + " that address to create their own account."
+  public static let title = "Invitations"
   public static let openInstance =
     "Anyone can create an account on this copy of OpenDiving, so there is nobody to invite."
   public static let loadFailed = "Couldn't load the invitations you have sent."
-  public static let empty = "You have not invited anyone yet."
-  public static let sendButton = "Send invitation"
-  public static let emailPlaceholder = "buddy@example.com"
   public static let showOlder = "Show older invitations"
   nonisolated public static let pending = "Pending"
   nonisolated public static let revoked = "Revoked"
@@ -360,8 +310,6 @@ public final class InvitationsModel {
   public static let linkLive =
     "Whoever scans or follows this link can create an account here, counted as your invitation."
     + " It keeps working until you reset or remove it."
-  public static let linkAddressLabel = "Invite link address"
-  public static let linkCopied = "Link copied"
   public static let qrLabel = "QR code of your invite link"
   public static let invitesTitle = "Invites"
   public static let showQRCode = "Show your invite link's QR code"
