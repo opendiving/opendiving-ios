@@ -1758,4 +1758,34 @@ struct DiveComputerEngineTests {
     link.release()
     await engine.settled()
   }
+
+  /// The rows above the logbook: the dive being read and those after it from the walk's queue,
+  /// the dives the walk keeps from the phone, one each, until the import is answered.
+  @Test func aDownloadsDivesStandAsRowsUntilTheyLand() async throws {
+    let session = try await session()
+    route.isRouteAvailable = false
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = listedPerdixDives(3)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    link.holdBefore = 3
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, all: false))
+    await link.untilHeld()
+    await until { walk.divesDownloaded == 1 }
+    let rows = engine.downloadRows(units: .metric)
+    #expect(rows.map(\.id) == dives.map { uuid($0).uuidString })
+    #expect(rows.map(\.line) == [.waitingForInternet, .syncing, .waiting])
+    #expect(rows.allSatisfy { $0.opens == .diveComputers })
+    link.release()
+    await engine.settled()
+
+    #expect(
+      engine.downloadRows(units: .metric).map(\.line)
+        == Array(repeating: .waitingForInternet, count: 3))
+    #expect(engine.downloadRows(units: .metric).allSatisfy { $0.opens == .waitingToSync })
+    route.isRouteAvailable = true
+    engine.upload()
+    await engine.settled()
+    #expect(engine.downloadRows(units: .metric).isEmpty)
+  }
 }

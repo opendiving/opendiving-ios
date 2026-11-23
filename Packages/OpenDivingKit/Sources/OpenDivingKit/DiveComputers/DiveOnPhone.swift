@@ -42,4 +42,16 @@ public struct DiveOnPhone: Hashable, Sendable, Identifiable {
   public let wait: Wait
   /// The archive that holds it; nil while a walk keeps it.
   public let archive: UUID?
+
+  public init(
+    id: UUID, computer: String, facts: ListedDiveFacts?, watchZone: TimeZone?, wait: Wait,
+    archive: UUID?
+  ) {
+    self.id = id
+    self.computer = computer
+    self.facts = facts
+    self.watchZone = watchZone
+    self.wait = wait
+    self.archive = archive
+  }
 }
