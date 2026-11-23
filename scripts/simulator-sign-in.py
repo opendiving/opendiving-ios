@@ -6,8 +6,8 @@ a server with no mail transport writes it, redeems it, and launches the app poin
 server with the session the code started. Only a simulator build reads those launch arguments.
 
 The server is the Docker container publishing the origin's port. The simulator is the one
-`scripts/simulator.sh` prints unless `--device` names another, and the app is installed on it
-from `.build` when it is not there yet.
+`scripts/simulator.sh` prints unless `--device` names another, and the build in `.build` is
+installed on it first, over a copy already there, whose data stays.
 """
 
 import argparse
@@ -110,17 +110,17 @@ def bundle_id():
         return "app.opendiving.ios"
 
 
-def install_if_missing(udid, bundle):
+def install(udid, bundle):
+    """Puts the current build on the simulator; with nothing built, a copy already there stands."""
     booted = run("xcrun", "simctl", "bootstatus", udid, "-b")
     if booted.returncode != 0:
         stop(f"simulator {udid} did not boot: {booted.stderr.strip()}")
-    if run("xcrun", "simctl", "get_app_container", udid, bundle).returncode == 0:
-        return
-    if not os.path.isdir(APP):
-        stop(f"the app is not on simulator {udid} and not built at {APP}; build it first")
-    installed = run("xcrun", "simctl", "install", udid, APP)
-    if installed.returncode != 0:
-        stop(f"could not install the app: {installed.stderr.strip()}")
+    if os.path.isdir(APP):
+        installed = run("xcrun", "simctl", "install", udid, APP)
+        if installed.returncode != 0:
+            stop(f"could not install the app: {installed.stderr.strip()}")
+    elif run("xcrun", "simctl", "get_app_container", udid, bundle).returncode != 0:
+        stop(f"the app is neither built at {APP} nor on simulator {udid}; build it first")
 
 
 def main():
@@ -144,7 +144,7 @@ def main():
     container = args.container or server_container(origin)
     udid = simulator(args.device)
     bundle = bundle_id()
-    install_if_missing(udid, bundle)
+    install(udid, bundle)
 
     # A second early, for a container whose clock runs behind this one.
     since = int(time.time()) - 1

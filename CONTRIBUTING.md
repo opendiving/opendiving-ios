@@ -145,11 +145,12 @@ command does it — after the build above, with an account that server holds:
 scripts/simulator-sign-in.py diver@example.com
 ```
 
-It asks the server for a code, reads it from the container's log, redeems it, and launches the app
-on this checkout's simulator pointed at `http://localhost:8000` and signed in. `--server` names
-another origin and `--device` another simulator; `OPENDIVING_SIGN_IN_EMAIL` stands in for the
-address. The app reads the server and the session from its launch arguments in a simulator build
-only. Every run is a sign-in to the server, which limits how many an address may ask for.
+It installs that build on this checkout's simulator, asks the server for a code, reads it from the
+container's log, redeems it, and launches the app pointed at `http://localhost:8000` and signed in.
+`--server` names another origin and `--device` another simulator; `OPENDIVING_SIGN_IN_EMAIL` stands
+in for the address. The app reads the server and the session from its launch arguments in a
+simulator build only. Every run is a sign-in to the server, which limits how many an address may
+ask for.
 
 ## Running on your iPhone
 
