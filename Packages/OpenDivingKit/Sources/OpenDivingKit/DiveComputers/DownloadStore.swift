@@ -22,8 +22,12 @@ public struct DownloadStore: Sendable {
       .appendingPathComponent("Downloads", isDirectory: true)
     walkRecords = KeptFolder(url: root.appendingPathComponent("Walks", isDirectory: true))
     archiveRecords = KeptFolder(url: root.appendingPathComponent("Archives", isDirectory: true))
-    deliveredRecords = KeptFolder(url: root.appendingPathComponent("Delivered", isDirectory: true))
+    deliveredRecords = Self.delivered(in: root)
     declinedRecords = Self.declined(in: root)
+  }
+
+  private static func delivered(in root: URL) -> KeptFolder<[UUID]> {
+    KeptFolder(url: root.appendingPathComponent("Delivered", isDirectory: true))
   }
 
   private static func declined(in root: URL) -> KeptFolder<[UUID]> {
@@ -153,10 +157,14 @@ public struct DownloadStore: Sendable {
   }
 
   /// *Forget this dive computer*: what any account's diver chose not to download from it goes
-  /// with it, so pairing it again asks afresh.
-  static func forgetDeclined(_ record: String, store: ServerStateStore) {
+  /// with it, so pairing it again asks afresh. So does what the server answered for, which stands
+  /// in for the fingerprint until it moves: left behind, the next walk would pass those dives over
+  /// without asking the server, and so could not say that the logbook holds them.
+  static func forgetComputer(_ record: String, store: ServerStateStore) {
     for directory in store.accountDirectories() {
-      declined(in: directory.appendingPathComponent("Downloads", isDirectory: true)).remove(record)
+      let downloads = directory.appendingPathComponent("Downloads", isDirectory: true)
+      delivered(in: downloads).remove(record)
+      declined(in: downloads).remove(record)
     }
   }
 

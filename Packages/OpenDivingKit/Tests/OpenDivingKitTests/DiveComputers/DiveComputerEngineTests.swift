@@ -2089,6 +2089,39 @@ struct DiveComputerEngineTests {
     #expect(downloads(session).allDeclined().isEmpty)
   }
 
+  /// A computer forgotten and paired again on an account whose logbook holds every dive it
+  /// lists takes none, asks nothing, and says so. The dives the server answered for after the
+  /// fingerprint last moved, as the uploads that finish after a walk leave them, go with the
+  /// computer: kept, the pairing's walk would pass every dive over before asking the server.
+  @Test func aComputerPairedAgainWhereTheLogbookHoldsEveryDiveSaysSo() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(3)
+    let record = DiveComputerRecord(
+      identity: F.perdix, peripheral: F.perdixFound.id, fingerprint: dives[0].fingerprint)
+    try computers(session).save(record)
+    try downloads(session).deliver(dives.map(uuid), of: record.id)
+    computers(session).forget(record)
+    #expect(computers(session).records().isEmpty)
+    #expect(downloads(session).allDelivered().isEmpty)
+
+    server.holdInLogbook(Set(dives.map(uuid)))
+    link.found = [F.perdixFound]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+
+    #expect(link.asked == [listing(dives).downloads])
+    #expect(walk.choice == nil)
+    #expect(walk.divesDownloaded == 0)
+    #expect(walk.outcome?.kind == .inLogbook)
+    #expect(walk.outcome?.sentence == DiveComputerText.allInLogbook)
+    #expect(server.atOnce.isEmpty)
+    let paired = try #require(perdixRecord(session))
+    #expect(paired.answeredQuestion)
+    #expect(paired.fingerprint == dives[0].fingerprint)
+  }
+
   /// A computer of a family that lists nothing never awaits the question: its first connection
   /// downloads every dive, as it always did.
   @Test func aComputerWhoseFamilyListsNothingDownloadsAtItsFirstConnection() async throws {
