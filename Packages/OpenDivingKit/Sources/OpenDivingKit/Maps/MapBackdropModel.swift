@@ -6,8 +6,9 @@ import Observation
 ///
 /// Tiles the phone holds show at once, before the instance has said whether it draws any;
 /// the rest are asked for only where it does and names their credit. A set shows whole or not
-/// at all, and the last whole set stays until the next one is. A tile that cannot be had
-/// leaves the band without a map, and is asked for again only when the head next appears:
+/// at all, and the last whole set stays until the next one is, unless it is drawn in the other
+/// appearance: then whatever is behind shows until the new one is whole. A tile that cannot be
+/// had leaves the band without a map, and is asked for again only when the head next appears:
 /// a renderer that failed is down or busy, and asking on a timer would add to it.
 @MainActor
 @Observable
@@ -48,6 +49,10 @@ public final class MapBackdropModel {
     if credit == nil { credit = heldCredit }
     if images.count == addresses.count, heldCredit != nil {
       shown = Shown(layout: layout, images: images)
+    } else if shown?.layout.theme != layout.theme {
+      // The backdrop behind follows the appearance and the other appearance's map does not,
+      // and a tile not drawn yet can take the renderer a minute.
+      shown = nil
     }
 
     // No answer is no reason to take down what the phone holds.
