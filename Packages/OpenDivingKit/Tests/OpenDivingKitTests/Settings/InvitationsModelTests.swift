@@ -83,7 +83,7 @@ struct InvitationsModelTests {
     #expect(!InvitationsModel.canRevoke(after))
   }
 
-  @Test func anInstanceAnyoneMayJoinLeavesTheSectionOutAndNeverAsksForTheLink() async throws {
+  @Test func anInstanceAnyoneMayJoinLeavesTheListAbsentAndNeverAsksForTheLink() async throws {
     let harness = try await InvitationsHarness()
     harness.server.fail(
       "GET user/invitations", with: .json(#"{"detail":"Not Found"}"#, status: 404))
