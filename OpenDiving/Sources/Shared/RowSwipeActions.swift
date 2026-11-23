@@ -95,9 +95,10 @@ private struct RowSwipeActions: ViewModifier {
   }
 
   /// Runs the side's first action past a full swipe, opens the side past half its buttons' width
-  /// or flung toward, and closes otherwise.
-  private func ended(_ velocity: CGFloat) {
+  /// or flung toward, and closes otherwise. A pan taken from the finger only closes.
+  private func ended(_ velocity: CGFloat?) {
     isPanning = false
+    guard let velocity else { return settle(at: 0) }
     let fling: CGFloat = 500
     if isFullSwipe, let first = (offset > 0 ? leading : trailing).first {
       settle(at: 0)
@@ -203,8 +204,9 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
   let onBegan: () -> Void
   /// The pan's translation since it began, rightward positive.
   let onChanged: (CGFloat) -> Void
-  /// The speed the finger let go at, in points a second rightward, or 0 when the pan was taken.
-  let onEnded: (CGFloat) -> Void
+  /// The speed the finger let go at, in points a second rightward, or nil when the pan was taken
+  /// from it.
+  let onEnded: (CGFloat?) -> Void
 
   func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
 
@@ -224,7 +226,7 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
     case .ended:
       onEnded(recognizer.velocity(in: nil).x)
     case .cancelled, .failed:
-      onEnded(0)
+      onEnded(nil)
     default:
       break
     }
