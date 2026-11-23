@@ -2,7 +2,7 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// *Invitations*: the list paged by twenty with no invitation twice, sends and revocations, and
+/// *Invitations*: the list paged by twenty with no invitation twice, revocations, and
 /// the invite link read only once the list has answered, and both kept for the next visit, the
 /// link's token as a secret alone.
 @MainActor
@@ -40,53 +40,20 @@ struct InvitationsModelTests {
     #expect(await model(try await InvitationsHarness(count: 1)).hasInvitations)
   }
 
-  @Test func noInvitationAppearsTwiceAfterASendOrOneMadeElsewhere() async throws {
+  @Test func noInvitationAppearsTwiceAfterOnesMadeElsewhere() async throws {
     let harness = try await InvitationsHarness(count: 30)
     let model = await model(harness)
-    model.email = " Buddy@Example.com "
-    await model.send()
-    #expect(emails(model).first == "buddy@example.com")
-    #expect(model.email.isEmpty)
-    #expect(model.sentNote == "buddy@example.com can now create an account here.")
-    // Added from the answer: the list is not read again.
-    #expect(harness.server.invitationRoutes.filter { $0 == "GET user/invitations" }.count == 1)
     harness.server.invite("web@example.com")
+    harness.server.invite("queue@example.com")
 
     // Two rows have arrived above page one since it was read, so page two starts on two rows
     // already shown.
     await model.loadMore()
     let shown = emails(model)
     #expect(Set(shown).count == shown.count)
-    #expect(shown.count == 31)
+    #expect(shown.count == 30)
     #expect(shown.last == "invite-29@example.com")
     #expect(!shown.contains("web@example.com"))
-  }
-
-  @Test func aSendIsCheckedAndARefusalIsTheAPIsSentence() async throws {
-    let harness = try await InvitationsHarness()
-    let model = await model(harness)
-    model.email = "not an address"
-    await model.send()
-    #expect(model.emailError == "Please enter a valid email address")
-    #expect(!harness.server.invitationRoutes.contains("POST user/invitations"))
-
-    model.email = "invite-1@example.com"
-    await model.send()
-    #expect(model.emailError == nil)
-    #expect(model.sendFailure == "You have already invited that address.")
-    #expect(model.email == "invite-1@example.com")
-    #expect(model.list.value?.invitations.count == 3)
-  }
-
-  @Test func offlineASendSaysThereIsNoConnectionAndSendsNothing() async throws {
-    let harness = try await InvitationsHarness()
-    let model = await model(harness)
-    harness.connectivity.isRouteAvailable = false
-    model.email = "buddy@example.com"
-    await model.send()
-    #expect(model.sendFailure == APIError.noRoute.message)
-    #expect(model.email == "buddy@example.com")
-    #expect(!harness.server.invitationRoutes.contains("POST user/invitations"))
   }
 
   @Test func aRevocationWaitsForItsConfirmationAndReadsTheStamp() async throws {
@@ -114,32 +81,6 @@ struct InvitationsModelTests {
     let after = try #require(model.list.value?.invitations.first)
     #expect(InvitationsModel.badge(after) == "Revoked")
     #expect(!InvitationsModel.canRevoke(after))
-  }
-
-  @Test func theSentNoteGoesWithTheNextChangeOnTheScreen() async throws {
-    let harness = try await InvitationsHarness(linked: true)
-    let model = await model(harness)
-    func sent(_ address: String) async throws -> InvitationRead {
-      model.email = address
-      await model.send()
-      #expect(model.sentNote == "\(address) can now create an account here.")
-      return try #require(model.list.value?.invitations.first)
-    }
-
-    await model.confirmRevoke(try await sent("one@example.com"))
-    #expect(model.sentNote == nil)
-
-    _ = try await sent("two@example.com")
-    await model.confirmLinkChange(.reset)
-    #expect(model.sentNote == nil)
-
-    _ = try await sent("three@example.com")
-    await model.confirmLinkChange(.remove)
-    #expect(model.sentNote == nil)
-
-    _ = try await sent("four@example.com")
-    await model.createLink()
-    #expect(model.sentNote == nil)
   }
 
   @Test func anInstanceAnyoneMayJoinLeavesTheSectionOutAndNeverAsksForTheLink() async throws {

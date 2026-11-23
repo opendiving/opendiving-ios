@@ -2,8 +2,8 @@ import Foundation
 import OpenDivingKit
 import Testing
 
-/// The invitations' and the invite link's reads round-trip their fixtures, a row reads as the
-/// web's card reads it, and the send's body encodes to its fixture exactly.
+/// The invitations' and the invite link's reads round-trip their fixtures, and a row reads as the
+/// web's card reads it.
 struct InvitationFixtureTests {
   private let utc = TimeZone(identifier: "UTC")!
 
@@ -28,6 +28,16 @@ struct InvitationFixtureTests {
     #expect(rows.map(InvitationsModel.canRevoke) == [true, false, false, false, false])
   }
 
+  @Test func invitationsAreOfferedUntilTheServerSaysAnyoneMayJoin() throws {
+    #expect(InvitationsModel.isOffered(by: nil))
+    let invite = try KitFixture.decode(InstanceConfigRead.self, "config")
+    #expect(invite.registrationMode == "invite")
+    #expect(InvitationsModel.isOffered(by: invite))
+    let open = try KitFixture.decode(InstanceConfigRead.self, "config-experimental-features-all")
+    #expect(open.registrationMode == "open")
+    #expect(!InvitationsModel.isOffered(by: open))
+  }
+
   @Test func inviteLink() throws {
     let link = try KitFixture.roundTrip(InviteLinkRead.self, "invite-link")
     #expect(link.token == "q7Zr2LmWexampleInviteTokenNotReal0123456")
@@ -47,13 +57,5 @@ struct InvitationFixtureTests {
     #expect(
       InvitationsModel.shareTitle(name: "Test Diver") == "Test Diver invited you to OpenDiving")
     #expect(InvitationsModel.shareTitle(name: nil) == "A diver invited you to OpenDiving")
-  }
-
-  @Test func invitationCreate() throws {
-    let fixture = try KitFixture.data("request-invitation-create")
-    let body = try APICoding.decoder().decode(InvitationCreate.self, from: fixture)
-    #expect(body.email == "buddy@example.com")
-    let sent = try JSONValue.parse(APICoding.requestEncoder().encode(body))
-    #expect(sent == (try JSONValue.parse(fixture)))
   }
 }
