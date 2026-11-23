@@ -14,7 +14,8 @@ struct LetterIndexBar: View {
 
   /// Each letter's share of the column, less where the screen leaves too little for them all.
   static let letterHeight: CGFloat = 16
-  static let width: CGFloat = 20
+  /// The page's margin, so the column stands beside a card rather than over its rows.
+  static let width: CGFloat = 16
 
   var body: some View {
     let letters = column.letters
