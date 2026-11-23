@@ -277,7 +277,7 @@ struct DiveComputerListTests {
     await model.appeared()
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
     await model.watch()
-    model.download(try #require(model.paired.first?.record), all: false)
+    model.download(try #require(model.paired.first?.record), choosing: false)
     await model.settled()
     #expect(link.downloads == 1)
     #expect(model.orderQuestion == nil)
@@ -392,7 +392,7 @@ struct DiveComputerListTests {
         == "Choose a time zone to import 2 dives")
 
     let walk = DiveComputerWalk(
-      computer: F.perdixFound, watched: false, all: false, record: record.id, zone: F.helsinki)
+      computer: F.perdixFound, watched: false, choosing: false, record: record.id, zone: F.helsinki)
     #expect(
       DiveComputerStatus.line(record, walk: walk, archives: [archive], held: [])
         == DiveComputerText.connecting)
@@ -432,7 +432,7 @@ struct DiveComputerListTests {
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))
     #expect(record.lastDownloadUnfinished)
 
-    model.download(record, all: false)
+    model.download(record, choosing: false)
     await model.settled()
     record = try #require(
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))

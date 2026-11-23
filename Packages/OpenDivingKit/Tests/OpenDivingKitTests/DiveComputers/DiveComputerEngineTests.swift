@@ -331,7 +331,7 @@ struct DiveComputerEngineTests {
     link.scripts = [[.finished(.init(.unreachable))]]
     let engine = engine(session)
     _ = watcher.take()
-    engine.start(F.perdixFound, all: false)
+    engine.start(F.perdixFound, choosing: false)
     await engine.settled()
     #expect(watcher.take().last == .arm(F.perdixFound.id, after: DiveComputerWatch.revisitDelay))
   }
@@ -371,7 +371,7 @@ struct DiveComputerEngineTests {
     lostAfterTheFirstDive()
     let engine = engine(session)
     _ = watcher.take()
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await heldLost(walk)
     #expect(link.opened.map(\.waitsForLink) == [true])
     #expect(watcher.take() == [])
@@ -402,7 +402,7 @@ struct DiveComputerEngineTests {
     lostAfterTheFirstDive()
     let engine = engine(session)
     _ = watcher.take()
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await heldLost(walk)
 
     engine.foregroundChanged(false)
@@ -432,7 +432,7 @@ struct DiveComputerEngineTests {
     lostAfterTheFirstDive()
     let engine = engine(session)
     _ = watcher.take()
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await heldLost(walk)
     engine.foregroundChanged(false)
     watcher.send(.state(.on, detail: "poweredOn"))
@@ -459,7 +459,7 @@ struct DiveComputerEngineTests {
     ]
     link.holdBefore = 4
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await heldLost(walk)
     engine.foregroundChanged(false)
     watcher.send(.state(.on, detail: "poweredOn"))
@@ -479,7 +479,7 @@ struct DiveComputerEngineTests {
     lostAfterTheFirstDive()
     let handOvers = root.appendingPathComponent("dive-computer-hand-overs.json")
     let first = engine(session, handOvers: handOvers)
-    let walk = try #require(first.start(F.perdixFound, all: false))
+    let walk = try #require(first.start(F.perdixFound, choosing: false))
     await heldLost(walk)
     first.foregroundChanged(false)
     watcher.send(.state(.on, detail: "poweredOn"))
@@ -576,7 +576,7 @@ struct DiveComputerEngineTests {
     #expect(link.downloads == 1)
 
     // The diver's tap on the Ocean ends the Perdix's walk with what it kept, and goes first.
-    let tapped = try #require(engine.start(F.oceanFound, all: false))
+    let tapped = try #require(engine.start(F.oceanFound, choosing: false))
     link.holdBeforeEnd = false
     await engine.settled()
     #expect(link.opened.map(\.computer.id) == [F.perdixFound.id, F.oceanFound.id])
@@ -655,14 +655,14 @@ struct DiveComputerEngineTests {
     #expect(server.atOnce.count == 2)
     #expect(downloads(session).archives().isEmpty)
 
-    let next = engine.start(F.perdixFound, all: false)
+    let next = engine.start(F.perdixFound, choosing: false)
     await engine.settled()
     #expect(next?.outcome != nil)
     let notAgain = try #require(link.waitingTests.last)
     #expect(notAgain(F.perdix, F.fingerprint(3)))
     #expect(notAgain(F.perdix, F.fingerprint(2)))
 
-    engine.start(F.perdixFound, all: true)
+    engine.start(F.perdixFound, choosing: true)
     await engine.settled()
     let all = try #require(link.waitingTests.last)
     #expect(!all(F.perdix, F.fingerprint(3)))
@@ -1465,7 +1465,7 @@ struct DiveComputerEngineTests {
     server.holdInLogbook([uuid(dives[1])])
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await engine.settled()
 
     #expect(
@@ -1497,7 +1497,7 @@ struct DiveComputerEngineTests {
     server.holdInLogbook(Set(dives.map(uuid)))
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await engine.settled()
 
     #expect(walk.listing?.newDives == 0)
@@ -1524,7 +1524,7 @@ struct DiveComputerEngineTests {
     }
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await engine.settled()
     #expect(server.knownQueries.count == 1)
     #expect(link.leftOut == [[]])
@@ -1539,7 +1539,7 @@ struct DiveComputerEngineTests {
     server.holdInLogbook(Set(dives.map(uuid)))
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await engine.settled()
     #expect(server.knownQueries.isEmpty)
     #expect(walk.divesDownloaded == 3)
@@ -1560,7 +1560,7 @@ struct DiveComputerEngineTests {
     server.holdInLogbook(Set(dives.map(uuid)))
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let engine = engine(fresh)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await engine.settled()
     #expect(server.knownQueries.isEmpty)
     #expect(walk.divesDownloaded == 2)
@@ -1578,7 +1578,7 @@ struct DiveComputerEngineTests {
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let clock = MovingClock(F.moment)
     let engine = engine(session, clock: clock)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await until { server.knownQueries.count == 1 && clock.sleeping > 0 }
     clock.pass(9)
     for _ in 0..<100 { await Task.yield() }
@@ -1605,7 +1605,7 @@ struct DiveComputerEngineTests {
     }
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await until { server.knownQueries.count == 1 }
     for _ in 0..<100 { await Task.yield() }
     #expect(walk.divesDownloaded == 0)
@@ -1633,7 +1633,7 @@ struct DiveComputerEngineTests {
     server.holdInLogbook([])
     link.scripts = [FakeDiveComputerLink.script(F.ocean, listing: listing(dives), dives)]
     let engine = engine(session)
-    let walk = try #require(engine.start(F.oceanFound, all: false))
+    let walk = try #require(engine.start(F.oceanFound, choosing: false))
     // The dives logged no zone, and the watch reported none.
     await until { walk.phase == .askingTimeZone }
     engine.cancel(walk)
@@ -1663,7 +1663,7 @@ struct DiveComputerEngineTests {
         [])
     ]
     let engine = engine(session)
-    engine.start(F.perdixFound, all: false)
+    engine.start(F.perdixFound, choosing: false)
     await engine.settled()
     #expect(server.knownQueries.map(\.dives.count) == [2000, 1])
     #expect(link.leftOut == [[held.fingerprint]])
@@ -1679,7 +1679,7 @@ struct DiveComputerEngineTests {
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     link.holdBefore = 3
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await link.untilHeld()
     await until { walk.divesDownloaded == 1 }
     #expect(walk.queue.map(\.fingerprint) == dives.dropFirst().map(\.fingerprint))
@@ -1748,7 +1748,7 @@ struct DiveComputerEngineTests {
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     link.holdBefore = 3
     let engine = engine(fresh)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await link.untilHeld()
     await until { walk.divesDownloaded == 1 }
     #expect(engine.divesOnPhone.map(\.wait) == [.walkEnd])
@@ -1769,7 +1769,7 @@ struct DiveComputerEngineTests {
     link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
     link.holdBefore = 3
     let engine = engine(session)
-    let walk = try #require(engine.start(F.perdixFound, all: false))
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
     await link.untilHeld()
     await until { walk.divesDownloaded == 1 }
     let rows = engine.downloadRows(units: .metric)

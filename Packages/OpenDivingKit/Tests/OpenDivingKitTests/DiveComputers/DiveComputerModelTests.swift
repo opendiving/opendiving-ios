@@ -202,9 +202,9 @@ struct DiveComputerModelTests {
     #expect(link.fingerprintsSet == [nil, F.fingerprint(3)])
     #expect(model.outcome?.kind == .nothingNew)
     #expect(model.outcome?.sentence == "No new dives since 25 October.")
-    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(model.outcome?.offersChoosing == true)
 
-    model.downloadAll()
+    model.chooseDives()
     await model.settled()
     #expect(link.fingerprintsSet == [nil, F.fingerprint(3), nil])
     #expect(model.outcome?.kind == .kept)
@@ -1090,7 +1090,7 @@ struct DiveComputerModelTests {
     // A fingerprint to set, then *Download all dives*.
     try await download(model)
     #expect(model.outcome?.kind == .nothingNew)
-    model.downloadAll()
+    model.chooseDives()
     await model.settled()
 
     let set: [Data?] = [nil, F.fingerprint(0x14), nil]
@@ -1402,7 +1402,7 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(model.outcome?.kind == .alreadyWaiting)
     #expect(model.outcome?.sentence == "2 dives waiting to upload. 11 dives on this computer.")
-    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(model.outcome?.offersChoosing == true)
     let perdix = { computers(session).record(family: .shearwaterPetrel, serial: "D9772626") }
     #expect(perdix()?.fingerprint == F.fingerprint(3))
 
@@ -1440,7 +1440,7 @@ struct DiveComputerModelTests {
     let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.sentence == "2 dives downloaded. 1 dive couldn't be downloaded.")
-    #expect(model.outcome?.offersDownloadAll == false)
+    #expect(model.outcome?.offersChoosing == false)
     try await download(model)
     #expect(
       model.outcome?.sentence
@@ -1469,10 +1469,10 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.kind == .notDownloaded)
     #expect(
       model.outcome?.sentence == "1 dive couldn't be downloaded. 3 dives on this computer.")
-    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(model.outcome?.offersChoosing == true)
     #expect(DiveComputerButtonContent(model).state == .failed)
 
-    model.downloadAll()
+    model.chooseDives()
     await model.settled()
     #expect(
       model.outcome?.sentence == "1 dive couldn't be downloaded. 3 dives on this computer.")
@@ -1498,10 +1498,10 @@ struct DiveComputerModelTests {
     await model.watch()
     #expect(model.pageWalk(perdix) == .none)
 
-    model.download(perdix, all: false)
+    model.download(perdix, choosing: false)
     await model.settled()
     link.holdBeforeEnd = true
-    model.download(perdix, all: false)
+    model.download(perdix, choosing: false)
     await link.untilHeld()
     #expect(model.pageWalk(perdix) == .running)
     #expect(model.pageWalk(ocean) == .none)
@@ -1511,7 +1511,7 @@ struct DiveComputerModelTests {
     await model.settled()
     let outcome = try #require(model.outcome)
     #expect(outcome.kind == .nothingNew)
-    #expect(outcome.offersDownloadAll)
+    #expect(outcome.offersChoosing)
     #expect(model.pageWalk(perdix) == .finished(outcome))
     #expect(model.canDownload(perdix))
     #expect(model.pageWalk(ocean) == .none)

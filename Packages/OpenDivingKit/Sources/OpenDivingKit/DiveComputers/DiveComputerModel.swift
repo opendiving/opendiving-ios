@@ -616,6 +616,9 @@ public final class DiveComputerModel {
     chosen = []
   }
 
+  /// How many of the list's dives are chosen.
+  public var chosenCount: Int { choice?.dives(in: chosen).count ?? 0 }
+
   /// Every dive of the list is chosen.
   public var choseAll: Bool {
     guard let choice, !choice.dives.isEmpty else { return false }
