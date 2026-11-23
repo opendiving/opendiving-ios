@@ -3,7 +3,7 @@ import Foundation
 /// One account's downloads on the phone, under `Downloads/` in its directory: the walks whose
 /// dives are being kept as they arrive or wait for a time zone, each a record beside a folder of
 /// the dives' bytes; the archives waiting to be imported, each a record beside its zip; and, per
-/// computer, the dives the server has answered for and those the diver did not choose to
+/// computer, the dives the server has answered for and, apart, those the diver did not choose to
 /// download, which a walk does not take again until the computer's fingerprint has passed them.
 ///
 /// A record this build cannot read is kept and never overwritten (``KeptFolder``), and the bytes
@@ -14,6 +14,7 @@ public struct DownloadStore: Sendable {
   private let walkRecords: KeptFolder<KeptWalk>
   private let archiveRecords: KeptFolder<DownloadArchive>
   private let deliveredRecords: KeptFolder<[UUID]>
+  private let declinedRecords: KeptFolder<[UUID]>
 
   public init(store: ServerStateStore, origin: ServerOrigin, account: UUID) {
     self.account = account
@@ -22,6 +23,11 @@ public struct DownloadStore: Sendable {
     walkRecords = KeptFolder(url: root.appendingPathComponent("Walks", isDirectory: true))
     archiveRecords = KeptFolder(url: root.appendingPathComponent("Archives", isDirectory: true))
     deliveredRecords = KeptFolder(url: root.appendingPathComponent("Delivered", isDirectory: true))
+    declinedRecords = Self.declined(in: root)
+  }
+
+  private static func declined(in root: URL) -> KeptFolder<[UUID]> {
+    KeptFolder(url: root.appendingPathComponent("Declined", isDirectory: true))
   }
 
   /// The store of every account this server has a directory for.
@@ -112,11 +118,10 @@ public struct DownloadStore: Sendable {
 
   // MARK: - What the server answered for, and what the diver did not choose
 
-  /// The dives of a computer the server has answered for, or the diver did not choose, since its
-  /// fingerprint last moved.
+  /// The dives of a computer the server has answered for since its fingerprint last moved.
   func delivered(_ record: String) -> Set<UUID> { Set(deliveredRecords.read(record) ?? []) }
 
-  /// Every computer's dives the server has answered for, or the diver did not choose.
+  /// Every computer's dives the server has answered for.
   func allDelivered() -> Set<UUID> {
     Set(deliveredRecords.load().values.flatMap(\.value))
   }
@@ -126,15 +131,34 @@ public struct DownloadStore: Sendable {
     try deliveredRecords.write(kept.sorted { $0.uuidString < $1.uuidString }, name: record)
   }
 
+  /// Every computer's dives the diver did not choose since its fingerprint last moved. Kept apart
+  /// from what the server answered for: they are the diver's whichever account loads, and leave
+  /// with the computer when it is forgotten.
+  func allDeclined() -> Set<UUID> {
+    Set(declinedRecords.load().values.flatMap(\.value))
+  }
+
   /// The diver chose from a computer's list: what they did not choose is not taken again, and
-  /// what they chose is taken whatever an earlier choice left out.
+  /// what they chose is taken whatever an earlier choice or answer left out.
   func choose(_ chosen: [UUID], declined: [UUID], of record: String) throws {
-    let kept = delivered(record).subtracting(chosen).union(declined)
-    try deliveredRecords.write(kept.sorted { $0.uuidString < $1.uuidString }, name: record)
+    let answered = delivered(record).subtracting(chosen)
+    try deliveredRecords.write(answered.sorted { $0.uuidString < $1.uuidString }, name: record)
+    try declinedRecords.write(declined.sorted { $0.uuidString < $1.uuidString }, name: record)
   }
 
   /// The computer's fingerprint moved past every dive a complete walk saw, these among them.
-  func clearDelivered(_ record: String) { deliveredRecords.remove(record) }
+  func clearDelivered(_ record: String) {
+    deliveredRecords.remove(record)
+    declinedRecords.remove(record)
+  }
+
+  /// *Forget this dive computer*: what any account's diver chose not to download from it goes
+  /// with it, so pairing it again asks afresh.
+  static func forgetDeclined(_ record: String, store: ServerStateStore) {
+    for directory in store.accountDirectories() {
+      declined(in: directory.appendingPathComponent("Downloads", isDirectory: true)).remove(record)
+    }
+  }
 
   /// The dives the phone holds unimported under one mark: in an archive, or kept by a walk.
   /// Those kept under the other may yet move to another account.

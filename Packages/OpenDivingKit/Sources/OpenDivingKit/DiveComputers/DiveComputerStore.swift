@@ -129,6 +129,7 @@ public struct DiveComputerStore: Sendable {
     for directory in store.accountDirectories() {
       Self.progress(in: directory).remove(record.id)
     }
+    DownloadStore.forgetDeclined(record.id, store: store)
   }
 
   /// Removes the progress written before the account was known: the load named another account,

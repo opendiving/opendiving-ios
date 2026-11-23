@@ -187,10 +187,10 @@ import, which needs the upload to report back across a sign-out.
 Whether *Which dives do you want to download?* has been answered is the account's, kept with its
 progress: a computer awaits it on an account holding neither a fingerprint nor an answer, so a
 second account or server asks too. A watched walk asks once its list and the server's answer are in,
-holding the link, and writes the answer before the first transfer: the dives not chosen join those
-the server answered for until the fingerprint moves, and *Choose dives to download* sets the
-fingerprint aside until a walk completes, so a broken walk resumes the choice unasked. A connection
-to a computer that awaits the question starts no walk; a walk listing nothing counts as answered.
+and writes the answer before the first transfer: the dives not chosen are not taken until the
+fingerprint moves or the computer is forgotten, and *Choose dives to download* sets the fingerprint
+aside until a walk completes, so a broken walk resumes the choice unasked. A connection to a
+computer that awaits the question starts no walk; a walk listing nothing counts as answered.
 Rejected: a mark set at pairing, which is the phone's; taking every dive unwatched, the hours-long
 download the question offers a way out of; moving the fingerprint at the choice.
 

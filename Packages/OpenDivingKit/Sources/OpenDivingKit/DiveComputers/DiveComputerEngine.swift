@@ -446,11 +446,12 @@ public final class DiveComputerEngine {
     let waitingDives = downloads.waitingDives(marked: marked)
     // *Choose dives to download* lists again what the server answered for and what an earlier
     // choice left out, and never what waits. A walk before the load may be for another account
-    // than the one the server answered.
+    // than the one the server answered; a choice is the diver's, whichever account it was for.
     let delivered = choosing || marked ? [] : downloads.allDelivered()
+    let declined = choosing ? [] : downloads.allDeclined()
     let notAgain: @Sendable (DiveComputerIdentity, Data) -> Bool = { identity, fingerprint in
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
-      return waitingDives.contains(uuid) || delivered.contains(uuid)
+      return waitingDives.contains(uuid) || delivered.contains(uuid) || declined.contains(uuid)
     }
     let leaveOut:
       @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<
@@ -577,7 +578,7 @@ public final class DiveComputerEngine {
           let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
           if waitingDives.contains(uuid) {
             skippedWaiting += 1
-          } else if delivered.contains(uuid) {
+          } else if delivered.contains(uuid) || declined.contains(uuid) {
             // Passed over as answered for or not chosen, which says nothing of the logbook.
             walk.logbookHoldsAll = false
           }

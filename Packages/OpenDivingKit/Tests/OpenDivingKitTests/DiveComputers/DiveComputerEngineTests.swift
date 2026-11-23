@@ -2057,6 +2057,38 @@ struct DiveComputerEngineTests {
     #expect(walk.outcome?.kind == .nothingNew)
   }
 
+  /// What the diver did not choose is the diver's, so a walk before the account loads leaves it
+  /// out too, where it takes again what the server answered for.
+  @Test func aWalkBeforeTheLoadStillLeavesOutWhatTheDiverDidNotChoose() async throws {
+    let first = try await session()
+    var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    record.answeredQuestion = true
+    try computers(first).save(record)
+    let dives = listedPerdixDives(3)
+    try downloads(first).deliver([uuid(dives[2])], of: record.id)
+    try downloads(first).choose([], declined: [uuid(dives[0])], of: record.id)
+    let later = try await session(loaded: false)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, [])]
+    let engine = engine(later)
+    _ = try #require(engine.start(F.perdixFound, choosing: false))
+    await engine.settled()
+    let notAgain = try #require(link.waitingTests.last)
+    #expect(notAgain(F.perdix, dives[0].fingerprint))
+    #expect(!notAgain(F.perdix, dives[1].fingerprint))
+    #expect(!notAgain(F.perdix, dives[2].fingerprint))
+  }
+
+  @Test func forgettingAComputerTakesWhatTheDiverDidNotChooseWithIt() async throws {
+    let session = try await session()
+    let record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    try computers(session).save(record)
+    let dives = listedPerdixDives(2)
+    try downloads(session).choose([uuid(dives[1])], declined: [uuid(dives[0])], of: record.id)
+    #expect(downloads(session).allDeclined() == [uuid(dives[0])])
+    computers(session).forget(record)
+    #expect(downloads(session).allDeclined().isEmpty)
+  }
+
   @Test func withNoAnswerTheListHoldsWhatThePhoneKnowsAndSaysSo() async throws {
     let session = try await session()
     route.isRouteAvailable = false

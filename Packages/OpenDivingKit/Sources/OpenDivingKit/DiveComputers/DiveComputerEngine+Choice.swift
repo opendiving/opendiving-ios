@@ -8,9 +8,9 @@ import Foundation
 /// want to download?*, and a walk nobody watches is not started (``connected(_:record:handedOver:)``).
 /// *Choose dives to download* shows the list whatever the computer's progress.
 ///
-/// **What the diver did not choose is not taken again**, kept with the dives the server answered
-/// for until the fingerprint next moves (``DownloadStore/choose(_:declined:of:)``), so a walk
-/// that breaks off after a choice resumes in any later walk and asks nothing again.
+/// **What the diver did not choose is not taken again** until the fingerprint next moves or the
+/// computer is forgotten (``DownloadStore/choose(_:declined:of:)``), so a walk that breaks off
+/// after a choice resumes in any later walk and asks nothing again.
 extension DiveComputerEngine {
   /// The fingerprints of `listed` that the walk leaves out: those the logbook holds, and, where
   /// the walk asks, those the diver did not choose. Cancelled at the question or the list, every
