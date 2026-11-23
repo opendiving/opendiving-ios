@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// More's *Contacts*: the diver's contacts in the API's order, a page at a time over the
-/// account's copy of the pages it has shown. With no route nothing is asked for, and the list
-/// reads again once one appears.
+/// More's *Contacts*: the diver's contacts in the API's order, every page of them over the
+/// account's copy of the pages it has shown, since the page's letter index names every letter at
+/// once. With no route nothing is asked for, and the list reads again once one appears.
 @MainActor
 @Observable
 public final class ContactListModel {
@@ -13,7 +13,7 @@ public final class ContactListModel {
 
   public init(session: Session) {
     self.session = session
-    contacts = PagedList(session: session, cache: .contacts, routed: true) {
+    contacts = PagedList(session: session, cache: .contacts, routed: true, readsEveryPage: true) {
       client, page, itemsPerPage in
       try await client.contacts(page: page, itemsPerPage: itemsPerPage)
     }
@@ -29,7 +29,7 @@ public final class ContactListModel {
     await session.connectivity.eachRouteAppearance { await contacts.rereadIfStale() }
   }
 
-  /// Pull-to-refresh, from the first page.
+  /// Pull-to-refresh, from the first page through the last.
   public func refresh() async {
     await contacts.refresh()
   }

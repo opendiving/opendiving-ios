@@ -102,8 +102,9 @@ private struct ContactListContent: View {
       if let lastUpdated = list.lastUpdated {
         LastUpdatedLine(date: lastUpdated)
       }
-      // Lazy, so the last row asks for the next page only as it scrolls into view.
-      LazyVStack(alignment: .leading, spacing: 0) {
+      // Not lazy, so the index can scroll to a letter that has not been drawn yet; the model
+      // reads every page rather than the rows asking for the next.
+      VStack(spacing: 0) {
         ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
           if index > 0 { Divider() }
           ListLetterHeader(letter: section.letter)
@@ -118,7 +119,6 @@ private struct ContactListContent: View {
               ContactRow(content: .contact(contact))
             }
             .buttonStyle(.plain)
-            .task { await list.loadMore(after: contact) }
           }
         }
       }

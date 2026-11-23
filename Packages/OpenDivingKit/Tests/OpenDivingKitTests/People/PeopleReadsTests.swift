@@ -130,6 +130,27 @@ struct PeopleReadsTests {
     #expect(model.sections.map(\.letter) == ["A", "B", "C", "Z"])
   }
 
+  @Test func theContactsReadEveryPageForTheirLetters() async throws {
+    let world = try OutboxWorld()
+    let first = try KitFixture.text("contacts-page")
+      .replacingOccurrences(of: #""has_more": false"#, with: #""has_more": true"#)
+    let second = try KitFixture.text("contacts-page")
+      .replacingOccurrences(of: "01a0d9e9", with: "02a0d9e9")
+      .replacingOccurrences(of: "Big Blue Tech", with: "Zenobia Wreck Tours")
+    world.server.override { request, _ in
+      guard request.route == "GET contacts" else { return nil }
+      return .json(request.url?.query?.contains("page=2") == true ? second : first)
+    }
+    try await world.load()
+    let model = ContactListModel(session: world.session)
+    let showing = Task { await model.show() }
+    while model.contacts.items.count < 4 { await Task.yield() }
+    showing.cancel()
+    #expect(!model.contacts.hasMore)
+    #expect(
+      LetterIndex.sections(model.contacts.items) { $0.name }.map(\.letter) == ["B", "E", "Z"])
+  }
+
   @Test func aQueuedDeleteTakesThePersonsRowAtOnce() async throws {
     let world = try world()
     try await world.load()
