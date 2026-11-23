@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// A course's page, by its uuid: its head, then three tabs — Info, its information card over
-/// *Log a dive* and *Add a certification*; Certifications, the cards it issued; and Dives, those
+/// *Add dives* and *Add certifications*; Certifications, the cards it issued; and Dives, those
 /// logged on it. It is edited and deleted from its top bar.
 struct CourseDetailView: View {
   let courseUUID: UUID
@@ -338,9 +338,10 @@ private struct CourseInformationRow: View {
   }
 }
 
-/// *Log a dive* on the course, in the coral the profile's own *Log a dive* takes, beside *Add a
-/// certification*, each with its icon: each as wide as its label plus an equal share of what is
-/// left of the row, so both keep the same padding. Over it where the row leaves no room.
+/// *Add dives*, in the coral the profile's own *Log a dive* takes, beside *Add certifications*,
+/// each opening a list of the diver's records to put on the course: each button as wide as its
+/// label plus an equal share of what is left of the row, so both keep the same padding. Over it
+/// where the row leaves no room.
 private struct CourseActions: View {
   let course: CourseRead
 
@@ -353,16 +354,16 @@ private struct CourseActions: View {
 
   @ViewBuilder private var buttons: some View {
     NavigationLink {
-      DiveFormView(mode: .course(course.uuid))
+      CourseAddDivesView(course: course)
     } label: {
-      Label("Log a dive", icon: .dive)
+      Label("Add dives", icon: .dive)
         .frame(maxWidth: .infinity)
     }
     .brandProminentButton(.brandCoral)
     NavigationLink {
-      CertificationFormView(mode: .create, course: course)
+      CourseAddCertificationsView(course: course)
     } label: {
-      Label("Add a certification", icon: .badgeCheck)
+      Label("Add certifications", icon: .badgeCheck)
         .frame(maxWidth: .infinity)
     }
     .brandBorderedButton()
