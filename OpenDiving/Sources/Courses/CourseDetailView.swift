@@ -20,7 +20,9 @@ extension CourseDetailView {
   static let certificationsEmptyTitle = "No certifications from this course yet"
   static let certificationsEmptyMessage =
     "Add the card this training issued, or name this course from an existing card's form."
-  static let certificationsEmptyAction = "Add the first certification"
+  /// The Info tab's buttons, which the empty Dives and Certifications tabs repeat.
+  static let addDives = "Add dives"
+  static let addCertifications = "Add certifications"
 
   /// What a page that could not be read says: offline, that it shows once it can be.
   static func failure(_ error: APIError) -> String {
@@ -98,8 +100,15 @@ private struct CourseDetailContent: View {
                 CourseCertificationsSection(course: course, list: model.certifications)
               case .dives:
                 RecordDivesSection(
-                  list: model.dives, content: .course, units: session.units,
-                  logDive: .course(course.uuid), isCarded: false)
+                  list: model.dives, content: .course, units: session.units, isCarded: false
+                ) {
+                  NavigationLink {
+                    CourseAddDivesView(course: course)
+                  } label: {
+                    Label(CourseDetailView.addDives, icon: .dive)
+                  }
+                  .brandProminentButton(.brandCoral)
+                }
               }
             }
             .padding(.horizontal)
@@ -163,8 +172,8 @@ private struct CourseDetailContent: View {
 }
 
 /// The certifications the course issued, a card each as More's *Certifications* draws them, each
-/// opening its pane; while it has none, an invitation to add the first. A course with no agency
-/// invites one too, where the web hides its card: the tab is there for every course, and the
+/// opening its pane; while it has none, the Info tab's *Add certifications*. A course with no
+/// agency offers it too, where the web hides its card: the tab is there for every course, and the
 /// diver who opens it is asking for its cards.
 private struct CourseCertificationsSection: View {
   let course: CourseRead
@@ -215,11 +224,11 @@ private struct CourseCertificationsSection: View {
       Text(CourseDetailView.certificationsEmptyMessage)
     } actions: {
       NavigationLink {
-        CertificationFormView(mode: .create, course: course)
+        CourseAddCertificationsView(course: course)
       } label: {
-        Label(CourseDetailView.certificationsEmptyAction, systemImage: "plus")
+        Label(CourseDetailView.addCertifications, icon: .badgeCheck)
       }
-      .brandProminentButton()
+      .brandBorderedButton()
     }
   }
 }
@@ -356,14 +365,14 @@ private struct CourseActions: View {
     NavigationLink {
       CourseAddDivesView(course: course)
     } label: {
-      Label("Add dives", icon: .dive)
+      Label(CourseDetailView.addDives, icon: .dive)
         .frame(maxWidth: .infinity)
     }
     .brandProminentButton(.brandCoral)
     NavigationLink {
       CourseAddCertificationsView(course: course)
     } label: {
-      Label("Add certifications", icon: .badgeCheck)
+      Label(CourseDetailView.addCertifications, icon: .badgeCheck)
         .frame(maxWidth: .infinity)
     }
     .brandBorderedButton()

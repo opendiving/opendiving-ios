@@ -68,23 +68,27 @@ where Item.ID == UUID {
       } else if items.isEmpty {
         EmptyOrErrorView(status: .empty(icon: words.emptyIcon, title: words.empty, message: nil))
       } else {
-        List(selection: $selection) {
+        // Ticked by hand rather than by the list's edit mode, whose circle iOS 26 colours as
+        // it likes and whose selected row is a heavy grey.
+        List {
           ForEach(items) { item in
-            let row = row(item)
-            VStack(alignment: .leading, spacing: 2) {
-              Text(row.title)
-              Text(row.detail)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            let isPicked = selection.contains(item.id)
+            Button {
+              if isPicked { selection.remove(item.id) } else { selection.insert(item.id) }
+            } label: {
+              CourseAttachRow(row: row(item), isPicked: isPicked)
             }
+            .buttonStyle(.plain)
+            .listRowBackground(
+              isPicked ? Color.pickedRow : Color(.secondarySystemGroupedBackground)
+            )
+            .accessibilityAddTraits(isPicked ? .isSelected : [])
             // The course's own rows are left out, so the last row shown need not be the list's.
             .onAppear {
               if item.id == items.last?.id { Task { await list.loadMore() } }
             }
           }
         }
-        .environment(\.editMode, .constant(.active))
-        .tint(Color.accentText)
       }
     }
   }
@@ -93,6 +97,36 @@ where Item.ID == UUID {
     let picked = offered(list.items).map(\.id).filter(selection.contains)
     error = attach(picked)
     if error == nil { dismiss() }
+  }
+}
+
+/// One row to tick: the brand teal's filled tick or an empty ring, then the record's two lines.
+private struct CourseAttachRow: View {
+  let row: CourseAttach.Row
+  let isPicked: Bool
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Group {
+        if isPicked {
+          Image(systemName: "checkmark.circle.fill")
+            .foregroundStyle(.white, Color.brandTeal)
+        } else {
+          Image(systemName: "circle")
+            .foregroundStyle(Color(.tertiaryLabel))
+        }
+      }
+      .font(.title2)
+      .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(row.title)
+        Text(row.detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .contentShape(.rect)
   }
 }
 

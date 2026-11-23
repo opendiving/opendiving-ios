@@ -34,7 +34,8 @@ struct CourseScreensTests {
       CourseDetailView.certificationsEmptyMessage
         == "Add the card this training issued, or name this course from an existing card's form."
     )
-    #expect(CourseDetailView.certificationsEmptyAction == "Add the first certification")
+    #expect(CourseDetailView.addDives == "Add dives")
+    #expect(CourseDetailView.addCertifications == "Add certifications")
   }
 
   @Test func thePageOpensOnInfoThenCertificationsThenDives() {

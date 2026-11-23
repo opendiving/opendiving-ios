@@ -4,14 +4,13 @@ import SwiftUI
 /// A record page's dives — a gear item's, a course's, a person's, a species' — a page at a time
 /// as cards each opening the dive's page, under the card's title and the sentence under it — or,
 /// not `isCarded`, the dive cards alone, where a tab already names them. While the list holds none
-/// it is the empty state alone, whose button opens the dive form on `logDive`.
-struct RecordDivesSection: View {
+/// it is the empty state alone, under `emptyAction`: *Log a dive* unless the page gives another.
+struct RecordDivesSection<EmptyAction: View>: View {
   let list: PagedList<DiveListItem>
   let content: RecordDivesContent
   let units: UnitSystem
-  /// What *Log a dive* opens the dive form on.
-  let logDive: DiveFormMode
   var isCarded = true
+  @ViewBuilder let emptyAction: () -> EmptyAction
 
   var body: some View {
     switch list.phase {
@@ -34,12 +33,7 @@ struct RecordDivesSection: View {
       } description: {
         Text(content.emptyMessage)
       } actions: {
-        NavigationLink {
-          DiveFormView(mode: logDive)
-        } label: {
-          Label(content.logDiveLabel, systemImage: "plus")
-        }
-        .brandProminentButton()
+        emptyAction()
       }
     case .loaded:
       card {
@@ -63,6 +57,33 @@ struct RecordDivesSection: View {
         rows()
       }
     }
+  }
+}
+
+extension RecordDivesSection where EmptyAction == RecordDivesLogDive {
+  /// The section whose empty state logs a dive, the form opening on `logDive`.
+  init(
+    list: PagedList<DiveListItem>, content: RecordDivesContent, units: UnitSystem,
+    logDive: DiveFormMode, isCarded: Bool = true
+  ) {
+    self.init(list: list, content: content, units: units, isCarded: isCarded) {
+      RecordDivesLogDive(label: content.logDiveLabel, mode: logDive)
+    }
+  }
+}
+
+/// The empty state's *Log a dive*, opening the dive form on `mode`.
+struct RecordDivesLogDive: View {
+  let label: String
+  let mode: DiveFormMode
+
+  var body: some View {
+    NavigationLink {
+      DiveFormView(mode: mode)
+    } label: {
+      Label(label, systemImage: "plus")
+    }
+    .brandProminentButton()
   }
 }
 
