@@ -22,6 +22,9 @@ extension CourseDetailView {
     "Add the card this training issued, or name this course from an existing card's form."
   /// The Info tab's buttons, which the empty Dives and Certifications tabs repeat.
   static let addDives = "Add dives"
+  /// What the empty tabs' buttons add to the system's side padding, which on iOS 26 leaves less
+  /// room at a button's ends than between its icon and its words.
+  static let emptyActionInset: CGFloat = 4
   static let addCertifications = "Add certifications"
 
   /// What a page that could not be read says: offline, that it shows once it can be.
@@ -94,6 +97,7 @@ private struct CourseDetailContent: View {
                     CourseAddDivesView(course: course)
                   } label: {
                     Label(CourseDetailView.addDives, icon: .dive)
+                      .padding(.horizontal, CourseDetailView.emptyActionInset)
                   }
                   .brandProminentButton(.brandCoral)
                 }
@@ -209,6 +213,7 @@ private struct CourseCertificationsSection: View {
         CourseAddCertificationsView(course: course)
       } label: {
         Label(CourseDetailView.addCertifications, icon: .badgeCheck)
+          .padding(.horizontal, CourseDetailView.emptyActionInset)
       }
       .brandBorderedButton()
     }
