@@ -869,6 +869,10 @@ public final class DiveComputerEngine {
           sentence += " " + DiveComputerText.onComputer(listing.dives) + "."
         }
         outcome = .init(kind: .nothingNew, sentence: sentence)
+      } else if let listing = walk.listing, listing.dives > 0 {
+        // *No dives* is said only of a computer that lists none.
+        outcome = .init(
+          kind: .nothingNew, sentence: DiveComputerText.onComputer(listing.dives) + ".")
       } else {
         outcome = .init(kind: .noDives, sentence: DiveComputerText.noDives)
       }

@@ -1998,6 +1998,37 @@ struct DiveComputerEngineTests {
     #expect(perdixRecord(session)?.fingerprint == dives[2].fingerprint)
   }
 
+  /// A walk with the fingerprint set aside reads the whole computer, so where the logbook holds
+  /// every dive it lists, it says so: from *Choose dives to download*, and from a walk resuming a
+  /// choice. *No dives on this computer* is said only of a computer that lists none.
+  @Test(arguments: [true, false])
+  func aWalkWithTheFingerprintSetAsideSaysTheLogbookHoldsEveryDive(_ choosing: Bool) async throws {
+    let session = try await session()
+    var record = DiveComputerRecord(
+      identity: F.perdix, peripheral: F.perdixFound.id, fingerprint: F.fingerprint(9))
+    record.answeredQuestion = true
+    record.fingerprintSetAside = !choosing
+    try computers(session).save(record)
+    let dives = listedPerdixDives(2)
+    server.holdInLogbook(Set(dives.map(uuid)))
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives),
+      FakeDiveComputerLink.script(F.perdix, listing: .init(dives: 0, newDives: 0), []),
+    ]
+    let engine = engine(session)
+    let walk = try #require(engine.start(F.perdixFound, choosing: choosing))
+    await engine.settled()
+    #expect(link.fingerprintsSet == [nil])
+    #expect(walk.choice == nil)
+    #expect(walk.outcome?.kind == .inLogbook)
+    #expect(walk.outcome?.sentence == DiveComputerText.allInLogbook)
+    #expect(server.atOnce.isEmpty)
+
+    let empty = try #require(engine.start(F.perdixFound, choosing: true))
+    await engine.settled()
+    #expect(empty.outcome?.sentence == DiveComputerText.noDives)
+  }
+
   @Test func withNoAnswerTheListHoldsWhatThePhoneKnowsAndSaysSo() async throws {
     let session = try await session()
     route.isRouteAvailable = false
