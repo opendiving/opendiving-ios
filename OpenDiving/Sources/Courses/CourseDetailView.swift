@@ -39,6 +39,7 @@ private struct CourseDetailContent: View {
   @State private var section = CourseSection.info
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsTop: CGFloat = 0
+  @State private var tabsStuck = false
   @State private var reselect = TabsReselect.head
 
   init(model: CourseDetailModel, lookups: LookupsModel) {
@@ -72,19 +73,9 @@ private struct CourseDetailContent: View {
               }
               .padding(.horizontal)
             }
-            SectionTabs(
-              selection: $section,
-              title: { section in
-                switch section {
-                case .info: section.title
-                case .certifications:
-                  DiveSiteSummary.counted(section.title, model.certifications.count ?? 0)
-                case .dives: DiveSiteSummary.counted(section.title, model.dives.count ?? 0)
-                }
-              },
-              onReselect: { withAnimation { scroll.scroll(to: reselect) } }
-            )
-            .readsTabsTop($tabsTop)
+            ScrollingSectionTabs(
+              selection: $section, isStuck: $tabsStuck, top: $tabsTop, title: tabTitle,
+              onReselect: scrollOnReselect)
             Group {
               switch section {
               case .info:
@@ -109,12 +100,17 @@ private struct CourseDetailContent: View {
               }
             }
             .padding(.horizontal)
+            .hiddenUnderTopBar()
           }
           .coordinateSpace(.pageContent)
           .padding(.bottom)
         }
         .scrollPosition($scroll)
         .tabsReselect($reselect, tabsTop: tabsTop)
+        .overlay(alignment: .top) {
+          StuckSectionTabs(
+            selection: $section, isStuck: tabsStuck, title: tabTitle, onReselect: scrollOnReselect)
+        }
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(course) }
       }
@@ -138,6 +134,18 @@ private struct CourseDetailContent: View {
         Label("Edit", systemImage: "pencil")
       }
     }
+  }
+
+  private func tabTitle(_ section: CourseSection) -> String {
+    switch section {
+    case .info: section.title
+    case .certifications: DiveSiteSummary.counted(section.title, model.certifications.count ?? 0)
+    case .dives: DiveSiteSummary.counted(section.title, model.dives.count ?? 0)
+    }
+  }
+
+  private func scrollOnReselect() {
+    withAnimation { scroll.scroll(to: reselect) }
   }
 
   private var title: String {
