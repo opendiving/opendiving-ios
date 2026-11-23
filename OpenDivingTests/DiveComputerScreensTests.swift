@@ -74,6 +74,28 @@ struct DiveComputerScreensTests {
     #expect(window != nil)
   }
 
+  /// The question and the list draw over a model with no walk at them, the bar under the list
+  /// drawing nothing.
+  @Test func theQuestionAndTheListDraw() async throws {
+    let session = try await loaded()
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+      generator: DiveComputerView.generator)
+    let model = DiveComputerModel(engine: engine)
+    let window = F.window(
+      NavigationStack {
+        Form {
+          DiveQuestionSection(model: model)
+          ChooseDivesSections(model: model)
+        }
+        .safeAreaInset(edge: .bottom) { ChosenDivesBar(model: model) }
+      }
+      .environment(session))
+    defer { window?.isHidden = true }
+    #expect(window != nil)
+    #expect(model.choice == nil)
+  }
+
   @Test func waitingToSyncDrawsADownloadThatWaits() async throws {
     let session = try await loaded()
     let engine = DiveComputerEngine(

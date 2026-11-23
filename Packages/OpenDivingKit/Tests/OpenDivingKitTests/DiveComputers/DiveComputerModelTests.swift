@@ -1092,7 +1092,7 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(ocean()?.fingerprint == F.fingerprint(0x14))
 
-    // A fingerprint to set, then *Download all dives*.
+    // A fingerprint to set, then *Choose dives to download*.
     try await download(model)
     #expect(model.outcome?.kind == .nothingNew)
     model.chooseDives()
