@@ -4,14 +4,16 @@ import SwiftUI
 /// What the phone holds that the server does not have yet, above the Dives list: the drafts,
 /// the writes waiting, what could not be saved, what is done but said once, the files waiting
 /// to import and the downloaded dives waiting to upload — each row omitted when it counts nothing, and the whole section when
-/// they all do. Tapping it opens the pending screen.
+/// they all do. Tapping it opens the pending screen. Where the downloaded dives stand as rows of
+/// their own, as on the Dives tab, the card does not count them too.
 struct PendingSection: View {
+  var countsDownloads = true
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @Environment(DiveComputerEngine.self) private var engine: DiveComputerEngine?
 
   var body: some View {
-    let summary = Self.summary(outbox, inbox, engine)
+    let summary = Self.summary(outbox, inbox, engine, countsDownloads: countsDownloads)
     if !summary.isEmpty {
       NavigationLink {
         PendingScreen()
@@ -26,11 +28,13 @@ struct PendingSection: View {
 extension PendingSection {
   /// The rows the section draws over the account's stores.
   static func summary(
-    _ outbox: OutboxModel, _ inbox: InboxModel, _ engine: DiveComputerEngine? = nil
+    _ outbox: OutboxModel, _ inbox: InboxModel, _ engine: DiveComputerEngine? = nil,
+    countsDownloads: Bool = true
   ) -> PendingSummary {
+    let counted = countsDownloads ? engine : nil
     let downloads =
-      (engine?.archives ?? []).reduce(0) { $0 + $1.summary.dives }
-      + (engine?.held ?? []).reduce(0) { $0 + $1.dives }
+      (counted?.archives ?? []).reduce(0) { $0 + $1.summary.dives }
+      + (counted?.held ?? []).reduce(0) { $0 + $1.dives }
     return PendingSummary(
       drafts: outbox.drafts, items: outbox.items, notices: outbox.notices,
       unreadable: outbox.unreadable.count, files: inbox.files.count, downloads: downloads)

@@ -280,4 +280,27 @@ struct PendingTests {
       KeptText.forgetMessage(summary)
         == "2 dives have not been saved to the server and will be lost.")
   }
+
+  /// On the Dives tab a download's dives stand as rows of their own, so the card there has no
+  /// line for them; every other list's card keeps it.
+  @Test func theDivesTabsCardLeavesTheDownloadsToTheRows() async throws {
+    #expect(ProfileDives.pendingCountsDownloads == false)
+    #expect(PendingSection().countsDownloads)
+    #expect(ProfileDives.showsEmpty(dives: 0, rows: 0))
+    #expect(!ProfileDives.showsEmpty(dives: 0, rows: 1))
+    #expect(!ProfileDives.showsEmpty(dives: 1, rows: 0))
+
+    let session = try await loaded(F.directory(), online: Flag(false))
+    let engine = DiveComputerEngine(
+      session: session, makeLink: { LibDCDiveComputerLink(manager: nil, defaults: .standard) },
+      generator: DiveComputerView.generator)
+    let window = F.window(
+      NavigationStack {
+        ScrollView { ProfileDives(list: ProfileDives.list(session), units: .metric) }
+      }
+      .environment(session).environment(OutboxModel(session: session))
+      .environment(InboxModel(session: session)).environment(engine))
+    defer { window?.isHidden = true }
+    #expect(window != nil)
+  }
 }
