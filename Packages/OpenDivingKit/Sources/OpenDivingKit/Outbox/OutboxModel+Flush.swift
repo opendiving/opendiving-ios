@@ -338,6 +338,11 @@ private struct Flush {
     }
     // Before the item goes, so its list never shows the record between the two.
     if let deleted = item.operation.deletedRecord { hub.deleted.insert(deleted) }
+    if case .updateServiceSchedule(let ref, _, let update) = item.operation,
+      let active = update.isActive, let uuid = ref.serverUUID
+    {
+      hub.landedToggles[uuid] = (active, Date())
+    }
     outbox.remove(item.id)
     hub.answers[item.id] = nil
 

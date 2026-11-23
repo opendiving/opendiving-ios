@@ -71,11 +71,14 @@ struct GearContentTests {
   @Test func anItemsCardCarriesWhatItHasBeenDived() throws {
     let content = card(try item())
     #expect(content.title == "MK25 EVO")
-    #expect(figure(content.figures, "Dives") == "12")
-    #expect(figure(content.figures, "Dive time") == "12h")
+    #expect(content.secondLine.compactMap(\.text) == ["12 dives", "12h"])
+    #expect(content.secondLine.last?.accessibilityLabel == "Dive time: 12h")
+    #expect(content.figures.isEmpty)
+    let once = card(try item(["dive_count": 1, "dive_time": 2700]))
+    #expect(once.secondLine.compactMap(\.text) == ["1 dive", "45min"])
   }
 
-  @Test func anItemsCardBadgesRentedArchivedAndItsServiceOnlyWhereTracked() throws {
+  @Test func anItemsCardBadgesRentedArchivedAndItsServiceOnlyWhereTrackedAndInUse() throws {
     let both = card(try item(["rented": true, "is_archived": true]))
     #expect(both.badges == [Badge("Rented", style: .outline), Badge("Archived", style: .outline)])
     let tracked = card(
@@ -84,6 +87,12 @@ struct GearContentTests {
         "service": [Self.schedule(["interval_dives": 100, "next_due_at_dive_count": 100])],
       ]))
     #expect(tracked.badges == [Badge("Overdue", style: .destructive)])
+    let archived = card(
+      try item([
+        "dive_count": 120, "is_archived": true,
+        "service": [Self.schedule(["interval_dives": 100, "next_due_at_dive_count": 100])],
+      ]))
+    #expect(archived.badges == [Badge("Archived", style: .outline)])
     #expect(card(try item()).badges.isEmpty)
   }
 
@@ -163,6 +172,16 @@ struct GearContentTests {
         "service": [Self.schedule(["next_due_at_dive_time": 6300])],
       ]))
     #expect(figure(overdue.figures, "Next service") == "Overdue")
+  }
+
+  @Test func anArchivedItemsHeadStatesNoNextService() throws {
+    let archived = hero(
+      try item([
+        "dive_count": 1, "dive_time": 7200, "is_archived": true,
+        "service": [Self.schedule(["next_due_at_dive_time": 6300])],
+      ]))
+    #expect(figure(archived.figures, "Next service") == nil)
+    #expect(archived.figures.map(\.label) == ["Dives", "Dive time"])
   }
 
   @Test func theNextServiceOnADateIsTheDate() throws {

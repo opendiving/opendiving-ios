@@ -1,14 +1,16 @@
 extension PlainCardContent {
-  /// A gear item's card on More's *Gear*: its name with Rented, Archived and its worst service
-  /// status, its type, brand and vessel facts, and what it has been dived. An item no rule
-  /// watches carries no status badge: nothing tracked is not everything fine.
+  /// A gear item's row on More's *Gear*: its name with Rented, Archived and its worst service
+  /// status, its type, brand and vessel facts, and under them what it has been dived. An item no
+  /// rule watches carries no status badge: nothing tracked is not everything fine. Neither does an
+  /// archived one, which is out of service whatever its rules say.
   public static func gearItem(_ item: GearItemRead, units: UnitSystem, today: CalendarDate)
     -> PlainCardContent
   {
     var badges: [Badge] = []
     if item.rented { badges.append(Badge("Rented", style: .outline)) }
-    if item.isArchived { badges.append(Badge("Archived", style: .outline)) }
-    if let status = GearServiceStatus.worst(
+    if item.isArchived {
+      badges.append(Badge("Archived", style: .outline))
+    } else if let status = GearServiceStatus.worst(
       item.service, diveCount: item.diveCount, diveTime: item.diveTime, today: today)
     {
       badges.append(status.badge)
@@ -16,11 +18,12 @@ extension PlainCardContent {
     let facts =
       [VocabularyLabels.gearType(item.type), item.brand].compactMap { $0 }
       .filter { !$0.isEmpty } + VesselFacts.parts(item, units: units)
+    let diveTime = DateText.hoursMinutes(seconds: item.diveTime)
     return PlainCardContent(
       title: item.name, badges: badges, facts: facts.map { Fact(text: $0) },
-      figures: [
-        Figure(label: "Dives", value: String(item.diveCount)),
-        Figure(label: "Dive time", value: DateText.hoursMinutes(seconds: item.diveTime)),
+      secondLine: [
+        Fact(text: DiveDetailText.countNoun(item.diveCount, "dive")),
+        Fact(text: diveTime, accessibilityLabel: "Dive time: \(diveTime)"),
       ])
   }
 

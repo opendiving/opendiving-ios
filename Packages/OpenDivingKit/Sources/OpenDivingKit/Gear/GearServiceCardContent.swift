@@ -16,18 +16,13 @@ public enum GearServiceCardContent {
     public let kind: String
     public let label: String?
     public let isPaused: Bool
-    /// The status badge and the due sentence beside it; nil while paused, which draws a dash.
+    /// The status badge at the title line's end; nil while paused, whose badge stands there
+    /// instead.
     public let status: Badge?
+    /// Said paused or not.
     public let due: String?
     /// *Every 12 months or every 100 dives · last done Mar 4, 2026*.
     public let intervals: String
-    /// The kind and label, which names the row's controls.
-    public let name: String
-
-    public var logLabel: String { "Log service for \(name)" }
-    public var toggleLabel: String { (isPaused ? "Resume " : "Pause ") + name + " schedule" }
-    public var editLabel: String { "Edit \(name) schedule" }
-    public var deleteLabel: String { "Delete \(name) schedule" }
   }
 
   /// One logged service's row.
@@ -39,15 +34,12 @@ public enum GearServiceCardContent {
     /// Where, then who: *Blue Ocean · Ahmed*; nil where neither is known.
     public let servicedBy: String?
     public let notes: String?
-    /// *Service (First stage) on Mar 12, 2025*: the date tells one entry of a kind from the next.
-    public let name: String
-
-    public var editLabel: String { "Edit \(name)" }
-    public var deleteLabel: String { "Delete \(name)" }
   }
 
+  /// `isActive` is the diver's last word where it differs from the server's copy.
   public static func row(
-    _ schedule: GearServiceScheduleRead, diveCount: Int, diveTime: Int, today: CalendarDate
+    _ schedule: GearServiceScheduleRead, isActive: Bool? = nil, diveCount: Int, diveTime: Int,
+    today: CalendarDate
   ) -> ScheduleRow {
     let arms = [
       schedule.intervalMonths.map { "Every \($0) months" },
@@ -58,18 +50,15 @@ public enum GearServiceCardContent {
       schedule.lastServiceOn.map {
         " · last done " + DateText.inSentence(DateText.date($0, relativeTo: today))
       } ?? " · never serviced"
-    let active = schedule.isActive
+    let shown = ShownDue(schedule, isActive: isActive ?? schedule.isActive)
     return ScheduleRow(
-      id: schedule.uuid, kind: GearServiceKinds.label(schedule.kind), label: shown(schedule.label),
-      isPaused: !active,
-      status: active
-        ? GearServiceStatus(schedule, diveCount: diveCount, diveTime: diveTime, today: today).badge
+      id: schedule.uuid, kind: GearServiceKinds.label(schedule.kind),
+      label: Self.shown(schedule.label), isPaused: !shown.isActive,
+      status: shown.isActive
+        ? GearServiceStatus(shown, diveCount: diveCount, diveTime: diveTime, today: today).badge
         : nil,
-      due: active
-        ? GearServiceText.due(schedule, diveCount: diveCount, diveTime: diveTime, today: today)
-        : nil,
-      intervals: arms.joined(separator: " or ") + last,
-      name: GearServiceKinds.kindAndLabel(kind: schedule.kind, label: schedule.label))
+      due: GearServiceText.due(shown, diveCount: diveCount, diveTime: diveTime, today: today),
+      intervals: arms.joined(separator: " or ") + last)
   }
 
   public static func row(_ record: GearServiceRecordRead, contacts: [ContactLookupItem])
@@ -83,13 +72,12 @@ public enum GearServiceCardContent {
     return RecordRow(
       id: record.uuid, kind: GearServiceKinds.label(record.kind), label: shown(record.label),
       date: date, servicedBy: by.isEmpty ? nil : by.joined(separator: " · "),
-      notes: record.notes.isEmpty ? nil : record.notes,
-      name: GearServiceKinds.kindAndLabel(kind: record.kind, label: record.label) + " on "
-        + DateText.date(record.servicedOn, relativeTo: nil))
+      notes: record.notes.isEmpty ? nil : record.notes)
   }
 
   /// Whether a schedule or a service for `gearItem` waits to be sent — a new one, or a change —
-  /// which the card says, its rows showing the server's copy until it lands.
+  /// which the card says, its rows showing the server's copy until it lands. A pause or resume
+  /// alone is not one: its row shows it already.
   public static func hasPendingWrite(_ items: [OutboxItem], gearItem: UUID) -> Bool {
     let ref = RecordRef.server(gearItem)
     return items.contains { item in
@@ -97,10 +85,29 @@ public enum GearServiceCardContent {
       switch item.operation {
       case .createServiceSchedule(let body): return body.gearItem == ref
       case .createServiceRecord(let body): return body.gearItem == ref
-      case .updateServiceSchedule(_, let owner, _), .updateServiceRecord(_, let owner, _):
+      case .updateServiceSchedule(_, let owner, let update):
+        var rest = update
+        rest.isActive = nil
+        return owner == ref && !rest.isEmpty
+      case .updateServiceRecord(_, let owner, _):
         return owner == ref
       default: return false
       }
+    }
+  }
+
+  /// A schedule's due points, running or paused as its row shows it.
+  private struct ShownDue: GearServiceDue {
+    let nextDueOn: CalendarDate?
+    let nextDueAtDiveCount: Int?
+    let nextDueAtDiveTime: Int?
+    let isActive: Bool
+
+    init(_ schedule: GearServiceScheduleRead, isActive: Bool) {
+      nextDueOn = schedule.nextDueOn
+      nextDueAtDiveCount = schedule.nextDueAtDiveCount
+      nextDueAtDiveTime = schedule.nextDueAtDiveTime
+      self.isActive = isActive
     }
   }
 

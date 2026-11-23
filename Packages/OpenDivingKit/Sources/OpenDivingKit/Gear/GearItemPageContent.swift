@@ -1,6 +1,6 @@
 /// The head of a gear item's page (`GearItemHero`): its name, the type, brand, Rented and
 /// Archived under it, and its figures — the vessel's facts where it records any, what it has
-/// been dived, and when its next service falls.
+/// been dived, and when its next service falls unless it is archived, as its row on the list.
 public enum GearItemPageContent {
   public static func hero(_ item: GearItemRead, units: UnitSystem, today: CalendarDate)
     -> HeroContent
@@ -17,8 +17,9 @@ public enum GearItemPageContent {
     figures.append(Figure(label: "Dives", value: String(item.diveCount)))
     figures.append(
       Figure(label: "Dive time", value: DateText.hoursMinutes(seconds: item.diveTime)))
-    if let next = GearServiceText.nextService(
-      item.service, diveCount: item.diveCount, diveTime: item.diveTime, today: today)
+    if !item.isArchived,
+      let next = GearServiceText.nextService(
+        item.service, diveCount: item.diveCount, diveTime: item.diveTime, today: today)
     {
       figures.append(Figure(label: "Next service", value: nextService(next, today: today)))
     }

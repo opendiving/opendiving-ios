@@ -86,6 +86,9 @@ final class OutboxHub {
   /// Records the server no longer has since launch — a delete landed, or a page was answered
   /// 404 — which a list's pages may still hold until its next fetch.
   var deleted: Set<UUID> = []
+  /// The latest pause or resume of each service schedule that landed since launch, and when: a
+  /// list read before then shows the schedule as it was.
+  var landedToggles: [UUID: (active: Bool, at: Date)] = [:]
   var lookupsRefresh: Task<Void, Never>?
   var draftsRefresh: Task<Void, Never>?
 
