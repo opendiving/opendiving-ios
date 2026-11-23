@@ -20,6 +20,11 @@ public struct DiveComputerFamily: RawRepresentable, Hashable, Codable, Sendable 
   /// libdivecomputer's Suunto Nautic family: the Nautic and the Ocean.
   public static let suuntoNautic = DiveComputerFamily(rawValue: "suunto-nautic")
 
+  /// Whether the app walks the family itself, listing its entries before it reads any, so that a
+  /// download can ask which of them to take: the Petrel family, and the Nautic family, whose
+  /// watches advertise the serial the walk needs.
+  public var listsBeforeReading: Bool { self == .shearwaterPetrel || self == .suuntoNautic }
+
   /// Whether the reader reports the family's start as an instant, the offset left in the bytes.
   public var logsInstants: Bool { self == .suuntoNautic }
 

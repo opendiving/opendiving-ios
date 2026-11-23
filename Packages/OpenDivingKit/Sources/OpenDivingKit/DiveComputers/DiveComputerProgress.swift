@@ -9,6 +9,8 @@ struct DiveComputerProgress: Codable, Hashable, Sendable {
   /// Optional, as each below is, so that a file written before it existed still decodes.
   var lastDownloadUnfinished: Bool?
   var awaitsOrder: Bool?
+  var answeredQuestion: Bool?
+  var fingerprintSetAside: Bool?
 
   init(_ record: DiveComputerRecord) {
     fingerprint = record.fingerprint
@@ -16,5 +18,7 @@ struct DiveComputerProgress: Codable, Hashable, Sendable {
     receivedBeforeAccountKnown = record.receivedBeforeAccountKnown
     lastDownloadUnfinished = record.lastDownloadUnfinished ? true : nil
     awaitsOrder = record.awaitsOrder ? true : nil
+    answeredQuestion = record.answeredQuestion ? true : nil
+    fingerprintSetAside = record.fingerprintSetAside ? true : nil
   }
 }

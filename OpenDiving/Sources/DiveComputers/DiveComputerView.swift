@@ -75,6 +75,9 @@ struct DiveComputerScreen: View {
         Text(DiveComputerText.importFilesFooter)
       }
     }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
+      ChosenDivesBar(model: model)
+    }
     .navigationTitle(DiveComputerText.screenTitle)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -163,9 +166,9 @@ struct DiveComputerScreen: View {
   }
 }
 
-/// The download the diver started, or one a connection started, as it stands: connecting,
-/// downloading, the time-zone question, then its outcome. The list and the computer's page both
-/// draw it.
+/// The download the diver started, or one a connection started, as it stands: connecting, which
+/// dives to download, downloading, the time-zone question, then its outcome. The list and the
+/// computer's page both draw it.
 struct DiveComputerWalkSections: View {
   let model: DiveComputerModel
 
@@ -220,13 +223,22 @@ struct DiveComputerWalkSections: View {
       } footer: {
         Text(DiveComputerText.lockHint)
       }
+    case .choosingDives:
+      switch model.choice?.stage {
+      case .question?: DiveQuestionSection(model: model)
+      case .list?: ChooseDivesSections(model: model)
+      case nil: EmptyView()
+      }
     case .askingTimeZone:
       TimeZoneQuestion(model: model)
     case .finished:
       if let outcome = model.outcome {
         Section {
           Text(outcome.sentence)
-          if outcome.offersDownloadAll {
+          if model.offersChoosing {
+            Button(DiveComputerText.chooseDives) { model.chooseDives() }
+              .accentRow()
+          } else if model.offersDownloadAll {
             Button(DiveComputerText.downloadAll) { model.downloadAll() }
               .accentRow()
           }

@@ -186,7 +186,7 @@ struct DiveComputerModelTests {
     #expect(!watcher.calls.contains(.arm(before, after: 0)))
   }
 
-  @Test func nothingNewOffersDownloadAllWhichSetsNoFingerprint() async throws {
+  @Test func nothingNewOffersChoosingWhichSetsTheFingerprintAside() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
@@ -202,9 +202,9 @@ struct DiveComputerModelTests {
     #expect(link.fingerprintsSet == [nil, F.fingerprint(3)])
     #expect(model.outcome?.kind == .nothingNew)
     #expect(model.outcome?.sentence == "No new dives since 25 October.")
-    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(model.outcome?.offersChoosing == true)
 
-    model.downloadAll()
+    model.chooseDives()
     await model.settled()
     #expect(link.fingerprintsSet == [nil, F.fingerprint(3), nil])
     #expect(model.outcome?.kind == .kept)
@@ -742,6 +742,7 @@ struct DiveComputerModelTests {
     var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
     let kept = DownloadPace(perDiveSecond: 0.1)
     record.downloadPace = kept
+    record.answeredQuestion = true
     try computers(session).save(record)
     let listing = DiveComputerListing(
       dives: 11, newDives: 2,
@@ -792,6 +793,7 @@ struct DiveComputerModelTests {
     var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
     let kept = DownloadPace(perDiveSecond: 0.1)
     record.downloadPace = kept
+    record.answeredQuestion = true
     try computers(session).save(record)
     let listing = DiveComputerListing(
       dives: 11, newDives: 2,
@@ -833,6 +835,9 @@ struct DiveComputerModelTests {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
+    var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    record.answeredQuestion = true
+    try computers(session).save(record)
     let listing = DiveComputerListing(
       dives: 2, newDives: 2,
       downloads: [
@@ -1058,7 +1063,7 @@ struct DiveComputerModelTests {
   }
 
   /// The record's sports reach the walk whether or not it has a fingerprint to set, and under
-  /// *Download all dives*; no fingerprint is set in either case.
+  /// *Choose dives to download*; no fingerprint is set in either case.
   @Test func rememberedSportsReachTheWalkWithNoFingerprintToSet() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
@@ -1087,10 +1092,10 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(ocean()?.fingerprint == F.fingerprint(0x14))
 
-    // A fingerprint to set, then *Download all dives*.
+    // A fingerprint to set, then *Choose dives to download*.
     try await download(model)
     #expect(model.outcome?.kind == .nothingNew)
-    model.downloadAll()
+    model.chooseDives()
     await model.settled()
 
     let set: [Data?] = [nil, F.fingerprint(0x14), nil]
@@ -1380,9 +1385,9 @@ struct DiveComputerModelTests {
       bytes: Data("perdix dive \(fingerprint)".utf8), reading: .dive(F.perdixDive))
   }
 
-  /// A completed walk whose every new dive already waits on the phone says so, offers *Download
-  /// all dives*, and moves the fingerprint past them; one whose new dives the server has answered
-  /// for has nothing new.
+  /// A completed walk whose every new dive already waits on the phone says so, offers *Choose
+  /// dives to download*, and moves the fingerprint past them; one whose new dives the server has
+  /// answered for has nothing new.
   @Test func aWalkWhoseEveryNewDiveIsWaitingSaysSo() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
@@ -1402,7 +1407,7 @@ struct DiveComputerModelTests {
     try await download(model)
     #expect(model.outcome?.kind == .alreadyWaiting)
     #expect(model.outcome?.sentence == "2 dives waiting to upload. 11 dives on this computer.")
-    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(model.outcome?.offersChoosing == true)
     let perdix = { computers(session).record(family: .shearwaterPetrel, serial: "D9772626") }
     #expect(perdix()?.fingerprint == F.fingerprint(3))
 
@@ -1440,7 +1445,7 @@ struct DiveComputerModelTests {
     let model = model(session, link)
     try await download(model)
     #expect(model.outcome?.sentence == "2 dives downloaded. 1 dive couldn't be downloaded.")
-    #expect(model.outcome?.offersDownloadAll == false)
+    #expect(model.outcome?.offersChoosing == false)
     try await download(model)
     #expect(
       model.outcome?.sentence
@@ -1448,8 +1453,8 @@ struct DiveComputerModelTests {
   }
 
   /// A completed walk that delivered nothing and left entries out says neither that there are no
-  /// dives nor that there are none new, and offers *Download all dives*, which tries them again.
-  @Test func aWalkThatOnlyLeftEntriesOutSaysSoAndOffersDownloadAll() async throws {
+  /// dives nor that there are none new, and offers *Choose dives to download*, which lists them again.
+  @Test func aWalkThatOnlyLeftEntriesOutSaysSoAndOffersChoosing() async throws {
     let session = try await session(try ImportServer())
     let link = FakeDiveComputerLink()
     link.found = [F.perdixFound]
@@ -1469,10 +1474,10 @@ struct DiveComputerModelTests {
     #expect(model.outcome?.kind == .notDownloaded)
     #expect(
       model.outcome?.sentence == "1 dive couldn't be downloaded. 3 dives on this computer.")
-    #expect(model.outcome?.offersDownloadAll == true)
+    #expect(model.outcome?.offersChoosing == true)
     #expect(DiveComputerButtonContent(model).state == .failed)
 
-    model.downloadAll()
+    model.chooseDives()
     await model.settled()
     #expect(
       model.outcome?.sentence == "1 dive couldn't be downloaded. 3 dives on this computer.")
@@ -1498,10 +1503,10 @@ struct DiveComputerModelTests {
     await model.watch()
     #expect(model.pageWalk(perdix) == .none)
 
-    model.download(perdix, all: false)
+    model.download(perdix, choosing: false)
     await model.settled()
     link.holdBeforeEnd = true
-    model.download(perdix, all: false)
+    model.download(perdix, choosing: false)
     await link.untilHeld()
     #expect(model.pageWalk(perdix) == .running)
     #expect(model.pageWalk(ocean) == .none)
@@ -1511,7 +1516,7 @@ struct DiveComputerModelTests {
     await model.settled()
     let outcome = try #require(model.outcome)
     #expect(outcome.kind == .nothingNew)
-    #expect(outcome.offersDownloadAll)
+    #expect(outcome.offersChoosing)
     #expect(model.pageWalk(perdix) == .finished(outcome))
     #expect(model.canDownload(perdix))
     #expect(model.pageWalk(ocean) == .none)
@@ -1524,5 +1529,154 @@ struct DiveComputerModelTests {
     let entry = try #require(reader.entries.first { $0.name == "logbook.divejson" })
     let json = try #require(ArchiveJSON.parse(try reader.read(entry)))
     return (json["dives"]?.arrayValue ?? []).map { $0["started_at"]?.stringValue }
+  }
+
+  // MARK: - Which dives to download
+
+  /// A listing of two Ocean dives, an hour and half an hour long, each new.
+  private var oceanListing: DiveComputerListing {
+    DiveComputerListing(
+      dives: 2, newDives: 2,
+      downloads: [
+        .init(fingerprint: F.fingerprint(0x12), length: 3600),
+        .init(fingerprint: F.fingerprint(0x11), length: 1800),
+      ])
+  }
+
+  /// No route, so the logbook is not checked; a Nautic computer with no pace is reckoned at the
+  /// family's first, three minutes for an hour of diving.
+  @Test func theQuestionCountsTheDivesAndReckonsTheirTimeAndTheListCountsTheChosen() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, listing: oceanListing, F.oceanDownload)]
+    let model = model(session, link)
+    model.connect(try await scanned(model))
+    for _ in 0..<10_000 where model.choice == nil { await Task.yield() }
+
+    #expect(model.phase == .choosingDives)
+    #expect(model.choice?.stage == .question)
+    #expect(
+      model.questionDetail
+        == "2 dives on this computer. Downloading them takes about 5 minutes.")
+    #expect(model.choice?.checked == false)
+    #expect(model.downloadAllText == "Download all 2 dives")
+
+    model.showList()
+    #expect(model.choice?.stage == .list)
+    #expect(model.chosenText == "0 of 2 dives chosen")
+    #expect(model.chosenCount == 0)
+    let rows = model.choiceRows(units: .metric)
+    #expect(rows.map(\.fingerprint) == oceanListing.downloads.map(\.fingerprint))
+    #expect(rows.allSatisfy { !$0.chosen })
+    model.toggle(F.fingerprint(0x12))
+    #expect(model.chosenText == "1 of 2 dives chosen · About 3 minutes to download")
+    #expect(model.choiceRows(units: .metric).map(\.chosen) == [true, false])
+    model.chooseAll()
+    #expect(model.choseAll)
+    model.chooseNone()
+    #expect(model.chosenCount == 0)
+    // Nothing chosen downloads nothing: the list's button waits for a dive.
+    model.downloadChosen()
+    #expect(model.choice != nil)
+    model.cancel()
+    await model.settled()
+    #expect(model.outcome?.kind == .cancelled)
+    #expect(archives(session).isEmpty)
+  }
+
+  @Test func aShearwaterWithNoPaceIsAskedWithTheCountAlone() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let listing = DiveComputerListing(
+      dives: 1, newDives: 1, downloads: [.init(fingerprint: F.fingerprint(3), length: 1800)])
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: listing, Array(F.perdixDownload.prefix(1)))
+    ]
+    let model = model(session, link)
+    model.connect(try await scanned(model))
+    for _ in 0..<10_000 where model.choice == nil { await Task.yield() }
+    #expect(model.questionDetail == "1 dive on this computer.")
+    #expect(model.downloadAllText == "Download 1 dive")
+    model.downloadAllListed()
+    await model.settled()
+    #expect(model.outcome?.kind == .kept)
+  }
+
+  @Test func onlyFutureDivesTakesNoneAndTheNextDownloadFindsNothingNew() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.perdixFound]
+    let dives = Array(F.perdixDownload.prefix(2))
+    let listing = DiveComputerListing(
+      dives: 2, newDives: 2, downloads: dives.map { .init(fingerprint: $0.fingerprint, length: 60) }
+    )
+    link.scripts = [
+      FakeDiveComputerLink.script(F.perdix, listing: listing, dives),
+      FakeDiveComputerLink.script(F.perdix, []),
+    ]
+    let model = model(session, link)
+    model.connect(try await scanned(model))
+    for _ in 0..<10_000 where model.choice == nil { await Task.yield() }
+    model.onlyFutureDives()
+    await model.settled()
+    #expect(model.outcome?.sentence == DiveComputerText.onlyFutureChosen)
+    #expect(archives(session).isEmpty)
+
+    try await download(model)
+    #expect(model.choice == nil)
+    #expect(link.fingerprintsSet.last == F.fingerprint(3))
+    #expect(model.outcome?.kind == .nothingNew)
+  }
+
+  /// The list is offered only for a computer whose walk lists its dives before reading them; any
+  /// other is downloaded whole, and its words say so.
+  @Test func onlyAComputerWhoseWalkListsItsDivesIsOfferedTheList() async throws {
+    let session = try await session(try ImportServer())
+    let model = model(session, FakeDiveComputerLink())
+    let perdix = DiveComputerRecord(identity: F.perdix)
+    let other = DiveComputerRecord(identity: F.mares)
+    #expect(model.canChoose(perdix))
+    #expect(model.canChoose(DiveComputerRecord(identity: F.ocean)))
+    #expect(!model.canChoose(other))
+    #expect(DiveComputerText.forgetMessage(perdix).contains("asks which of its dives"))
+    #expect(DiveComputerText.forgetMessage(other).contains("takes all of its dives"))
+    #expect(
+      DiveComputerText.removeDownloadWarning(record: perdix.id).contains(
+        DiveComputerText.chooseDives))
+    #expect(
+      DiveComputerText.removeDownloadWarning(record: other.id).contains(
+        DiveComputerText.downloadAll))
+    #expect(
+      DiveComputerText.removeDownloadWarning(record: nil).contains(DiveComputerText.downloadAll))
+    #expect(!other.awaitsQuestion)
+    #expect(perdix.awaitsQuestion)
+  }
+
+  /// A computer of a family that lists nothing is downloaded as it always was: its first
+  /// download takes every dive unasked, and a download that took nothing offers *Download all
+  /// dives*, which sets the fingerprint aside.
+  @Test func aComputerWhoseFamilyListsNothingKeepsDownloadAllDives() async throws {
+    let session = try await session(try ImportServer())
+    let link = FakeDiveComputerLink()
+    link.found = [F.maresFound]
+    link.scripts = [
+      FakeDiveComputerLink.script(F.mares, F.maresDownload),
+      FakeDiveComputerLink.script(F.mares, []),
+      FakeDiveComputerLink.script(F.mares, Array(F.maresDownload.prefix(1))),
+    ]
+    let model = model(session, link)
+    try await download(model)
+    #expect(model.outcome?.kind == .kept)
+    try await download(model)
+    #expect(model.outcome?.kind == .nothingNew)
+    #expect(model.offersDownloadAll)
+    #expect(!model.offersChoosing)
+
+    model.downloadAll()
+    await model.settled()
+    #expect(link.fingerprintsSet == [nil, F.fingerprint(3), nil])
+    #expect(model.outcome?.kind == .kept)
   }
 }

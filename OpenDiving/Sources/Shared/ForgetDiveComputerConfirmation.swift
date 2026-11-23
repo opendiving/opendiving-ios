@@ -13,8 +13,8 @@ struct ForgetDiveComputerConfirmation: ViewModifier {
       titleVisibility: .visible, presenting: record
     ) { record in
       Button("Forget", role: .destructive) { perform(record) }
-    } message: { _ in
-      Text(DiveComputerText.forgetMessage)
+    } message: { record in
+      Text(DiveComputerText.forgetMessage(record))
     }
   }
 }

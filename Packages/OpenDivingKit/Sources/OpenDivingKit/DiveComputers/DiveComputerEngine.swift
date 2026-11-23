@@ -17,7 +17,8 @@ import Observation
 /// opened — from ``DiveComputerWatch/firstRetry``, doubling with each break-off in a row.
 ///
 /// **Only a paired computer is read** by a walk nobody started: one that opens as a family and
-/// serial with no pairing is closed unread.
+/// serial with no pairing is closed unread, and one that awaits *Which dives do you want to
+/// download?* on the account is not opened (``DiveComputerEngine+Choice``).
 ///
 /// **No route is needed to download**, and none to keep: a download on a boat is the point. What
 /// is needed is an account to keep the dives for — the loaded one, or while signed in before it
@@ -28,7 +29,7 @@ import Observation
 /// Before that the dives a walk kept, and those the server has answered for, are what a walk of
 /// new dives does not take again (``DownloadStore``). Nor does any walk take a dive the logbook
 /// already holds, which the server is asked before the first transfer
-/// (``heldByLogbook(_:_:account:marked:)``).
+/// (``heldByLogbook(_:_:account:marked:)``), nor one the diver did not choose.
 ///
 /// **No guessed time zone.** A dive whose start is an instant with no logged zone takes the
 /// watch's zone while under a day old. Otherwise a walk the diver watches asks after the walk;
@@ -117,6 +118,9 @@ public final class DiveComputerEngine {
   @ObservationIgnored private var running: Task<Void, Never>?
   @ObservationIgnored private var runningPeripheral: UUID?
   @ObservationIgnored private var zoneAnswer: CheckedContinuation<TimeZone?, Never>?
+  /// The diver's answer at *Which dives do you want to download?* or the list: the fingerprints
+  /// to take, nil for *Cancel*.
+  @ObservationIgnored var choiceAnswer: CheckedContinuation<Set<Data>?, Never>?
   /// Held walks whose answer is being written into an archive, and the writing.
   @ObservationIgnored private var answering: Set<UUID> = []
   @ObservationIgnored private var keepingAnswer: Task<Void, Never>?
@@ -277,27 +281,31 @@ public final class DiveComputerEngine {
     {
       return false
     }
-    guard keeping() != nil else { return false }
+    guard let (account, _) = keeping(), !awaitsQuestion(record, account: account) else {
+      return false
+    }
     if runningPeripheral == peripheral || queue.contains(where: { $0.peripheral == peripheral }) {
       return true
     }
     let walk = DiveComputerWalk(
-      computer: link.computer(for: record, at: peripheral), watched: false, all: false,
+      computer: link.computer(for: record, at: peripheral), watched: false, choosing: false,
       record: record.id, zone: phoneZone)
     queue.append(Queued(walk: walk, peripheral: peripheral))
     next()
     return true
   }
 
-  /// The diver's tap: a walk of `computer`, or with `all` of every dive on it. A walk nobody
-  /// started ends with what it kept, and this one starts once it has. Nil where the diver's
-  /// walk is already in flight or nothing can be kept.
+  /// The diver's tap: a walk of `computer`'s new dives, or with `choosing` of the dives chosen
+  /// from a list of every one the logbook lacks. A walk nobody started ends with what it kept,
+  /// and this one starts once it has. Nil where the diver's walk is already in flight or nothing
+  /// can be kept.
   @discardableResult
-  public func start(_ computer: FoundComputer, all: Bool) -> DiveComputerWalk? {
+  public func start(_ computer: FoundComputer, choosing: Bool) -> DiveComputerWalk? {
     guard keeping() != nil, walk?.watched != true, !queue.contains(where: \.walk.watched) else {
       return nil
     }
-    let walk = DiveComputerWalk(computer: computer, watched: true, all: all, zone: phoneZone)
+    let walk = DiveComputerWalk(
+      computer: computer, watched: true, choosing: choosing, zone: phoneZone)
     watch?.downloadStarted(computer.id)
     // The tap walks the computer a connection queued: that walk is this one.
     queue.removeAll { $0.peripheral == computer.id }
@@ -308,7 +316,7 @@ public final class DiveComputerEngine {
   }
 
   /// Stops the walk between dives; what it kept goes on. At the time-zone question, nothing is
-  /// written.
+  /// written; at the dives to download, nothing is taken.
   public func cancel(_ walk: DiveComputerWalk) {
     if let index = queue.firstIndex(where: { $0.walk === walk }) {
       let queued = queue.remove(at: index)
@@ -318,8 +326,12 @@ public final class DiveComputerEngine {
       return
     }
     guard walk === self.walk else { return }
+    walk.cancelled = true
     switch walk.phase {
     case .connecting, .downloading: link.cancelDownload()
+    case .choosingDives:
+      choiceAnswer?.resume(returning: nil)
+      choiceAnswer = nil
     case .askingTimeZone:
       zoneAnswer?.resume(returning: nil)
       zoneAnswer = nil
@@ -422,27 +434,32 @@ public final class DiveComputerEngine {
     }
     let store = DiveComputerStore(store: session.store, origin: origin, account: account)
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
-    let all = walk.all
+    let choosing = walk.choosing
     // The record reaches the walk whatever its fingerprint, for the entries' sports it
-    // remembers; under *Download all dives*, with no fingerprint to set.
+    // remembers; with the fingerprint set aside, from *Choose dives to download* or a walk that
+    // broke off after it, with none.
     let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord? = { family, serial in
       guard var record = store.record(family: family, serial: serial) else { return nil }
-      if all { record.fingerprint = nil }
+      if choosing || record.fingerprintSetAside { record.fingerprint = nil }
       return record
     }
     let waitingDives = downloads.waitingDives(marked: marked)
-    // *Download all dives* takes again what the server answered for, and never what waits. A
-    // walk before the load may be for another account than the one the server answered.
-    let delivered = all || marked ? [] : downloads.allDelivered()
+    // *Choose dives to download* lists again what the server answered for and what an earlier
+    // choice left out, and never what waits. A walk before the load may be for another account
+    // than the one the server answered; a choice is the diver's, whichever account it was for.
+    let delivered = choosing || marked ? [] : downloads.allDelivered()
+    let declined = choosing ? [] : downloads.allDeclined()
     let notAgain: @Sendable (DiveComputerIdentity, Data) -> Bool = { identity, fingerprint in
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
-      return waitingDives.contains(uuid) || delivered.contains(uuid)
+      return waitingDives.contains(uuid) || delivered.contains(uuid) || declined.contains(uuid)
     }
     let leaveOut:
       @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<
         Data
       > = { [weak self] identity, listed in
-        await self?.heldByLogbook(identity, listed, account: account, marked: marked) ?? []
+        await self?.leftOut(
+          walk, identity, listed, account: account, marked: marked, store: store,
+          downloads: downloads) ?? []
       }
     let keeper = WalkKeeper(store: downloads, marked: marked, startedAt: now())
     inFlight = WalkInFlight(keeper: keeper, downloads: downloads, store: store, marked: marked)
@@ -508,14 +525,14 @@ public final class DiveComputerEngine {
         walk.linkLost = false
         takeBack()
       case .listing(let found):
+        listedNothing(walk, found, store: store)
         walk.listing = found
         walk.queue = found.downloads
         walk.computerBusy = false
         walk.estimate.listed(found, at: now())
+        let record = walk.identity.flatMap { store.record(family: $0.family, serial: $0.serial) }
         walk.listedFromFingerprint =
-          !all
-          && walk.identity.flatMap { store.record(family: $0.family, serial: $0.serial) }?
-            .fingerprint != nil
+          !choosing && record?.fingerprint != nil && record?.fingerprintSetAside == false
         if found.newDives > 0 {
           if !reportsProgress { walk.walkProgress = 0 }
           walk.phase = .downloading
@@ -557,10 +574,14 @@ public final class DiveComputerEngine {
         newest = newest ?? fingerprint
         walk.took(fingerprint)
         walk.estimate.skipped(fingerprint, at: now())
-        if let identity = walk.identity,
-          waitingDives.contains(DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint))
-        {
-          skippedWaiting += 1
+        if let identity = walk.identity {
+          let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
+          if waitingDives.contains(uuid) {
+            skippedWaiting += 1
+          } else if delivered.contains(uuid) || declined.contains(uuid) {
+            // Passed over as answered for or not chosen, which says nothing of the logbook.
+            walk.logbookHoldsAll = false
+          }
         }
         walkedOne()
       case .finished(let finished):
@@ -604,11 +625,12 @@ public final class DiveComputerEngine {
           in: store)
         if advances, let newest {
           saved.fingerprint = newest
+          saved.fingerprintSetAside = false
           downloads.clearDelivered(saved.id)
         }
         try? store.save(saved)
       }
-      finish(walk, emptyHanded: end, waiting: skippedWaiting, record: all ? nil : record)
+      finish(walk, emptyHanded: end, waiting: skippedWaiting, record: choosing ? nil : record)
       return
     }
 
@@ -660,6 +682,7 @@ public final class DiveComputerEngine {
         in: store)
       if advances, heldAll, let newest {
         saved.fingerprint = newest
+        saved.fingerprintSetAside = false
         saved.lastDownloaded = now()
         downloads.clearDelivered(saved.id)
       }
@@ -800,6 +823,8 @@ public final class DiveComputerEngine {
     if let current = store.record(family: identity.family, serial: identity.serial) {
       kept.downloadsAutomatically = current.downloadsAutomatically
       kept.awaitsOrder = current.awaitsOrder
+      kept.answeredQuestion = current.answeredQuestion
+      kept.fingerprintSetAside = current.fingerprintSetAside
       kept.downloadPace = current.downloadPace
     }
     kept.vendor = identity.vendor
@@ -837,6 +862,10 @@ public final class DiveComputerEngine {
       let sentences = [DiveComputerText.alreadyWaiting(waiting), counts]
       outcome = .init(
         kind: .alreadyWaiting, sentence: sentences.compactMap { $0 }.joined(separator: " "))
+    case .complete where walk.choseNone:
+      outcome = .init(kind: .nothingNew, sentence: DiveComputerText.onlyFutureChosen)
+    case .complete where walk.logbookHoldsAll && !walk.listedFromFingerprint:
+      outcome = .init(kind: .inLogbook, sentence: DiveComputerText.allInLogbook)
     case .complete:
       if let record, record.fingerprint != nil || end.waiting > 0 {
         var sentence = DiveComputerText.nothingNew(
@@ -845,6 +874,10 @@ public final class DiveComputerEngine {
           sentence += " " + DiveComputerText.onComputer(listing.dives) + "."
         }
         outcome = .init(kind: .nothingNew, sentence: sentence)
+      } else if let listing = walk.listing, listing.dives > 0 {
+        // *No dives* is said only of a computer that lists none.
+        outcome = .init(
+          kind: .nothingNew, sentence: DiveComputerText.onComputer(listing.dives) + ".")
       } else {
         outcome = .init(kind: .noDives, sentence: DiveComputerText.noDives)
       }

@@ -265,7 +265,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
       }
     }
     let held = answer.value
-    if !held.isEmpty { log("listed \(listed.count), the logbook holds \(held.count)") }
+    if !held.isEmpty { log("listed \(listed.count), leaving out \(held.count)") }
     return held
   }
 

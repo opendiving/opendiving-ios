@@ -15,6 +15,18 @@ public struct DownloadPace: Codable, Hashable, Sendable {
     self.perDive = perDive
   }
 
+  /// A Nautic-family computer's pace before the phone has timed a dive from it: an Ocean dive's
+  /// original is about 340 bytes for each second of the dive, and the watch sends about 6,700
+  /// bytes a second, measured on an Ocean: about three minutes for an hour of diving. No other
+  /// family has one, so a Shearwater shows no estimate until the phone has timed a dive from it.
+  static let nauticFirst = DownloadPace(perDiveSecond: 0.05)
+
+  /// The pace a download from a computer of `family` is reckoned at before it starts: `kept`,
+  /// the computer's own, else the family's first.
+  static func before(_ family: DiveComputerFamily, kept: DownloadPace?) -> DownloadPace? {
+    kept ?? (family == .suuntoNautic ? nauticFirst : nil)
+  }
+
   /// This pace with a later walk's measured over it: each figure the mean of the two where both
   /// are known, so a pace follows a link that changed within a walk or two and one slow walk does
   /// not undo the others; else whichever is known.

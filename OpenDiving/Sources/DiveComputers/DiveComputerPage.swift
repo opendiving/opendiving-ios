@@ -2,7 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// One paired computer, opened from *Paired Computers*: *Download automatically*, a download of
-/// its new dives or of all of them, what it has reported of itself, and forgetting it.
+/// its new dives or of dives chosen from a list, what it has reported of itself, and forgetting
+/// it.
 struct DiveComputerPage: View {
   let model: DiveComputerModel
   /// The record the list opened, read again from the model as it changes.
@@ -52,18 +53,26 @@ struct DiveComputerPage: View {
           .forgetDiveComputerConfirmation(record: $forgetting) { _ in forget() }
       }
     }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
+      if model.pageWalk(record) == .running {
+        ChosenDivesBar(model: model)
+      }
+    }
     .navigationTitle(content.title)
     .navigationBarTitleDisplayMode(.inline)
   }
 
   private var downloadButtons: some View {
     Section {
-      Button(DiveComputerText.downloadNew) { model.download(record, all: false) }
+      Button(DiveComputerText.downloadNew) { model.download(record, choosing: false) }
         .accentRow()
         .disabled(!model.canDownload(record))
-      Button(DiveComputerText.downloadAll) { model.download(record, all: true) }
-        .accentRow()
-        .disabled(!model.canDownload(record))
+      Button(model.canChoose(record) ? DiveComputerText.chooseDives : DiveComputerText.downloadAll)
+      {
+        model.download(record, choosing: true)
+      }
+      .accentRow()
+      .disabled(!model.canDownload(record))
     } footer: {
       if let blocker = model.blocker {
         Text(blocker)

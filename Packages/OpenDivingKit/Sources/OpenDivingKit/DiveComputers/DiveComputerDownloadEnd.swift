@@ -24,7 +24,7 @@ public struct DiveComputerDownloadEnd: Hashable, Sendable {
   /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``.
   public let waiting: Int
   /// Entries left out because their download failed the same way on every attempt, yielded as
-  /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``; *Download all dives* tries them again.
+  /// ``DiveComputerDownloadEvent/skipped(fingerprint:)``; *Choose dives to download* lists them again.
   public let notDownloaded: Int
 
   public init(

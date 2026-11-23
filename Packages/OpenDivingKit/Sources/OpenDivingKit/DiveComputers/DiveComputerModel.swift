@@ -5,6 +5,10 @@ import Observation
 /// computers: idle → scanning, once the diver asks to pair one → the walk the diver starts,
 /// through its phases to finished, with an outcome.
 ///
+/// **A computer new to the account asks which dives to download**, once its list is read:
+/// all of those the logbook lacks, some chosen from the list, or only future ones. The list is
+/// also *Choose dives to download*, on a computer's page and after a download that took nothing.
+///
 /// **A walk a connection starts is shown as the diver's is**, from its start or from the
 /// model's, if it is already in flight, to its outcome — unless the diver's own walk is held for
 /// its outcome, which it does not replace until the next scan would. A tap on another computer's page still ends it with
@@ -31,7 +35,7 @@ import Observation
 @Observable
 public final class DiveComputerModel {
   public enum Phase: Hashable, Sendable {
-    case idle, scanning, connecting, downloading, askingTimeZone, finished
+    case idle, scanning, connecting, choosingDives, downloading, askingTimeZone, finished
   }
 
   public typealias Outcome = DiveComputerWalk.Outcome
@@ -43,7 +47,7 @@ public final class DiveComputerModel {
     /// A walk of this computer in flight, whose sections stand in for the buttons.
     case running
     /// A finished walk of this computer: its outcome's sentence above the buttons, which stay,
-    /// the page's own *Download all dives* standing for the outcome's.
+    /// the page's own *Choose dives to download* standing for the outcome's.
     case finished(Outcome)
   }
 
@@ -102,12 +106,15 @@ public final class DiveComputerModel {
   public private(set) var refusal: String?
   /// The diver put the question about held dives aside for this visit.
   private var heldDismissed = false
+  /// The fingerprints the diver has chosen from the list so far.
+  public private(set) var chosen: Set<Data> = []
 
   public var phase: Phase {
     if askingHeld { return .askingTimeZone }
     guard let walk else { return scanPhase }
     switch walk.phase {
     case .connecting: return .connecting
+    case .choosingDives: return .choosingDives
     case .downloading: return .downloading
     case .askingTimeZone: return .askingTimeZone
     case .finished: return .finished
@@ -521,15 +528,16 @@ public final class DiveComputerModel {
 
   /// Connects to the computer a row shows and downloads what is new on it.
   public func connect(_ row: Row) {
-    start(row.computer, all: false)
+    start(row.computer, choosing: false)
   }
 
-  /// *Download new dives* or *Download all dives*, on a paired computer's page: opened under the
-  /// identifier the phone last saw it under.
-  public func download(_ record: DiveComputerRecord, all: Bool) {
+  /// *Download new dives*, or *Choose dives to download* or *Download all dives* with
+  /// `choosing`, on a paired computer's page: opened under the identifier the phone last saw it
+  /// under.
+  public func download(_ record: DiveComputerRecord, choosing: Bool) {
     guard canDownload(record) else { return }
     if let peripheral = record.peripheral {
-      start(link.computer(for: record, at: peripheral), all: all)
+      start(link.computer(for: record, at: peripheral), choosing: choosing)
     }
   }
 
@@ -546,10 +554,127 @@ public final class DiveComputerModel {
     return .none
   }
 
-  /// *Download all dives*, after *No new dives*: the same computer again, with no fingerprint.
+  /// *Choose dives to download*, after a download that took nothing: the same computer again,
+  /// its fingerprint set aside, to the list.
+  public func chooseDives() {
+    guard let lastComputer, offersChoosing else { return }
+    start(lastComputer, choosing: true)
+  }
+
+  /// The outcome offers *Choose dives to download*: a download that took nothing, of a computer
+  /// whose walk lists its dives.
+  public var offersChoosing: Bool {
+    guard outcome?.offersChoosing == true else { return false }
+    let family = walk?.identity?.family ?? lastComputer?.family
+    return family?.listsBeforeReading == true
+  }
+
+  /// A computer's page offers *Choose dives to download*: its walk lists its dives. Any other
+  /// offers *Download all dives*.
+  public func canChoose(_ record: DiveComputerRecord) -> Bool {
+    record.family.listsBeforeReading
+  }
+
+  /// The outcome offers *Download all dives*: a download that took nothing, of a computer whose
+  /// walk lists nothing before reading it.
+  public var offersDownloadAll: Bool {
+    guard outcome?.offersChoosing == true else { return false }
+    let family = walk?.identity?.family ?? lastComputer?.family
+    return family?.listsBeforeReading == false
+  }
+
+  /// *Download all dives*, after a download that took nothing: the same computer again, its
+  /// fingerprint set aside, every dive taken.
   public func downloadAll() {
-    guard let lastComputer, outcome?.offersDownloadAll == true else { return }
-    start(lastComputer, all: true)
+    guard let lastComputer, offersDownloadAll else { return }
+    start(lastComputer, choosing: true)
+  }
+
+  // MARK: - Which dives to download
+
+  /// What the walk asks before its first transfer: the question, or the list.
+  public var choice: DownloadChoice? { phase == .choosingDives ? walk?.choice : nil }
+
+  /// Beneath *Which dives do you want to download?*: how many dives the logbook lacks, and about
+  /// how long they would take where the pace says.
+  public var questionDetail: String? {
+    guard let choice else { return nil }
+    let count = choice.dives.count
+    var text =
+      choice.checked
+      ? DiveComputerText.notInLogbook(count) : DiveComputerText.onComputerUnchecked(count)
+    if let seconds = choice.time(of: choice.dives) {
+      text += " " + DiveComputerText.downloadTakes(seconds, dives: count)
+    }
+    return text
+  }
+
+  /// *Download all 12 dives*.
+  public var downloadAllText: String? {
+    choice.map { DiveComputerText.downloadAllListed($0.dives.count) }
+  }
+
+  /// *Download all N dives*: every dive the question counted.
+  public func downloadAllListed() {
+    guard let walk, let choice else { return }
+    engine.choose(Set(choice.dives.map(\.fingerprint)), for: walk)
+  }
+
+  /// *Choose dives*: the list, nothing chosen.
+  public func showList() {
+    guard let walk else { return }
+    chosen = []
+    engine.showList(for: walk)
+  }
+
+  /// *Only future dives*: none of the computer's dives now, and its later ones from now on.
+  public func onlyFutureDives() {
+    guard let walk else { return }
+    engine.choose([], for: walk)
+  }
+
+  /// The list's dive of `fingerprint` chosen, or no longer.
+  public func toggle(_ fingerprint: Data) {
+    if chosen.remove(fingerprint) == nil { chosen.insert(fingerprint) }
+  }
+
+  public func chooseAll() {
+    chosen = Set(choice?.dives.map(\.fingerprint) ?? [])
+  }
+
+  public func chooseNone() {
+    chosen = []
+  }
+
+  /// How many of the list's dives are chosen.
+  public var chosenCount: Int { choice?.dives(in: chosen).count ?? 0 }
+
+  /// Every dive of the list is chosen.
+  public var choseAll: Bool {
+    guard let choice, !choice.dives.isEmpty else { return false }
+    return choice.dives.allSatisfy { chosen.contains($0.fingerprint) }
+  }
+
+  /// *3 of 12 dives chosen*, and *About 9 minutes to download* where the pace says.
+  public var chosenText: String? {
+    guard let choice else { return nil }
+    let picked = choice.dives(in: chosen)
+    var text = DiveComputerText.chosen(picked.count, of: choice.dives.count)
+    if let seconds = choice.time(of: picked) {
+      text += " · " + DiveComputerText.chosenTakes(seconds)
+    }
+    return text
+  }
+
+  /// The list's rows, in the diver's units.
+  public func choiceRows(units: UnitSystem) -> [DownloadChoice.Row] {
+    choice?.rows(chosen: chosen, units: units, phoneZone: phoneZone) ?? []
+  }
+
+  /// The list's confirmation: the chosen dives, newest first.
+  public func downloadChosen() {
+    guard let walk, let choice, !choice.dives(in: chosen).isEmpty else { return }
+    engine.choose(chosen, for: walk)
   }
 
   /// Stops the walk between dives; the dives already downloaded go on to be imported. At the
@@ -585,10 +710,11 @@ public final class DiveComputerModel {
     await engine.settled()
   }
 
-  private func start(_ computer: FoundComputer, all: Bool) {
+  private func start(_ computer: FoundComputer, choosing: Bool) {
     guard !diverBusy, admits() else { return }
     stopScanning()
-    guard let started = engine.start(computer, all: all) else {
+    chosen = []
+    guard let started = engine.start(computer, choosing: choosing) else {
       startScanning()
       return
     }

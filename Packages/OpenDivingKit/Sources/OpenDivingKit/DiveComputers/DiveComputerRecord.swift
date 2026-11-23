@@ -36,6 +36,20 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
   /// Paired beside exactly one other computer the account knows, and *Which computer comes
   /// first?* not yet answered: its dives wait on the phone, unsent, until it is.
   public var awaitsOrder = false
+  /// *Which dives do you want to download?* was answered on this account, or found nothing to
+  /// ask.
+  public var answeredQuestion = false
+  /// A walk from *Choose dives to download* set the fingerprint aside, and it stays aside until a
+  /// walk completes: a walk that broke off after the choice, and any after it, still reads the
+  /// whole computer for the dives chosen and not yet kept.
+  public var fingerprintSetAside = false
+
+  /// Of a family that lists its dives before reading them, with neither a fingerprint nor an
+  /// answer on the account: a watched walk asks which dives to download, and a walk nobody
+  /// watches takes none. A computer of any other family downloads as it always has.
+  public var awaitsQuestion: Bool {
+    family.listsBeforeReading && fingerprint == nil && !answeredQuestion
+  }
 
   public init(
     identity: DiveComputerIdentity, peripheral: UUID? = nil, fingerprint: Data? = nil,
@@ -71,6 +85,8 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
     receivedBeforeAccountKnown = progress?.receivedBeforeAccountKnown ?? false
     lastDownloadUnfinished = progress?.lastDownloadUnfinished ?? false
     awaitsOrder = progress?.awaitsOrder ?? false
+    answeredQuestion = progress?.answeredQuestion ?? false
+    fingerprintSetAside = progress?.fingerprintSetAside ?? false
   }
 
   /// The file it is kept in: the family and the serial, case-folded, so a lookup by a serial
@@ -79,6 +95,11 @@ public struct DiveComputerRecord: Hashable, Sendable, Identifiable {
 
   /// *Shearwater Perdix 3*.
   public var title: String { DiveComputerText.title(vendor: vendor, product: product) }
+
+  /// The family a record's ``id`` names.
+  public static func family(of id: String) -> DiveComputerFamily {
+    DiveComputerFamily(rawValue: String(id.prefix { $0 != "_" }))
+  }
 
   static func name(family: DiveComputerFamily, serial: String) -> String {
     let safe = serial.uppercased().unicodeScalars.map {

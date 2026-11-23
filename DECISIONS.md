@@ -182,6 +182,18 @@ walked again links. Progress written before the load is removed, not moved, when
 another account. Rejected: libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at
 import, which needs the upload to report back across a sign-out.
 
+## A computer new to an account asks which dives to download
+
+Whether *Which dives do you want to download?* has been answered is the account's, kept with its
+progress: a Petrel or Nautic computer awaits it on an account holding neither a fingerprint nor an
+answer, so another account or server asks too. A watched walk asks once its list and the server's
+answer are in, and writes the answer before the first transfer: the dives not chosen are not taken
+until the fingerprint moves or the computer is forgotten, and *Choose dives to download* sets the
+fingerprint aside until a walk completes, so a broken walk resumes the choice unasked. A connection
+to a computer that awaits the question starts no walk; a walk listing nothing counts as answered.
+Rejected: a mark set at pairing, which is the phone's; taking every dive unwatched, the hours-long
+download the question offers a way out of; moving the fingerprint at the choice.
+
 ## A computer that logs instants gets its zone per download
 
 libdivecomputer gives a Suunto Nautic's start as an instant and drops the offset, but the dive's
@@ -215,7 +227,7 @@ says busy, the walk shows the waiting line, waits for free and tries the same tr
 uncounted. While free, a timeout reopens the link, as the next entry says; past that, a counted dive
 is tried three times: a timeout, which a later connection can cure, then stops the walk short of
 moving the fingerprint past it; any other failure repeats, so the entry is left out, the outcome
-says how many, and *Download all dives* tries it again. No outcome asks the diver to unpair the
+says how many, and *Choose dives to download* lists it again. No outcome asks the diver to unpair the
 watch. Rejected: stopping at every failure, which blocks every older dive behind a broken entry;
 skipping every failure, which lets the fingerprint pass a stalled dive.
 
@@ -309,21 +321,22 @@ length, so each dive still to come costs its length at the computer's pace: seco
 second of dive, this walk's once it has timed a dive, else the one kept on the pairing, where each
 walk's is averaged in. A dive of no known length costs the pace per dive; with neither, no estimate
 shows. A dive during which the computer said it was busy, another app broke a transfer or the link
-was lost is not timed. Rejected: bytes, which the Ocean's listing carries but
-`suunto_nautic_device_list` drops, and the Perdix's index holds only at an offset nothing has
-confirmed; a pace per family, which a computer's sample rate and the phone's link both move.
+was lost is not timed. The question and list reckon an unpaced Nautic computer at 0.05 s a
+dive-second. Rejected: bytes, which the Ocean's listing carries but `suunto_nautic_device_list`
+drops, and the Perdix's index holds only at an offset nothing has confirmed; a pace per family,
+which a computer's sample rate and the phone's link both move.
 
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a
 re-download is a dive the account already holds and links, or a new one once deleted. A walk of new
-dives leaves out an entry whose uuid the phone keeps under the walk's mark, in an archive or a walk,
-or the server has answered for since the fingerprint last moved; *Download all dives* leaves out
-only what the phone keeps. Then, before its first transfer, a walk with a route and a loaded account
-sends the rest's uuids and listed starts to `POST /dive-computers/known-dives` and leaves out what
-the logbook holds. A dive left out is counted neither new nor downloaded. Rejected: a random uuid,
-which leaves every dedupe to the recording gates; comparing on the phone, which writes the server's
-clock rule twice; downloading a waiting dive again.
+dives leaves out an entry whose uuid the phone keeps under the walk's mark, or the server has
+answered for or the diver did not choose since the fingerprint last moved; *Choose dives to
+download* leaves out only what the phone keeps. Then, before its first transfer, a walk with a route
+and a loaded account sends the rest's uuids and listed starts to `POST /dive-computers/known-dives`
+and leaves out what the logbook holds. A dive left out counts neither new nor downloaded. Rejected:
+a random uuid, which leaves every dedupe to the recording gates; comparing on the phone, which
+writes the server's clock rule twice; downloading a waiting dive again.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 
@@ -377,7 +390,7 @@ may have been applied; handing iOS the upload, whose token expires in 30 minutes
 ## A computer paired beside one other waits for the order before its dives go up
 
 The recording a dive shows by default is chosen when the dive is written, from the account's order
-as it then stands, and a new computer's first download takes every dive it holds. So a computer
+as it then stands, and a new computer's first download may take every dive it holds. So a computer
 paired while exactly one other is known, on the phone or in `GET /dive-computers` — or none on the
 phone with the order unread, until a read says — is marked on its progress, and its archives are
 neither sent nor announced, nor a wake left, until *Which computer comes first?* is answered; a

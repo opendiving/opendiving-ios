@@ -6,9 +6,9 @@ import OpenDivingKit
 /// A Suunto Nautic-family watch, walked by id: the identity, the zone, a wait while the watch says
 /// it is busy, the logbook listed, each entry's sport and its dive's facts learned from its
 /// summary — or from the record, where an earlier walk kept them — and counted, the engine's
-/// answer for what the logbook holds, then each new entry downloaded by id unless its summary
-/// names a sport that is no dive, or its dive is one the phone need not take again or the logbook
-/// holds. Which entries are summarised, counted and downloaded is ``NauticSelection``'s.
+/// answer for what to leave out — what the logbook holds, or the diver did not choose — then each
+/// new entry downloaded by id unless its summary names a sport that is no dive, or its dive is one
+/// the phone need not take again or the engine left out. Which entries are summarised, counted and downloaded is ``NauticSelection``'s.
 ///
 /// Another app, such as the Suunto app, can share the link. A summary, the descriptors or a
 /// download that another app's handshake broke, which the watch's busy state does not show, is

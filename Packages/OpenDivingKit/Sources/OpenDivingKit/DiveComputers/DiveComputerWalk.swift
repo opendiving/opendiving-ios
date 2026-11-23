@@ -1,15 +1,15 @@
 import Foundation
 import Observation
 
-/// One walk over a dive computer as it stands: connecting → downloading → the time-zone
-/// question, only in a walk the diver started and only where it is needed → finished, with an
-/// outcome. ``DiveComputerEngine`` runs it; the screen draws the walk it started, or the one a
+/// One walk over a dive computer as it stands: connecting → the dives to download, only in a
+/// walk the diver started and only where it asks → downloading → the time-zone question, only in
+/// a walk the diver started and only where it is needed → finished, with an outcome. ``DiveComputerEngine`` runs it; the screen draws the walk it started, or the one a
 /// connection started while it runs.
 @MainActor
 @Observable
 public final class DiveComputerWalk: Identifiable {
   public enum Phase: Hashable, Sendable {
-    case connecting, downloading, askingTimeZone, finished
+    case connecting, choosingDives, downloading, askingTimeZone, finished
   }
 
   /// How the walk ended.
@@ -31,13 +31,16 @@ public final class DiveComputerWalk: Identifiable {
       case notKept
       /// The computer that answered is not one the phone paired, and was closed unread.
       case unpaired
+      /// The walk read the whole computer, and the logbook holds every dive it lists.
+      case inLogbook
     }
 
     public let kind: Kind
     public let sentence: String
 
-    /// *Download all dives* is offered.
-    public var offersDownloadAll: Bool {
+    /// *Choose dives to download* is offered, or for a computer whose family lists nothing,
+    /// *Download all dives*.
+    public var offersChoosing: Bool {
       kind == .nothingNew || kind == .alreadyWaiting || kind == .notDownloaded
     }
   }
@@ -47,8 +50,9 @@ public final class DiveComputerWalk: Identifiable {
   /// The diver started it from the screen and is watching: it may ask the time-zone question,
   /// and waits on a busy computer or a lost link for as long as the diver does.
   public let watched: Bool
-  /// *Download all dives*: no fingerprint is set.
-  public let all: Bool
+  /// *Choose dives to download*, whose walk shows the list, or for a family that lists nothing
+  /// before reading it *Download all dives*: either way the fingerprint is set aside.
+  public let choosing: Bool
   /// The paired record a connection started it for; nil for the diver's.
   let record: String?
 
@@ -77,17 +81,28 @@ public final class DiveComputerWalk: Identifiable {
   /// The listing counts from the stored fingerprint, rather than the whole computer.
   public internal(set) var listedFromFingerprint = false
   public internal(set) var outcome: Outcome?
+  /// What the walk asks the diver before its first transfer, while ``phase`` is
+  /// ``Phase/choosingDives``.
+  public internal(set) var choice: DownloadChoice?
+  /// The diver answered *Only future dives*.
+  var choseNone = false
+  /// The server said the logbook holds every dive the walk would otherwise have taken, and the
+  /// walk passed over none as answered for or not chosen.
+  var logbookHoldsAll = false
+  /// The diver or a change of session cancelled the walk.
+  var cancelled = false
   /// The zone the time-zone question offers first: the watch's where this walk reported one,
   /// else the phone's.
   public internal(set) var suggestedZone: TimeZone
   var estimate = DownloadEstimate()
 
   init(
-    computer: FoundComputer, watched: Bool, all: Bool, record: String? = nil, zone: TimeZone
+    computer: FoundComputer, watched: Bool, choosing: Bool, record: String? = nil,
+    zone: TimeZone
   ) {
     self.computer = computer
     self.watched = watched
-    self.all = all
+    self.choosing = choosing
     self.record = record
     suggestedZone = zone
   }
@@ -157,14 +172,14 @@ public final class DiveComputerWalk: Identifiable {
 
   /// The computer's line in the list while the walk is in flight: *Waiting for this computer to
   /// reconnect* while it waits for a lost link, *Waiting until this computer is free* while it is
-  /// busy, else where the walk stands. Nil at the time-zone question and once finished.
+  /// busy, else where the walk stands. Nil at a question and once finished.
   public var statusLine: String? {
     switch phase {
     case .connecting, .downloading:
       if linkLost { return DiveComputerText.waitingToReconnect }
       if computerBusy || otherAppHandshaking { return DiveComputerText.waitingUntilFree }
       return phase == .connecting ? DiveComputerText.connecting : downloadingText
-    case .askingTimeZone, .finished:
+    case .choosingDives, .askingTimeZone, .finished:
       return nil
     }
   }

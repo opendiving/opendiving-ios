@@ -268,8 +268,8 @@ struct PendingScreen: View {
         Button("Remove", role: .destructive) {
           if let archive = row.archive { engine?.remove(archive) }
         }
-      } message: { _ in
-        Text(DiveComputerText.removeDownloadWarning)
+      } message: { row in
+        Text(DiveComputerText.removeDownloadWarning(record: row.archive?.record))
       }
     }
   }
