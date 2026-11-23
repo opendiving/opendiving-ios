@@ -1795,6 +1795,29 @@ struct DiveComputerEngineTests {
     #expect(engine.downloadRows(units: .metric).isEmpty)
   }
 
+  /// The Dives tab open before the download starts draws a row for each chosen dive as soon as
+  /// the walk has listed it, the first reading *Syncing* before anything is read.
+  @Test func aListedDiveStandsAsARowOnScreenBeforeAnyDiveIsRead() async throws {
+    let session = try await session()
+    let dives = listedPerdixDives(3)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, listing: listing(dives), dives)]
+    link.holdBefore = 2
+    let engine = engine(session)
+    let screen = RowsOnScreen(engine)
+    let walk = try #require(engine.start(F.perdixFound, choosing: false))
+    let choice = try await asked(walk)
+    engine.choose(Set(choice.dives.map(\.fingerprint)), for: walk)
+    await link.untilHeld()
+    await until { screen.rows.count == 3 }
+
+    #expect(walk.divesDownloaded == 0)
+    #expect(screen.rows.map(\.id) == dives.map { uuid($0).uuidString })
+    #expect(screen.rows.map(\.line) == [.syncing, .waiting, .waiting])
+    link.release()
+    await engine.settled()
+    #expect(screen.rows.isEmpty)
+  }
+
   // MARK: - Which dives to download
 
   private func perdixRecord(_ session: Session) -> DiveComputerRecord? {

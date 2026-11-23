@@ -126,8 +126,10 @@ public final class DiveComputerEngine {
   @ObservationIgnored private var keepingAnswer: Task<Void, Never>?
   @ObservationIgnored var uploading: Task<Void, Never>?
   @ObservationIgnored var uploadAgain = false
-  /// The walk whose dives go up while it runs, as far as it has come.
-  @ObservationIgnored var inFlight: WalkInFlight?
+  /// The walk whose dives go up while it runs, as far as it has come. Observed: the rows above
+  /// the logbook draw the walk's queue only once it is set, so a view that read it unset reads
+  /// it again when it is.
+  var inFlight: WalkInFlight?
   /// When this walk's last upload began, which the next waits ``uploadFloor`` after.
   @ObservationIgnored var lastUploadBegan: Date?
   /// The next turn of ``uploadFloor`` while a walk runs, an occasion to upload.
