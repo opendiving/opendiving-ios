@@ -103,6 +103,10 @@ private struct CertificationSheetList: View {
   let lastUpdated: Date?
   let hasPendingEdit: Bool
 
+  /// How far the card stands in from the pane's sides, read from the card itself since the list
+  /// sets it by the phone's width.
+  @State private var sideMargin: CGFloat = 16
+
   var body: some View {
     List {
       if lastUpdated != nil || hasPendingEdit {
@@ -124,9 +128,15 @@ private struct CertificationSheetList: View {
             label: "\(side.title) of certification card"
           )
           .certificationDownload(certificationUUID: certificationUUID, file: side.file)
+          .onGeometryChange(for: CGFloat.self) {
+            $0.frame(in: .scrollView).minX
+          } action: {
+            sideMargin = $0
+          }
           .listRowBackground(Color.clear)
           .listRowInsets(EdgeInsets())
         }
+        .listSectionSpacing(.custom(sideMargin))
       }
       if !content.rows.isEmpty {
         Section {
@@ -141,9 +151,9 @@ private struct CertificationSheetList: View {
         }
       }
     }
-    // The bar ends 10 points below its buttons, so this puts the card the list's section spacing
-    // below them: the gap above it matches the one under it.
-    .contentMargins(.top, 25, for: .scrollContent)
+    // The bar ends 10 points below its buttons, so the card stands as far below them as it does
+    // from the pane's sides and from the details under it.
+    .contentMargins(.top, max(sideMargin - 10, 0), for: .scrollContent)
   }
 }
 
