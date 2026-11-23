@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A course's page, by its uuid: its head, then three tabs — Info, its information card over
 /// *Add dives* and *Add certifications*; Certifications, the cards it issued; and Dives, those
-/// logged on it. It is edited and deleted from its top bar.
+/// logged on it. Its top bar opens its form, which also deletes it.
 struct CourseDetailView: View {
   let courseUUID: UUID
   @Environment(Session.self) private var session
@@ -32,13 +32,10 @@ extension CourseDetailView {
 
 private struct CourseDetailContent: View {
   @Environment(Session.self) private var session
-  @Environment(OutboxModel.self) private var outbox
   @Environment(\.dismiss) private var dismiss
   @State private var model: CourseDetailModel
   @State private var lookups: LookupsModel
 
-  @State private var confirmsDelete = false
-  @State private var queueError: String?
   @State private var section = CourseSection.info
   @State private var scroll = ScrollPosition(edge: .top)
   @State private var tabsTop: CGFloat = 0
@@ -120,16 +117,6 @@ private struct CourseDetailContent: View {
         .tabsReselect($reselect, tabsTop: tabsTop)
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(course) }
-        .confirmationDialog(
-          "Delete course", isPresented: $confirmsDelete, titleVisibility: .visible
-        ) {
-          Button("Delete", role: .destructive) {
-            queueError = CourseDetailModel.delete(course.uuid, in: outbox)
-            if queueError == nil { dismiss() }
-          }
-        } message: {
-          Text(RecordDeletionText.course)
-        }
       }
     }
     .background(Color.pageBackground)
@@ -137,14 +124,6 @@ private struct CourseDetailContent: View {
     .navigationBarTitleDisplayMode(.inline)
     // The title names the page in the back button's history; the head says it on screen.
     .toolbar(removing: .title)
-    .alert(
-      "Not saved",
-      isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
-    ) {
-      Button("OK") {}
-    } message: {
-      Text(queueError ?? "")
-    }
     .task {
       await model.load()
       await model.followRoute()
@@ -152,16 +131,11 @@ private struct CourseDetailContent: View {
   }
 
   @ToolbarContentBuilder private func actions(_ course: CourseRead) -> some ToolbarContent {
-    ToolbarItemGroup(placement: .topBarTrailing) {
+    ToolbarItem(placement: .topBarTrailing) {
       NavigationLink {
         CourseFormView(mode: .edit(course)) { dismiss() }
       } label: {
         Label("Edit", systemImage: "pencil")
-      }
-      Menu {
-        Button("Delete", systemImage: "trash", role: .destructive) { confirmsDelete = true }
-      } label: {
-        Label("Actions for " + course.name, systemImage: "ellipsis")
       }
     }
   }

@@ -98,7 +98,7 @@ struct CourseReadsTests {
     let model = CourseListModel(session: world.session)
     await model.courses.load()
     #expect(model.courses.items.contains { $0.uuid == Self.first })
-    #expect(CourseDetailModel.delete(Self.first, in: world.outbox()) == nil)
+    try world.outbox().queue(.deleteCourse(.server(Self.first)))
     #expect(!model.courses.items.contains { $0.uuid == Self.first })
   }
 

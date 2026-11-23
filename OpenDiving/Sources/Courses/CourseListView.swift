@@ -2,8 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// More's *Courses*: what is waiting to sync, then the diver's courses in the API's order, a row
-/// each on one card, each opening its page and holding *Edit* and *Delete* under a long press —
-/// the pages the phone has shown first, from its copy.
+/// each on one card opening its page — the pages the phone has shown first, from its copy.
 struct CourseListView: View {
   @Environment(Session.self) private var session
 
@@ -24,18 +23,9 @@ extension CourseListView {
   }
 }
 
-/// Where the list pushes a course's form.
-private enum CourseFormRoute: Hashable {
-  case create
-  case edit(CourseRead)
-}
-
 private struct CourseListContent: View {
   @State var model: CourseListModel
-  @Environment(OutboxModel.self) private var outbox
-  @State private var route: CourseFormRoute?
-  @State private var deleting: CourseRead?
-  @State private var queueError: String?
+  @State private var creating = false
 
   var body: some View {
     ScrollView {
@@ -53,33 +43,11 @@ private struct CourseListContent: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        Button("New course", systemImage: "plus") { route = .create }
+        Button("New course", systemImage: "plus") { creating = true }
       }
     }
-    .navigationDestination(item: $route) { route in
-      switch route {
-      case .create: CourseFormView(mode: .create)
-      case .edit(let course): CourseFormView(mode: .edit(course))
-      }
-    }
-    .confirmationDialog(
-      "Delete course",
-      isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-      titleVisibility: .visible, presenting: deleting
-    ) { course in
-      Button("Delete", role: .destructive) {
-        queueError = CourseDetailModel.delete(course.uuid, in: outbox)
-      }
-    } message: { _ in
-      Text(RecordDeletionText.course)
-    }
-    .alert(
-      "Not saved",
-      isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })
-    ) {
-      Button("OK") {}
-    } message: {
-      Text(queueError ?? "")
+    .navigationDestination(isPresented: $creating) {
+      CourseFormView(mode: .create)
     }
     .task { await model.show() }
   }
@@ -100,7 +68,7 @@ private struct CourseListContent: View {
       } description: {
         Text(CourseListView.emptyMessage)
       } actions: {
-        Button(CourseListView.emptyAction, systemImage: "plus") { route = .create }
+        Button(CourseListView.emptyAction, systemImage: "plus") { creating = true }
           .brandProminentButton()
       }
     case .loaded:
@@ -119,11 +87,6 @@ private struct CourseListContent: View {
             CourseRow(content: .course(course))
           }
           .buttonStyle(.plain)
-          .contentShape(.contextMenuPreview, .formSection)
-          .contextMenu {
-            Button("Edit", systemImage: "pencil") { route = .edit(course) }
-            Button("Delete", systemImage: "trash", role: .destructive) { deleting = course }
-          }
           .task { await list.loadMore(after: course) }
         }
       }
@@ -152,8 +115,6 @@ private struct CourseRow: View {
       }
     }
     .padding(12)
-    // A long press lifts the row alone, which takes a fill of its own.
-    .background(Color.cardFill)
     .contentShape(.rect)
     .accessibilityElement(children: .combine)
   }
