@@ -63,10 +63,11 @@ public struct DownloadStore: Sendable {
 
   // MARK: - Archives
 
-  /// The archives waiting, oldest download first.
+  /// The archives waiting, oldest download first, a walk's in the order they were cut.
   public func archives() -> [DownloadArchive] {
     archiveRecords.load().values.map(\.value).sorted {
-      ($0.summary.downloadedAt, $0.id.uuidString) < ($1.summary.downloadedAt, $1.id.uuidString)
+      ($0.summary.downloadedAt, $0.part ?? 0, $0.id.uuidString)
+        < ($1.summary.downloadedAt, $1.part ?? 0, $1.id.uuidString)
     }
   }
 
@@ -77,13 +78,14 @@ public struct DownloadStore: Sendable {
   }
 
   /// Takes the written zip in and records it: the bytes first, so a record never names a zip
-  /// that is not there.
-  func add(_ written: ComputerArchiveWriter.Written, record: String, marked: Bool) throws
-    -> DownloadArchive
-  {
+  /// that is not there. `walk` and `part` place it among the archives cut from one walk.
+  func add(
+    _ written: ComputerArchiveWriter.Written, record: String, marked: Bool, walk: UUID? = nil,
+    part: Int? = nil
+  ) throws -> DownloadArchive {
     let archive = DownloadArchive(
       filename: written.url.lastPathComponent, summary: written.summary, record: record,
-      dives: written.dives, receivedBeforeAccountKnown: marked)
+      dives: written.dives, receivedBeforeAccountKnown: marked, walk: walk, part: part)
     let target = url(for: archive)
     try FileManager.default.createDirectory(
       at: target.deletingLastPathComponent(), withIntermediateDirectories: true)

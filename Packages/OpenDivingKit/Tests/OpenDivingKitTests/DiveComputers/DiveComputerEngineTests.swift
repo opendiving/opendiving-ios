@@ -19,15 +19,54 @@ final class FakeNotifier: DiveComputerNotifier {
   func ask() async { asked += 1 }
 }
 
-/// A clock a test moves on.
+/// A clock a test moves on, and what sleeps on it: a sleep returns once the clock reads its end,
+/// or throws when its task is cancelled.
 final class MovingClock: Sendable {
-  private let moment: Mutex<Date>
+  private struct State {
+    var now: Date
+    var sleepers: [UUID: (end: Date, wake: CheckedContinuation<Void, any Error>)] = [:]
+  }
 
-  init(_ start: Date) { moment = Mutex(start) }
+  private let state: Mutex<State>
 
-  var now: Date { moment.withLock { $0 } }
+  init(_ start: Date) { state = Mutex(State(now: start)) }
 
-  func pass(_ seconds: TimeInterval) { moment.withLock { $0 += seconds } }
+  var now: Date { state.withLock { $0.now } }
+
+  /// How many sleeps wait on the clock.
+  var sleeping: Int { state.withLock { $0.sleepers.count } }
+
+  func pass(_ seconds: TimeInterval) {
+    let due = state.withLock { state in
+      state.now += seconds
+      let due = state.sleepers.filter { $0.value.end <= state.now }
+      for id in due.keys { state.sleepers[id] = nil }
+      return due.values.map(\.wake)
+    }
+    for wake in due { wake.resume() }
+  }
+
+  func sleep(until end: Date) async throws {
+    let id = UUID()
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { (wake: CheckedContinuation<Void, any Error>) in
+        let due = state.withLock { state in
+          if Task.isCancelled { return false }
+          guard end > state.now else { return true }
+          state.sleepers[id] = (end, wake)
+          return false
+        }
+        if due {
+          wake.resume()
+        } else if Task.isCancelled {
+          wake.resume(throwing: CancellationError())
+        }
+      }
+    } onCancel: {
+      let wake = state.withLock { $0.sleepers.removeValue(forKey: id)?.wake }
+      wake?.resume(throwing: CancellationError())
+    }
+  }
 }
 
 /// A wake that counts the requests left with it.
@@ -80,7 +119,15 @@ struct DiveComputerEngineTests {
   ) -> DiveComputerEngine {
     let root = root
     let time: @Sendable () -> Date
-    if let clock { time = { clock.now } } else { time = { now } }
+    // A fixed time never turns: a sleep on it waits until its task is cancelled.
+    let sleep: @Sendable (Date) async throws -> Void
+    if let clock {
+      time = { clock.now }
+      sleep = { try await clock.sleep(until: $0) }
+    } else {
+      time = { now }
+      sleep = { _ in try await Task.sleep(for: .seconds(24 * 60 * 60)) }
+    }
     let watch = DiveComputerWatch(
       log: DiveComputerWatchLog(file: watchLog),
       pairings: { DiveComputerStore.pairings(applicationSupport: root) },
@@ -90,7 +137,7 @@ struct DiveComputerEngineTests {
       session: session, makeLink: { link }, generator: F.generator, watch: watch,
       notifier: notifier, wake: wake, loadAccount: loadAccount,
       workFolder: root.appendingPathComponent("Work", isDirectory: true), now: time,
-      zone: F.helsinki, waitLimit: waitLimit)
+      zone: F.helsinki, waitLimit: waitLimit, sleep: sleep)
     watch.launched()
     watcher.send(.state(.on, detail: "poweredOn"))
     engine.launched()
@@ -126,7 +173,7 @@ struct DiveComputerEngineTests {
 
   // MARK: - A walk nobody starts
 
-  @Test func aConnectionWalksThePairedComputerAndItsDivesAreImportedAtOnce() async throws {
+  @Test func aConnectionWalksThePairedComputerAndItsDivesAreImportedAsTheyArrive() async throws {
     let session = try await session()
     try pair(session, F.perdix, at: F.perdixFound.id)
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
@@ -140,23 +187,30 @@ struct DiveComputerEngineTests {
     #expect(link.opened.map(\.pairedOnly) == [true])
     #expect(link.opened.first?.computer.id == F.perdixFound.id)
     #expect(link.opened.first?.computer.family == .shearwaterPetrel)
-    let sent = try #require(server.atOnce.first)
-    #expect(server.atOnce.count == 1)
-    #expect(sent.files == ["shearwater-perdix-3_D9772626_2026-10-25T0920.zip"])
-    #expect(sent.key != nil)
+    // The first dive goes while the walk runs, and the rest, inside the floor, at its end.
+    #expect(server.atOnce.count == 2)
+    #expect(
+      server.atOnce.map(\.files)
+        == Array(
+          repeating: ["shearwater-perdix-3_D9772626_2026-10-25T0920.zip"], count: 2))
+    #expect(Set(server.atOnce.compactMap(\.key)).count == 2)
     #expect(downloads(session).archives().isEmpty)
     #expect(engine.archives.isEmpty)
     #expect(downloads(session).walks().isEmpty)
     let record = try #require(
       computers(session).record(family: .shearwaterPetrel, serial: "D9772626"))
     #expect(record.fingerprint == F.fingerprint(3))
-    // Answered for, the dives are remembered until the fingerprint next moves.
-    #expect(downloads(session).delivered(record.id).count == 2)
-    #expect(notifier.posted.map(\.title) == ["1 new dive imported"])
+    // The fingerprint passes what was answered for before it moved; the last archive's dive,
+    // answered after, is remembered until it next moves.
+    #expect(
+      downloads(session).delivered(record.id)
+        == [DiveComputerArchive.diveUUID(F.perdix, fingerprint: F.fingerprint(2))])
+    // One notice for the download, counting both imports' rows.
+    #expect(notifier.posted.map(\.title) == ["2 new dives imported"])
     #expect(watcher.take() == [.arm(F.perdixFound.id, after: DiveComputerWatch.revisitDelay)])
   }
 
-  @Test func anAppliedImportHasTheListsOverTheAccountReadAgain() async throws {
+  @Test func eachAppliedImportHasTheListsOverTheAccountReadAgain() async throws {
     let session = try await session()
     try pair(session, F.perdix, at: F.perdixFound.id)
     link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
@@ -170,9 +224,9 @@ struct DiveComputerEngineTests {
     let engine = engine(session)
     watcher.send(.connected(F.perdixFound.id))
     await engine.settled()
-    await list.reloading?.value
-    #expect(server.atOnce.count == 1)
-    #expect(reads() == 2)
+    #expect(server.atOnce.count == 2)
+    await until { reads() == 3 }
+    #expect(reads() == 3)
   }
 
   @Test func aComputerThatAnswersAsOneNotPairedIsClosedUnread() async throws {
@@ -598,7 +652,7 @@ struct DiveComputerEngineTests {
     let engine = engine(session)
     watcher.send(.connected(F.perdixFound.id))
     await engine.settled()
-    #expect(server.atOnce.count == 1)
+    #expect(server.atOnce.count == 2)
     #expect(downloads(session).archives().isEmpty)
 
     let next = engine.start(F.perdixFound, all: false)
@@ -612,6 +666,327 @@ struct DiveComputerEngineTests {
     await engine.settled()
     let all = try #require(link.waitingTests.last)
     #expect(!all(F.perdix, F.fingerprint(3)))
+  }
+
+  // MARK: - While the walk runs
+
+  /// `count` of the Perdix's dives, newest first, each read as its newest and told apart by its
+  /// bytes, *perdix dive 0* first.
+  private func perdixDives(_ count: Int) -> [DownloadedDive] {
+    (0..<count).map { index in
+      DownloadedDive(
+        identity: F.perdix, fingerprint: F.fingerprint(UInt8(0x40 - index)),
+        bytes: Data("perdix dive \(index)".utf8), reading: .dive(F.perdixDive))
+    }
+  }
+
+  /// The dives' bytes each upload applied at once carried, as text, in the archive's order.
+  private func sentDives() throws -> [[String]] {
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    return try server.atOnce.map { sent in
+      let url = root.appendingPathComponent("sent-\(UUID().uuidString).zip")
+      try #require(sent.bytes.first).write(to: url)
+      let reader = try ZipReader(url)
+      return try reader.entries.filter { $0.name.hasPrefix(DiveComputerArchive.filesFolder) }
+        .map { String(decoding: try reader.read($0), as: UTF8.self) }
+    }
+  }
+
+  /// The fake's index of dive `index` in a script of ``FakeDiveComputerLink/script(_:_:end:zone:)``.
+  private func scripted(_ index: Int) -> Int { index + 2 }
+
+  /// Lets the walk held before one event go on to the hold before `next`, or to its end.
+  private func step(to next: Int?) async {
+    await link.untilHeld()
+    link.holdBefore = next
+    link.release()
+  }
+
+  @Test func aWalkOfSlowDivesSendsEachAloneInOrderBeforeItEnds() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(3))]
+    link.holdBefore = scripted(1)
+    let clock = MovingClock(F.moment)
+    let engine = engine(session, clock: clock)
+    watcher.send(.connected(F.perdixFound.id))
+    for sent in 1...3 {
+      await until { server.atOnce.count == sent && !engine.isUploading }
+      #expect(server.atOnce.count == sent)
+      #expect(engine.walk != nil)
+      #expect(notifier.posted.isEmpty)
+      // A Suunto's dive takes minutes to read.
+      clock.pass(150)
+      await step(to: sent < 3 ? scripted(sent + 1) : nil)
+    }
+    await engine.settled()
+    #expect(server.atOnce.count == 3)
+    #expect(Set(server.atOnce.compactMap(\.key)).count == 3)
+    #expect(try sentDives() == [["perdix dive 0"], ["perdix dive 1"], ["perdix dive 2"]])
+    #expect(downloads(session).archives().isEmpty)
+    #expect(downloads(session).walks().isEmpty)
+    #expect(notifier.posted.map(\.title) == ["3 new dives imported"])
+    #expect(notifier.posted.first?.target == .diveComputers)
+  }
+
+  @Test func aWalkOfFastDivesSendsTheFirstAloneAndTheRestNoCloserThanTheFloor() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(5))]
+    link.holdBefore = scripted(1)
+    let clock = MovingClock(F.moment)
+    let began = Mutex<[TimeInterval]>([])
+    server.answerAtOnce { _ in
+      began.withLock { $0.append(clock.now.timeIntervalSince(F.moment)) }
+      return nil
+    }
+    let engine = engine(session, clock: clock)
+    watcher.send(.connected(F.perdixFound.id))
+    await until { server.atOnce.count == 1 && !engine.isUploading }
+
+    // A dive every ten seconds: the second and third wait for the floor's turn, which sends them
+    // with no dive arriving.
+    clock.pass(10)
+    await step(to: scripted(2))
+    await until { clock.sleeping == 1 }
+    clock.pass(10)
+    await step(to: scripted(3))
+    await until { engine.walk?.divesDownloaded == 3 }
+    #expect(server.atOnce.count == 1)
+    clock.pass(10)
+    await until { server.atOnce.count == 2 && !engine.isUploading }
+
+    // The fourth and fifth arrive inside the next floor, and go at the walk's end.
+    await step(to: scripted(4))
+    clock.pass(10)
+    await step(to: scripted(5))
+    await until { engine.walk?.divesDownloaded == 5 }
+    #expect(server.atOnce.count == 2)
+    #expect(notifier.posted.isEmpty)
+    clock.pass(5)
+    await step(to: nil)
+    await engine.settled()
+
+    #expect(began.withLock { $0 } == [0, 30, 45])
+    #expect(
+      try sentDives() == [
+        ["perdix dive 0"], ["perdix dive 1", "perdix dive 2"], ["perdix dive 3", "perdix dive 4"],
+      ])
+    #expect(notifier.posted.map(\.title) == ["3 new dives imported"])
+  }
+
+  @Test func theServerSeesNoTwoUploadsAtOnce() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(3))]
+    link.holdBefore = scripted(1)
+    let clock = MovingClock(F.moment)
+    let gate = Mutex(true)
+    let answering = Mutex((now: 0, most: 0))
+    server.answerAtOnce { _ in
+      answering.withLock {
+        $0.now += 1
+        $0.most = max($0.most, $0.now)
+      }
+      while gate.withLock({ $0 }) { try await Task.sleep(for: .milliseconds(2)) }
+      answering.withLock { $0.now -= 1 }
+      return nil
+    }
+    let engine = engine(session, clock: clock)
+    watcher.send(.connected(F.perdixFound.id))
+    await until { server.atOnce.count == 1 }
+
+    // Past the floor, with the first unanswered: a dive and every other occasion wait for it.
+    clock.pass(40)
+    await step(to: scripted(2))
+    await until { engine.walk?.divesDownloaded == 2 }
+    engine.upload()
+    engine.accountLoaded()
+    clock.pass(40)
+    for _ in 0..<1000 { await Task.yield() }
+    #expect(server.atOnce.count == 1)
+
+    gate.withLock { $0 = false }
+    await until { !engine.isUploading }
+    await step(to: nil)
+    await engine.settled()
+    #expect(answering.withLock { $0.most } == 1)
+    #expect(try sentDives().flatMap { $0 } == ["perdix dive 0", "perdix dive 1", "perdix dive 2"])
+  }
+
+  @Test func aDiveTheTimeZoneQuestionWaitsForIsInNoneOfThem() async throws {
+    let session = try await session()
+    try pair(session, F.ocean, at: F.oceanFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, F.oceanDownload, zone: F.helsinki)]
+    // Half a day after the newer dive, a day and a half after the older.
+    let engine = engine(session, now: F.moment.addingTimeInterval(30 * 60 * 60))
+    watcher.send(.connected(F.oceanFound.id))
+    await engine.settled()
+    #expect(try sentDives() == [["ocean after"]])
+    #expect(engine.held.map(\.dives) == [1])
+    #expect(downloads(session).archives().isEmpty)
+  }
+
+  @Test func aBudgetSpentKeepsTheArchiveAndWhatArrivesMeanwhileIsTheOneAfterIt() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(4))]
+    link.holdBefore = scripted(1)
+    server.answerAtOnce { index in
+      index == 0 ? .json(#"{"detail":"Too many imports"}"#, status: 429) : nil
+    }
+    let clock = MovingClock(F.moment)
+    let engine = engine(session, clock: clock)
+    watcher.send(.connected(F.perdixFound.id))
+    await until { server.atOnce.count == 1 && !engine.isUploading }
+    #expect(engine.archives.count == 1)
+
+    clock.pass(10)
+    await step(to: scripted(2))
+    await until { engine.walk?.divesDownloaded == 2 }
+    clock.pass(10)
+    await step(to: scripted(3))
+    await until { engine.walk?.divesDownloaded == 3 }
+    // The floor's turn sends the refused archive again, and cuts nothing while it waits.
+    clock.pass(10)
+    await until { server.atOnce.count == 2 && !engine.isUploading }
+    #expect(engine.archives.isEmpty)
+    clock.pass(10)
+    await step(to: scripted(4))
+    await until { engine.walk?.divesDownloaded == 4 }
+    #expect(server.atOnce.count == 2)
+    await step(to: nil)
+    await engine.settled()
+
+    let keys = server.atOnce.map(\.key)
+    #expect(keys.count == 3)
+    #expect(keys[0] == keys[1])
+    #expect(keys[2] != keys[0])
+    #expect(
+      try sentDives() == [
+        ["perdix dive 0"], ["perdix dive 0"], ["perdix dive 1", "perdix dive 2", "perdix dive 3"],
+      ])
+    #expect(notifier.posted.map(\.title) == ["2 new dives imported"])
+  }
+
+  @Test func aLostAnswerIsSentAgainUnderTheKeyAndReadsTheFirstImport() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(2))]
+    link.holdBefore = scripted(1)
+    server.loseAnswers(at: [0])
+    let clock = MovingClock(F.moment)
+    let engine = engine(session, clock: clock)
+    watcher.send(.connected(F.perdixFound.id))
+    await until { server.atOnce.count == 1 && !engine.isUploading }
+    #expect(engine.archives.count == 1)
+
+    clock.pass(10)
+    await step(to: nil)
+    await engine.settled()
+    let keys = server.atOnce.map(\.key)
+    #expect(keys.count == 3)
+    #expect(keys[0] == keys[1])
+    #expect(try sentDives() == [["perdix dive 0"], ["perdix dive 0"], ["perdix dive 1"]])
+    #expect(engine.archives.isEmpty)
+    // The repeat answered the first import's rows, which count once.
+    #expect(notifier.posted.map(\.title) == ["2 new dives imported"])
+  }
+
+  @Test func offlineFromMidWalkTheDiverHearsOfTheDownloadOnceEachWay() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(3))]
+    link.holdBefore = scripted(1)
+    let clock = MovingClock(F.moment)
+    let engine = engine(session, clock: clock)
+    watcher.send(.connected(F.perdixFound.id))
+    await until { server.atOnce.count == 1 && !engine.isUploading }
+
+    route.isRouteAvailable = false
+    clock.pass(60)
+    await step(to: scripted(2))
+    await until { engine.walk?.divesDownloaded == 2 }
+    clock.pass(60)
+    await step(to: nil)
+    await engine.settled()
+    #expect(server.atOnce.count == 1)
+    #expect(notifier.posted.map(\.title) == ["2 dives downloaded"])
+
+    route.isRouteAvailable = true
+    engine.upload()
+    await engine.settled()
+    #expect(try sentDives() == [["perdix dive 0"], ["perdix dive 1", "perdix dive 2"]])
+    #expect(notifier.posted.map(\.title) == ["2 dives downloaded", "2 new dives imported"])
+  }
+
+  /// A new process over the same folders, launched: what it recovers, and what it then sends.
+  private func nextProcess(_ session: Session) async -> DiveComputerEngine {
+    let next = DiveComputerEngine(
+      session: session, makeLink: { FakeDiveComputerLink() }, generator: F.generator,
+      notifier: notifier, workFolder: root.appendingPathComponent("Next", isDirectory: true),
+      now: { F.moment }, zone: F.helsinki)
+    next.launched()
+    await next.settled()
+    return next
+  }
+
+  @Test func aDiveAnsweredBeforeTheProcessEndedIsNotSentAgain() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, perdixDives(3))]
+    link.holdBefore = scripted(2)
+    let engine = engine(session)
+    var kept = 0
+    engine.diveKept = { kept += 1 }
+    watcher.send(.connected(F.perdixFound.id))
+    // The first is answered; the second, inside the floor, is kept with the walk.
+    await until { kept == 2 && server.atOnce.count == 1 && !engine.isUploading }
+    #expect(downloads(session).walks().map(\.dives.count) == [1])
+
+    // The process ends here.
+    _ = await nextProcess(session)
+    #expect(try sentDives() == [["perdix dive 0"], ["perdix dive 1"]])
+    #expect(downloads(session).archives().isEmpty)
+    #expect(downloads(session).walks().isEmpty)
+    link.release()
+    await engine.settled()
+  }
+
+  @Test func aProcessEndedBetweenAnArchiveAndTheWalkLeavesEachDiveInOneArchive() async throws {
+    let session = try await session()
+    try pair(session, F.perdix, at: F.perdixFound.id)
+    let dives = perdixDives(3)
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, dives)]
+    link.holdBefore = scripted(2)
+    server.answerAtOnce { index in
+      index == 0 ? .json(#"{"detail":"Server error"}"#, status: 503) : nil
+    }
+    let engine = engine(session)
+    var kept = 0
+    engine.diveKept = { kept += 1 }
+    watcher.send(.connected(F.perdixFound.id))
+    await until { kept == 2 && server.atOnce.count == 1 && !engine.isUploading }
+    let first = try #require(downloads(session).archives().first)
+    #expect(first.part == 0)
+
+    // The process ended after the first archive was kept and before the walk let its dive go.
+    var walk = try #require(downloads(session).walks().first)
+    let again = KeptDive(dives[0], file: "again.bin")
+    try again.write(dives[0], into: downloads(session).folder(of: walk.id))
+    walk.dives.insert(again, at: 0)
+    try downloads(session).save(walk)
+
+    let next = await nextProcess(session)
+    #expect(next.archives.isEmpty)
+    #expect(downloads(session).walks().isEmpty)
+    // The archive that waited goes first, under its key, and the walk's last after it.
+    let keys = server.atOnce.map(\.key)
+    #expect(keys.count == 3)
+    #expect(keys[1] == first.key.uuidString.lowercased())
+    #expect(try sentDives() == [["perdix dive 0"], ["perdix dive 0"], ["perdix dive 1"]])
+    link.release()
+    await engine.settled()
   }
 
   // MARK: - The time zone
@@ -784,12 +1159,14 @@ struct DiveComputerEngineTests {
 
   // MARK: - The upload
 
-  private func walked(_ session: Session, route available: Bool = true) async throws
-    -> DiveComputerEngine
-  {
+  /// A walk of the Perdix; `dives`, one by default, so it makes one archive with a route.
+  private func walked(
+    _ session: Session, route available: Bool = true,
+    dives: [DownloadedDive] = [DiveComputerFixtures.perdixDownload[0]]
+  ) async throws -> DiveComputerEngine {
     route.isRouteAvailable = available
     try pair(session, F.perdix, at: F.perdixFound.id)
-    link.scripts = [FakeDiveComputerLink.script(F.perdix, F.perdixDownload)]
+    link.scripts = [FakeDiveComputerLink.script(F.perdix, dives)]
     let engine = engine(session)
     watcher.send(.connected(F.perdixFound.id))
     await engine.settled()
@@ -798,7 +1175,7 @@ struct DiveComputerEngineTests {
 
   @Test func withNoRouteTheDivesWaitTheDiverIsToldOnceAndIOSIsLeftAWake() async throws {
     let session = try await session()
-    let engine = try await walked(session, route: false)
+    let engine = try await walked(session, route: false, dives: F.perdixDownload)
     #expect(server.atOnce.isEmpty)
     #expect(engine.archives.count == 1)
     #expect(notifier.posted.map(\.title) == ["2 dives downloaded"])
@@ -910,8 +1287,9 @@ struct DiveComputerEngineTests {
 
   @Test func aRetryGoesUnderTheSameKeyAndTheDiverIsToldOnce() async throws {
     let session = try await session()
+    // Refused while the walk ran, and again at its end.
     server.answerAtOnce { index in
-      index == 0 ? .json(#"{"detail":"Server error"}"#, status: 503) : nil
+      index < 2 ? .json(#"{"detail":"Server error"}"#, status: 503) : nil
     }
     let engine = try await walked(session)
     #expect(engine.archives.count == 1)
@@ -925,7 +1303,7 @@ struct DiveComputerEngineTests {
     engine.upload()
     await engine.settled()
     let keys = server.atOnce.map(\.key)
-    #expect(keys.count == 2)
+    #expect(keys.count == 3)
     #expect(Set(keys).count == 1)
     #expect(engine.archives.isEmpty)
     #expect(engine.lastTries.isEmpty)
@@ -933,7 +1311,8 @@ struct DiveComputerEngineTests {
     #expect(notifier.posted.map(\.title) == ["1 new dive imported"])
     #expect(
       watchLines().filter { $0.hasPrefix("upload ") } == [
-        "upload \(archive.id): answered 503", "upload \(archive.id): imported",
+        "upload \(archive.id): answered 503", "upload \(archive.id): answered 503",
+        "upload \(archive.id): imported",
       ])
   }
 
@@ -942,11 +1321,13 @@ struct DiveComputerEngineTests {
     let session = try await session()
     server.answerAtOnce { _ in .json(#"{"detail":"Try later"}"#, status: status) }
     let engine = try await walked(session)
+    // Sent while the walk ran, and again at its end.
+    #expect(server.atOnce.count == 2)
     #expect(engine.archives.count == 1)
     #expect(engine.archives.first?.refusal == nil)
     engine.upload()
     await engine.settled()
-    #expect(server.atOnce.count == 2)
+    #expect(server.atOnce.count == 3)
     #expect(
       engine.lastTries.values.map { $0 } == ["Last try: the server answered \(status)"])
   }
@@ -1004,7 +1385,7 @@ struct DiveComputerEngineTests {
       activeOrigin: InMemoryActiveOriginStore(ImportServer.origin),
       background: NoBackgroundExecution(), connectivity: route, applicationSupport: root,
       userAgent: ClientHarness.userAgent)
-    let engine = try await walked(session)
+    let engine = try await walked(session, dives: F.perdixDownload)
     #expect(engine.archives.count == 1)
     #expect(server.atOnce.isEmpty)
     #expect(notifier.posted.map(\.title) == ["Sign in to import 2 dives"])

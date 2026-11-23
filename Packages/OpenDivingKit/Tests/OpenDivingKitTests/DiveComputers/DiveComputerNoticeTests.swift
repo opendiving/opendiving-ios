@@ -3,7 +3,7 @@ import Testing
 
 @testable import OpenDivingKit
 
-/// What a download's notification says, from a canned answer, and what a tap opens.
+/// What a download's notification says, from canned answers, and what a tap opens.
 struct DiveComputerNoticeTests {
   private let perdix = "Shearwater Perdix 3"
 
@@ -31,9 +31,17 @@ struct DiveComputerNoticeTests {
       LogbookImportRead.self, from: JSONSerialization.data(withJSONObject: json))
   }
 
+  /// What one import, the whole of its download, says.
+  private func told(_ read: LogbookImportRead, from computer: String, units: UnitSystem)
+    -> DiveComputerNotice?
+  {
+    DiveComputerNotice.imported(
+      read.dives, imports: [read.uuid], download: UUID(), from: computer, units: units)
+  }
+
   @Test func oneNewDiveNamesItsFactsAndOpensIt() throws {
     let read = try answer([("new", "2026-10-12T09:41:00+03:00")])
-    let notice = try #require(DiveComputerNotice.imported(read, from: perdix, units: .metric))
+    let notice = try #require(told(read, from: perdix, units: .metric))
     #expect(notice.title == "1 new dive imported")
     #expect(
       notice.body == "12 October, 09:41 · 19.0 m · 51 min. Downloaded from Shearwater Perdix 3.")
@@ -46,7 +54,7 @@ struct DiveComputerNoticeTests {
       ("new", "2026-10-14T09:00:00+03:00"), ("new", "2026-10-13T09:00:00+03:00"),
       ("new", "2026-10-12T09:00:00+03:00"), ("unchanged", "2026-10-01T09:00:00+03:00"),
     ])
-    let notice = try #require(DiveComputerNotice.imported(spread, from: perdix, units: .metric))
+    let notice = try #require(told(spread, from: perdix, units: .metric))
     #expect(notice.title == "3 new dives imported")
     #expect(notice.body == "12–14 October. Downloaded from Shearwater Perdix 3.")
     #expect(notice.target == .importPage(spread.uuid))
@@ -55,20 +63,20 @@ struct DiveComputerNoticeTests {
       ("new", "2026-10-12T15:00:00+03:00"), ("new", "2026-10-12T09:00:00+03:00"),
     ])
     #expect(
-      DiveComputerNotice.imported(oneDay, from: perdix, units: .metric)?.body
+      told(oneDay, from: perdix, units: .metric)?.body
         == "12 October. Downloaded from Shearwater Perdix 3.")
   }
 
   @Test func recordingsAloneArePassiveAndNameTheDives() throws {
     let one = try answer([("modified", "2026-10-12T09:41:00+03:00")])
-    let notice = try #require(DiveComputerNotice.imported(one, from: perdix, units: .metric))
+    let notice = try #require(told(one, from: perdix, units: .metric))
     #expect(notice.title == "Recording added to 1 dive")
     #expect(notice.body == "Shearwater Perdix 3 also recorded your dive of 12 October, 09:41.")
     #expect(notice.passive)
     #expect(notice.target == .importPage(one.uuid))
 
     let three = try answer(Array(repeating: ("modified", "2026-10-12T09:41:00+03:00"), count: 3))
-    let several = try #require(DiveComputerNotice.imported(three, from: perdix, units: .metric))
+    let several = try #require(told(three, from: perdix, units: .metric))
     #expect(several.title == "Recordings added to 3 dives")
     #expect(several.body == "Shearwater Perdix 3 also recorded 3 dives already in your logbook.")
   }
@@ -78,7 +86,7 @@ struct DiveComputerNoticeTests {
       ("new", "2026-10-12T09:41:00+03:00"), ("modified", "2026-10-11T09:41:00+03:00"),
       ("modified", "2026-10-10T09:41:00+03:00"),
     ])
-    let notice = try #require(DiveComputerNotice.imported(read, from: perdix, units: .metric))
+    let notice = try #require(told(read, from: perdix, units: .metric))
     #expect(notice.title == "1 new dive imported")
     #expect(
       notice.body == "Recordings were added to 2 other dives. Downloaded from Shearwater Perdix 3.")
@@ -87,13 +95,45 @@ struct DiveComputerNoticeTests {
       ("new", "2026-10-12T09:41:00+03:00"), ("modified", "2026-10-11T09:41:00+03:00"),
     ])
     #expect(
-      DiveComputerNotice.imported(single, from: perdix, units: .metric)?.body
+      told(single, from: perdix, units: .metric)?.body
         == "A recording was added to 1 other dive. Downloaded from Shearwater Perdix 3.")
+  }
+
+  @Test func aDownloadsImportsAreToldTogetherAndOpenTheDiveComputersScreen() throws {
+    let first = try answer([("new", "2026-10-14T09:00:00+03:00")])
+    let second = try answer([
+      ("new", "2026-10-13T09:00:00+03:00"), ("unchanged", "2026-10-01T09:00:00+03:00"),
+    ])
+    let download = UUID()
+    let notice = try #require(
+      DiveComputerNotice.imported(
+        first.dives + second.dives, imports: [first.uuid, second.uuid], download: download,
+        from: perdix, units: .metric))
+    #expect(notice.id == "import-" + download.uuidString.lowercased())
+    #expect(notice.title == "2 new dives imported")
+    #expect(notice.body == "13–14 October. Downloaded from Shearwater Perdix 3.")
+    #expect(notice.target == .diveComputers)
+
+    // One new dive among them opens it, whichever import made it.
+    let unchanged = try answer([("unchanged", "2026-10-01T09:00:00+03:00")])
+    let one = try #require(
+      DiveComputerNotice.imported(
+        unchanged.dives + first.dives, imports: [unchanged.uuid, first.uuid], download: download,
+        from: perdix, units: .metric))
+    #expect(one.target == .dive(try #require(first.dives.first?.uuid)))
+
+    let recorded = try answer([("modified", "2026-10-12T09:41:00+03:00")])
+    let recordings = try #require(
+      DiveComputerNotice.imported(
+        recorded.dives + recorded.dives, imports: [recorded.uuid, UUID()], download: download,
+        from: perdix, units: .metric))
+    #expect(recordings.passive)
+    #expect(recordings.target == .diveComputers)
   }
 
   @Test func anImportOfNothingNewSaysNothing() throws {
     let read = try answer([("unchanged", "2026-10-12T09:41:00+03:00"), ("skipped", "2026-10-11")])
-    #expect(DiveComputerNotice.imported(read, from: perdix, units: .metric) == nil)
+    #expect(told(read, from: perdix, units: .metric) == nil)
   }
 
   @Test func theWaitingNoticesOpenTheDiveComputersScreen() {

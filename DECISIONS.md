@@ -359,17 +359,17 @@ the reader moves, is the lossless record, and a reader release writes a member o
 takes it over. Rejected: writing them under the recording's `extensions.opendiving`, which the api
 never read and which would be an app-side mapping beside the reader's.
 
-## A download is imported at once, under its own key, and kept until the server answers
+## A download goes up while it runs, each archive under its own key, and is kept until the server answers
 
-Each walk keeps every dive on disk before the next transfer starts, and its dives become one
-archive, the only copy of them once the fingerprint moves. It goes up with
+A walk keeps each dive on disk before the next transfer. While it runs, once the upload before is
+answered and 30 seconds after it began, the settled dives kept since the last archive become the
+next: a Suunto's go singly, a Shearwater's several at a time. Each goes up with
 `POST /imports?apply=true` under an `Idempotency-Key` kept with it, so a retry after a lost answer
-reads the first import rather than making a second. An applied answer removes it; a 410 removes it
-silently; a 409, a 429, a 5xx or no answer waits for the next occasion; any other 4xx, and a pending
-answer from a server that cannot apply in one request, keep it unsent. Only a loaded account
-uploads. With no route, iOS gets a request for the server's health, naming no account. Rejected:
-handing iOS the upload, whose token expires in 30 minutes; uniting the archives that wait, which
-only one pending import per account ever needed.
+reads the first import; nothing is cut behind one that waits, each kept until the server answers.
+With no route, iOS gets a request for the server's health. Rejected: one archive per walk, which
+keeps every dive off the logbook until the last is read; one per dive, an import's whole cost each;
+re-cutting a waiting archive with what arrived since, which loses the replay where the first request
+may have been applied; handing iOS the upload, whose token expires in 30 minutes.
 
 ## A computer paired beside one other waits for the order before its dives go up
 

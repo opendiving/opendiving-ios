@@ -2,10 +2,17 @@ import Foundation
 
 /// The upload: each archive of the loaded account, oldest first, with `POST /imports?apply=true`
 /// under the archive's own key, by a running app whose account has loaded — loaded first, quietly,
-/// where this process has not.
+/// where this process has not. One upload is in flight at a time.
+///
+/// **While a walk runs, its dives go up.** Once the upload before has been answered and at least
+/// ``uploadFloor`` after it began, the settled dives the walk kept since its last archive are cut
+/// into the next — a Suunto's one at a time, a Shearwater's several — and sent. An archive that
+/// waits for another try is sent again before anything is cut after it; what the walk keeps
+/// meanwhile is the archive after it. A dive the time-zone question waits for stays with the walk,
+/// and what is left when the walk ends goes at once.
 ///
 /// - An applied import: the archive leaves the phone, its dives join what the server answered
-///   for, every list over the account reads again, and the notification says what was imported.
+///   for, and every list over the account reads again, so each dive shows as it lands.
 /// - A pending import, a server that cannot apply in one request: that import, which the
 ///   upload made, is discarded and the archive kept as refused. A pending answer is never taken
 ///   for a written dive.
@@ -20,13 +27,53 @@ import Foundation
 /// - The computer awaits *Which computer comes first?*: the archive stays, unsent and unsaid, with
 ///   no wake, until the answer has been sent.
 ///
-/// The diver is told at most once that an archive's dives were downloaded and wait, and at most
-/// once that they were imported: a repeat under the key answers the import the first attempt
-/// made.
+/// The diver hears of a walk's archives together, once the walk has ended: at most once that its
+/// dives were downloaded and wait, and, once the last of them is answered, at most once what they
+/// imported — a repeat under a key answers the import the first attempt made.
 extension DiveComputerEngine {
+  /// The walk whose dives go up while it runs.
+  struct WalkInFlight {
+    let keeper: WalkKeeper
+    let downloads: DownloadStore
+    let store: DiveComputerStore
+    /// Kept before the account loaded: its dives may yet move to another, so they go at the end.
+    let marked: Bool
+    var identity: DiveComputerIdentity?
+    var watchZone: TimeZone?
+    /// The dives kept that no archive holds yet, as walked.
+    var pending: [DownloadedDive] = []
+    /// The archives cut from it so far.
+    var parts = 0
+    /// Its computer has nothing more to give: what is left is cut by the walk's end.
+    var ended = false
+
+    var id: UUID { keeper.id }
+  }
+
+  /// What the server answered for one download's archives so far.
+  struct ImportedDownload {
+    var computer: String
+    var rows: [LogbookImportDive] = []
+    var imports: [UUID] = []
+  }
+
+  /// How long after an upload began the next may begin while a walk runs: the server answers an
+  /// import faster than a Shearwater reads a dive, and each import reads the account's sites,
+  /// people, gear and tags and works out its totals again.
+  static let uploadFloor: TimeInterval = 30
+
   /// An occasion to upload: a walk's end, a launch, a route, a sign-in, the account loading,
-  /// iOS completing the request left with it, *Sync now*.
+  /// iOS completing the request left with it, *Sync now*. While a walk runs, one waits for the
+  /// floor as a dive kept does.
   public func upload() {
+    if inFlight?.ended == false {
+      Task { await uploadWhileWalking() }
+      return
+    }
+    startUpload()
+  }
+
+  private func startUpload() {
     guard uploading == nil else {
       uploadAgain = true
       return
@@ -39,10 +86,101 @@ extension DiveComputerEngine {
       } while uploadAgain
       uploading = nil
       isUploading = false
+      if walkHasWork() { armTurn() }
     }
   }
 
+  // MARK: - While a walk runs
+
+  /// A dive kept, or a turn of the floor, while a walk runs: once the upload before has been
+  /// answered and the floor has passed, the walk's settled dives kept since its last archive
+  /// become the next archive, and the upload goes.
+  func uploadWhileWalking() async {
+    guard let flight = inFlight, !flight.ended, uploading == nil, cutting == nil else { return }
+    guard floorPassed() else {
+      armTurn()
+      return
+    }
+    if canCut(flight) {
+      let task = Task { await cut() }
+      cutting = task
+      await task.value
+      cutting = nil
+    }
+    startUpload()
+  }
+
+  private func floorPassed() -> Bool {
+    guard let began = lastUploadBegan else { return true }
+    return now().timeIntervalSince(began) >= Self.uploadFloor
+  }
+
+  /// An archive cut now goes at once: a route, the walk's account loaded and signed in, its
+  /// computer not awaiting the order's question, and no archive waiting to go before it.
+  private func canCut(_ flight: WalkInFlight) -> Bool {
+    guard !flight.marked, case .signedIn = session.state, session.accountLoaded,
+      session.user?.uuid == flight.downloads.account, session.connectivity.isRouteAvailable,
+      let origin = session.state.origin, let identity = flight.identity
+    else { return false }
+    let awaiting = awaitingOrder(origin: origin, account: flight.downloads.account)
+    return !awaiting.contains(record(of: identity, in: flight.store))
+      && sendable(flight.downloads, origin).isEmpty
+  }
+
+  /// The walk's settled dives kept since its last archive become the next. Where the archive
+  /// cannot be kept, they stay with the walk for the next occasion or its end.
+  private func cut() async {
+    guard let flight = inFlight, let identity = flight.identity else { return }
+    let going = flight.pending.filter { !waitsForZone($0, watchZone: flight.watchZone) }
+    guard !going.isEmpty else { return }
+    let failure = await archive(
+      going, identity: identity, record: record(of: identity, in: flight.store),
+      instantZone: flight.watchZone, marked: flight.marked, walk: flight.id, part: flight.parts,
+      into: flight.downloads)
+    guard failure == nil else { return }
+    let fingerprints = Set(going.map(\.fingerprint))
+    flight.keeper.archived(fingerprints)
+    inFlight?.pending.removeAll { fingerprints.contains($0.fingerprint) }
+    inFlight?.parts += 1
+    reload()
+  }
+
+  private func record(of identity: DiveComputerIdentity, in store: DiveComputerStore) -> String {
+    store.record(family: identity.family, serial: identity.serial)?.id
+      ?? DiveComputerRecord(identity: identity).id
+  }
+
+  /// Something the next turn could send: an archive waiting, or settled dives to cut.
+  private func walkHasWork() -> Bool {
+    guard let flight = inFlight, !flight.ended, let origin = session.state.origin else {
+      return false
+    }
+    return !sendable(flight.downloads, origin).isEmpty
+      || (canCut(flight)
+        && flight.pending.contains { !waitsForZone($0, watchZone: flight.watchZone) })
+  }
+
+  /// The next turn of the floor: ``uploadFloor`` after the last upload began, or after now where
+  /// that has passed.
+  private func armTurn() {
+    guard inFlight?.ended == false else { return }
+    let moment = now()
+    let floorEnds = lastUploadBegan?.addingTimeInterval(Self.uploadFloor)
+    let due =
+      floorEnds.flatMap { $0 > moment ? $0 : nil } ?? moment.addingTimeInterval(Self.uploadFloor)
+    turn?.cancel()
+    let sleep = sleep
+    turn = Task { [weak self] in
+      guard (try? await sleep(due)) != nil, !Task.isCancelled else { return }
+      self?.turn = nil
+      await self?.uploadWhileWalking()
+    }
+  }
+
+  // MARK: - A pass
+
   private func uploadAll() async {
+    defer { tellImported() }
     // What a walk kept before a load it outlasted moves to the account the load named.
     if session.accountLoaded { settleMarks() }
     guard let origin = session.state.origin, let (kept, _) = keeping() else { return }
@@ -76,6 +214,8 @@ extension DiveComputerEngine {
         return
       }
       guard let client = try? session.requireClient() else { return }
+      // The next turn sends it.
+      guard inFlight?.ended != false || floorPassed() else { return }
       guard await send(archive, downloads, client, origin: origin) else { return }
     }
   }
@@ -87,6 +227,7 @@ extension DiveComputerEngine {
   ) async -> Bool {
     let computer = archive.summary.computers.first?.title ?? ""
     lastTries[archive.id] = nil
+    lastUploadBegan = now()
     do {
       let answer = try await client.importAtOnce(
         files: [ImportFile(file: downloads.url(for: archive), filename: archive.filename)],
@@ -103,9 +244,10 @@ extension DiveComputerEngine {
       if let stores = AccountStores.current(session) {
         OutboxHub.hub(for: stores.directory).listsChanged()
       }
-      if let notice = DiveComputerNotice.imported(answer, from: computer, units: session.units) {
-        notifier?.post(notice)
-      }
+      var download = imported[archive.group] ?? ImportedDownload(computer: computer)
+      download.rows += answer.dives
+      download.imports.append(answer.uuid)
+      imported[archive.group] = download
       return true
     } catch let error as APIError {
       noteUpload(archive, Self.logged(error))
@@ -137,6 +279,24 @@ extension DiveComputerEngine {
     }
   }
 
+  /// Each download whose archives are all answered, its walk ended, says what they imported: one
+  /// with an archive still to send waits for it, and one refused or awaiting the order is left
+  /// aside.
+  private func tellImported() {
+    guard !imported.isEmpty, let origin = session.state.origin, let downloads = keptDownloads()
+    else { return }
+    let unsent = Set(sendable(downloads, origin).map(\.group))
+    for (download, told) in imported where download != inFlight?.id && !unsent.contains(download) {
+      imported[download] = nil
+      if let notice = DiveComputerNotice.imported(
+        told.rows, imports: told.imports, download: download, from: told.computer,
+        units: session.units)
+      {
+        notifier?.post(notice)
+      }
+    }
+  }
+
   /// A line in the phone's watch log for each try, which names the archive and never the account.
   private func noteUpload(_ archive: DownloadArchive, _ outcome: String) {
     watch?.note("upload \(archive.id): \(outcome)")
@@ -162,7 +322,7 @@ extension DiveComputerEngine {
     try? downloads.save(refused)
   }
 
-  /// No route: each archive not yet announced says its dives wait, and, where any waits, iOS is
+  /// No route: each download not yet announced says its dives wait, and, where any waits, iOS is
   /// left the request that wakes the app once there is one. With a route the server itself did
   /// not answer, which is neither *No internet* nor anything a wake would mend: the next
   /// occasion tries again.
@@ -170,8 +330,8 @@ extension DiveComputerEngine {
     guard !session.connectivity.isRouteAvailable, !sendable(downloads, origin).isEmpty else {
       return
     }
-    announce(downloads, origin) { archive, computer in
-      .noInternet(dives: archive.summary.dives, from: computer, id: archive.id)
+    announce(downloads, origin) { dives, computer, download in
+      .noInternet(dives: dives, from: computer, id: download)
     }
     wake?.leave(for: origin)
   }
@@ -181,20 +341,31 @@ extension DiveComputerEngine {
   private func announceSignedOut() {
     guard let (account, _) = keeping(), let origin = session.state.origin else { return }
     let downloads = DownloadStore(store: session.store, origin: origin, account: account)
-    announce(downloads, origin) { archive, computer in
-      .signedOut(dives: archive.summary.dives, from: computer, id: archive.id)
+    announce(downloads, origin) { dives, computer, download in
+      .signedOut(dives: dives, from: computer, id: download)
     }
   }
 
+  /// One notice for each download with an archive not yet announced, once its walk has ended,
+  /// counting the dives of every archive of it that waits.
   private func announce(
     _ downloads: DownloadStore, _ origin: ServerOrigin,
-    _ notice: (DownloadArchive, String) -> DiveComputerNotice
+    _ notice: (_ dives: Int, _ computer: String, _ download: UUID) -> DiveComputerNotice
   ) {
-    for archive in sendable(downloads, origin) where !archive.announced {
-      var announced = archive
-      announced.announced = true
-      guard (try? downloads.save(announced)) != nil else { continue }
-      notifier?.post(notice(archive, archive.summary.computers.first?.title ?? ""))
+    let waiting = sendable(downloads, origin)
+    var seen: Set<UUID> = []
+    for download in waiting.map(\.group) where seen.insert(download).inserted {
+      guard download != inFlight?.id else { continue }
+      let archives = waiting.filter { $0.group == download }
+      var saved = false
+      for archive in archives where !archive.announced {
+        var announced = archive
+        announced.announced = true
+        if (try? downloads.save(announced)) != nil { saved = true }
+      }
+      guard saved else { continue }
+      let dives = archives.reduce(0) { $0 + $1.summary.dives }
+      notifier?.post(notice(dives, archives[0].summary.computers.first?.title ?? "", download))
     }
   }
 
