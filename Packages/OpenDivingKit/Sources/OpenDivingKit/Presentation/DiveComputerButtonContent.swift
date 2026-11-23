@@ -13,7 +13,7 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
   public enum State: Hashable, Sendable {
     /// Connecting or downloading: the icon's bars rise in a loop.
     case working
-    /// The time-zone question waits on the diver.
+    /// A question waits on the diver: which dives to download, or the time zone.
     case waiting
     /// The dives are kept, or there were none to keep.
     case succeeded
@@ -66,6 +66,9 @@ public struct DiveComputerButtonContent: Hashable, Sendable {
       } else {
         self.init(ring: .indeterminate, state: .working, accessibilityValue: text)
       }
+    case .choosingDives:
+      self.init(
+        ring: .fraction(1), state: .waiting, accessibilityValue: DiveComputerText.diveQuestion)
     case .askingTimeZone:
       self.init(
         ring: .fraction(1), state: .waiting, accessibilityValue: DiveComputerText.timeZoneQuestion)

@@ -22,7 +22,6 @@ public enum DiveComputerText {
   public static let accountLoading =
     "Your account is still loading; connect the dive computer again in a moment."
   public static let lockHint = "You can lock the phone. The download keeps going."
-  public static let downloadAll = "Download all dives"
   public static let noDives = "No dives on this computer."
   public static let timeZoneQuestion = "Which time zone were these dives in?"
   public static let connecting = "Connecting"
@@ -64,12 +63,74 @@ public enum DiveComputerText {
     + " swipe the app away, and it can stop after you turn Bluetooth off or use flight mode."
     + " Open the app to start it again."
   public static let downloadNew = "Download new dives"
+  /// Lists every dive on the computer that the logbook lacks, to choose from.
+  public static let chooseDives = "Choose dives to download"
+
+  // MARK: - Which dives to download
+
+  /// Asked once a computer new to the account has listed its dives.
+  public static let diveQuestion = "Which dives do you want to download?"
+
+  /// *Download all 12 dives*, *Download 1 dive*.
+  public static func downloadAllListed(_ dives: Int) -> String {
+    dives == 1 ? "Download 1 dive" : "Download all \(dives) dives"
+  }
+
+  public static let chooseFromList = "Choose dives"
+  public static let onlyFutureDives = "Only future dives"
+
+  /// *12 dives on this computer are not in your logbook.*
+  public static func notInLogbook(_ dives: Int) -> String {
+    "\(count(dives)) on this computer \(dives == 1 ? "is" : "are") not in your logbook."
+  }
+
+  /// *12 dives on this computer.*, where the server did not say which the logbook holds.
+  public static func onComputerUnchecked(_ dives: Int) -> String {
+    "\(count(dives)) on this computer."
+  }
+
+  /// Beneath the question or the list, where the server did not say which dives the logbook
+  /// holds.
+  public static let logbookNotChecked =
+    "Your logbook could not be checked, so some of these dives may already be in it."
+
+  /// *Downloading them takes about 40 minutes.*
+  public static func downloadTakes(_ seconds: TimeInterval, dives: Int) -> String {
+    "Downloading \(dives == 1 ? "it" : "them") takes \(about(seconds))."
+  }
+
+  /// The list's heading: the dives it holds.
+  public static let notInLogbookHeading = "Dives not in your logbook"
+  public static let onComputerHeading = "Dives on this computer"
+  public static let chooseAll = "Choose all"
+  public static let chooseNone = "Choose none"
+
+  /// *3 of 12 dives chosen*.
+  public static func chosen(_ chosen: Int, of dives: Int) -> String {
+    "\(chosen) of \(count(dives)) chosen"
+  }
+
+  /// *About 9 minutes to download*.
+  public static func chosenTakes(_ seconds: TimeInterval) -> String {
+    let text = about(seconds)
+    return text.prefix(1).uppercased() + text.dropFirst() + " to download"
+  }
+
+  /// *Download 3 dives*: the list's confirmation.
+  public static func downloadChosen(_ dives: Int) -> String {
+    dives == 0 ? "Download" : "Download \(count(dives))"
+  }
+
+  /// The outcome where the logbook holds every dive the computer lists.
+  public static let allInLogbook = "Every dive on this computer is already in your logbook."
+  /// The outcome of *Only future dives*.
+  public static let onlyFutureChosen = "Only dives made from now on will be downloaded."
 
   // MARK: - Forgetting
 
   public static let forget = "Forget this dive computer"
   public static let forgetMessage =
-    "The next download from it, on any server, takes every dive again."
+    "Its next download, on any server, asks which of its dives to download."
 
   /// *Forget Perdix 3?*
   public static func forgetTitle(_ record: DiveComputerRecord) -> String {
@@ -87,8 +148,8 @@ public enum DiveComputerText {
 
   /// Asked before a download waiting to be imported is removed from the phone.
   public static let removeDownloadWarning =
-    "These dives have not been imported. The next download takes them again only with Download"
-    + " all dives."
+    "These dives have not been imported. The next download takes them again only if you choose"
+    + " them with Choose dives to download."
 
   /// *3 dives waiting to upload*.
   public static func waitingToUpload(_ dives: Int) -> String {
@@ -138,13 +199,18 @@ public enum DiveComputerText {
 
   /// *About 4 minutes left*, *About 1 hour 10 minutes left*, *Less than a minute left*.
   public static func timeLeft(_ seconds: TimeInterval) -> String {
-    guard seconds >= 60 else { return "Less than a minute left" }
+    let text = about(seconds)
+    return text.prefix(1).uppercased() + text.dropFirst() + " left"
+  }
+
+  /// *about 4 minutes*, *about 1 hour 10 minutes*, *less than a minute*.
+  static func about(_ seconds: TimeInterval) -> String {
+    guard seconds >= 60 else { return "less than a minute" }
     let minutes = Int((seconds / 60).rounded())
     func units(_ n: Int, _ unit: String) -> String { "\(n) \(unit)" + (n == 1 ? "" : "s") }
-    guard minutes >= 60 else { return "About \(units(minutes, "minute")) left" }
+    guard minutes >= 60 else { return "about \(units(minutes, "minute"))" }
     let rest = minutes % 60
-    return "About \(units(minutes / 60, "hour"))" + (rest == 0 ? "" : " \(units(rest, "minute"))")
-      + " left"
+    return "about \(units(minutes / 60, "hour"))" + (rest == 0 ? "" : " \(units(rest, "minute"))")
   }
 
   /// *No new dives since 12 October.*

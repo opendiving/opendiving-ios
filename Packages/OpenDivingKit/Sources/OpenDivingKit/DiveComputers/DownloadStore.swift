@@ -3,8 +3,8 @@ import Foundation
 /// One account's downloads on the phone, under `Downloads/` in its directory: the walks whose
 /// dives are being kept as they arrive or wait for a time zone, each a record beside a folder of
 /// the dives' bytes; the archives waiting to be imported, each a record beside its zip; and, per
-/// computer, the dives the server has answered for, which a walk does not take again until the
-/// computer's fingerprint has passed them.
+/// computer, the dives the server has answered for and those the diver did not choose to
+/// download, which a walk does not take again until the computer's fingerprint has passed them.
 ///
 /// A record this build cannot read is kept and never overwritten (``KeptFolder``), and the bytes
 /// beside it with it.
@@ -110,18 +110,26 @@ public struct DownloadStore: Sendable {
     try? FileManager.default.removeItem(at: url(for: archive))
   }
 
-  // MARK: - What the server answered for
+  // MARK: - What the server answered for, and what the diver did not choose
 
-  /// The dives of a computer the server has answered for since its fingerprint last moved.
+  /// The dives of a computer the server has answered for, or the diver did not choose, since its
+  /// fingerprint last moved.
   func delivered(_ record: String) -> Set<UUID> { Set(deliveredRecords.read(record) ?? []) }
 
-  /// Every computer's dives the server has answered for.
+  /// Every computer's dives the server has answered for, or the diver did not choose.
   func allDelivered() -> Set<UUID> {
     Set(deliveredRecords.load().values.flatMap(\.value))
   }
 
   func deliver(_ dives: [UUID], of record: String) throws {
     let kept = delivered(record).union(dives)
+    try deliveredRecords.write(kept.sorted { $0.uuidString < $1.uuidString }, name: record)
+  }
+
+  /// The diver chose from a computer's list: what they did not choose is not taken again, and
+  /// what they chose is taken whatever an earlier choice left out.
+  func choose(_ chosen: [UUID], declined: [UUID], of record: String) throws {
+    let kept = delivered(record).subtracting(chosen).union(declined)
     try deliveredRecords.write(kept.sorted { $0.uuidString < $1.uuidString }, name: record)
   }
 
