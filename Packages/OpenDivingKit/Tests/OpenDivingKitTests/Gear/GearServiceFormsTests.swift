@@ -305,7 +305,8 @@ struct GearServiceFormsTests {
     #expect(outbox.items.isEmpty)
     // Landed, and the list not yet read again.
     #expect(!service.isActive(read, items: outbox.items))
-    service.schedulesRead([read])
+    await service.refresh()
+    #expect(service.schedules.phase == .loaded)
     #expect(service.isActive(read, items: outbox.items))
   }
 

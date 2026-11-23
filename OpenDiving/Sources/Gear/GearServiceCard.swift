@@ -48,7 +48,6 @@ struct GearServiceCard: View {
       }
     }
     .task { if lookups == nil { lookups = LookupsModel(session: session) } }
-    .onChange(of: service.schedules.items) { _, read in service.schedulesRead(read) }
     .alert(
       "Not saved",
       isPresented: Binding(get: { queueError != nil }, set: { if !$0 { queueError = nil } })

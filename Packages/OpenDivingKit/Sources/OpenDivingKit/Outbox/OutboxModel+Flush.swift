@@ -341,7 +341,7 @@ private struct Flush {
     if case .updateServiceSchedule(let ref, _, let update) = item.operation,
       let active = update.isActive, let uuid = ref.serverUUID
     {
-      hub.landedToggles[uuid] = active
+      hub.landedToggles[uuid] = (active, Date())
     }
     outbox.remove(item.id)
     hub.answers[item.id] = nil

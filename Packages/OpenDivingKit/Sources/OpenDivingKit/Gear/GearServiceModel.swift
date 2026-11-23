@@ -42,13 +42,12 @@ public final class GearServiceModel {
       else { continue }
       return item.isFailed ? schedule.isActive : active
     }
-    return hub?.landedToggles[schedule.uuid] ?? schedule.isActive
-  }
-
-  /// `read` came back from the server, with whatever toggles of theirs had landed.
-  public func schedulesRead(_ read: [GearServiceScheduleRead]) {
-    guard let hub else { return }
-    for schedule in read { hub.landedToggles[schedule.uuid] = nil }
+    if let landed = hub?.landedToggles[schedule.uuid],
+      schedules.readSince.map({ $0 < landed.at }) ?? true
+    {
+      return landed.active
+    }
+    return schedule.isActive
   }
 
   private var hub: OutboxHub? {
