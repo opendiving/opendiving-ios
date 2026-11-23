@@ -130,6 +130,15 @@ public struct ServerStateStore: Sendable {
     }
   }
 
+  /// Points the phone at the server with the session a launch was handed, for the ``Session``
+  /// built next to find. Whatever session the server had here ends first: the token can be
+  /// another account's.
+  public func start(_ signIn: LaunchSignIn) throws {
+    try endSession(for: signIn.origin)
+    try secrets.setSecret(signIn.refreshToken, for: signIn.origin.description)
+    activeOrigin.save(signIn.origin)
+  }
+
   /// The account's invite-link token, a bearer credential, kept as a secret while the account's
   /// cache keeps the rest of the link.
   func inviteLinkToken(for origin: ServerOrigin, account: UUID) -> String? {
