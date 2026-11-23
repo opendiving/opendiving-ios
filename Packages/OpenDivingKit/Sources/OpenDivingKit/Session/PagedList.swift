@@ -64,6 +64,9 @@ public final class PagedList<Item: Codable & Sendable> {
   public var lastUpdated: Date? { isReading ? nil : fetchedAt }
   /// When the items shown were fetched, while they are the cache's rather than this visit's.
   private(set) var fetchedAt: Date? = nil
+  /// When the read behind the items shown began, once one has landed: they are what the server
+  /// held then or later.
+  private(set) var readSince: Date? = nil
   /// The server's count of every row, from the latest page read.
   private var totalCount: Int? = nil
   /// A read of every page is on its way, begun while the phone believed it had a route.
@@ -193,6 +196,7 @@ public final class PagedList<Item: Codable & Sendable> {
   }
 
   private func readPages(through last: Int) async {
+    let began = Date()
     generation += 1
     let generation = generation
     // A later page on its way belongs to the pages this replaces, and is dropped when it lands.
@@ -229,6 +233,7 @@ public final class PagedList<Item: Codable & Sendable> {
       nextPage = page
       pageError = nil
       fetchedAt = nil
+      readSince = began
       phase = .loaded
       keep(fetchedUnder: stores, firstPage: true)
     } catch {

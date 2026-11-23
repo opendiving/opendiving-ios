@@ -1,8 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A gear item's page, by its uuid: its hero, its service, the dives it was used on and its
-/// notes. It is edited, archived, unarchived and deleted from its top bar.
+/// A gear item's page, by its uuid: its hero, then two tabs — Service, its notes over its
+/// schedules and history; and Dives, those it was used on. It is edited, archived, unarchived and
+/// deleted from its top bar.
 struct GearItemDetailView: View {
   let gearItemUUID: UUID
   @Environment(Session.self) private var session
@@ -31,6 +32,12 @@ private struct GearItemDetailContent: View {
   @State private var confirmsArchive = false
   @State private var confirmsDelete = false
   @State private var queueError: String?
+  @State private var section = GearItemSection.service
+  @State private var scroll = ScrollPosition(edge: .top)
+  @State private var tabsTop: CGFloat = 0
+  @State private var reselect = TabsReselect.head
+  @State private var tabsStuck = false
+  @State private var serviceRoute: GearServiceRoute?
 
   init(model: GearItemDetailModel) {
     _model = State(initialValue: model)
@@ -54,29 +61,53 @@ private struct GearItemDetailContent: View {
               content: GearItemPageContent.hero(
                 item, units: session.units, today: CalendarDate.today()),
               backdrop: .plain)
-            Group {
-              if let lastUpdated = model.page.lastUpdated {
-                LastUpdatedLine(date: lastUpdated)
-              }
-              if model.page.hasPendingEdit {
-                PendingEditLine()
-              }
-              GearServiceCard(gearItem: item, service: model.service)
-              RecordDivesSection(
-                list: model.dives, content: .gearItem, units: session.units, logDive: .create)
-              if let notes = GearItemPageContent.notes(item) {
-                SectionCard(title: "Notes", icon: .fileText) {
-                  Text(notes)
-                    .foregroundStyle(.secondary)
+            if model.page.lastUpdated != nil || model.page.hasPendingEdit {
+              VStack(spacing: 16) {
+                if let lastUpdated = model.page.lastUpdated {
+                  LastUpdatedLine(date: lastUpdated)
                 }
+                if model.page.hasPendingEdit {
+                  PendingEditLine()
+                }
+              }
+              .padding(.horizontal)
+            }
+            ScrollingSectionTabs(
+              selection: $section, isStuck: $tabsStuck, top: $tabsTop, title: tabTitle,
+              onReselect: scrollOnReselect)
+            Group {
+              switch section {
+              case .service:
+                if let notes = GearItemPageContent.notes(item) {
+                  SectionCard(title: "Notes", icon: .fileText) {
+                    Text(notes)
+                      .foregroundStyle(.secondary)
+                  }
+                }
+                GearServiceCard(gearItem: item, service: model.service, route: $serviceRoute)
+              case .dives:
+                RecordDivesSection(
+                  list: model.dives, content: .gearItem, units: session.units, logDive: .create,
+                  isCarded: false)
               }
             }
             .padding(.horizontal)
+            .hiddenUnderTopBar()
           }
+          .coordinateSpace(.pageContent)
           .padding(.bottom)
+        }
+        .scrollPosition($scroll)
+        .tabsReselect($reselect, tabsTop: tabsTop)
+        .overlay(alignment: .top) {
+          StuckSectionTabs(
+            selection: $section, isStuck: tabsStuck, title: tabTitle, onReselect: scrollOnReselect)
         }
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(item) }
+        .navigationDestination(item: $serviceRoute) {
+          GearServiceCard.form($0, gearItem: item.uuid)
+        }
         .confirmationDialog(
           "Archive gear", isPresented: $confirmsArchive, titleVisibility: .visible
         ) {
@@ -146,6 +177,17 @@ private struct GearItemDetailContent: View {
   @discardableResult private func queue(_ operation: OutboxOperation) -> Bool {
     queueError = GearItemDetailModel.queue(operation, in: outbox)
     return queueError == nil
+  }
+
+  private func tabTitle(_ section: GearItemSection) -> String {
+    switch section {
+    case .service: section.title
+    case .dives: DiveSiteSummary.counted(section.title, model.dives.count ?? 0)
+    }
+  }
+
+  private func scrollOnReselect() {
+    withAnimation { scroll.scroll(to: reselect) }
   }
 
   private var title: String {
