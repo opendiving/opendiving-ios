@@ -10,12 +10,22 @@ public struct SiteFinderRowContent: Hashable, Sendable, Identifiable {
   /// `4.2 km` from the camera; nil without one, and for a site with no pin.
   public let distance: String?
   public let isPlace: Bool
-  /// A site's mark; nil on a place.
+  /// A site's mark, which tints its icon; nil on a place.
   public let mark: DiveSiteMark?
   /// A site's credit, owed beside it; a place's goes once under the list.
   public let credit: String?
   /// A place's count of sites near it.
   public let nearby: String?
+
+  /// The mark spelled out beside the name: a proposed or private site's. A Commons site is most
+  /// of the list, so its coral icon says it alone.
+  public var badge: DiveSiteMark? { mark == .commons ? nil : mark }
+
+  /// What VoiceOver reads for the icon: the mark, where no badge reads it; nil where the icon
+  /// says nothing the row does not.
+  public var iconAccessibilityLabel: String? {
+    badge == nil ? mark?.accessibilityLabel : nil
+  }
 
   public init(_ row: DiveSiteSearchRow, units: UnitSystem) {
     id = row.id

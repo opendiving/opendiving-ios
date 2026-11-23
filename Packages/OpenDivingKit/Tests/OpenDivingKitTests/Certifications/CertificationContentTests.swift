@@ -16,7 +16,7 @@ struct CertificationContentTests {
 
   @Test func aCardCarriesItsLevelAgencyAndFront() throws {
     let card = CertificationCardContent(try Self.stored(), today: Self.today)
-    #expect(card.name == "Solo Diver" && card.facts == [Fact(text: "SDI")])
+    #expect(card.name == "Solo Diver" && card.agency == "SDI")
     #expect(card.front?.side == "front" && card.badge == nil)
     #expect(card.missingFrontIcon == .tabImageOff)
   }
@@ -26,7 +26,7 @@ struct CertificationContentTests {
     let card = CertificationCardContent(bare, today: Self.today)
     #expect(card.front == nil && card.missingFrontIcon == .tabBadgeCheck)
     #expect(card.badge == Badge("Expiring soon", style: .coral))
-    #expect(card.facts == [Fact(text: "PADI")])
+    #expect(card.agency == "PADI")
 
     let pdf = try Self.decode(
       files: #"[{"uuid":"01a0b07a-2e5b-792f-b35b-98009ab92953","side":"front","#
