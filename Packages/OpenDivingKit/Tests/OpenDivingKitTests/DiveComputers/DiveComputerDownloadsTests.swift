@@ -188,7 +188,8 @@ struct DiveComputerDownloadsTests {
   private func connect(
     _ engine: DiveComputerEngine, _ link: FakeDiveComputerLink
   ) async throws -> DiveComputerRecord {
-    let record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    var record = DiveComputerRecord(identity: F.perdix, peripheral: F.perdixFound.id)
+    record.answeredQuestion = true
     try computers().save(record)
     #expect(engine.connected(F.perdixFound.id, record: record))
     let atTheHold = { link.isHeld && engine.walk?.divesDownloaded == F.perdixDownload.count }
@@ -214,7 +215,8 @@ struct DiveComputerDownloadsTests {
     ]
     link.holdBeforeEnd = true
     let (downloads, engine) = try await downloads(link)
-    let ocean = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
+    var ocean = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
+    ocean.answeredQuestion = true
     try computers().save(ocean)
     let model = downloads.model
     downloads.screenAppeared()

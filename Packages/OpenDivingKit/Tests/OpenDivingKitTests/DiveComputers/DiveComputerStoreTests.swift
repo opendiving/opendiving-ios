@@ -57,6 +57,22 @@ struct DiveComputerStoreTests {
     #expect(DiveComputerRecord(paired, progress: nil).downloadsAutomatically)
   }
 
+  /// A computer's progress written before the question decodes as unanswered, its fingerprint as
+  /// it stood: a computer with one does not await the question, and one without does.
+  @Test func progressWrittenBeforeTheQuestionReadsAsUnanswered() throws {
+    let written = #"{"fingerprint":"QKALzQ==","receivedBeforeAccountKnown":false}"#
+    let progress = try JSONDecoder().decode(DiveComputerProgress.self, from: Data(written.utf8))
+    let paired = PairedComputer(DiveComputerRecord(identity: F.perdix))
+    let record = DiveComputerRecord(paired, progress: progress)
+    #expect(record.fingerprint == F.fingerprint(0x40))
+    #expect(!record.answeredQuestion)
+    #expect(!record.fingerprintSetAside)
+    #expect(!record.awaitsQuestion)
+    var bare = progress
+    bare.fingerprint = nil
+    #expect(DiveComputerRecord(paired, progress: bare).awaitsQuestion)
+  }
+
   @Test func thePairingsAreReadWithoutAnAccountAndTheHintMovesAlone() throws {
     var record = DiveComputerRecord(identity: F.ocean, peripheral: F.oceanFound.id)
     record.downloadsAutomatically = false

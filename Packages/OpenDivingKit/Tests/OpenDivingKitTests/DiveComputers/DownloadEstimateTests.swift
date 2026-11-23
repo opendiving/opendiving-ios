@@ -115,5 +115,10 @@ struct DownloadEstimateTests {
     #expect(DiveComputerText.timeLeft(3600) == "About 1 hour left")
     #expect(DiveComputerText.timeLeft(4210) == "About 1 hour 10 minutes left")
     #expect(DiveComputerText.timeLeft(7300) == "About 2 hours 2 minutes left")
+    #expect(DiveComputerText.chosenTakes(30) == "Less than a minute to download")
+    #expect(
+      DiveComputerText.downloadTakes(4210, dives: 12)
+        == "Downloading them takes about 1 hour 10 minutes.")
+    #expect(DiveComputerText.downloadTakes(60, dives: 1) == "Downloading it takes about 1 minute.")
   }
 }
