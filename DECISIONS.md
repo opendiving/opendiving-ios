@@ -178,21 +178,21 @@ account's logbook holds, so each account keeps its own; shared, a second server'
 would stop at dives it never saw. It advances only after a completed walk with no empty read, once
 the walk's dives are kept on the phone for the account it began for — or, for a walk that skipped
 entries and delivered none, at its end; anything else leaves it, and the import's gates make dives
-walked again links. Progress written before the load is removed, not moved, when the load names
-another account. Rejected: libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at
-import, which needs the upload to report back across a sign-out.
+walked again links. A dive taken for its original moves it only at its place in front, as when left
+out. Progress written before the load is removed when the load names another account. Rejected:
+libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import.
 
 ## A computer new to an account asks which dives to download
 
 Whether *Which dives do you want to download?* has been answered is the account's, kept with its
 progress: a Petrel or Nautic computer awaits it on an account holding neither a fingerprint nor an
-answer, so another account or server asks too. A watched walk asks once its list and the server's
-answer are in, and writes the answer before the first transfer: the dives not chosen are not taken
-until the fingerprint moves or the computer is forgotten, and *Choose dives to download* sets the
-fingerprint aside until a walk completes, so a broken walk resumes the choice unasked. A connection
-to a computer that awaits the question starts no walk; a walk listing nothing counts as answered.
-Rejected: a mark set at pairing, which is the phone's; taking every dive unwatched, the hours-long
-download the question offers a way out of; moving the fingerprint at the choice.
+answer. A watched walk asks once its list and the server's answer are in, and writes the answer
+before the first transfer: the dives not chosen are not taken until the fingerprint moves or the
+computer is forgotten, and *Choose dives to download* sets the fingerprint aside until a walk
+completes, so a broken walk resumes the choice unasked. It asks only of dives the logbook lacks;
+those held without the computer's original follow any answer. A connection to a computer that awaits
+the question starts no walk; a walk listing nothing counts as answered. Rejected: a mark set at
+pairing, which is the phone's; taking every dive unwatched; moving the fingerprint at the choice.
 
 ## A computer that logs instants gets its zone per download
 
@@ -329,14 +329,14 @@ which a computer's sample rate and the phone's link both move.
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a
-re-download is a dive the account already holds and links, or a new one once deleted. A walk of new
-dives leaves out an entry whose uuid the phone keeps under the walk's mark, or the server has
-answered for or the diver did not choose since the fingerprint last moved; *Choose dives to
-download* leaves out only what the phone keeps. Then, before its first transfer, a walk with a route
-and a loaded account sends the rest's uuids and listed starts to `POST /dive-computers/known-dives`
-and leaves out what the logbook holds. A dive left out counts neither new nor downloaded. Rejected:
-a random uuid, which leaves every dedupe to the recording gates; comparing on the phone, which
-writes the server's clock rule twice; downloading a waiting dive again.
+re-download links to the held dive, or is new once deleted. A walk of new dives leaves out an entry
+whose uuid the phone keeps under the walk's mark, or the server has answered for or the diver did
+not choose since the fingerprint last moved; *Choose dives to download* leaves out only what the
+phone keeps. Before its first transfer, a walk sends every listed dive's uuid and start to
+`POST /dive-computers/known-dives`, leaves out what the logbook holds, and takes after the rest what
+it holds without the computer's original, unless the phone keeps it or ever sent it for that.
+Rejected: a random uuid; comparing on the phone, which writes the server's clock rule twice; the
+server's next answer alone, which resends a file that never joins.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 

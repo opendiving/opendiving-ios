@@ -1,5 +1,5 @@
 extension DiveCardContent {
-  /// A downloaded dive's card before it is in the logbook: its computer for a title, the start
+  /// A downloaded dive's card before its import is answered: its computer for a title, the start
   /// in the dive's own spelling and the line, then *Dive time* and *Max depth*, each a dash where
   /// the computer's list did not say. With no line, the facts are the start alone.
   public static func download(

@@ -180,8 +180,8 @@ public struct DownloadStore: Sendable {
   /// with it, so pairing it again asks afresh. So does what the server answered for, which stands
   /// in for the fingerprint until it moves: left behind, the next walk would pass those dives over
   /// without asking the server, and so could not say that the logbook holds them. What was sent
-  /// for the computer's original stays: the logbook holds those dives whichever computer reads
-  /// them next.
+  /// for the computer's original stays: pairing the computer again would send each such dive
+  /// again, for a file it may never take.
   static func forgetComputer(_ record: String, store: ServerStateStore) {
     for directory in store.accountDirectories() {
       let downloads = directory.appendingPathComponent("Downloads", isDirectory: true)

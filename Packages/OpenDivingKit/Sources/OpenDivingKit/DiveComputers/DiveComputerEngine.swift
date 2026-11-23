@@ -687,7 +687,7 @@ public final class DiveComputerEngine {
         record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
         in: store)
       if advances, heldAll {
-        // A walk of dives the logbook holds alone leaves the fingerprint where it was.
+        // No newest where the walk took only dives from behind the fingerprint: it stays.
         if let newest {
           saved.fingerprint = newest
           saved.fingerprintSetAside = false
