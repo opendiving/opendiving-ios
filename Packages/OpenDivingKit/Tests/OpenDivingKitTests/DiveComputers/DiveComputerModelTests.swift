@@ -18,10 +18,13 @@ struct DiveComputerModelTests {
     .appendingPathComponent("DiveComputerModelTests-\(UUID().uuidString)", isDirectory: true)
   private let log = EventLog()
 
-  /// A session signed in, with the account loaded unless `loaded` is false, and no route.
-  private func session(_ server: ImportServer, loaded: Bool = true) async throws -> Session {
+  /// A session signed in, with the account loaded unless `loaded` is false, and no route unless
+  /// `routed`.
+  private func session(_ server: ImportServer, loaded: Bool = true, routed: Bool = false)
+    async throws -> Session
+  {
     let route = SwitchedRoute()
-    route.isRouteAvailable = false
+    route.isRouteAvailable = routed
     let session = Session(
       transport: server,
       secrets: InMemorySecretStore([ImportServer.origin.description: "refresh"]),
@@ -32,27 +35,35 @@ struct DiveComputerModelTests {
     return session
   }
 
+  /// With `waits`, a wait for the server never ends before its answer.
   private func engine(
     _ session: Session, _ link: FakeDiveComputerLink = FakeDiveComputerLink(),
     now: Date = DiveComputerFixtures.moment, clock: MovingClock? = nil,
-    watch: DiveComputerWatch? = nil
+    watch: DiveComputerWatch? = nil, waits: Bool = false
   ) -> DiveComputerEngine {
     let time: @Sendable () -> Date
     if let clock { time = { clock.now } } else { time = { now } }
+    let sleep: @Sendable (Date) async throws -> Void
+    if waits {
+      sleep = { _ in try await Task.sleep(for: .seconds(24 * 60 * 60)) }
+    } else {
+      sleep = { try await Task.sleep(for: .seconds(max(0, $0.timeIntervalSinceNow))) }
+    }
     let engine = DiveComputerEngine(
       session: session, makeLink: { link }, generator: F.generator, watch: watch,
       workFolder: root.appendingPathComponent("Work", isDirectory: true), now: time,
-      zone: F.helsinki)
+      zone: F.helsinki, sleep: sleep)
     engine.accountLoaded()
     return engine
   }
 
   private func model(
     _ session: Session, _ link: FakeDiveComputerLink, now: Date = DiveComputerFixtures.moment,
-    clock: MovingClock? = nil, watch: DiveComputerWatch? = nil
+    clock: MovingClock? = nil, watch: DiveComputerWatch? = nil, waits: Bool = false
   ) -> DiveComputerModel {
     DiveComputerModel(
-      engine: engine(session, link, now: now, clock: clock, watch: watch), zone: F.helsinki)
+      engine: engine(session, link, now: now, clock: clock, watch: watch, waits: waits),
+      zone: F.helsinki)
   }
 
   /// The archives kept to import for `account`, oldest first.
@@ -1595,12 +1606,13 @@ struct DiveComputerModelTests {
     #expect(model.choice?.stage == .list)
     #expect(model.chosenText == "0 of 2 dives chosen")
     #expect(model.chosenCount == 0)
-    let rows = model.choiceRows(units: .metric)
+    #expect(model.choiceSections(units: .metric).map(\.heading) == ["Dives on this computer"])
+    let rows = model.choiceSections(units: .metric).flatMap(\.rows)
     #expect(rows.map(\.fingerprint) == oceanListing.downloads.map(\.fingerprint))
     #expect(rows.allSatisfy { !$0.chosen })
     model.toggle(F.fingerprint(0x12))
     #expect(model.chosenText == "1 of 2 dives chosen · About 3 minutes to download")
-    #expect(model.choiceRows(units: .metric).map(\.chosen) == [true, false])
+    #expect(model.choiceSections(units: .metric).flatMap(\.rows).map(\.chosen) == [true, false])
     model.chooseAll()
     #expect(model.choseAll)
     model.chooseNone()
@@ -1612,6 +1624,56 @@ struct DiveComputerModelTests {
     await model.settled()
     #expect(model.outcome?.kind == .cancelled)
     #expect(archives(session).isEmpty)
+  }
+
+  /// The question counts the dives the logbook holds without the computer's original beside those
+  /// it lacks, and reckons all of them; the list holds both kinds, each under its heading, and its
+  /// count and *Choose all* cover both.
+  @Test func theQuestionAndTheListCountTheDivesToUpdateBesideTheRest() async throws {
+    let server = try ImportServer()
+    let session = try await session(server, routed: true)
+    let link = FakeDiveComputerLink()
+    link.found = [F.oceanFound]
+    server.holdInLogbook(
+      [],
+      withoutOriginal: [
+        DiveComputerArchive.diveUUID(F.ocean, fingerprint: F.fingerprint(0x11)): UUID()
+      ])
+    // With the starts the server is asked with.
+    let listing = DiveComputerListing(
+      dives: 2, newDives: 2,
+      downloads: oceanListing.downloads.map {
+        .init(
+          fingerprint: $0.fingerprint,
+          facts: ListedDiveFacts(
+            start: .instant(F.moment.addingTimeInterval(-86_400), offsetSeconds: 10_800),
+            length: $0.length))
+      })
+    link.scripts = [FakeDiveComputerLink.script(F.ocean, listing: listing, F.oceanDownload)]
+    let model = model(session, link, waits: true)
+    model.connect(try await scanned(model))
+    for _ in 0..<10_000 where model.choice == nil { await Task.yield() }
+
+    #expect(model.choice?.checked == true)
+    #expect(
+      model.questionDetail
+        == "1 dive on this computer is not in your logbook. 1 dive in your logbook can be updated"
+        + " with data from this computer. Downloading them takes about 5 minutes.")
+    #expect(model.downloadAllText == "Download all 2 dives")
+
+    model.showList()
+    let sections = model.choiceSections(units: .metric)
+    #expect(sections.map(\.heading) == ["Dives not in your logbook", "Dives to update"])
+    #expect(sections.map(\.line) == [nil, DiveComputerText.toUpdateLine])
+    #expect(
+      sections.map { $0.rows.map(\.fingerprint) } == [[F.fingerprint(0x12)], [F.fingerprint(0x11)]])
+    model.toggle(F.fingerprint(0x11))
+    #expect(model.chosenText == "1 of 2 dives chosen · About 2 minutes to download")
+    model.chooseAll()
+    #expect(model.chosenCount == 2)
+    #expect(model.choseAll)
+    model.cancel()
+    await model.settled()
   }
 
   @Test func aShearwaterWithNoPaceIsAskedWithTheCountAlone() async throws {

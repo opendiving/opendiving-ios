@@ -86,24 +86,15 @@ struct PetrelManifestTests {
     #expect(PetrelManifest.select(records, fingerprint: start(0x1234_5678)).listing.newDives == 11)
   }
 
-  /// Every live record the walk does not count among its downloads is one of the others, behind
-  /// the fingerprint or passed over in front of it, newest first; any live record can be taken
-  /// after the rest, in the index's order.
-  @Test func theOthersAreEveryLiveRecordTheWalkDoesNotDownload() throws {
+  /// Only a new record is taken after the rest, newest first, whatever order its start is given
+  /// in; one behind the fingerprint is not.
+  @Test func theRecordsTakenAfterTheRestAreNewOnesNewestFirst() throws {
     let records = PetrelManifest.Page(try probePage()).records
-    let waits: Set<Data> = [start(0x6ADF_6BBB)]
-    let selection = PetrelManifest.select(records, fingerprint: start(0x6AB1_0B71)) {
-      waits.contains($0)
-    }
-    let taken = Set(selection.listing.downloads.map(\.fingerprint))
-    #expect(selection.others.count == 9)
-    #expect(selection.others.first?.fingerprint == start(0x6ADF_6BBB))
-    #expect(selection.others.allSatisfy { !taken.contains($0.fingerprint) })
-    #expect(
-      selection.others.map(\.fingerprint)
-        == records.map(\.start).filter { !taken.contains($0) })
-    let later = selection.taking([records[9].start, records[2].start])
-    #expect(later == [records[2], records[9]])
+    let selection = PetrelManifest.select(records, fingerprint: start(0x6AB1_0B71))
+    let new = selection.new
+    let behind = try #require(records.first { !$0.isDeleted && !new.contains($0) })
+    #expect(new.count > 1)
+    #expect(selection.taking([behind.start, new[1].start, new[0].start]) == [new[0], new[1]])
   }
 
   /// A new dive the phone need not take again is walked, not downloaded, and not counted

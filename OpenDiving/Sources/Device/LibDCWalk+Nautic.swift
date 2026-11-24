@@ -7,10 +7,10 @@ import OpenDivingKit
 /// it is busy, the logbook listed, each entry's sport and its dive's facts learned from its
 /// summary — or from the record, where an earlier walk kept them — and counted, the engine's
 /// answer for what to leave out — what the logbook holds, or the diver did not choose — and what
-/// to take after the rest, then each new entry downloaded by id unless its summary names a sport
-/// that is no dive, or its dive is one the phone need not take again or the engine left out, then
-/// each entry the engine takes after the rest — a dive the logbook holds without the computer's
-/// original, behind the fingerprint or not. Which entries are summarised, counted and downloaded
+/// of that to take after the rest, then each new entry downloaded by id unless its summary names a
+/// sport that is no dive, or its dive is one the phone need not take again or the engine left out,
+/// then each new entry the engine takes after the rest — a dive the logbook holds without the
+/// computer's original. Which entries are summarised, counted and downloaded
 /// is ``NauticSelection``'s.
 ///
 /// Another app, such as the Suunto app, can share the link. A summary, the descriptors or a
@@ -101,7 +101,7 @@ nonisolated extension LibDCWalk {
     let phone = NauticSelection(
       ids: ids, fingerprint: fingerprint, remembered: record?.nauticSports, learned: learned
     ) { waiting(identity, NauticSelection.fingerprint($0)) }
-    let decision = decided(identity, phone.listing.downloads, others: phone.others)
+    let decision = decided(identity, phone.listing.downloads)
     let held = decision.leftOut
     let selection =
       held.isEmpty
@@ -113,7 +113,7 @@ nonisolated extension LibDCWalk {
         return waiting(identity, mark) || held.contains(mark)
       }
     let counted = Dictionary(
-      (phone.listing.downloads + phone.others).map { ($0.fingerprint, $0) },
+      phone.listing.downloads.map { ($0.fingerprint, $0) },
       uniquingKeysWith: { first, _ in first })
     let later = NauticSelection.taking(decision.catchUp, of: ids).filter {
       counted[NauticSelection.fingerprint($0)] != nil

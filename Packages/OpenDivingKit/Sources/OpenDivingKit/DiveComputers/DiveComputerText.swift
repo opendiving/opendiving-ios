@@ -66,7 +66,8 @@ public enum DiveComputerText {
   /// For a computer whose family lists nothing before reading it: every dive on it, the
   /// fingerprint set aside.
   public static let downloadAll = "Download all dives"
-  /// Lists every dive on the computer that the logbook lacks, to choose from.
+  /// Lists every dive on the computer that the logbook lacks or holds without the computer's
+  /// original download, to choose from.
   public static let chooseDives = "Choose dives to download"
 
   // MARK: - Which dives to download
@@ -74,7 +75,7 @@ public enum DiveComputerText {
   /// Asked once a computer new to the account has listed its dives.
   public static let diveQuestion = "Which dives do you want to download?"
 
-  /// *Download all 12 dives*, *Download 1 dive*.
+  /// *Download all 12 dives*, *Download 1 dive*: every dive the question counts.
   public static func downloadAllListed(_ dives: Int) -> String {
     dives == 1 ? "Download 1 dive" : "Download all \(dives) dives"
   }
@@ -85,6 +86,12 @@ public enum DiveComputerText {
   /// *12 dives on this computer are not in your logbook.*
   public static func notInLogbook(_ dives: Int) -> String {
     "\(count(dives)) on this computer \(dives == 1 ? "is" : "are") not in your logbook."
+  }
+
+  /// *3 dives in your logbook can be updated with data from this computer.*: those the logbook
+  /// holds without the computer's original download.
+  public static func canBeUpdated(_ dives: Int) -> String {
+    "\(count(dives)) in your logbook can be updated with data from this computer."
   }
 
   /// *12 dives on this computer.*, where the server did not say which the logbook holds.
@@ -102,9 +109,16 @@ public enum DiveComputerText {
     "Downloading \(dives == 1 ? "it" : "them") takes \(about(seconds))."
   }
 
-  /// The list's heading: the dives it holds.
+  /// The heading of the list's dives the logbook lacks, or of every dive it lists where the
+  /// server did not say which the logbook holds.
   public static let notInLogbookHeading = "Dives not in your logbook"
   public static let onComputerHeading = "Dives on this computer"
+  /// The heading of the list's dives the logbook holds without the computer's original download,
+  /// after those it lacks, and the line beneath it.
+  public static let toUpdateHeading = "Dives to update"
+  public static let toUpdateLine =
+    "These dives are already in your logbook. Downloading them adds data from this computer."
+    + " No new dives are made."
   public static let chooseAll = "Choose all"
   public static let chooseNone = "Choose none"
 
@@ -124,7 +138,8 @@ public enum DiveComputerText {
     dives == 0 ? "Download" : "Download \(count(dives))"
   }
 
-  /// The outcome where the logbook holds every dive the computer lists.
+  /// The outcome where the logbook holds every dive the computer lists, each with the computer's
+  /// original download or sent for it before.
   public static let allInLogbook = "Every dive on this computer is already in your logbook."
   /// The outcome of *Only future dives*.
   public static let onlyFutureChosen = "Only dives made from now on will be downloaded."

@@ -30,8 +30,8 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
   /// Whether a dive is one the phone need not take again, which a walk that lists leaves out.
   let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool
-  /// Which of the entries a walk that lists would take it leaves out, and which others it takes
-  /// after the rest, asked before its first transfer (``decided(_:_:others:)``).
+  /// Which of the entries a walk that lists would take it leaves out, and which of those it takes
+  /// after the rest, asked before its first transfer (``decided(_:_:)``).
   let decide: DiveComputerListing.Decide
   /// Keeps each dive on the phone before the walk goes on.
   let keep: @Sendable (DownloadedDive) -> Void
@@ -244,20 +244,18 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
   }
 
-  /// ``decide``'s answer for `listed`, the entries the walk would take, and `others`, the rest it
-  /// counts as dives: the walk waits for it on its own queue, holding the link, and a cancel ends
-  /// the wait with nothing left out and nothing added, the walk then taking nothing. Where nothing
-  /// is listed nothing is asked.
-  func decided(
-    _ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download],
-    others: [DiveComputerListing.Download]
-  ) -> DiveComputerListing.Decision {
+  /// ``decide``'s answer for `listed`, the entries the walk would take: the walk waits for it on
+  /// its own queue, holding the link, and a cancel ends the wait with nothing left out and nothing
+  /// taken after, the walk then taking nothing. Where nothing is listed nothing is asked.
+  func decided(_ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download])
+    -> DiveComputerListing.Decision
+  {
     let none = DiveComputerListing.Decision(leftOut: [])
-    guard !listed.isEmpty || !others.isEmpty else { return none }
+    guard !listed.isEmpty else { return none }
     let answer = Decided()
     let decide = decide
     let asking = Task {
-      answer.set(await decide(identity, listed, others))
+      answer.set(await decide(identity, listed))
     }
     while answer.done.wait(timeout: .now() + .milliseconds(100)) == .timedOut {
       if cancel.isSet {
@@ -538,7 +536,7 @@ private nonisolated let fingerprintLookup:
     return walk.deviceInfo(serial: String(cString: serial), size: size)
   }
 
-/// The answer ``LibDCWalk/decided(_:_:others:)`` waits for, set once from the engine's task.
+/// The answer ``LibDCWalk/decided(_:_:)`` waits for, set once from the engine's task.
 private nonisolated final class Decided: @unchecked Sendable {
   let done = DispatchSemaphore(value: 0)
   private let lock = NSLock()

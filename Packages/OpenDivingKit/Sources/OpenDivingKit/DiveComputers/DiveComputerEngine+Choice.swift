@@ -1,9 +1,11 @@
 import Foundation
 
-/// Which dives a walk takes, decided once its list is read and before its first transfer: the
-/// dives the logbook holds are left out, a walk the diver watches asks the rest of the way, and
-/// then the listed dives the logbook holds without the computer's original download are taken
-/// after the rest, whatever was chosen.
+/// Which dives a walk takes, decided once its list is read and before its first transfer. Of the
+/// dives it would take — those newer than the fingerprint, or every one where the fingerprint is
+/// set aside or absent — the server says which the logbook holds: those it holds with the
+/// computer's original download are left out, and those it holds without it are offered as the
+/// dives it lacks are: the question and the list ask of both, and a walk that asks nothing takes
+/// both, those held after the rest. No walk takes a dive from behind the fingerprint.
 ///
 /// **A computer awaits its question on each account** whose progress holds neither a fingerprint
 /// nor an answer (``DiveComputerRecord/awaitsQuestion``): a watched walk asks *Which dives do you
@@ -15,41 +17,41 @@ import Foundation
 /// after a choice resumes in any later walk and asks nothing again.
 ///
 /// **A dive taken for the computer's original is taken for it once** on an account: once the
-/// server has answered for its import, no walk takes it for that reason again, whatever the server
-/// says of it next (``DownloadStore/allSentForOriginal()``). Nor does a walk take one the phone
-/// still keeps. What the phone need not take otherwise, and what the diver did not choose, do not
-/// leave it out: a dive in the logbook adds nothing to it but its file.
+/// server has answered for its import, no walk offers or takes it for that reason again, whatever
+/// the server says of it next (``DownloadStore/allSentForOriginal()``). Nor does a walk offer one
+/// the phone still keeps.
 extension DiveComputerEngine {
   /// What the walk leaves out of `listed`, the entries it would take — those the logbook holds,
-  /// and, where the walk asks, those the diver did not choose — and which listed dives it takes
-  /// after the rest: of `listed` and `others`, those the logbook holds without the computer's
-  /// original that the phone neither keeps, of `kept`, nor has sent for it before. Cancelled at the
-  /// question or the list, every one left out and none taken after, the link told to stop.
+  /// and, where the walk asks, those the diver did not choose — and which of those it takes after
+  /// the rest: the dives the logbook holds without the computer's original that the phone neither
+  /// keeps, of `kept`, nor has sent for it before, where the walk asks nothing or the diver chose
+  /// them. Cancelled at the question or the list, every one left out and none taken after, the
+  /// link told to stop.
   func decided(
     _ walk: DiveComputerWalk, _ identity: DiveComputerIdentity,
-    _ listed: [DiveComputerListing.Download], others: [DiveComputerListing.Download],
-    account: UUID, marked: Bool, kept: Set<UUID>, store: DiveComputerStore,
-    downloads: DownloadStore
+    _ listed: [DiveComputerListing.Download], account: UUID, marked: Bool, kept: Set<UUID>,
+    store: DiveComputerStore, downloads: DownloadStore
   ) async -> DiveComputerListing.Decision {
-    let known = await heldByLogbook(identity, listed + others, account: account, marked: marked)
+    let known = await heldByLogbook(identity, listed, account: account, marked: marked)
     let logbook = Set(listed.map(\.fingerprint).filter { known?[$0] != nil })
-    let left = listed.filter { !logbook.contains($0.fingerprint) }
-    walk.logbookHoldsAll = !logbook.isEmpty && left.isEmpty
-    let catchUp = catchUpDives(identity, listed + others, known: known, kept: kept, downloads)
+    let updating = updatable(identity, listed, known: known, kept: kept, downloads)
+    let notInLogbook = listed.filter { !logbook.contains($0.fingerprint) }
+    let toUpdate = listed.filter { updating[$0.fingerprint] != nil }
+    walk.logbookHoldsAll = !logbook.isEmpty && notInLogbook.isEmpty && toUpdate.isEmpty
     let record = store.record(family: identity.family, serial: identity.serial)
     guard walk.watched, !walk.cancelled, walk.choosing || record?.awaitsQuestion != false else {
-      return taking(logbook, after: walk.cancelled ? [:] : catchUp, walk, identity)
+      return taking(logbook, after: walk.cancelled ? [:] : updating, walk, identity)
     }
-    guard !left.isEmpty else {
+    guard !notInLogbook.isEmpty || !toUpdate.isEmpty else {
       if !walk.choosing, var record {
         record.answeredQuestion = true
         try? store.save(record)
       }
-      return taking(logbook, after: catchUp, walk, identity)
+      return taking(logbook, after: [:], walk, identity)
     }
     walk.choice = DownloadChoice(
-      stage: walk.choosing ? .list : .question, dives: left, checked: known != nil,
-      computer: identity.title, watchZone: inFlight?.watchZone,
+      stage: walk.choosing ? .list : .question, notInLogbook: notInLogbook, toUpdate: toUpdate,
+      checked: known != nil, computer: identity.title, watchZone: inFlight?.watchZone,
       pace: DownloadPace.before(identity.family, kept: record?.downloadPace))
     walk.phase = .choosingDives
     let chosen = await withCheckedContinuation { choiceAnswer = $0 }
@@ -74,12 +76,14 @@ extension DiveComputerEngine {
       if walk.choosing { saved.fingerprintSetAside = true }
       try? store.save(saved)
     }
-    return taking(Set(declined.map(\.fingerprint)), after: catchUp, walk, identity)
+    return taking(
+      logbook.union(declined.map(\.fingerprint)),
+      after: updating.filter { chosen.contains($0.key) }, walk, identity)
   }
 
   /// Of `listed`, the dives `known` holds without the computer's original that the phone neither
   /// keeps nor has sent for it: by fingerprint, each with the logbook's dive that holds it.
-  private func catchUpDives(
+  private func updatable(
     _ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download],
     known: [Data: KnownDive]?, kept: Set<UUID>, _ downloads: DownloadStore
   ) -> [Data: UUID] {
@@ -95,19 +99,18 @@ extension DiveComputerEngine {
     return dives
   }
 
-  /// The decision, with what the walk takes after the rest kept with the walk: the fingerprints for
-  /// its events, and the dives that hold them for its archives.
+  /// The decision, with what the walk takes after the rest kept with the walk: the dives that
+  /// hold them, for its archives.
   private func taking(
-    _ leftOut: Set<Data>, after catchUp: [Data: UUID], _ walk: DiveComputerWalk,
+    _ leftOut: Set<Data>, after updating: [Data: UUID], _ walk: DiveComputerWalk,
     _ identity: DiveComputerIdentity
   ) -> DiveComputerListing.Decision {
-    walk.catchUp = Set(catchUp.keys)
-    let updating = Dictionary(
-      catchUp.map { (DiveComputerArchive.diveUUID(identity, fingerprint: $0.key), $0.value) },
+    let holding = Dictionary(
+      updating.map { (DiveComputerArchive.diveUUID(identity, fingerprint: $0.key), $0.value) },
       uniquingKeysWith: { first, _ in first })
-    inFlight?.updating = updating
-    inFlight?.keeper.updating(updating)
-    return DiveComputerListing.Decision(leftOut: leftOut, catchUp: walk.catchUp)
+    inFlight?.updating = holding
+    inFlight?.keeper.updating(holding)
+    return DiveComputerListing.Decision(leftOut: leftOut, catchUp: Set(updating.keys))
   }
 
   /// A watched walk whose list leaves nothing to take has nothing to ask, which counts as

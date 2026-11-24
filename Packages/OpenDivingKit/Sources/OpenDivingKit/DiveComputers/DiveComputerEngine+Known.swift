@@ -1,10 +1,11 @@
 import Foundation
 
 /// What the logbook holds of a walk's list: the server is asked, once in a walk, which of the
-/// dives the computer lists its logbook already holds, and whether each holding dive keeps the
+/// dives the walk would take its logbook already holds, and whether each holding dive keeps the
 /// computer's original download. Before its first transfer the walk leaves out those held with
-/// it, and takes those held without it after the rest. The server compares by its own import's
-/// rule, so the phone sends what the computer lists and compares nothing itself.
+/// it, and offers and takes those held without it where it would a dive the logbook lacks, after
+/// the rest. Nothing is asked of a dive behind the fingerprint. The server compares by its own import's rule, so the phone sends
+/// what the computer lists and compares nothing itself.
 extension DiveComputerEngine {
   /// How long the walk waits for the server's answer before it goes on without one.
   static let knownDivesWait: TimeInterval = 10

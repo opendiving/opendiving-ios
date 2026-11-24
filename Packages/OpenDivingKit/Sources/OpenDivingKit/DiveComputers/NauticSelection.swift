@@ -47,10 +47,6 @@ public struct NauticSelection: Hashable, Sendable {
   /// The count, with the sports for the record: those the record remembered and those read,
   /// for the listed entries only.
   public let listing: DiveComputerListing
-  /// The listed entries counted as dives that the walk does not download among ``listing``'s,
-  /// newest first: those behind the fingerprint and those whose dive the phone need not take
-  /// again.
-  public let others: [DiveComputerListing.Download]
 
   /// The listed entries whose summary the walk reads: those `remembered` does not name, and those
   /// it names as a dive without the facts a summary gives, kept before they were read.
@@ -104,17 +100,10 @@ public struct NauticSelection: Hashable, Sendable {
         DiveComputerListing.Download(
           fingerprint: Self.fingerprint($0), facts: Self.facts($0, remembered[$0]))
       })
-    let taken = Set(downloads)
-    others = zip(ids, summaries).compactMap { id, summary in
-      guard !taken.contains(id), Self.counts(summary), Self.fate(summary) == .download else {
-        return nil
-      }
-      return DiveComputerListing.Download(
-        fingerprint: Self.fingerprint(id), facts: Self.facts(id, remembered[id]))
-    }
   }
 
-  /// The ids of `ids`, the logbook's, newest first, whose fingerprints are in `catchUp`.
+  /// The ids of `ids`, the logbook's, newest first, whose fingerprints are in `catchUp`: the
+  /// entries a walk takes after the rest.
   public static func taking(_ catchUp: Set<Data>, of ids: [UInt32]) -> [UInt32] {
     ids.filter { catchUp.contains(fingerprint($0)) }
   }
