@@ -17,6 +17,7 @@ private struct ConnectLinkPane: View {
   @Environment(Session.self) private var session
   /// The root's; absent only where a test or a preview hosts the pane alone.
   @Environment(ScreenPresenter.self) private var presenter: ScreenPresenter?
+  @Environment(SignInFlow.self) private var signIn: SignInFlow?
   @State private var model: ConnectLinkModel
   @State private var isScanning = false
   @State private var scannerUnavailable: ConnectLinkModel.ScannerUnavailable?
@@ -183,6 +184,12 @@ private struct ConnectLinkPane: View {
       answer = given
     case .browser(let url):
       openURL(url)
+    case .signIn(let token):
+      dismiss()
+      Task { await signIn?.redeemLink(token) }
+    case .hold:
+      // Only a link from outside is held.
+      answer = .signInFirst
     }
   }
 

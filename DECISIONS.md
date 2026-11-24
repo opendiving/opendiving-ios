@@ -413,8 +413,9 @@ already settles.
 
 ## The phone asks for the extended session, and retries a refresh whose reply was lost
 
-The code sign-in sends `idle_timeout: extended` with no parameter: the Kit's one caller is a
-phone that may be offline for weeks. The API spends a refresh token before it answers, and
+Both halves of the sign-in email, the code and the link, send `idle_timeout: extended` with no
+parameter, and an account they lead to creating starts with that window: the Kit's one caller is
+a phone that may be offline for weeks. The API spends a refresh token before it answers, and
 answers the same cookie presented again inside its reuse grace with the pair it minted, so a
 refresh lost on the way back is retried with the same cookie after two seconds, on a twenty-second
 timeout, and a 401 to that retry once more. Rejected: retrying at once, which can land before

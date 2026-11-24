@@ -551,14 +551,19 @@ struct SignInFlowTests {
     #expect(flow.step == .email)
   }
 
-  @Test func anUnfinishedAccountHasItsOwnScreen() async throws {
+  @Test func anAddressWithNoAccountSignsUp() async throws {
     let (flow, session) = await atTheCode(.json(try KitFixture.text("auth-outcome-onboarding")))
     flow.setCode("123456")
     await flow.submitCode()
     #expect(flow.step == .onboardingRequired(email: "sam@example.com", name: "Sam"))
+    #expect(flow.signUpName == "Sam")
+    #expect(flow.signUpUsername.isEmpty)
+    #expect(!flow.canSignUp)
     #expect(session.state == .signingIn(origin))
     flow.useDifferentEmail()
     #expect(flow.step == .email)
+    #expect(flow.signUpName.isEmpty)
+    #expect(!flow.canSignUp)
   }
 
   @Test func anAccountPendingDeletionHasItsOwnScreen() async throws {
@@ -577,15 +582,6 @@ struct SignInFlowTests {
   }
 
   @Test func theOutcomeSentences() {
-    let origin = ServerOrigin("https://opendiving.app")
-    #expect(
-      SignInFlow.onboardingMessage(email: "sam@example.com", origin: origin)
-        == "The account for sam@example.com isn't finished yet. Sign-up is completed on the web,"
-        + " at https://opendiving.app; then sign in here.")
-    #expect(
-      SignInFlow.onboardingMessage(email: nil, origin: nil)
-        == "This account isn't finished yet. Sign-up is completed on the web, at this server;"
-        + " then sign in here.")
     #expect(
       SignInFlow.deletionMessage(email: "sam@example.com", purgeAfter: "Nov 21, 2026")
         == "sam@example.com was deleted, and nothing has been erased yet. Your dives, dive drafts,"

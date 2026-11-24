@@ -6,7 +6,8 @@ import SwiftUI
 /// flow Settings reaches back into, the inbox, the outbox, the dive-computer engine and its
 /// screen's model, the presenter a tapped download notification and a link open in, and the
 /// appearance are injected. A link from outside the app is handed to the presenter, which opens
-/// its screen or gives it back for the browser. The session,
+/// its screen or gives it back: for the browser, for the sign-in screens to redeem, or to hold
+/// while the diver signs in, its screen opening once they have. The session,
 /// the account's load, the inbox and the engine are the app delegate's, made before any view.
 struct RootView: View {
   @State private var session: Session
@@ -72,6 +73,7 @@ struct RootView: View {
     .task { await session.followRouteChanges() }
     .task { await splash.run(session.requests) }
     .onChange(of: session.state) { old, new in
+      if let held = signIn.takeHeldScreen(new) { presenter.open(held) }
       downloads.sessionChanged()
       engine.sessionChanged()
       Task { await account.sessionChanged(from: old, to: new) }
@@ -92,9 +94,16 @@ struct RootView: View {
 }
 
 extension RootView {
-  /// A link from outside: its screen, or else the browser, at once.
+  /// A link from outside: its screen, a sign-in, a link held for one, or else the browser, at
+  /// once.
   private func receive(_ url: URL) {
-    if let browser = presenter.receive(url, state: session.state) { openURL(browser) }
+    switch presenter.receive(url, state: session.state) {
+    case .browser(let url): openURL(url)
+    case .signIn(let token): Task { await signIn.redeemLink(token) }
+    case .hold(let screen): Task { await signIn.hold(screen) }
+    // The presenter opened it; and only a given link is answered.
+    case .open, .answer, nil: break
+    }
   }
 }
 

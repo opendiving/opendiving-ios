@@ -34,19 +34,14 @@ public final class ScreenPresenter {
     opened = Opened(screen: .link(screen))
   }
 
-  /// An address handed to the app from outside: its screen opens, or the address comes back to
-  /// be opened in the browser.
-  public func receive(_ url: URL, state: Session.State) -> URL? {
-    switch AppLinkRouter.action(for: url, from: .outside, state: state) {
-    case .open(let screen):
-      open(screen)
-      return nil
-    case .browser(let url):
-      return url
-    case .answer:
-      // The router answers only a given link.
-      return url
-    }
+  /// An address handed to the app from outside: its screen opens, and nil comes back, or what
+  /// the app does instead comes back for the caller to do — ``AppLinkRouter/Action/browser(_:)``,
+  /// ``AppLinkRouter/Action/signIn(token:)`` or ``AppLinkRouter/Action/hold(_:)``.
+  public func receive(_ url: URL, state: Session.State) -> AppLinkRouter.Action? {
+    let action = AppLinkRouter.action(for: url, from: .outside, state: state)
+    guard case .open(let screen) = action else { return action }
+    open(screen)
+    return nil
   }
 
   /// The launch's link, once.

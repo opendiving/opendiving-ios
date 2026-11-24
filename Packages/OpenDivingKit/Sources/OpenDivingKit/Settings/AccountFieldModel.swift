@@ -24,6 +24,23 @@ public final class AccountFieldModel {
       case .username: 2...20
       }
     }
+
+    /// Why the API would refuse `text`, trimmed as it is sent, for this field; nil when it would
+    /// not. The bounds and characters are `PATCH /user`'s and `POST /auth/complete`'s alike.
+    public func problem(_ text: String) -> String? {
+      let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+      if text.count < bounds.lowerBound {
+        return "\(label) must be at least \(bounds.lowerBound) characters"
+      }
+      if text.count > bounds.upperBound {
+        return "\(label) cannot exceed \(bounds.upperBound) characters"
+      }
+      guard self == .username else { return nil }
+      let allowed = text.unicodeScalars.allSatisfy {
+        ("a"..."z").contains($0) || ("0"..."9").contains($0)
+      }
+      return allowed ? nil : "Username can only contain lowercase letters and numbers"
+    }
   }
 
   public let field: Field
@@ -59,20 +76,7 @@ public final class AccountFieldModel {
   }
 
   /// Why the text, as it would be sent, would be refused; nil when it would not.
-  public var problem: String? {
-    let text = trimmed
-    if text.count < field.bounds.lowerBound {
-      return "\(field.label) must be at least \(field.bounds.lowerBound) characters"
-    }
-    if text.count > field.bounds.upperBound {
-      return "\(field.label) cannot exceed \(field.bounds.upperBound) characters"
-    }
-    guard field == .username else { return nil }
-    let allowed = text.unicodeScalars.allSatisfy {
-      ("a"..."z").contains($0) || ("0"..."9").contains($0)
-    }
-    return allowed ? nil : "Username can only contain lowercase letters and numbers"
-  }
+  public var problem: String? { field.problem(text) }
 
   /// The change, trimmed as it is sent; nil when there is none.
   public var update: UserUpdate? {

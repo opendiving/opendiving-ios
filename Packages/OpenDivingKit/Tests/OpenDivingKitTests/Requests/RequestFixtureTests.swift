@@ -96,6 +96,14 @@ struct RequestFixtureTests {
     _ = try sendsItsFixture(RestoreRequest.self, "request-restore")
   }
 
+  @Test func signInRequests() throws {
+    let request = try sendsItsFixture(EmailAuthRequest.self, "request-email-request-via")
+    #expect(request.via == "9f86d081884c7d659a2feaa0c55ad015")
+    let verify = try sendsItsFixture(EmailVerifyRequest.self, "request-email-verify")
+    #expect(verify.idleTimeout == .extended)
+    _ = try sendsItsFixture(ProfileCompletionRequest.self, "request-profile-completion")
+  }
+
   @Test func tagUpdate() throws {
     _ = try sendsItsFixture(TagUpdate.self, "request-tag-update")
   }

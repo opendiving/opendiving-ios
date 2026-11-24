@@ -26,6 +26,16 @@ extension APIClient {
     try await authorizedChecked(Call(method: "DELETE", path: "user/connect-link"))
   }
 
+  /// `GET /connect-link/{token}`, asked with no session: whose link it is, which the sign-in
+  /// screens show while it is held, or nil for a token that names no live link.
+  public func anonymousConnectLinkOwner(_ token: String) async throws -> ConnectLinkOwner? {
+    do {
+      return try await anonymousDecoded(ConnectLinkOwner.self, Call(path: "connect-link/\(token)"))
+    } catch APIError.http(status: 404, _) {
+      return nil
+    }
+  }
+
   /// `GET /connect-link/{token}/owner`, or nil for a token that names no live link.
   public func connectLinkOwner(_ token: String) async throws -> ConnectLinkOwnerForYou? {
     do {

@@ -46,9 +46,13 @@ extension APIClient {
       Call(path: "people/added-you/\(Self.wire(account))/avatar", query: Self.version(version)))
   }
 
-  /// `GET /connect-link/{token}/avatar?v=`, `version` being the owner's `avatarSha256`.
+  /// `GET /connect-link/{token}/avatar?v=`, `version` being the owner's `avatarSha256`. Asked
+  /// with no session, as the route allows, so the sign-in screens can show it too.
   public func connectLinkAvatar(_ token: String, version: String) async throws -> FetchedBytes {
-    try await picture(Call(path: "connect-link/\(token)/avatar", query: Self.version(version)))
+    let (data, response) = try await anonymous(
+      Call(path: "connect-link/\(token)/avatar", query: Self.version(version)))
+    try check(data, response)
+    return FetchedBytes(data: data, response: response)
   }
 
   /// A picture's `?v=`, which the server ignores and which gives each version an address of its
