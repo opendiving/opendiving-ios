@@ -351,7 +351,7 @@ public final class SignInFlow {
     isRequestingCode = true
     defer { isRequestingCode = false }
     do {
-      let requestID = try await session.requestCode(email: address, via: heldConnectToken)
+      let requestID = try await requestCode(address)
       code = ""
       codeError = nil
       resendMessage = nil
@@ -415,7 +415,7 @@ public final class SignInFlow {
     codeError = nil
     defer { isResending = false }
     do {
-      let requestID = try await session.requestCode(email: address, via: heldConnectToken)
+      let requestID = try await requestCode(address)
       code = ""
       codeSentAt = now()
       chosenStep = .code(email: address, requestID: requestID)
@@ -532,6 +532,30 @@ public final class SignInFlow {
 
   public static let invitationGone =
     "The connect link you opened is no longer active. Ask whoever gave it to you for their new one."
+
+  /// `POST /auth/email/request`, carrying the held connect link's token. An invite-only server
+  /// refuses the email outright for a token that names no live link, account or not, so a
+  /// refusal while one is carried reads the link again, and a link found gone is dropped and the
+  /// email asked for without it.
+  private func requestCode(_ address: String) async throws -> UUID {
+    guard let via = heldConnectToken else { return try await session.requestCode(email: address) }
+    do {
+      return try await session.requestCode(email: address, via: via)
+    } catch let error where Self.isForbidden(error) {
+      let before = invitation
+      invitation = .reading
+      await readInvitation()
+      guard heldConnectToken == nil else {
+        if invitation == .reading, heldConnectToken == via { invitation = before }
+        throw error
+      }
+      return try await session.requestCode(email: address)
+    }
+  }
+
+  private static func isForbidden(_ error: any Error) -> Bool {
+    if case .http(status: 403, _) = APIError(error) { true } else { false }
+  }
 
   private var heldConnectToken: String? {
     guard let held, held.origin == session.state.origin, case .connect(let token) = held.screen

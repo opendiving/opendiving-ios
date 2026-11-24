@@ -1,5 +1,6 @@
 import Foundation
 import OpenDivingKit
+import Synchronization
 import Testing
 
 #if canImport(FoundationNetworking)
@@ -251,6 +252,83 @@ struct SignInLinkTests {
     #expect(
       Self.body(transport, "POST auth/email/request")
         == .object(["email": .string("new@example.com"), "via": .string("abc")]))
+  }
+
+  /// An invite-only server whose connect link `abc` was reset once it had been read: the first
+  /// read finds it live, every later one 404, and the email is refused for a `via` naming it.
+  private func resetAfterTheFirstRead() -> (SignInFlow, StubTransport) {
+    let reads = Mutex(0)
+    let owner = (try? KitFixture.text("connect-link-owner-signed-out")) ?? ""
+    let reply = Self.emailRequest
+    let stale =
+      "This connect link is no longer active. You can request an invitation from the home page."
+    let transport = StubTransport { request in
+      switch request.route {
+      case "GET connect-link/abc":
+        let read = reads.withLock { reads in
+          reads += 1
+          return reads
+        }
+        return read == 1
+          ? .json(owner) : .json(#"{"detail":"No such connect link."}"#, status: 404)
+      case "POST auth/email/request":
+        return request.json?["via"] == nil
+          ? reply : .json(#"{"detail":"\#(stale)"}"#, status: 403)
+      default:
+        return .json(#"{"detail":"Not Found"}"#, status: 404)
+      }
+    }
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    return (SignInFlow(session: session), transport)
+  }
+
+  @Test func aConnectLinkResetSinceItWasReadIsDroppedAndTheEmailAskedForWithoutIt() async {
+    let (flow, transport) = resetAfterTheFirstRead()
+    await flow.hold(.connect(token: "abc"))
+    guard case .from = flow.invitation else {
+      Issue.record("Expected the invitation, got \(String(describing: flow.invitation))")
+      return
+    }
+    flow.setEmail("member@example.com")
+    await flow.sendCode()
+    #expect(flow.emailError == nil)
+    guard case .code = flow.step else {
+      Issue.record("Expected the code screen, got \(flow.step)")
+      return
+    }
+    #expect(flow.invitation == .gone)
+    #expect(
+      transport.requests.filter { $0.route == "POST auth/email/request" }.map { $0.json?["via"] }
+        == [.string("abc"), nil])
+    #expect(flow.takeHeldScreen(.signedIn(origin)) == nil)
+  }
+
+  @Test func aRefusalWhileTheLinkIsStillLiveIsTheAPIsSentence() async {
+    let sentence = "This email address has not been invited to this instance."
+    let transport = StubTransport { request in
+      switch request.route {
+      case "GET connect-link/abc":
+        return .json((try? KitFixture.text("connect-link-owner-signed-out")) ?? "")
+      default:
+        return .json(#"{"detail":"\#(sentence)"}"#, status: 403)
+      }
+    }
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore([:]),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    let flow = SignInFlow(session: session)
+    await flow.hold(.connect(token: "abc"))
+    let invitation = flow.invitation
+    flow.setEmail("new@example.com")
+    await flow.sendCode()
+    #expect(flow.emailError == sentence)
+    #expect(flow.invitation == invitation)
+    #expect(transport.requests.filter { $0.route == "POST auth/email/request" }.count == 1)
+    #expect(flow.takeHeldScreen(.signedIn(origin)) == .connect(token: "abc"))
   }
 
   @Test func theInvitationInTheWebsWords() {
