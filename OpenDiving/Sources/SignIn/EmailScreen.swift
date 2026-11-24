@@ -1,7 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Signing in to the active server: the email field, what is reachable signed out — logging a
+/// Signing in to the active server, headed by who invited the diver while a connect link is
+/// held: the email field, what is reachable signed out — logging a
 /// dive and what is waiting to sync for the account last signed in here, and the cached check-in
 /// sheet — and the server card with another server.
 struct EmailScreen: View {
@@ -20,9 +21,19 @@ struct EmailScreen: View {
   var body: some View {
     Form {
       Section {
-        logo
+        if case .from(let name, let picture) = flow.invitation {
+          InvitationHeader(flow: flow, name: name, picture: picture)
+        } else {
+          logo
+        }
       }
       .listRowBackground(Color.clear)
+      if flow.invitation == .gone {
+        Section {
+          Label(SignInFlow.invitationGone, systemImage: "link")
+            .foregroundStyle(.secondary)
+        }
+      }
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
@@ -118,6 +129,7 @@ struct EmailScreen: View {
     .toolbar(.hidden, for: .navigationBar)
     .navigationDestination(isPresented: $logsDive) { DiveFormView(mode: .create) }
     .task { await flow.session.loadServerInfo() }
+    .task { await flow.readInvitation() }
     // Whenever the row is shown; the outbox refreshes nothing before the account loads.
     .task { await outbox.refreshDrafts() }
   }

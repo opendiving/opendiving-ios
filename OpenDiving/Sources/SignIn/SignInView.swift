@@ -1,8 +1,10 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Choosing a server and signing in with an email code: everything the app shows signed out.
-/// Reads the session, the sign-in flow, the outbox and the inbox the root injects.
+/// Choosing a server, signing in with an email code or link, and signing up: everything the app
+/// shows signed out. Reads the session, the sign-in flow, the outbox and the inbox the root
+/// injects. A sign-in link is redeemed over whichever of these screens shows, and a refusal is
+/// said over it.
 struct SignInView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var flow
@@ -14,6 +16,25 @@ struct SignInView: View {
   var body: some View {
     NavigationStack {
       screen
+    }
+    .overlay {
+      if flow.isRedeemingLink {
+        HStack {
+          BubbleSpinner()
+          Text(SignInFlow.redeemingLink)
+        }
+        .padding()
+        .background(.regularMaterial, in: Capsule())
+      }
+    }
+    .alert(
+      SignInFlow.linkFailedTitle,
+      isPresented: Binding(
+        get: { flow.linkError != nil }, set: { if !$0 { flow.dismissLinkError() } })
+    ) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(flow.linkError ?? "")
     }
     // A server chosen or forgotten on a pushed servers screen starts the stack over at the new
     // server's first screen, rather than leaving the list on top of it.
@@ -52,11 +73,7 @@ struct SignInView: View {
     case .code(let email, _):
       CodeScreen(flow: flow, email: email)
     case .onboardingRequired(let email, _):
-      OutcomeScreen(
-        title: "Finish signing up on the web", systemImage: "person.crop.circle.badge.questionmark",
-        message: SignInFlow.onboardingMessage(email: email, origin: flow.origin),
-        origin: flow.origin
-      ) { flow.useDifferentEmail() }
+      SignUpScreen(flow: flow, email: email, origin: flow.origin)
     case .deletionPending(let email, let purgeAfter):
       RestoreScreen(flow: flow, email: email, purgeAfter: purgeAfter)
     case .accountDeleted(let purgeAfter):
