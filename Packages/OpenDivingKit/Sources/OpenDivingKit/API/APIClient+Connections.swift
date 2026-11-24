@@ -46,6 +46,11 @@ extension APIClient {
       Call(path: "people/added-you/\(Self.wire(account))/avatar", query: Self.version(version)))
   }
 
+  /// `GET /connect-link/{token}/avatar?v=`, `version` being the owner's `avatarSha256`.
+  public func connectLinkAvatar(_ token: String, version: String) async throws -> FetchedBytes {
+    try await picture(Call(path: "connect-link/\(token)/avatar", query: Self.version(version)))
+  }
+
   /// A picture's `?v=`, which the server ignores and which gives each version an address of its
   /// own.
   private static func version(_ version: String) -> [URLQueryItem] {

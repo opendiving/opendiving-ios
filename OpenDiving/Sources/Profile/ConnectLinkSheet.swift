@@ -2,7 +2,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// The profile's QR button's pane: the diver's connect link as a QR code to show, its reset and
-/// removal under it and the share in the top bar, or the way to make one while there is none.
+/// removal under it and the share in the top bar, or the way to make one while there is none; and
+/// under it a scanner and a paste for somebody else's link. A given link the app acts on closes
+/// the pane, its screen opening as it closes, and one it does not act on is answered here.
 struct ConnectLinkSheet: View {
   @Environment(Session.self) private var session
 
@@ -13,8 +15,16 @@ struct ConnectLinkSheet: View {
 
 private struct ConnectLinkPane: View {
   @Environment(Session.self) private var session
+  /// The root's; absent only where a test or a preview hosts the pane alone.
+  @Environment(ScreenPresenter.self) private var presenter: ScreenPresenter?
   @State private var model: ConnectLinkModel
+  @State private var isScanning = false
+  @State private var scannerUnavailable: ConnectLinkModel.ScannerUnavailable?
+  @State private var answer: GivenLinkAnswer?
+  /// The screen a given link opens, once the pane has closed.
+  @State private var handedOver: AppLink.Screen?
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.openURL) private var openURL
 
   init(session: Session) {
     _model = State(initialValue: ConnectLinkModel(session: session))
@@ -25,6 +35,8 @@ private struct ConnectLinkPane: View {
       ScrollView {
         VStack(spacing: 16) {
           content
+          Divider()
+          others
         }
         .frame(maxWidth: .infinity)
         .padding()
@@ -46,6 +58,9 @@ private struct ConnectLinkPane: View {
           }
         }
       }
+    }
+    .onDisappear {
+      if let handedOver { presenter?.open(handedOver) }
     }
     .task { await model.load() }
     .task { await model.followRoute() }
@@ -105,6 +120,72 @@ private struct ConnectLinkPane: View {
     }
   }
 
+  /// The scanner and the paste, and the answer to what they were given.
+  @ViewBuilder private var others: some View {
+    Text(ConnectLinkModel.othersTitle)
+      .font(.headline)
+    note(ConnectLinkModel.othersNote)
+    if isScanning {
+      QRCodeScanner { give($0) }
+        .frame(height: 280)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .accessibilityLabel(ConnectLinkModel.scannerLabel)
+      Button(ConnectLinkModel.stopScanning) { isScanning = false }
+        .accentRow()
+    } else {
+      HStack(spacing: 12) {
+        Button {
+          Task { await startScanning() }
+        } label: {
+          Label(ConnectLinkModel.scanButton, systemImage: "qrcode.viewfinder")
+            .frame(maxWidth: .infinity)
+        }
+        .brandBorderedButton()
+        // The system's control, which reads the pasteboard without asking.
+        PasteButton(payloadType: String.self) { strings in
+          give(strings.first ?? "")
+        }
+        .tint(Color.accentText)
+      }
+      .controlSize(.large)
+    }
+    if let scannerUnavailable {
+      note(scannerUnavailable.reason)
+    }
+    if let answer {
+      Text(answer.sentence)
+        .multilineTextAlignment(.center)
+      if let url = answer.browser {
+        Button(GivenLinkAnswer.openInBrowser) { openURL(url) }
+          .accentRow()
+      }
+    }
+  }
+
+  private func startScanning() async {
+    answer = nil
+    scannerUnavailable = await QRCodeScanner.unavailable()
+    isScanning = scannerUnavailable == nil
+  }
+
+  private func give(_ text: String) {
+    isScanning = false
+    guard let url = AppLink.url(given: text) else {
+      answer = .notALink
+      return
+    }
+    switch AppLinkRouter.action(for: url, from: .given, state: session.state) {
+    case .open(let screen):
+      answer = nil
+      handedOver = screen
+      dismiss()
+    case .answer(let given):
+      answer = given
+    case .browser(let url):
+      openURL(url)
+    }
+  }
+
   private func note(_ text: String) -> some View {
     Text(text)
       .font(.footnote)
@@ -141,6 +222,7 @@ private struct ConnectLinkPane: View {
 #Preview {
   Color.clear
     .sheet(isPresented: .constant(true)) { ConnectLinkSheet() }
+    .environment(ScreenPresenter())
     .environment(
       Session.stub(
         transport: StubTransport(routes: [

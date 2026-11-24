@@ -1,29 +1,32 @@
 import Foundation
 
 /// `POST /person`'s body, `PersonCreate`. `connectAccount` connects the new person to an account
-/// that has a person connected to the diver, as *Added you* lists it.
+/// that has a person connected to the diver, as *Added you* lists it, and `connectLink` to a
+/// connect link's owner, by the link's token; at most one of them.
 public struct PersonCreate: Codable, Hashable, Sendable {
   public var name: String
   public var email: String?
   public var phone: String?
   public var notes: String
   public var connectAccount: UUID?
+  public var connectLink: String?
 
   public init(
     name: String, email: String? = nil, phone: String? = nil, notes: String = "",
-    connectAccount: UUID? = nil
+    connectAccount: UUID? = nil, connectLink: String? = nil
   ) {
     self.name = name
     self.email = email
     self.phone = phone
     self.notes = notes
     self.connectAccount = connectAccount
+    self.connectLink = connectLink
   }
 }
 
 extension PersonCreate {
   private enum CodingKeys: String, CodingKey {
-    case name, email, phone, notes, connectAccount
+    case name, email, phone, notes, connectAccount, connectLink
   }
 
   public init(from decoder: any Decoder) throws {
@@ -33,6 +36,7 @@ extension PersonCreate {
     phone = try c.decodeIfPresent(String.self, forKey: .phone)
     notes = try c.decode(String.self, forKey: .notes)
     connectAccount = try c.decodeIfPresent(UUID.self, forKey: .connectAccount)
+    connectLink = try c.decodeIfPresent(String.self, forKey: .connectLink)
   }
 
   public func encode(to encoder: any Encoder) throws {
@@ -42,6 +46,7 @@ extension PersonCreate {
     try c.encodeIfPresent(phone, forKey: .phone)
     try c.encode(notes, forKey: .notes)
     try c.encodeWire(connectAccount, forKey: .connectAccount)
+    try c.encodeIfPresent(connectLink, forKey: .connectLink)
   }
 }
 

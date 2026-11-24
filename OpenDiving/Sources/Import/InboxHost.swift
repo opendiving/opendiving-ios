@@ -5,14 +5,18 @@ extension View {
   /// Where files shared to the app arrive, for the window's whole life: the inbox model in the
   /// environment, told when the session changes and when a route appears, so what arrived goes
   /// up, and the import screen shown when a file arrives signed in, its review opening there.
-  func inboxHost(_ inbox: InboxModel, session: Session) -> some View {
-    modifier(InboxHost(inbox: inbox, session: session))
+  /// Every other address iOS opens in the app goes to `link`.
+  func inboxHost(
+    _ inbox: InboxModel, session: Session, link: @escaping (URL) -> Void
+  ) -> some View {
+    modifier(InboxHost(inbox: inbox, session: session, link: link))
   }
 }
 
 private struct InboxHost: ViewModifier {
   let inbox: InboxModel
   let session: Session
+  let link: (URL) -> Void
 
   @State private var showingImport = false
   @State private var notice: Notice?
@@ -57,7 +61,10 @@ private struct InboxHost: ViewModifier {
   }
 
   private func receive(_ url: URL) {
-    guard url.isFileURL else { return }
+    guard url.isFileURL else {
+      link(url)
+      return
+    }
     guard let staged = SharedFileStaging.stage(url) else {
       notice = Notice(title: "The file was not kept", message: "It could not be read.")
       return

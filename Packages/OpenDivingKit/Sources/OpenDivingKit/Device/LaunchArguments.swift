@@ -1,6 +1,8 @@
+import Foundation
+
 /// What the app reads from its command line, which only a developer's launch sets — the walk
 /// with the phone that makes iOS relaunch the app, and a simulator's launch that starts signed
-/// in.
+/// in or is handed a link.
 public struct LaunchArguments: Hashable, Sendable {
   /// Ends the app a few seconds after it leaves the foreground, as iOS ending it would.
   public static let endInBackground = "--end-in-background"
@@ -14,10 +16,16 @@ public struct LaunchArguments: Hashable, Sendable {
   /// The session that launch starts with: the refresh token is the argument after it.
   public static let refreshToken = "--refresh-token"
 
+  /// An address a simulator's launch is handed as a link from outside, since a simulator build
+  /// has no associated domain to follow one by: the address is the argument after it.
+  public static let link = "--link"
+
   public var endsInBackground: Bool
   public var endsAfterFirstDive: Bool
   /// Nil unless both ``server`` and ``refreshToken`` are given, each with a value it can read.
   public var signIn: LaunchSignIn?
+  /// The address after ``link``, where it reads as one.
+  public var link: URL?
 
   /// `arguments` as the process received them, its path first.
   public init(_ arguments: [String]) {
@@ -33,5 +41,6 @@ public struct LaunchArguments: Hashable, Sendable {
     {
       signIn = LaunchSignIn(origin: origin, refreshToken: token)
     }
+    self.link = value(after: Self.link).flatMap(AppLink.url(given:))
   }
 }

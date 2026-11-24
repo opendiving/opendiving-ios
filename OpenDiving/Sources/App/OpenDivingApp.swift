@@ -8,7 +8,7 @@ struct OpenDivingApp: App {
     WindowGroup {
       RootView(
         session: delegate.session, account: delegate.account, inbox: delegate.inbox,
-        engine: delegate.engine, notices: delegate.notices)
+        engine: delegate.engine, presenter: delegate.presenter)
     }
   }
 }

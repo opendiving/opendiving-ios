@@ -90,7 +90,8 @@ targets:
           OpenDiving uses your location to open the dive-site finder near you, and when you ask it
           to place a dive site or a trip where you are.
         NSCameraUsageDescription: >-
-          OpenDiving uses the camera when you photograph a certification card to keep with it.
+          OpenDiving uses the camera when you photograph a certification card to keep with it, and
+          when you scan somebody's connect link.
         NSBluetoothAlwaysUsageDescription: >-
           OpenDiving connects to your dive computer over Bluetooth to download your dives, and
           for nothing else.

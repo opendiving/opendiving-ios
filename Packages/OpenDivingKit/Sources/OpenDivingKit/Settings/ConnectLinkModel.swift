@@ -200,4 +200,31 @@ public final class ConnectLinkModel {
     "The link stops working for anyone who has it. People already connected to you stay"
     + " connected, and you can make a new link later."
   public static let removeButton = "Remove"
+
+  // MARK: - Somebody else's link
+
+  /// Why the pane's scanner cannot run; the paste still can.
+  public enum ScannerUnavailable: Hashable, Sendable {
+    /// The phone has no camera that reads codes.
+    case unsupported
+    /// The camera is refused to the app, or restricted.
+    case cameraRefused
+
+    public var reason: String {
+      switch self {
+      case .unsupported: "This phone can't scan a code. Paste the link instead."
+      case .cameraRefused:
+        "OpenDiving isn't allowed to use the camera. Allow it in Settings to scan a code, or paste"
+          + " the link instead."
+      }
+    }
+  }
+
+  public static let othersTitle = "Somebody else's link"
+  public static let othersNote =
+    "Scan their code or paste their link to add them to your people. Any link to a page the app"
+    + " has opens here too."
+  public static let scanButton = "Scan a code"
+  public static let stopScanning = "Stop scanning"
+  public static let scannerLabel = "Camera, reading a QR code"
 }
