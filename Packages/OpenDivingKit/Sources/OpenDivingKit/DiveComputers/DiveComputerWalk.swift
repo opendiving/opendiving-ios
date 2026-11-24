@@ -87,8 +87,8 @@ public final class DiveComputerWalk: Identifiable {
   public internal(set) var choice: DownloadChoice?
   /// The diver answered *Only future dives*.
   var choseNone = false
-  /// The server said the logbook holds every dive the walk would otherwise have taken, and the
-  /// walk passed over none as answered for or not chosen.
+  /// The server said the logbook holds every dive the walk would otherwise have taken, none of
+  /// them to update, and the walk passed over none as answered for or not chosen.
   var logbookHoldsAll = false
   /// The diver or a change of session cancelled the walk.
   var cancelled = false
