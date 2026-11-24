@@ -258,8 +258,8 @@ bundle identifier — `ABCDE12345.app.opendiving.ios`, or your own identifier �
 serves `/.well-known/apple-app-site-association` for it, which it answers 404 while the setting is
 unset. iOS reads that file through Apple's CDN when the app is installed, and the CDN fetches it
 within a day of first being asked, with no way to hurry it. While you work on it,
-`OPENDIVING_LINK_DOMAIN = dive.example.org?mode=developer` reads it from the server directly instead,
-on a phone with Settings → Developer → Associated Domains Development switched on.
+`OPENDIVING_LINK_DOMAIN = dive.example.org?mode=developer` reads it from the server directly
+instead, on a phone with Settings → Developer → Associated Domains Development switched on.
 
 Whether a build carries the domain shows in the app. A simulator build embeds its entitlements in
 the executable rather than its signature:
@@ -268,8 +268,9 @@ the executable rather than its signature:
 strings -a .build/Build/Products/Debug-iphonesimulator/OpenDiving.app/OpenDiving | grep applinks
 ```
 
-and a device build answers `codesign -d --entitlements - .build/Build/Products/Debug-iphoneos/OpenDiving.app`.
-Without the line, neither names one.
+and a device build answers
+`codesign -d --entitlements - .build/Build/Products/Debug-iphoneos/OpenDiving.app`. Without the
+line, neither names one.
 
 The scanner and the paste in the connect link pane take the same links on any build and any server.
 
