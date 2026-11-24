@@ -106,7 +106,8 @@ private struct ConnectLinkOpenContent: View {
           "GET connect-link/abc/owner": .json(
             #"{"name":"Robin Diver","username":"robin","avatar_sha256":null,"#
               + #""is_yours":false,"person_uuid":null}"#)
-        ])))
+        ]))
+    )
     .environment(ScreenPresenter())
 }
 
