@@ -1,8 +1,9 @@
 import Foundation
 import Observation
 
-/// The signed-out screens: choosing a server, an email, the code, what redeeming it led to, and
-/// the goodbye after an account is deleted. The root holds one for the app's life, so that the
+/// The signed-out screens: choosing a server, an email, the code or the link, what redeeming
+/// either led to — the sign-up for an address with no account among it — and the goodbye after
+/// an account is deleted. The root holds one for the app's life, so that the
 /// servers screen Settings and the sign-in push reads the same state, and a *Forget* or a
 /// deletion can report what it did on the screen that follows it.
 @MainActor
@@ -12,13 +13,22 @@ public final class SignInFlow {
     case server
     case email
     case code(email: String, requestID: UUID)
-    /// The account exists but sign-up was never finished, which happens on the web.
+    /// The address has no account: the sign-up screen, with the name the outcome carried.
     case onboardingRequired(email: String?, name: String?)
     /// `purgeAfter` is the day the account stops being recoverable, ready to print.
     case deletionPending(email: String?, purgeAfter: String?)
     /// The account was just deleted from this phone, and is recoverable by signing in until
     /// `purgeAfter`, ready to print.
     case accountDeleted(purgeAfter: String)
+  }
+
+  /// What the sign-in screens say of a held connect link.
+  public enum Invitation: Hashable, Sendable {
+    /// Its owner has not been read yet.
+    case reading
+    case from(name: String, picture: ConnectedPicture?)
+    /// The link was reset or removed, and is no longer held.
+    case gone
   }
 
   public static let codeLength = 6
@@ -66,6 +76,26 @@ public final class SignInFlow {
   public private(set) var isResending = false
   public private(set) var resendMessage: String?
   private var codeSentAt: Date?
+
+  /// The sign-up screen's offer, in memory only and only while it shows.
+  private var onboardingOffer: OnboardingOffer?
+  public private(set) var signUpName = ""
+  public private(set) var signUpUsername = ""
+  public private(set) var isSigningUp = false
+  /// Why the last *Finish setting up* created nothing, until the next.
+  public private(set) var signUpError: String?
+
+  public private(set) var isRedeemingLink = false
+  /// Why the last sign-in link signed nobody in, until it is dismissed or the next.
+  public private(set) var linkError: String?
+
+  /// A record or a connect link from outside, for the server it was received on, held while the
+  /// diver signs in there; in memory only, so a relaunch forgets it, since a connect link's
+  /// token is a credential.
+  @ObservationIgnored private var held: (origin: ServerOrigin, screen: AppLink.Screen)?
+  /// Who the held connect link is from, for the sign-in screens to say, and for which server.
+  public private(set) var invitation: Invitation?
+  @ObservationIgnored private var invitationOrigin: ServerOrigin?
 
   /// The deletion-pending outcome's offer, in memory only and only while it shows.
   private var restoreOffer: RestoreOffer?
@@ -320,7 +350,7 @@ public final class SignInFlow {
     isRequestingCode = true
     defer { isRequestingCode = false }
     do {
-      let requestID = try await session.requestCode(email: address)
+      let requestID = try await session.requestCode(email: address, via: heldConnectToken)
       code = ""
       codeError = nil
       resendMessage = nil
@@ -353,16 +383,7 @@ public final class SignInFlow {
     codeError = nil
     defer { isVerifying = false }
     do {
-      switch try await session.verifyCode(requestID: requestID, code: code) {
-      case .signedIn:
-        email = ""
-        restart(at: .email)
-      case .onboardingRequired(let email, let name):
-        chosenStep = .onboardingRequired(email: email, name: name)
-      case .deletionPending(let email, let purgeAfter, let offer):
-        chosenStep = .deletionPending(email: email, purgeAfter: purgeAfter.map(Self.day))
-        restoreOffer = offer
-      }
+      take(try await session.verifyCode(requestID: requestID, code: code))
     } catch is CancellationError {
     } catch {
       codeError = Self.codeErrorMessage(APIError(error))
@@ -393,7 +414,7 @@ public final class SignInFlow {
     codeError = nil
     defer { isResending = false }
     do {
-      let requestID = try await session.requestCode(email: address)
+      let requestID = try await session.requestCode(email: address, via: heldConnectToken)
       code = ""
       codeSentAt = now()
       chosenStep = .code(email: address, requestID: requestID)
@@ -408,6 +429,189 @@ public final class SignInFlow {
   /// the goodbye.
   public func useDifferentEmail() {
     restart(at: .email)
+  }
+
+  // MARK: - A sign-in link
+
+  /// Redeems a sign-in link's token, from whichever sign-in screen shows, and goes on as a code
+  /// does. A refusal is the API's sentence, in ``linkError``, and keeps the screen.
+  public func redeemLink(_ token: String) async {
+    guard !isRedeemingLink else { return }
+    isRedeemingLink = true
+    linkError = nil
+    defer { isRedeemingLink = false }
+    do {
+      take(try await session.verifyLink(token: token))
+    } catch is CancellationError {
+    } catch {
+      linkError = APIError(error).message
+    }
+  }
+
+  public func dismissLinkError() {
+    linkError = nil
+  }
+
+  public static let linkFailedTitle = "This sign-in link didn't work"
+  public static let redeemingLink = "Signing in…"
+
+  // MARK: - A link held while signed out
+
+  /// Holds a record or a connect link from outside while the diver signs in on the server the
+  /// app is on, replacing one held before, and reads whose a connect link is for the sign-in
+  /// screens.
+  public func hold(_ screen: AppLink.Screen) async {
+    guard let origin = session.state.origin else { return }
+    held = (origin, screen)
+    invitationOrigin = origin
+    guard case .connect = screen else {
+      invitation = nil
+      return
+    }
+    invitation = .reading
+    await readInvitation()
+  }
+
+  /// Reads whose the held connect link is, while it has not been read: a link that is no longer
+  /// active is dropped and said to be, and a read that fails is tried again by the next call.
+  public func readInvitation() async {
+    guard invitation == .reading, let held, case .connect(let token) = held.screen,
+      held.origin == session.state.origin
+    else { return }
+    do {
+      let owner = try await session.requireClient().anonymousConnectLinkOwner(token)
+      // Another link may have been held while this one was read.
+      guard self.held?.screen == .connect(token: token), invitation == .reading else { return }
+      if let owner {
+        invitation = .from(name: owner.name, picture: .of(owner, token: token))
+      } else {
+        self.held = nil
+        invitation = .gone
+      }
+    } catch {
+      // Held still, and the token still goes with the email; the screens say nothing of it.
+    }
+  }
+
+  /// The held link's screen, once `state` is signed in on its server, which then holds nothing.
+  /// A state on any other server, or on none, drops what is held.
+  public func takeHeldScreen(_ state: Session.State) -> AppLink.Screen? {
+    if let origin = held?.origin ?? invitationOrigin, state.origin != origin {
+      dropHeld()
+      return nil
+    }
+    guard case .signedIn = state else { return nil }
+    let screen = held?.screen
+    dropHeld()
+    return screen
+  }
+
+  public static func invitationTitle(_ name: String) -> String {
+    "\(name) invited you to connect on OpenDiving"
+  }
+
+  /// The line under it, in the web's words: the project's voice only where the server says the
+  /// project runs it.
+  public func invitationNote(_ name: String) -> String {
+    let start =
+      session.server?.config.projectOperated == true
+      ? "Enter your email to sign in, or to join the OpenDiving beta."
+      : "Enter your email to sign in, or to create your account."
+    return start + " A new account starts with \(name) in its people, and \(name) sees its name,"
+      + " username and picture."
+  }
+
+  public static let invitationGone =
+    "The connect link you opened is no longer active. Ask whoever gave it to you for their new one."
+
+  private var heldConnectToken: String? {
+    guard let held, held.origin == session.state.origin, case .connect(let token) = held.screen
+    else { return nil }
+    return token
+  }
+
+  private func dropHeld() {
+    held = nil
+    invitation = nil
+    invitationOrigin = nil
+  }
+
+  // MARK: - Signing up
+
+  public func setSignUpName(_ text: String) {
+    signUpName = text
+    signUpError = nil
+  }
+
+  public func setSignUpUsername(_ text: String) {
+    signUpUsername = text
+    signUpError = nil
+  }
+
+  /// Why `field` as typed would be refused, once something is typed in it.
+  public func signUpProblem(_ field: AccountFieldModel.Field) -> String? {
+    let text = signUpText(field)
+    return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      ? nil : field.problem(text)
+  }
+
+  public var canSignUp: Bool {
+    onboardingOffer != nil && !isSigningUp
+      && [.name, .username].allSatisfy { (field: AccountFieldModel.Field) in
+        field.problem(signUpText(field)) == nil
+      }
+  }
+
+  /// Creates the account and signs in to it. A taken username and the registration gate's
+  /// refusal are the API's sentence on the screen; an onboarding token that expired leads back
+  /// to the email, with the API's sentence there, since only a new sign-in mints another.
+  public func signUp() async {
+    guard canSignUp, case .onboardingRequired(let address, _) = chosenStep,
+      let offer = onboardingOffer
+    else { return }
+    isSigningUp = true
+    signUpError = nil
+    defer { isSigningUp = false }
+    do {
+      try await session.completeSignUp(
+        offer, name: signUpName.trimmingCharacters(in: .whitespacesAndNewlines),
+        username: signUpUsername.trimmingCharacters(in: .whitespacesAndNewlines))
+      email = ""
+      restart(at: .email)
+    } catch is CancellationError {
+    } catch {
+      let error = APIError(error)
+      if case .http(status: 401, _) = error {
+        restart(at: .email)
+        if let address { email = address }
+        emailError = error.message
+      } else {
+        signUpError = error.message
+      }
+    }
+  }
+
+  /// The sign-up screen's sentence on the terms, in the web's words, each document linked on the
+  /// server's web, `url` nil for the words between them.
+  public static func signUpTerms(_ origin: ServerOrigin) -> [(text: String, url: URL?)] {
+    [
+      ("By creating an account, you agree to our ", nil),
+      ("Terms of Service", origin.url.appendingPathComponent("terms")),
+      (" and ", nil),
+      ("Privacy Policy", origin.url.appendingPathComponent("privacy")),
+    ]
+  }
+
+  public static let signUpTitle = "Complete Your Profile"
+  public static let signUpNote = "Just a couple more details and you're in."
+  public static let signUpButton = "Finish setting up"
+  public static let signingUp = "Creating your account…"
+
+  private func signUpText(_ field: AccountFieldModel.Field) -> String {
+    switch field {
+    case .name: signUpName
+    case .username: signUpUsername
+    }
   }
 
   // MARK: - Deleting and restoring
@@ -444,6 +648,22 @@ public final class SignInFlow {
 
   // MARK: - Internals
 
+  /// Where redeeming a code or a link leads.
+  private func take(_ outcome: Session.SignInOutcome) {
+    switch outcome {
+    case .signedIn:
+      email = ""
+      restart(at: .email)
+    case .onboardingRequired(let email, let name, let offer):
+      restart(at: .onboardingRequired(email: email, name: name))
+      onboardingOffer = offer
+      signUpName = name ?? ""
+    case .deletionPending(let email, let purgeAfter, let offer):
+      restart(at: .deletionPending(email: email, purgeAfter: purgeAfter.map(Self.day)))
+      restoreOffer = offer
+    }
+  }
+
   private func restart(at step: Step) {
     code = ""
     codeError = nil
@@ -452,6 +672,10 @@ public final class SignInFlow {
     emailError = nil
     restoreOffer = nil
     restoreError = nil
+    onboardingOffer = nil
+    signUpName = ""
+    signUpUsername = ""
+    signUpError = nil
     chosenStep = step
   }
 

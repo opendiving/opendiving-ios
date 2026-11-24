@@ -3,7 +3,9 @@ import Foundation
 /// What the app does with an address, by where it came from and the session's state. The app acts
 /// on a link only for the server it is on: the session has one active server, and switching it
 /// from a link would start the app over under whatever the diver had open. What it does not act
-/// on goes to the browser when it came from outside, and is answered when it was given.
+/// on goes to the browser when it came from outside, and is answered when it was given. Signed
+/// out on the link's server, a sign-in link is redeemed, and a record or a connect link from
+/// outside is held until the diver has signed in.
 public enum AppLinkRouter {
   public enum Source: Hashable, Sendable {
     /// Handed to the app by iOS, or by the simulator's launch argument.
@@ -17,6 +19,10 @@ public enum AppLinkRouter {
     case open(AppLink.Screen)
     /// The address opens in the browser.
     case browser(URL)
+    /// The sign-in screens redeem the link's token.
+    case signIn(token: String)
+    /// The screen opens once the diver has signed in on the link's server; from outside only.
+    case hold(AppLink.Screen)
     /// A given link the app does not act on, answered where it was given.
     case answer(GivenLinkAnswer)
   }
@@ -30,13 +36,17 @@ public enum AppLinkRouter {
       return notActedOn(.otherServer(link.origin, current: state.origin, url: url))
     }
     let signedIn = if case .signedIn = state { true } else { false }
+    func opened(_ screen: AppLink.Screen) -> Action {
+      if signedIn { return .open(screen) }
+      return source == .outside ? .hold(screen) : .answer(.signInFirst)
+    }
     switch link.target {
     case .record(let record):
-      return signedIn ? .open(.record(record)) : notActedOn(.signInFirst)
+      return opened(.record(record))
     case .connect(let token):
-      return signedIn ? .open(.connect(token: token)) : notActedOn(.signInFirst)
-    case .signIn:
-      return notActedOn(signedIn ? .signedInAlready : .signInWithTheCode)
+      return opened(.connect(token: token))
+    case .signIn(let token):
+      return signedIn ? notActedOn(.signedInAlready) : .signIn(token: token)
     }
   }
 }
@@ -49,7 +59,6 @@ public enum GivenLinkAnswer: Hashable, Sendable {
   case notALink
   case signedInAlready
   case signInFirst
-  case signInWithTheCode
 
   public var sentence: String {
     switch self {
@@ -62,7 +71,6 @@ public enum GivenLinkAnswer: Hashable, Sendable {
     case .notALink: "This is not a link the app opens."
     case .signedInAlready: "This is a sign-in link, and the app is signed in already."
     case .signInFirst: "Sign in to open this link."
-    case .signInWithTheCode: "Sign in with the code the same email gives."
     }
   }
 

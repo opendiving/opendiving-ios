@@ -35,6 +35,11 @@ public struct ConnectedPicture: Hashable, Sendable {
   public static func of(_ owner: ConnectLinkOwnerForYou, token: String) -> ConnectedPicture? {
     owner.avatarSha256.map { ConnectedPicture(source: .connectLink(token), version: $0) }
   }
+
+  /// A connect link's owner's, as the link tells somebody signed out, where they have one.
+  public static func of(_ owner: ConnectLinkOwner, token: String) -> ConnectedPicture? {
+    owner.avatarSha256.map { ConnectedPicture(source: .connectLink(token), version: $0) }
+  }
 }
 
 /// A connected account's picture as the phone draws it: the kept bytes of the version a read

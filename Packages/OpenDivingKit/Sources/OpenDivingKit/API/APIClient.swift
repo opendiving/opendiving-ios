@@ -74,7 +74,7 @@ public actor APIClient {
     else { throw APIError.notAnInstance }
     let health: HealthRead?
     do {
-      health = try await decoded(HealthRead.self, Call(path: "health"))
+      health = try await anonymousDecoded(HealthRead.self, Call(path: "health"))
     } catch let error as CancellationError {
       // Cut off, the answer is no instance at all: half of one would still be acted on.
       throw error
@@ -86,12 +86,17 @@ public actor APIClient {
 
   // MARK: - Signing in and out
 
-  /// `POST /auth/email/request`: mails a six-digit code. The answer is the same whether or
-  /// not the address has an account.
-  public func requestEmailCode(email: String) async throws -> EmailAuthRequestResponse {
-    let body = try APICoding.encoder().encode(["email": email])
-    return try await decoded(
-      EmailAuthRequestResponse.self, Call(method: "POST", path: "auth/email/request", body: body))
+  /// `POST /auth/email/request`: mails a sign-in link and a six-digit code. The answer is the
+  /// same whether or not the address has an account. `via` is the token of the connect link the
+  /// sign-in started from.
+  public func requestEmailCode(email: String, via: String? = nil) async throws
+    -> EmailAuthRequestResponse
+  {
+    try await anonymousDecoded(
+      EmailAuthRequestResponse.self,
+      Call(
+        method: "POST", path: "auth/email/request",
+        body: Self.json(EmailAuthRequest(email: email, via: via))))
   }
 
   /// `POST /auth/email/verify-code`. On `authenticated` the session starts here: the access
@@ -105,17 +110,23 @@ public actor APIClient {
     let body = try APICoding.encoder().encode([
       "request_id": Self.wire(requestID), "code": code, "idle_timeout": "extended",
     ])
-    let (data, response) = try await perform(
-      Call(method: "POST", path: "auth/email/verify-code", body: body, mintsSession: true),
-      bearer: nil)
-    let outcome = try decode(AuthOutcome.self, data, response)
-    if outcome.status == "authenticated", let token = outcome.accessToken {
-      if let cookie = RefreshCookie.value(inSetCookie: setCookie(response)) {
-        try store(cookie)
-      }
-      accessToken = token
-    }
-    return outcome
+    return try await signIn(Call(method: "POST", path: "auth/email/verify-code", body: body))
+  }
+
+  /// `POST /auth/email/verify`, the sign-in link's half of the email: answered and kept as
+  /// ``verifyEmailCode(requestID:code:)`` is, asking for the same window. A 401 is the server's
+  /// answer about the link — used, superseded or expired — and the link is spent by any answer.
+  public func verifyEmailLink(token: String) async throws -> AuthOutcome {
+    let body = try Self.json(EmailVerifyRequest(token: token, idleTimeout: .extended))
+    return try await signIn(Call(method: "POST", path: "auth/email/verify", body: body))
+  }
+
+  /// `POST /auth/complete`: creates the account an `onboarding_required` outcome offered and
+  /// starts its session, kept as a sign-in's is, of the window that sign-in asked for, which the
+  /// server signed into the token. A 401 is an onboarding token that is spent or expired, a 422
+  /// a username or an address already taken, and a 403 the registration gate's refusal.
+  public func completeProfile(_ request: ProfileCompletionRequest) async throws -> AuthOutcome {
+    try await signIn(Call(method: "POST", path: "auth/complete", body: Self.json(request)))
   }
 
   /// `POST /auth/restore`: undoes a deletion inside its grace period and starts a session, kept
@@ -124,8 +135,15 @@ public actor APIClient {
   /// whose sentence says why, not an expired session.
   public func restoreAccount(_ offer: RestoreOffer) async throws -> AuthOutcome {
     let body = try Self.json(RestoreRequest(restoreToken: offer.token))
-    let (data, response) = try await perform(
-      Call(method: "POST", path: "auth/restore", body: body, mintsSession: true), bearer: nil)
+    return try await signIn(Call(method: "POST", path: "auth/restore", body: body))
+  }
+
+  /// One of the calls that can start a session, sent with no bearer: on `authenticated` the
+  /// access token is kept in memory and the refresh token in the ``SecretStore``.
+  private func signIn(_ call: Call) async throws -> AuthOutcome {
+    var call = call
+    call.mintsSession = true
+    let (data, response) = try await perform(call, bearer: nil)
     let outcome = try decode(AuthOutcome.self, data, response)
     if outcome.status == "authenticated", let token = outcome.accessToken {
       if let cookie = RefreshCookie.value(inSetCookie: setCookie(response)) {
@@ -562,8 +580,13 @@ public actor APIClient {
     }
   }
 
-  private func decoded<T: Decodable>(_ type: T.Type, _ call: Call) async throws -> T {
-    let (data, response) = try await perform(call, bearer: nil)
+  /// For a route that takes no session, sent without one whether or not the phone holds one.
+  func anonymous(_ call: Call) async throws -> (Data, HTTPURLResponse) {
+    try await perform(call, bearer: nil)
+  }
+
+  func anonymousDecoded<T: Decodable>(_ type: T.Type, _ call: Call) async throws -> T {
+    let (data, response) = try await anonymous(call)
     return try decode(type, data, response)
   }
 

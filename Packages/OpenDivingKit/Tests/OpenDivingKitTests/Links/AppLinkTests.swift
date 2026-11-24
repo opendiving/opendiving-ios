@@ -109,11 +109,8 @@ struct AppLinkTests {
     let dive = "https://dive.example.org/dives/\(APIClient.wire(Self.uuid))"
     let signIn = "https://dive.example.org/auth/verify?token=t"
     let rows: [(String, Session.State)] = [
-      // Signed out on the server: held, then redeemed, once the sign-in screens can.
-      (dive, .signingIn(Self.server)),
-      ("https://dive.example.org/connect/abc", .signingIn(Self.server)),
-      (signIn, .signingIn(Self.server)),
       (signIn, .signedIn(Self.server)),
+      (signIn, .signingIn(Self.other)),
       (dive, .signedIn(Self.other)),
       (dive, .signingIn(Self.other)),
       (dive, .noServer),
@@ -122,6 +119,18 @@ struct AppLinkTests {
     ]
     for (address, state) in rows {
       #expect(action(address, .outside, state) == .browser(URL(string: address)!), "\(address)")
+    }
+  }
+
+  @Test func signedOutOnTheServerASignInLinkIsRedeemedAndTheRestHeld() {
+    let signedOut = Session.State.signingIn(Self.server)
+    let dive = "https://dive.example.org/dives/\(APIClient.wire(Self.uuid))"
+    let connect = "https://dive.example.org/connect/abc"
+    let signIn = "https://dive.example.org/auth/verify?token=t"
+    #expect(action(dive, .outside, signedOut) == .hold(.record(.dive(Self.uuid))))
+    #expect(action(connect, .outside, signedOut) == .hold(.connect(token: "abc")))
+    for source in [AppLinkRouter.Source.outside, .given] {
+      #expect(action(signIn, source, signedOut) == .signIn(token: "t"))
     }
   }
 
@@ -147,24 +156,27 @@ struct AppLinkTests {
 
     let signIn = "https://dive.example.org/auth/verify?token=t"
     #expect(action(signIn, .given, .signedIn(Self.server)) == .answer(.signedInAlready))
-    #expect(action(signIn, .given, .signingIn(Self.server)) == .answer(.signInWithTheCode))
     #expect(action(dive, .given, .signingIn(Self.server)) == .answer(.signInFirst))
 
-    for answer in [GivenLinkAnswer.notALink, .signedInAlready, .signInFirst, .signInWithTheCode] {
+    for answer in [GivenLinkAnswer.notALink, .signedInAlready, .signInFirst] {
       #expect(answer.browser == nil)
     }
   }
 
   // MARK: - The presenter
 
-  @Test func aLinkFromOutsideOpensOrComesBackForTheBrowser() {
+  @Test func aLinkFromOutsideOpensOrComesBackForTheCaller() {
     let presenter = ScreenPresenter()
     let dive = URL(string: "https://dive.example.org/dives/\(APIClient.wire(Self.uuid))")!
     #expect(presenter.receive(dive, state: .signedIn(Self.server)) == nil)
     #expect(presenter.opened?.screen == .link(.record(.dive(Self.uuid))))
 
     let first = presenter.opened
-    #expect(presenter.receive(dive, state: .signedIn(Self.other)) == dive)
+    #expect(presenter.receive(dive, state: .signedIn(Self.other)) == .browser(dive))
+    #expect(
+      presenter.receive(dive, state: .signingIn(Self.server)) == .hold(.record(.dive(Self.uuid))))
+    let signIn = URL(string: "https://dive.example.org/auth/verify?token=t")!
+    #expect(presenter.receive(signIn, state: .signingIn(Self.server)) == .signIn(token: "t"))
     #expect(presenter.opened == first)
   }
 
