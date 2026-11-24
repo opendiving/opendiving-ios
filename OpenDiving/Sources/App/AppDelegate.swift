@@ -5,8 +5,8 @@ import UserNotifications
 /// What the app starts before any view, on every launch, by the diver or by iOS in the
 /// background — a view may never be built on one of iOS's: the session and the account's load,
 /// the watch over the paired dive computers, the engine that downloads and imports from them, the
-/// notifications it posts, the screen a tapped one opens, and the watch walk's launch arguments. Nothing here asks who launched
-/// the process: a scene-based app is told neither way.
+/// notifications it posts, the screen a tapped one opens, and the watch walk's launch arguments.
+/// Nothing here asks who launched the process: a scene-based app is told neither way.
 final class AppDelegate: NSObject, UIApplicationDelegate {
   let session = Session.device()
   lazy var account = AccountLoader(session: session)

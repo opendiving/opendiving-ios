@@ -3,8 +3,9 @@ import Observation
 
 /// The person form opened from *Added you* or by somebody's connect link: headed by the account
 /// it connects to, it either makes a person connected to that account or connects one of the
-/// diver's people who is not connected yet, opening on the one named as the account is named. A direct call, online only, since it
-/// needs the account's tie to the diver to stand: a refusal is the API's sentence on the form.
+/// diver's people who is not connected yet, opening on the one named as the account is named. A
+/// direct call, online only, since it needs the account's tie to the diver to stand: a refusal is
+/// the API's sentence on the form.
 @MainActor
 @Observable
 public final class ConnectPersonModel {
