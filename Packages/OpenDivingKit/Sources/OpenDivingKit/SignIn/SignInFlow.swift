@@ -96,6 +96,7 @@ public final class SignInFlow {
   /// Who the held connect link is from, for the sign-in screens to say, and for which server.
   public private(set) var invitation: Invitation?
   @ObservationIgnored private var invitationOrigin: ServerOrigin?
+  @ObservationIgnored private var isReadingInvitation = false
 
   /// The deletion-pending outcome's offer, in memory only and only while it shows.
   private var restoreOffer: RestoreOffer?
@@ -475,21 +476,29 @@ public final class SignInFlow {
   /// Reads whose the held connect link is, while it has not been read: a link that is no longer
   /// active is dropped and said to be, and a read that fails is tried again by the next call.
   public func readInvitation() async {
-    guard invitation == .reading, let held, case .connect(let token) = held.screen,
-      held.origin == session.state.origin
+    guard invitation == .reading, !isReadingInvitation, let held,
+      case .connect(let token) = held.screen, held.origin == session.state.origin
     else { return }
+    isReadingInvitation = true
+    let owner: ConnectLinkOwner?
     do {
-      let owner = try await session.requireClient().anonymousConnectLinkOwner(token)
-      // Another link may have been held while this one was read.
-      guard self.held?.screen == .connect(token: token), invitation == .reading else { return }
-      if let owner {
-        invitation = .from(name: owner.name, picture: .of(owner, token: token))
-      } else {
-        self.held = nil
-        invitation = .gone
-      }
+      owner = try await session.requireClient().anonymousConnectLinkOwner(token)
     } catch {
       // Held still, and the token still goes with the email; the screens say nothing of it.
+      isReadingInvitation = false
+      return
+    }
+    isReadingInvitation = false
+    guard self.held?.screen == .connect(token: token), invitation == .reading else {
+      // Another link was held while this one was read.
+      await readInvitation()
+      return
+    }
+    if let owner {
+      invitation = .from(name: owner.name, picture: .of(owner, token: token))
+    } else {
+      self.held = nil
+      invitation = .gone
     }
   }
 
