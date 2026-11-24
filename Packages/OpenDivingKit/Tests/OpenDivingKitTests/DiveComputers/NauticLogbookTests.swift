@@ -210,16 +210,8 @@ struct NauticLogbookTests {
     #expect(selection.listing == expected)
   }
 
-  /// The others are the entries counted as dives that the walk does not download: behind the
-  /// fingerprint, or passed over in front of it, never a run.
-  @Test func theOthersAreTheDivesTheWalkDoesNotDownload() {
-    let waits: Set<UInt32> = [ids[0]]
-    let selection = NauticSelection(
-      ids: ids, fingerprint: NauticSelection.fingerprint(ids[4]), remembered: nil,
-      learned: learned(ids)
-    ) { waits.contains($0) }
-    let behind = ids.dropFirst(4).filter { $0 != run }
-    #expect(selection.others == downloads([ids[0]] + behind))
+  /// The entries taken after the rest come in the logbook's order, newest first.
+  @Test func theEntriesTakenAfterTheRestComeNewestFirst() {
     #expect(
       NauticSelection.taking(
         [NauticSelection.fingerprint(ids[9]), NauticSelection.fingerprint(ids[1])], of: ids)

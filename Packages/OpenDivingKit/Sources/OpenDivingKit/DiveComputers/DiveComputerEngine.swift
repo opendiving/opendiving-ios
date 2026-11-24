@@ -29,9 +29,10 @@ import Observation
 /// Before that the dives a walk kept, and those the server has answered for, are what a walk of
 /// new dives does not take again (``DownloadStore``). Nor does any walk take a dive the logbook
 /// already holds with the computer's original, which the server is asked before the first
-/// transfer (``heldByLogbook(_:_:account:marked:)``), nor one the diver did not choose. A dive it
-/// holds without that original is taken after the rest, from behind the fingerprint too, and
-/// never moves it (``DiveComputerEngine+Choice``).
+/// transfer (``heldByLogbook(_:_:account:marked:)``), nor one the diver did not choose. One it
+/// holds without that original is offered and taken where a dive it lacks would be, after the
+/// rest, and moves the fingerprint at its place as a dive left out does
+/// (``DiveComputerEngine+Choice``).
 ///
 /// **No guessed time zone.** A dive whose start is an instant with no logged zone takes the
 /// watch's zone while under a day old. Otherwise a walk the diver watches asks after the walk;
@@ -300,7 +301,7 @@ public final class DiveComputerEngine {
   }
 
   /// The diver's tap: a walk of `computer`'s new dives, or with `choosing` of the dives chosen
-  /// from a list of every one the logbook lacks. A walk nobody started ends with what it kept,
+  /// from a list of every one the logbook lacks or holds without the computer's original. A walk nobody started ends with what it kept,
   /// and this one starts once it has. Nil where the diver's walk is already in flight or nothing
   /// can be kept.
   @discardableResult
@@ -458,10 +459,10 @@ public final class DiveComputerEngine {
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
       return waitingDives.contains(uuid) || delivered.contains(uuid) || declined.contains(uuid)
     }
-    let decide: DiveComputerListing.Decide = { [weak self] identity, listed, others in
+    let decide: DiveComputerListing.Decide = { [weak self] identity, listed in
       await self?.decided(
-        walk, identity, listed, others: others, account: account, marked: marked,
-        kept: waitingDives, store: store, downloads: downloads) ?? .init(leftOut: [])
+        walk, identity, listed, account: account, marked: marked, kept: waitingDives,
+        store: store, downloads: downloads) ?? .init(leftOut: [])
     }
     let keeper = WalkKeeper(store: downloads, marked: marked, startedAt: now())
     inFlight = WalkInFlight(keeper: keeper, downloads: downloads, store: store, marked: marked)
@@ -546,7 +547,7 @@ public final class DiveComputerEngine {
         if let fraction = walk.walkProgress { walk.estimate.progressed(fraction, at: now()) }
         if walk.listing == nil { walk.phase = .downloading }
       case .dive(let dive):
-        if !walk.catchUp.contains(dive.fingerprint) { newest = newest ?? dive.fingerprint }
+        newest = newest ?? dive.fingerprint
         dives.append(dive)
         walk.identity = walk.identity ?? dive.identity
         inFlight?.identity = walk.identity
@@ -573,7 +574,7 @@ public final class DiveComputerEngine {
         diveKept?()
         await uploadWhileWalking()
       case .skipped(let fingerprint):
-        if !walk.catchUp.contains(fingerprint) { newest = newest ?? fingerprint }
+        newest = newest ?? fingerprint
         walk.took(fingerprint)
         walk.estimate.skipped(fingerprint, at: now())
         if let identity = walk.identity {
@@ -586,7 +587,7 @@ public final class DiveComputerEngine {
           }
         }
         walkedOne()
-      // Where today's walk would have left it out as held: the fingerprint moves as it would have.
+      // Taken after the rest, at its place: the fingerprint moves as past a dive left out.
       case .deferred(let fingerprint):
         newest = newest ?? fingerprint
         walkedOne()
@@ -686,14 +687,11 @@ public final class DiveComputerEngine {
       var saved = remembered(
         record, identity: identity, computer: walk.computer, sports: sports, marked: marked,
         in: store)
-      if advances, heldAll {
-        // No newest where the walk took only dives from behind the fingerprint: it stays.
-        if let newest {
-          saved.fingerprint = newest
-          saved.fingerprintSetAside = false
-          downloads.clearDelivered(saved.id)
-        }
+      if advances, heldAll, let newest {
+        saved.fingerprint = newest
+        saved.fingerprintSetAside = false
         saved.lastDownloaded = now()
+        downloads.clearDelivered(saved.id)
       }
       try? store.save(saved)
       finish(walk, .init(kind: .kept, sentence: keptSentence(parsed, refused, end)))

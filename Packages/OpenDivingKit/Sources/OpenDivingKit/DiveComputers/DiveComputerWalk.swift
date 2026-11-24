@@ -87,9 +87,6 @@ public final class DiveComputerWalk: Identifiable {
   public internal(set) var choice: DownloadChoice?
   /// The diver answered *Only future dives*.
   var choseNone = false
-  /// The fingerprints of the listed dives the walk takes after the rest because the logbook holds
-  /// them without the computer's original: none of them moves the record's fingerprint.
-  var catchUp: Set<Data> = []
   /// The server said the logbook holds every dive the walk would otherwise have taken, and the
   /// walk passed over none as answered for or not chosen.
   var logbookHoldsAll = false

@@ -2,8 +2,9 @@ import OpenDivingKit
 import SwiftUI
 
 /// *Which dives do you want to download?*, asked once a computer new to the account has listed
-/// its dives: how many the logbook lacks and about how long they would take, then all of them,
-/// the list, only future ones, or *Cancel*.
+/// its dives: how many the logbook lacks, how many it holds that the computer's original download
+/// can update, and about how long they would all take, then all of them, the list, only future
+/// ones, or *Cancel*.
 struct DiveQuestionSection: View {
   let model: DiveComputerModel
 

@@ -5,10 +5,10 @@ import OpenDivingKit
 /// A Shearwater Petrel-family computer, walked as `shearwater_petrel_device_foreach` walks it but
 /// with the whole manifest read first, so the count comes before the first dive: the identity by
 /// identifier, every manifest page, the engine's answer for what to leave out — what the logbook
-/// holds, or the diver did not choose — and what to take after the rest, then each new record's
-/// dive but those the phone need not take again or the engine left out, then the dive of each
-/// record the engine takes after the rest — one the logbook holds without the computer's
-/// original, behind the fingerprint or not. One connection, since a Perdix 3 answers a second manifest read on it with an
+/// holds, or the diver did not choose — and what of that to take after the rest, then each new
+/// record's dive but those the phone need not take again or the engine left out, then the dive of
+/// each new record the engine takes after the rest — one the logbook holds without the computer's
+/// original. One connection, since a Perdix 3 answers a second manifest read on it with an
 /// all-zero index — but where the computer drops the link in a walk the diver started, which is
 /// waited out (``waitForLink(after:)``): the transfer it lost is made again on the next, the
 /// manifest read again from its first page, and with no resume buffer an interrupted dive read
@@ -46,7 +46,7 @@ nonisolated extension LibDCWalk {
     }
 
     let phone = PetrelManifest.select(records, fingerprint: fingerprint) { waiting(identity, $0) }
-    let decision = decided(identity, phone.listing.downloads, others: phone.others)
+    let decision = decided(identity, phone.listing.downloads)
     let held = decision.leftOut
     let selection =
       held.isEmpty

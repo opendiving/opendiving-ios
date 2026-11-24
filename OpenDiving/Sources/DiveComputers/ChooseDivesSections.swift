@@ -1,10 +1,11 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The list to choose from: every dive on the computer that the logbook lacks, newest first,
-/// each as a dive card with its start, length and max depth, none chosen to begin with. The
-/// count and the confirmation stand in ``ChosenDivesBar`` under the list, where a long list
-/// leaves them in reach.
+/// The list to choose from: every dive on the computer that the logbook lacks, then, under a
+/// heading of their own, those it holds without the computer's original download, each newest
+/// first as a dive card with its start, length and max depth, none chosen to begin with. A kind
+/// with no dive draws no section. The count and the confirmation stand in ``ChosenDivesBar``
+/// under the list, where a long list leaves them in reach.
 struct ChooseDivesSections: View {
   let model: DiveComputerModel
   @Environment(Session.self) private var session
@@ -17,18 +18,23 @@ struct ChooseDivesSections: View {
       .accentRow()
       Button("Cancel", role: .cancel) { model.cancel() }
         .accentRow()
-    } header: {
-      Text(
-        model.choice?.checked == false
-          ? DiveComputerText.onComputerHeading : DiveComputerText.notInLogbookHeading)
     } footer: {
       if model.choice?.checked == false {
         Text(DiveComputerText.logbookNotChecked)
       }
     }
-    Section {
-      ForEach(model.choiceRows(units: session.units)) { row in
-        ChoiceRowView(row: row) { model.toggle(row.fingerprint) }
+    ForEach(model.choiceSections(units: session.units)) { section in
+      Section {
+        ForEach(section.rows) { row in
+          ChoiceRowView(row: row) { model.toggle(row.fingerprint) }
+        }
+      } header: {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(section.heading)
+          if let line = section.line {
+            Text(line).font(.footnote).textCase(nil)
+          }
+        }
       }
     }
   }

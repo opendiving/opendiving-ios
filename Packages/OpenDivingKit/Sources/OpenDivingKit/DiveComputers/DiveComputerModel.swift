@@ -6,8 +6,9 @@ import Observation
 /// through its phases to finished, with an outcome.
 ///
 /// **A computer new to the account asks which dives to download**, once its list is read:
-/// all of those the logbook lacks, some chosen from the list, or only future ones. The list is
-/// also *Choose dives to download*, on a computer's page and after a download that took nothing.
+/// all of those the logbook lacks or holds without the computer's original download, some chosen
+/// from the list, or only future ones. The list is also *Choose dives to download*, on a
+/// computer's page and after a download that took nothing.
 ///
 /// **A walk a connection starts is shown as the diver's is**, from its start or from the
 /// model's, if it is already in flight, to its outcome — unless the diver's own walk is held for
@@ -600,19 +601,8 @@ public final class DiveComputerModel {
   /// What the walk asks before its first transfer: the question, or the list.
   public var choice: DownloadChoice? { phase == .choosingDives ? walk?.choice : nil }
 
-  /// Beneath *Which dives do you want to download?*: how many dives the logbook lacks, and about
-  /// how long they would take where the pace says.
-  public var questionDetail: String? {
-    guard let choice else { return nil }
-    let count = choice.dives.count
-    var text =
-      choice.checked
-      ? DiveComputerText.notInLogbook(count) : DiveComputerText.onComputerUnchecked(count)
-    if let seconds = choice.time(of: choice.dives) {
-      text += " " + DiveComputerText.downloadTakes(seconds, dives: count)
-    }
-    return text
-  }
+  /// Beneath *Which dives do you want to download?* (``DownloadChoice/questionDetail``).
+  public var questionDetail: String? { choice?.questionDetail }
 
   /// *Download all 12 dives*.
   public var downloadAllText: String? {
@@ -671,9 +661,9 @@ public final class DiveComputerModel {
     return text
   }
 
-  /// The list's rows, in the diver's units.
-  public func choiceRows(units: UnitSystem) -> [DownloadChoice.Row] {
-    choice?.rows(chosen: chosen, units: units, phoneZone: phoneZone) ?? []
+  /// The list's sections, each holding a dive, in the diver's units.
+  public func choiceSections(units: UnitSystem) -> [DownloadChoice.Section] {
+    choice?.sections(chosen: chosen, units: units, phoneZone: phoneZone) ?? []
   }
 
   /// The list's confirmation: the chosen dives, newest first.

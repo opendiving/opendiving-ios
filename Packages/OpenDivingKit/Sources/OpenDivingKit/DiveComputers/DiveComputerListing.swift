@@ -25,11 +25,11 @@ public struct DiveComputerListing: Hashable, Sendable {
 
   /// The engine's answer to a walk's list, before the walk's first transfer.
   public struct Decision: Hashable, Sendable {
-    /// The fingerprints of the entries the walk would take that it leaves out: those the logbook
-    /// holds, and those the diver did not choose.
+    /// The fingerprints of the entries the walk would take that it leaves out at their place:
+    /// those the logbook holds, and those the diver did not choose.
     public let leftOut: Set<Data>
-    /// The fingerprints of the listed dives the logbook holds without the computer's original
-    /// download, which the walk takes after the rest, newest first, wherever they sit in the list.
+    /// Of ``leftOut``, the fingerprints of the dives the logbook holds without the computer's
+    /// original download that the walk takes all the same, after the rest, newest first.
     public let catchUp: Set<Data>
 
     public init(leftOut: Set<Data>, catchUp: Set<Data> = []) {
@@ -38,11 +38,8 @@ public struct DiveComputerListing: Hashable, Sendable {
     }
   }
 
-  /// Asks the engine about a walk's list: the entries the walk would take, newest first, and the
-  /// other dives the computer lists, behind the stored fingerprint or passed over as ones the
-  /// phone need not take again, newest first.
-  public typealias Decide =
-    @Sendable (DiveComputerIdentity, _ takes: [Download], _ others: [Download]) async -> Decision
+  /// Asks the engine about a walk's list: the entries the walk would take, newest first.
+  public typealias Decide = @Sendable (DiveComputerIdentity, _ takes: [Download]) async -> Decision
 
   /// The dives on the computer.
   public let dives: Int

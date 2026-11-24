@@ -187,12 +187,13 @@ libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import.
 Whether *Which dives do you want to download?* has been answered is the account's, kept with its
 progress: a Petrel or Nautic computer awaits it on an account holding neither a fingerprint nor an
 answer. A watched walk asks once its list and the server's answer are in, and writes the answer
-before the first transfer: the dives not chosen are not taken until the fingerprint moves or the
+before the first transfer: dives not chosen are not taken until the fingerprint moves or the
 computer is forgotten, and *Choose dives to download* sets the fingerprint aside until a walk
-completes, so a broken walk resumes the choice unasked. It asks only of dives the logbook lacks;
-those held without the computer's original follow any answer. A connection to a computer that awaits
-the question starts no walk; a walk listing nothing counts as answered. Rejected: a mark set at
-pairing, which is the phone's; taking every dive unwatched; moving the fingerprint at the choice.
+completes, so a broken walk resumes the choice unasked. A dive the logbook holds without the
+computer's original is offered like one it lacks. A connection to a computer awaiting the
+question starts no walk; a walk listing nothing counts as answered. Rejected: a mark set at
+pairing, which is the phone's; taking every dive unwatched; moving the fingerprint at the choice;
+taking held dives unasked.
 
 ## A computer that logs instants gets its zone per download
 
@@ -332,9 +333,9 @@ A dive's uuid is version 5 over a fixed namespace, the family, the serial and th
 re-download links to the held dive, or is new once deleted. A walk of new dives leaves out an entry
 whose uuid the phone keeps under the walk's mark, or the server has answered for or the diver did
 not choose since the fingerprint last moved; *Choose dives to download* leaves out only what the
-phone keeps. Before its first transfer, a walk sends every listed dive's uuid and start to
-`POST /dive-computers/known-dives`, leaves out what the logbook holds, and takes after the rest what
-it holds without the computer's original, unless the phone keeps it or ever sent it for that.
+phone keeps. Before its first transfer, a walk sends the uuid and start of each dive it would take
+to `POST /dive-computers/known-dives`, leaves out what the logbook holds, and offers what it holds
+without the computer's original unless the phone keeps it or ever sent it for that.
 Rejected: a random uuid; comparing on the phone, which writes the server's clock rule twice; the
 server's next answer alone, which resends a file that never joins.
 
