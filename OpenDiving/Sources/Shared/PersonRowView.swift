@@ -7,22 +7,9 @@ import SwiftUI
 struct PersonRowView: View {
   let content: PersonRowContent
 
-  /// The picture's side, the size the icon it stands in for draws at.
-  @ScaledMetric(relativeTo: .subheadline) private var pictureSide = 20.0
-
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Group {
-        if let picture = content.picture {
-          ConnectedPictureView(picture: picture, side: pictureSide)
-            // Its middle on the name's, as the icon's is.
-            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + $0.height * 0.3 }
-        } else {
-          Image(.user)
-            .foregroundStyle(.secondary)
-        }
-      }
-      .accessibilityHidden(true)
+      IconOrConnectedPicture(icon: .user, picture: content.picture)
       VStack(alignment: .leading, spacing: 2) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           if let uuid = content.uuid {
@@ -54,6 +41,11 @@ struct PersonRowView: View {
   VStack(alignment: .leading) {
     PersonRowView(content: PersonRowContent(name: "Ana Diaz", username: "ana", role: "Buddy"))
     PersonRowView(content: PersonRowContent(name: "Sam Lee"))
+    PersonRowView(
+      content: PersonRowContent(
+        name: "Kai Moana", username: "kai",
+        picture: ConnectedPicture(source: .person(UUID()), version: "ab12"), role: "Guide"))
   }
   .padding()
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
 }
