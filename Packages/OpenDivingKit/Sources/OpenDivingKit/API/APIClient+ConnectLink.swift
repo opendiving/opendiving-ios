@@ -25,4 +25,14 @@ extension APIClient {
   public func removeConnectLink() async throws {
     try await authorizedChecked(Call(method: "DELETE", path: "user/connect-link"))
   }
+
+  /// `GET /connect-link/{token}/owner`, or nil for a token that names no live link.
+  public func connectLinkOwner(_ token: String) async throws -> ConnectLinkOwnerForYou? {
+    do {
+      return try await authorizedDecoded(
+        ConnectLinkOwnerForYou.self, Call(path: "connect-link/\(token)/owner"))
+    } catch APIError.http(status: 404, _) {
+      return nil
+    }
+  }
 }

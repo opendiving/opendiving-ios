@@ -2,26 +2,29 @@ import Foundation
 
 /// `PATCH /person/{uuid}`'s body, `PersonUpdateRequest`: only what is set is sent. The name and
 /// the notes cannot be cleared. `connectAccount` connects a person who is not connected yet to an
-/// account that has a person connected to the diver.
+/// account that has a person connected to the diver, and `connectLink` to a connect link's owner,
+/// by the link's token.
 public struct PersonUpdate: Hashable, Sendable {
   public var name: String?
   public var email: Patch<String>
   public var phone: Patch<String>
   public var notes: String?
   public var connectAccount: UUID?
+  public var connectLink: String?
   /// Read from a body queued with `username` sent as null, which detached the person: the outbox
   /// sends that as the person's disconnect (``OutboxStore/items()``). Never written.
   var queuedDisconnect = false
 
   public init(
     name: String? = nil, email: Patch<String> = .absent, phone: Patch<String> = .absent,
-    notes: String? = nil, connectAccount: UUID? = nil
+    notes: String? = nil, connectAccount: UUID? = nil, connectLink: String? = nil
   ) {
     self.name = name
     self.email = email
     self.phone = phone
     self.notes = notes
     self.connectAccount = connectAccount
+    self.connectLink = connectLink
   }
 
   /// Whether sending it would change nothing.
@@ -30,7 +33,7 @@ public struct PersonUpdate: Hashable, Sendable {
 
 extension PersonUpdate: Codable {
   private enum CodingKeys: String, CodingKey {
-    case name, email, phone, notes, connectAccount, username
+    case name, email, phone, notes, connectAccount, connectLink, username
   }
 
   public init(from decoder: any Decoder) throws {
@@ -40,6 +43,7 @@ extension PersonUpdate: Codable {
     phone = try c.decode(Patch<String>.self, forKey: .phone)
     notes = try c.decodeIfPresent(String.self, forKey: .notes)
     connectAccount = try c.decodeIfPresent(UUID.self, forKey: .connectAccount)
+    connectLink = try c.decodeIfPresent(String.self, forKey: .connectLink)
     // Any other `username` would have connected by it, which the API no longer does: dropped.
     queuedDisconnect = try c.contains(.username) && c.decodeNil(forKey: .username)
   }
@@ -51,6 +55,7 @@ extension PersonUpdate: Codable {
     try c.encode(phone, forKey: .phone)
     try c.encodeIfPresent(notes, forKey: .notes)
     try c.encodeWire(connectAccount, forKey: .connectAccount)
+    try c.encodeIfPresent(connectLink, forKey: .connectLink)
   }
 }
 

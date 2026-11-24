@@ -1,13 +1,16 @@
 import Foundation
 
-/// The picture of an account a person of the diver's is connected to, or of one under *Added
-/// you*: the route it is asked for by, and its version, which is its digest.
+/// The picture of an account a person of the diver's is connected to, of one under *Added you*,
+/// or of a connect link's owner: the route it is asked for by, and its version, which is its
+/// digest.
 public struct ConnectedPicture: Hashable, Sendable {
   public enum Source: Hashable, Sendable {
     /// One of the diver's people, connected to the account.
     case person(UUID)
     /// An account under *Added you*, by its public id.
     case addedYou(UUID)
+    /// A connect link's owner, by the link's token.
+    case connectLink(String)
   }
 
   public let source: Source
@@ -26,6 +29,11 @@ public struct ConnectedPicture: Hashable, Sendable {
   /// An *Added you* row's account's, where it has one.
   public static func of(_ row: AddedYouRow) -> ConnectedPicture? {
     row.avatarSha256.map { ConnectedPicture(source: .addedYou(row.uuid), version: $0) }
+  }
+
+  /// A connect link's owner's, where they have one.
+  public static func of(_ owner: ConnectLinkOwnerForYou, token: String) -> ConnectedPicture? {
+    owner.avatarSha256.map { ConnectedPicture(source: .connectLink(token), version: $0) }
   }
 }
 
@@ -49,6 +57,8 @@ public enum ConnectedPictures {
         bytes = try await client.personAvatar(uuid, version: picture.version)
       case .addedYou(let uuid):
         bytes = try await client.addedYouAvatar(uuid, version: picture.version)
+      case .connectLink(let token):
+        bytes = try await client.connectLinkAvatar(token, version: picture.version)
       }
     } catch {
       return nil

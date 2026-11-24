@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import OpenDivingKit
@@ -22,5 +23,14 @@ struct LaunchArgumentsTests {
       LaunchArguments(["/OpenDiving", "--server", "ftp://x", "--refresh-token", "r"]).signIn == nil)
     #expect(
       LaunchArguments(["/OpenDiving", "--refresh-token", "r", "--server"]).signIn == nil)
+  }
+
+  @Test func aLinkIsTheAddressAfterItsFlag() {
+    #expect(
+      LaunchArguments(["/OpenDiving", "--link", " http://localhost:3000/connect/abc "]).link
+        == URL(string: "http://localhost:3000/connect/abc"))
+    #expect(LaunchArguments(["/OpenDiving", "--link"]).link == nil)
+    #expect(LaunchArguments(["/OpenDiving", "--link", "not a link"]).link == nil)
+    #expect(LaunchArguments(["/OpenDiving"]).link == nil)
   }
 }
