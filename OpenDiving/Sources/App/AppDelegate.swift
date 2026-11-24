@@ -5,13 +5,13 @@ import UserNotifications
 /// What the app starts before any view, on every launch, by the diver or by iOS in the
 /// background — a view may never be built on one of iOS's: the session and the account's load,
 /// the watch over the paired dive computers, the engine that downloads and imports from them, the
-/// notifications it posts, and the watch walk's launch arguments. Nothing here asks who launched
+/// notifications it posts, the screen a tapped one opens, and the watch walk's launch arguments. Nothing here asks who launched
 /// the process: a scene-based app is told neither way.
 final class AppDelegate: NSObject, UIApplicationDelegate {
   let session = Session.device()
   lazy var account = AccountLoader(session: session)
   lazy var inbox = InboxModel(session: session)
-  let notices = NoticeRoute()
+  let presenter = ScreenPresenter(launchLink: launchLink)
   private let notifier = UserNotificationsDiveComputerNotifier()
   private let wake = BackgroundSessionServerWake()
   private var ending: Task<Void, Never>?
@@ -109,8 +109,17 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
   ) async {
     nonisolated(unsafe) let userInfo = response.notification.request.content.userInfo
     guard let target = DiveComputerNotice.Target(userInfo: userInfo) else { return }
-    await MainActor.run { notices.open(target) }
+    await MainActor.run { presenter.open(target) }
   }
+}
+
+/// The simulator's `--link`; a device build has no such door, as it has none to start signed in.
+private var launchLink: URL? {
+  #if targetEnvironment(simulator)
+    LaunchArguments(ProcessInfo.processInfo.arguments).link
+  #else
+    nil
+  #endif
 }
 
 extension DiveComputerWatchLog {

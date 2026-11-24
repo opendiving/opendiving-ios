@@ -33,6 +33,11 @@ itself — though only with signal, and a passkey is added on the web.
 The profile's QR code is your connect link: whoever scans it can add you to their people,
 connected to your account, and shows under *Added you* at the top of your People. A person
 connected to an account shows its picture and username, and each side sees the other's.
+Beside your code, the pane scans somebody else's, or pastes their link, and opens the form that
+adds them. A link to a dive, a site, a trip, a person, a gear item, a course, a species or an
+import on the server the app is on opens that page in the app, followed from Messages or Mail or
+read by the Camera where the build carries the server's associated domain, and scanned or pasted
+in the pane on any build.
 
 ## Why an app
 

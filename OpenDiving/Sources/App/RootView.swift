@@ -4,7 +4,9 @@ import SwiftUI
 /// What the window shows — the server and sign-in screens, or the sites map signed in, under the
 /// launch splash until the first of them has loaded — and where the one session, the sign-in
 /// flow Settings reaches back into, the inbox, the outbox, the dive-computer engine and its
-/// screen's model, a tapped download notification and the appearance are injected. The session,
+/// screen's model, the presenter a tapped download notification and a link open in, and the
+/// appearance are injected. A link from outside the app is handed to the presenter, which opens
+/// its screen or gives it back for the browser. The session,
 /// the account's load, the inbox and the engine are the app delegate's, made before any view.
 struct RootView: View {
   @State private var session: Session
@@ -14,20 +16,21 @@ struct RootView: View {
   @State private var outbox: OutboxModel
   @State private var engine: DiveComputerEngine
   @State private var downloads: DiveComputerDownloads
-  @State private var notices: NoticeRoute
+  @State private var presenter: ScreenPresenter
   @State private var splash = LaunchSplash()
   @State private var appearance = AppearanceModel(defaults: .standard)
+  @Environment(\.openURL) private var openURL
 
   init(
     session: Session, account: AccountLoader, inbox: InboxModel, engine: DiveComputerEngine,
-    notices: NoticeRoute = NoticeRoute()
+    presenter: ScreenPresenter = ScreenPresenter()
   ) {
     _session = State(initialValue: session)
     _signIn = State(initialValue: SignInFlow(session: session))
     _account = State(initialValue: account)
     _inbox = State(initialValue: inbox)
     _engine = State(initialValue: engine)
-    _notices = State(initialValue: notices)
+    _presenter = State(initialValue: presenter)
     _downloads = State(initialValue: DiveComputerDownloads(engine: engine))
     // The quiet load: a reconnect that loads the account raises no alert of its own.
     _outbox = State(
@@ -54,15 +57,18 @@ struct RootView: View {
       }
     }
     .animation(.easeOut(duration: 0.3), value: splash.isShowing)
-    .noticeHost(notices, session: session)
+    .screenPresenterHost(presenter, session: session)
     .environment(session)
     .environment(signIn)
     .environment(downloads)
     .environment(engine)
     .appearanceHost(appearance)
-    .inboxHost(inbox, session: session)
+    .inboxHost(inbox, session: session) { receive($0) }
     .outboxHost(outbox, session: session)
     .task { await account.launch() }
+    .task {
+      if let link = presenter.takeLaunchLink() { receive(link) }
+    }
     .task { await session.followRouteChanges() }
     .task { await splash.run(session.requests) }
     .onChange(of: session.state) { old, new in
@@ -82,6 +88,13 @@ struct RootView: View {
     } message: {
       Text(account.failure ?? "")
     }
+  }
+}
+
+extension RootView {
+  /// A link from outside: its screen, or else the browser, at once.
+  private func receive(_ url: URL) {
+    if let browser = presenter.receive(url, state: session.state) { openURL(browser) }
   }
 }
 

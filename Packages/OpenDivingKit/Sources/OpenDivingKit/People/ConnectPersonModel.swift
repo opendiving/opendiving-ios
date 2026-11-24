@@ -54,8 +54,7 @@ public final class ConnectPersonModel {
   }
 
   /// The person named as the account is, where the diver has one, else a new person.
-  nonisolated static func opening(named account: String, among candidates: [PersonRead]) -> Choice
-  {
+  nonisolated static func opening(named account: String, among candidates: [PersonRead]) -> Choice {
     let name = account.trimmedOfWhitespace.lowercased()
     return candidates.first { $0.name.trimmedOfWhitespace.lowercased() == name }
       .map { .existing($0.uuid) } ?? .new

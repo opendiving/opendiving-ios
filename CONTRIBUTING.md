@@ -148,9 +148,19 @@ scripts/simulator-sign-in.py diver@example.com
 It installs that build on this checkout's simulator, asks the server for a code, reads it from the
 container's log, redeems it, and launches the app pointed at `http://localhost:8000` and signed in.
 `--server` names another origin and `--device` another simulator; `OPENDIVING_SIGN_IN_EMAIL` stands
-in for the address. The app reads the server and the session from its launch arguments in a
-simulator build only. Every run is a sign-in to the server, which limits how many an address may
-ask for.
+in for the address. `--link` hands the launch an address as if it were a link the diver followed,
+which a simulator build has no other way to be given; the app's own `--link` does the same without
+signing in again:
+
+```bash
+scripts/simulator-sign-in.py diver@example.com --link http://localhost:8000/connect/<token>
+xcrun simctl launch --terminate-running-process "$(scripts/simulator.sh)" app.opendiving.ios \
+  --link http://localhost:8000/dives/<uuid>
+```
+
+The app reads the server, the session and the link from its launch arguments in a simulator build
+only. A link opens its screen only for the server the app is on, so `--link` names that server's
+origin. Every run is a sign-in to the server, which limits how many an address may ask for.
 
 ## Running on your iPhone
 
@@ -224,6 +234,44 @@ mid-download would:
 ```bash
 xcrun devicectl device process launch --device <UDID> app.opendiving.ios -- --end-in-background
 ```
+
+### Links that open the app
+
+A link to a page of the server the app is on — a connect link, a record — opens the app rather
+than Safari once the build carries an associated domain for that server, and that takes a team in
+the paid Apple Developer Program: a Personal Team cannot have the capability. So the build carries
+none unless the signing file switches it on, and a free Apple Account builds as above. With a paid
+team's Team ID as `DEVELOPMENT_TEAM`, add:
+
+```
+OPENDIVING_LINKS = YES
+```
+
+The domain is `opendiving.app` unless a second line names your own instance's:
+
+```
+OPENDIVING_LINK_DOMAIN = dive.example.org
+```
+
+The server must name the app too. Its web container's `IOS_APP_ID` is the Team ID, a dot and the
+bundle identifier — `ABCDE12345.app.opendiving.ios`, or your own identifier — and the web then
+serves `/.well-known/apple-app-site-association` for it, which it answers 404 while the setting is
+unset. iOS reads that file through Apple's CDN when the app is installed, and the CDN fetches it
+within a day of first being asked, with no way to hurry it. While you work on it,
+`OPENDIVING_LINK_DOMAIN = dive.example.org?mode=developer` reads it from the server directly instead,
+on a phone with Settings → Developer → Associated Domains Development switched on.
+
+Whether a build carries the domain shows in the app. A simulator build embeds its entitlements in
+the executable rather than its signature:
+
+```bash
+strings -a .build/Build/Products/Debug-iphonesimulator/OpenDiving.app/OpenDiving | grep applinks
+```
+
+and a device build answers `codesign -d --entitlements - .build/Build/Products/Debug-iphoneos/OpenDiving.app`.
+Without the line, neither names one.
+
+The scanner and the paste in the connect link pane take the same links on any build and any server.
 
 ## Pull requests
 

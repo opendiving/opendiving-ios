@@ -580,3 +580,16 @@ its tint, so the web's danger goes on its label with `.dangerRow()`. Rejected: o
 root, which also turns every toolbar button teal where the default leaves them in the label colour,
 and which a navigation bar tint does not hold back; and a high-contrast variant in `AccentColor`,
 which SwiftUI brightens all the same.
+
+## A link is followed only for the server the app is on, and the domain is a build's choice
+
+The session has one active server, so a link for another, or with none chosen, is not acted on:
+followed, it opens in the browser; scanned or pasted, the pane says whose server it is and offers
+the browser. Rejected: switching server from a link, which starts the app over under whatever the
+diver had open. A link's screen opens in a tapped notification's sheet, one presenter for both,
+so neither arrival is dropped.
+
+The associated domain is switched on per build from the gitignored signing file. Associated
+Domains needs a paid team, and a tracked entitlement would fail every Personal Team's device
+build. XcodeGen's `entitlements` key sets `CODE_SIGN_ENTITLEMENTS` for every build, so the
+xcconfig picks the file by `OPENDIVING_LINKS` instead.

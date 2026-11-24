@@ -142,7 +142,8 @@ struct AppLinkTests {
 
     let notALink = action("https://example.com/", .given, .signedIn(Self.server))
     #expect(notALink == .answer(.notALink))
-    #expect(action("https://dive.example.org/dives/new", .given, .signedIn(Self.server)) == notALink)
+    #expect(
+      action("https://dive.example.org/dives/new", .given, .signedIn(Self.server)) == notALink)
 
     let signIn = "https://dive.example.org/auth/verify?token=t"
     #expect(action(signIn, .given, .signedIn(Self.server)) == .answer(.signedInAlready))
