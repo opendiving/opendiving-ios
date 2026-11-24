@@ -286,7 +286,7 @@ private struct CourseInformationCard: View {
 /// one, and a chevron where the row opens a page.
 private struct CourseInformationRow: View {
   let icon: Icon
-  /// A connected person's picture, drawn in the icon's place.
+  /// A connected person's picture, drawn in the icon's place and at its size.
   var picture: ConnectedPicture?
   let title: String
   var detail: String?
@@ -294,18 +294,8 @@ private struct CourseInformationRow: View {
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 12) {
-      Group {
-        if let picture {
-          ConnectedPictureView(picture: picture, side: 24)
-            // Its middle on the title's, as the icon's is.
-            .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + $0.height * 0.3 }
-        } else {
-          Image(icon)
-            .foregroundStyle(.secondary)
-        }
-      }
-      .frame(width: 24)
-      .accessibilityHidden(true)
+      IconOrConnectedPicture(icon: icon, picture: picture)
+        .frame(width: 24)
       VStack(alignment: .leading, spacing: 2) {
         Text(title)
         if let detail {
