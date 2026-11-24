@@ -13,7 +13,6 @@ struct EmailScreen: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
-  @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
   @ScaledMetric(relativeTo: .title) private var wordmarkHeight: CGFloat = 28
 
   @FocusState private var focused: Bool
@@ -58,26 +57,8 @@ struct EmailScreen: View {
         }
       }
       Section {
-        Button(action: send) {
-          // Held in place under the spinner, so the button keeps its size.
-          Text("Sign in")
-            .bold()
-            .opacity(flow.isRequestingCode ? 0 : 1)
-            .overlay {
-              if flow.isRequestingCode {
-                BubbleSpinner(side: spinnerSide, style: .white)
-              }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
-        .tint(.brandCoral)
-        .controlSize(.large)
-        .accessibilityLabel("Sign in")
-        .accessibilityValue(flow.isRequestingCode ? "Sending" : "")
-        .listRowInsets(EdgeInsets())
-        .listRowBackground(Color.clear)
+        FormCapsuleButton(
+          title: "Sign in", isBusy: flow.isRequestingCode, busyValue: "Sending", action: send)
       }
       Section {
         ForEach(flow.signedOutEntries) { entry in

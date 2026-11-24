@@ -8,7 +8,6 @@ struct SignUpScreen: View {
   let flow: SignInFlow
   let email: String?
   let origin: ServerOrigin?
-  @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
 
   var body: some View {
     Form {
@@ -30,28 +29,11 @@ struct SignUpScreen: View {
         }
       }
       Section {
-        Button {
-          Task { await flow.signUp() }
-        } label: {
-          // Held in place under the spinner, so the button keeps its size.
-          Text(SignInFlow.signUpButton)
-            .bold()
-            .opacity(flow.isSigningUp ? 0 : 1)
-            .overlay {
-              if flow.isSigningUp {
-                BubbleSpinner(side: spinnerSide, style: .white)
-              }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
-        .tint(.brandCoral)
-        .controlSize(.large)
+        FormCapsuleButton(
+          title: SignInFlow.signUpButton, isBusy: flow.isSigningUp,
+          busyValue: SignInFlow.signingUp
+        ) { Task { await flow.signUp() } }
         .disabled(!flow.canSignUp)
-        .accessibilityValue(flow.isSigningUp ? SignInFlow.signingUp : "")
-        .listRowInsets(EdgeInsets())
-        .listRowBackground(Color.clear)
       } footer: {
         if let origin {
           Text(Self.terms(origin))
