@@ -538,14 +538,18 @@ public final class SignInFlow {
   /// refusal while one is carried reads the link again, and a link found gone is dropped and the
   /// email asked for without it.
   private func requestCode(_ address: String) async throws -> UUID {
-    guard let via = heldConnectToken else { return try await session.requestCode(email: address) }
+    guard let via = heldConnectToken, let origin = session.state.origin else {
+      return try await session.requestCode(email: address)
+    }
     do {
       return try await session.requestCode(email: address, via: via)
     } catch let error where Self.isForbidden(error) {
       let before = invitation
       invitation = .reading
       await readInvitation()
-      guard heldConnectToken == nil else {
+      // The server was left while the link was read; its screen has started over.
+      guard session.state.origin == origin else { throw CancellationError() }
+      guard invitation == .gone else {
         if invitation == .reading, heldConnectToken == via { invitation = before }
         throw error
       }

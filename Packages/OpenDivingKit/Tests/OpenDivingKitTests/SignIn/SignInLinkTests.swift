@@ -256,13 +256,13 @@ struct SignInLinkTests {
 
   /// An invite-only server whose connect link `abc` was reset once it had been read: the first
   /// read finds it live, every later one 404, and the email is refused for a `via` naming it.
-  private func resetAfterTheFirstRead() -> (SignInFlow, StubTransport) {
+  private static func resetAfterTheFirstRead() -> StubTransport {
     let reads = Mutex(0)
     let owner = (try? KitFixture.text("connect-link-owner-signed-out")) ?? ""
-    let reply = Self.emailRequest
+    let reply = emailRequest
     let stale =
       "This connect link is no longer active. You can request an invitation from the home page."
-    let transport = StubTransport { request in
+    return StubTransport { request in
       switch request.route {
       case "GET connect-link/abc":
         let read = reads.withLock { reads in
@@ -278,11 +278,19 @@ struct SignInLinkTests {
         return .json(#"{"detail":"Not Found"}"#, status: 404)
       }
     }
-    let session = Session(
-      transport: transport, secrets: InMemorySecretStore([:]),
-      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
-      applicationSupport: root, userAgent: ClientHarness.userAgent)
-    return (SignInFlow(session: session), transport)
+  }
+
+  private func flow(over transport: any HTTPTransport) -> SignInFlow {
+    SignInFlow(
+      session: Session(
+        transport: transport, secrets: InMemorySecretStore([:]),
+        activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+        applicationSupport: root, userAgent: ClientHarness.userAgent))
+  }
+
+  private func resetAfterTheFirstRead() -> (SignInFlow, StubTransport) {
+    let transport = Self.resetAfterTheFirstRead()
+    return (flow(over: transport), transport)
   }
 
   @Test func aConnectLinkResetSinceItWasReadIsDroppedAndTheEmailAskedForWithoutIt() async {
@@ -304,6 +312,22 @@ struct SignInLinkTests {
       transport.requests.filter { $0.route == "POST auth/email/request" }.map { $0.json?["via"] }
         == [.string("abc"), nil])
     #expect(flow.takeHeldScreen(.signedIn(origin)) == nil)
+  }
+
+  @Test func aServerLeftWhileTheLinkIsReadAgainIsAskedNothing() async {
+    let stub = Self.resetAfterTheFirstRead()
+    let gate = Gate()
+    let flow = flow(over: SecondReadHeld(inner: stub, gate: gate))
+    await flow.hold(.connect(token: "abc"))
+    flow.setEmail("member@example.com")
+    let sending = Task { await flow.sendCode() }
+    await gate.untilArrived()
+    flow.switchTo(other)
+    await gate.open()
+    await sending.value
+    #expect(flow.step == .email)
+    #expect(flow.emailError == nil)
+    #expect(stub.requests.filter { $0.route == "POST auth/email/request" }.count == 1)
   }
 
   @Test func aRefusalWhileTheLinkIsStillLiveIsTheAPIsSentence() async {
@@ -338,5 +362,32 @@ struct SignInLinkTests {
       flow.invitationNote("Robin")
         == "Enter your email to sign in, or to create your account. A new account starts with"
         + " Robin in its people, and Robin sees its name, username and picture.")
+  }
+}
+
+/// Holds the second read of the connect link `abc` at the ``Gate``.
+private final class SecondReadHeld: HTTPTransport {
+  let inner: StubTransport
+  private let gate: Gate
+  private let reads = Mutex(0)
+
+  init(inner: StubTransport, gate: Gate) {
+    self.inner = inner
+    self.gate = gate
+  }
+
+  func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    if request.route == "GET connect-link/abc" {
+      let read = reads.withLock { reads in
+        reads += 1
+        return reads
+      }
+      if read == 2 { await gate.pass() }
+    }
+    return try await inner.send(request)
+  }
+
+  func upload(_ request: URLRequest, fromFile file: URL) async throws -> (Data, HTTPURLResponse) {
+    try await inner.upload(request, fromFile: file)
   }
 }
