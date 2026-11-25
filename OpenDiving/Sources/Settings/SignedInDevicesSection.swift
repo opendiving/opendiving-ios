@@ -67,19 +67,23 @@ struct SignedInDevicesSection: View {
 
   private func row(_ device: UserSessionRead) -> some View {
     HStack(spacing: 12) {
-      VStack(alignment: .leading, spacing: 4) {
-        FlowLayout(spacing: 6) {
-          Text(SignedInDevicesModel.label(device))
-          if device.current {
-            BadgeView(SignedInDevicesModel.thisDevice) { EmptyView() }
+      Label {
+        VStack(alignment: .leading, spacing: 4) {
+          FlowLayout(spacing: 6) {
+            Text(SignedInDevicesModel.label(device))
+            if device.current {
+              BadgeView(SignedInDevicesModel.thisDevice) { EmptyView() }
+            }
+            if device.idleTimeout == .extended {
+              BadgeView(SignedInDevicesModel.staysSignedInLonger, style: .outline) { EmptyView() }
+            }
           }
-          if device.idleTimeout == .extended {
-            BadgeView(SignedInDevicesModel.staysSignedInLonger, style: .outline) { EmptyView() }
-          }
+          Text(SignedInDevicesModel.details(device))
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
-        Text(SignedInDevicesModel.details(device))
-          .font(.caption)
-          .foregroundStyle(.secondary)
+      } icon: {
+        RowLabelIcon(icon: SignedInDevicesModel.icon(device))
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       // Nothing on this phone's row: signing it out is what *Sign out* does.
