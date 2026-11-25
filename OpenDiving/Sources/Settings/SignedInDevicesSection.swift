@@ -63,7 +63,44 @@ struct SignedInDevicesSection: View {
     }
   }
 
-  private func row(_ device: UserSessionRead) -> some View {
+  // Nothing on this phone's row: signing it out is what *Sign out* does.
+  @ViewBuilder private func row(_ device: UserSessionRead) -> some View {
+    if device.current {
+      content(device)
+    } else {
+      content(device)
+        .contextMenu {
+          Button(role: .destructive) {
+            signOut(device)
+          } label: {
+            Label(menuItem: SignedInDevicesModel.signOutButton, icon: .logOut)
+          }
+          .actionEnabled(!model.isBusy)
+        }
+        // Not the destructive role, whose swipe takes the row away before the dialog asks.
+        .swipeActions(edge: .trailing) {
+          Button {
+            signOut(device)
+          } label: {
+            Label(menuItem: SignedInDevicesModel.signOutButton, icon: .logOut)
+          }
+          .tint(.dangerFill)
+          .actionEnabled(!model.isBusy)
+        }
+        .rowConfirmation(
+          SignedInDevicesModel.signOutTitle, for: device,
+          confirming: Bindable(model).confirmingSignOut
+        ) { device in
+          Button(SignedInDevicesModel.signOutButton, role: .destructive) {
+            Task { await model.confirmSignOut(device) }
+          }
+        } message: { device in
+          Text(SignedInDevicesModel.signOutMessage(device))
+        }
+    }
+  }
+
+  private func content(_ device: UserSessionRead) -> some View {
     HStack(spacing: 12) {
       Label {
         VStack(alignment: .leading, spacing: 4) {
@@ -84,36 +121,21 @@ struct SignedInDevicesSection: View {
         FirstLineIcon(icon: SignedInDevicesModel.icon(device))
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-      // Nothing on this phone's row: signing it out is what *Sign out* does.
-      if !device.current {
-        if model.signingOut == device.uuid {
-          BubbleSpinner()
-        } else {
-          // No destructive role here: it draws the icon red over any tint. The confirmation's
-          // button carries it, and the tint keeps the icon dimming while disabled.
-          Button {
-            model.confirmingSignOut = device
-          } label: {
-            Image(loaded: .logOut)
-          }
-          .tint(Color.primary)
-          .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")
-          .buttonStyle(.borderless)
-          .disabled(model.isBusy)
-          .needsServer()
-          .rowConfirmation(
-            SignedInDevicesModel.signOutTitle, for: device,
-            confirming: Bindable(model).confirmingSignOut
-          ) { device in
-            Button(SignedInDevicesModel.signOutButton, role: .destructive) {
-              Task { await model.confirmSignOut(device) }
-            }
-          } message: { device in
-            Text(SignedInDevicesModel.signOutMessage(device))
-          }
-        }
+      if model.signingOut == device.uuid {
+        BubbleSpinner()
       }
     }
+  }
+
+  private func signOut(_ device: UserSessionRead) {
+    model.confirmingSignOut = device
+  }
+}
+
+extension View {
+  /// A row action, off while another is under way or the phone has no route to the server.
+  fileprivate func actionEnabled(_ isEnabled: Bool) -> some View {
+    disabled(!isEnabled).needsServer()
   }
 }
 
