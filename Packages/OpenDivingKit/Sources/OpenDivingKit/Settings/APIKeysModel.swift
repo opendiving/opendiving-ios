@@ -235,18 +235,30 @@ public final class APIKeysModel {
     }
   }
 
-  /// `Created Oct 1, 2026 · Never used · Expires Oct 1, 2027`, by the day alone.
+  /// `Created Oct 1, 2026 · Never used · Expires Oct 1, 2027`, by the day alone: the key's page.
   nonisolated public static func details(
     _ key: APIKeyRead, now: Date, in timeZone: TimeZone = .current
   ) -> String {
-    func day(_ timestamp: DiveTimestamp) -> String {
-      DateText.inSentence(PasskeysModel.day(timestamp, timeZone, relativeTo: now))
-    }
-    let created = "Created " + day(key.createdAt)
-    let used = key.lastUsedAt.map { "Last used " + day($0) } ?? "Never used"
+    "Created " + day(key.createdAt, now: now, in: timeZone) + " · "
+      + usage(key, now: now, in: timeZone)
+  }
+
+  /// `Never used · Expires Oct 1, 2027`: the list's row, which leaves the day a key was made to
+  /// its page.
+  nonisolated public static func usage(
+    _ key: APIKeyRead, now: Date, in timeZone: TimeZone = .current
+  ) -> String {
+    let used = key.lastUsedAt.map { "Last used " + day($0, now: now, in: timeZone) } ?? "Never used"
     let expires =
-      key.expiresAt.map { (key.isExpired(at: now) ? "Expired " : "Expires ") + day($0) }
-      ?? "No expiry"
-    return [created, used, expires].joined(separator: " · ")
+      key.expiresAt.map {
+        (key.isExpired(at: now) ? "Expired " : "Expires ") + day($0, now: now, in: timeZone)
+      } ?? "No expiry"
+    return used + " · " + expires
+  }
+
+  nonisolated private static func day(
+    _ timestamp: DiveTimestamp, now: Date, in timeZone: TimeZone
+  ) -> String {
+    DateText.inSentence(PasskeysModel.day(timestamp, timeZone, relativeTo: now))
   }
 }

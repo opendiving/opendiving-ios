@@ -55,13 +55,12 @@ struct APIKeysSection: View {
               BadgeView(APIKeysModel.expired, style: .destructive) { EmptyView() }
             }
           }
-          Text(APIKeysModel.details(key, now: model.now))
+          Text(APIKeysModel.usage(key, now: model.now))
             .font(.caption)
             .foregroundStyle(.secondary)
         }
       } icon: {
-        Image(loaded: .keyRound).foregroundStyle(.primary)
-          .frame(maxHeight: .infinity, alignment: .top)
+        FirstLineIcon(icon: .keyRound)
       }
     }
   }
