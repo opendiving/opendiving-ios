@@ -102,7 +102,7 @@ private struct PeopleListContent: View {
       VStack(spacing: 0) {
         ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
           if index > 0 { Divider() }
-          ListLetterHeader(letter: section.letter)
+          ListSectionHeader(title: section.letter)
             .id(section.letter)
           ForEach(Array(section.people.enumerated()), id: \.element.id) { index, person in
             if index > 0 {

@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 
-/// More's *Gear*: the diver's gear, archived items among them, and below it their gear sets,
-/// each a page at a time over the account's copy of the pages it has shown. With no route
-/// nothing is asked for, and each list reads again once one appears.
+/// More's *Gear*: the diver's gear, archived items among them, every page of it since the page
+/// files it under the Type picker's headings, and below it their gear sets a page at a time, each
+/// over the account's copy of the pages it has shown. With no route nothing is asked for, and
+/// each list reads again once one appears.
 @MainActor
 @Observable
 public final class GearListModel {
@@ -14,7 +15,7 @@ public final class GearListModel {
 
   public init(session: Session) {
     self.session = session
-    items = PagedList(session: session, cache: .gearItems, routed: true) {
+    items = PagedList(session: session, cache: .gearItems, routed: true, readsEveryPage: true) {
       client, page, itemsPerPage in
       // Every item, archived ones badged: with no switch, an item left out could never be
       // brought back.
@@ -25,6 +26,9 @@ public final class GearListModel {
       try await client.gearSets(page: page, itemsPerPage: itemsPerPage)
     }
   }
+
+  /// The gear shown, filed under the Type picker's headings.
+  public var sections: [GearTypeSection] { GearTypeSection.sections(items.items) }
 
   /// Both lists, or both again on a return where they show only the phone's copy, then each
   /// read again as a route appears, until the calling task is cancelled.
