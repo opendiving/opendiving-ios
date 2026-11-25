@@ -5,6 +5,7 @@ import SwiftUI
 /// signed out after a confirmation, or all of them at once.
 struct SignedInDevicesSection: View {
   let model: SignedInDevicesModel
+  @Environment(Session.self) private var session
 
   var body: some View {
     if !model.list.isAbsent {
@@ -63,8 +64,14 @@ struct SignedInDevicesSection: View {
     }
   }
 
+  private func row(_ device: UserSessionRead) -> some View {
+    actions(device)
+      // The row draws its own insets, so its fill reaches the cell's edges.
+      .listRowInsets(EdgeInsets())
+  }
+
   // Nothing on this phone's row: signing it out is what *Sign out* does.
-  @ViewBuilder private func row(_ device: UserSessionRead) -> some View {
+  @ViewBuilder private func actions(_ device: UserSessionRead) -> some View {
     if device.current {
       content(device)
     } else {
@@ -75,18 +82,19 @@ struct SignedInDevicesSection: View {
           } label: {
             Label(menuItem: SignedInDevicesModel.signOutButton, icon: .logOut)
           }
-          .actionEnabled(!model.isBusy)
+          .disabled(!canSignOut)
         }
-        // Not the destructive role, whose swipe takes the row away before the dialog asks.
-        .swipeActions(edge: .trailing) {
-          Button {
-            signOut(device)
-          } label: {
-            Label(menuItem: SignedInDevicesModel.signOutButton, icon: .logOut)
-          }
-          .tint(.dangerFill)
-          .actionEnabled(!model.isBusy)
-        }
+        // The gear service list's swipe rather than the list's own, which draws its button apart
+        // from the row.
+        .rowSwipeActions(
+          trailing: canSignOut
+            ? [
+              RowSwipeAction(
+                title: SignedInDevicesModel.signOutButton, image: Image(.logOut),
+                fill: .dangerFill
+              ) { signOut(device) }
+            ] : []
+        )
         .rowConfirmation(
           SignedInDevicesModel.signOutTitle, for: device,
           confirming: Bindable(model).confirmingSignOut
@@ -99,6 +107,9 @@ struct SignedInDevicesSection: View {
         }
     }
   }
+
+  /// Off while another sign-out is under way or the phone has no route to the server.
+  private var canSignOut: Bool { !model.isBusy && session.hasRoute }
 
   private func content(_ device: UserSessionRead) -> some View {
     HStack(spacing: 12) {
@@ -125,17 +136,15 @@ struct SignedInDevicesSection: View {
         BubbleSpinner()
       }
     }
+    // The list's own insets, which the row takes over.
+    .padding(.horizontal, 16)
+    .padding(.vertical, 15)
+    // A swipe slides the row on the cell's own fill.
+    .background(Color(.secondarySystemGroupedBackground))
   }
 
   private func signOut(_ device: UserSessionRead) {
     model.confirmingSignOut = device
-  }
-}
-
-extension View {
-  /// A row action, off while another is under way or the phone has no route to the server.
-  fileprivate func actionEnabled(_ isEnabled: Bool) -> some View {
-    disabled(!isEnabled).needsServer()
   }
 }
 
