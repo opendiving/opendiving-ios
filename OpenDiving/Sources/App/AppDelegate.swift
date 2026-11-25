@@ -95,7 +95,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
   }
 }
 
-// The centre calls its delegate on the main thread.
 extension AppDelegate: UNUserNotificationCenterDelegate {
   /// With the app in front, a download's notification shows as a banner, as it would behind.
   nonisolated func userNotificationCenter(
@@ -104,12 +103,14 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     [.banner, .list, .sound]
   }
 
-  nonisolated func userNotificationCenter(
+  /// On the main actor, because Swift calls UIKit's completion handler wherever this returns, and
+  /// UIKit's for a tapped notification aborts the app off the main thread.
+  func userNotificationCenter(
     _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
   ) async {
-    nonisolated(unsafe) let userInfo = response.notification.request.content.userInfo
+    let userInfo = response.notification.request.content.userInfo
     guard let target = DiveComputerNotice.Target(userInfo: userInfo) else { return }
-    await MainActor.run { presenter.open(target) }
+    presenter.open(target)
   }
 }
 
