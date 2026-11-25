@@ -107,7 +107,7 @@ private struct ContactListContent: View {
       VStack(spacing: 0) {
         ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
           if index > 0 { Divider() }
-          ListLetterHeader(letter: section.letter)
+          ListSectionHeader(title: section.letter)
             .id(section.letter)
           ForEach(Array(section.items.enumerated()), id: \.element.id) { index, contact in
             if index > 0 {

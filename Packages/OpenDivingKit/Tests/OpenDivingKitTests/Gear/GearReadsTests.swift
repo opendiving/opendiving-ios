@@ -73,6 +73,26 @@ struct GearReadsTests {
     #expect(!model.sets.items.isEmpty)
   }
 
+  @Test func theListReadsEveryPageForItsHeadings() async throws {
+    let world = try OutboxWorld()
+    let first = try KitFixture.text("gear-items-page")
+      .replacingOccurrences(of: #""has_more": false"#, with: #""has_more": true"#)
+    let second = try KitFixture.text("gear-items-page")
+      .replacingOccurrences(of: "01a14b2e", with: "02a14b2e")
+      .replacingOccurrences(of: #""type": "regulator""#, with: #""type": "mask""#)
+    world.server.override { request, _ in
+      guard request.route == "GET gear-items" else { return nil }
+      return .json(request.url?.query?.contains("page=2") == true ? second : first)
+    }
+    try await world.load()
+    let model = GearListModel(session: world.session)
+    let showing = Task { await model.show() }
+    while model.items.items.count < 6 { await Task.yield() }
+    showing.cancel()
+    #expect(!model.items.hasMore)
+    #expect(model.sections.map(\.title) == ["Basics", "SCUBA", GearTypeSection.other])
+  }
+
   @Test func bothListsShowOfflineAndReadOnceARouteAppears() async throws {
     let first = try world()
     try await first.load()

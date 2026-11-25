@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *Gear*: what is waiting to sync, then the diver's gear on one card, archived items
-/// among them and badged, each opening its page, and below it their gear sets, each opening its
-/// form — the pages the phone has shown first, from its copy.
+/// More's *Gear*: what is waiting to sync, then the diver's gear on one card under the Type
+/// picker's headings, archived items among them and badged, each opening its page, and below it
+/// their gear sets, each opening its form — the pages the phone has shown first, from its copy.
 struct GearListView: View {
   @Environment(Session.self) private var session
 
@@ -101,19 +101,22 @@ private struct GearListContent: View {
         LastUpdatedLine(date: lastUpdated)
       }
       let today = CalendarDate.today()
-      // Lazy, so each row asks for the next page only as it scrolls into view.
-      LazyVStack(spacing: 0) {
-        ForEach(Array(list.items.enumerated()), id: \.element.id) { index, item in
-          if index > 0 {
-            Divider().padding(.leading, 12)
+      // The model reads every page, so a heading never gains a row from a page scrolled to.
+      VStack(spacing: 0) {
+        ForEach(Array(model.sections.enumerated()), id: \.element.id) { index, section in
+          if index > 0 { Divider() }
+          ListSectionHeader(title: section.title)
+          ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+            if index > 0 {
+              Divider().padding(.leading, 12)
+            }
+            NavigationLink {
+              GearItemDetailView(gearItemUUID: item.uuid)
+            } label: {
+              GearItemRow(content: .gearItem(item, units: session.units, today: today))
+            }
+            .buttonStyle(.plain)
           }
-          NavigationLink {
-            GearItemDetailView(gearItemUUID: item.uuid)
-          } label: {
-            GearItemRow(content: .gearItem(item, units: session.units, today: today))
-          }
-          .buttonStyle(.plain)
-          .task { await list.loadMore(after: item) }
         }
       }
       .background(Color.cardFill, in: .formSection)

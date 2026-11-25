@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The letter a run of a list card's rows is filed under, as the people and contacts lists draw
-/// it.
-struct ListLetterHeader: View {
-  let letter: String
+/// The heading a run of a list card's rows is filed under: a letter on the people and contacts
+/// lists, a gear type's group on the gear list.
+struct ListSectionHeader: View {
+  let title: String
 
   var body: some View {
-    Text(letter)
+    Text(title)
       .font(.subheadline.weight(.semibold))
       .foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -19,8 +19,8 @@ struct ListLetterHeader: View {
 
 #Preview {
   VStack(spacing: 0) {
-    ListLetterHeader(letter: "A")
-    ListLetterHeader(letter: "#")
+    ListSectionHeader(title: "A")
+    ListSectionHeader(title: "Exposure")
   }
   .background(Color.cardFill)
 }
