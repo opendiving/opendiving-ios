@@ -2,7 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// The six-digit code from the email, headed by who invited the diver while a connect link is
-/// held. It submits itself on the sixth digit; *Resend* comes back after the cooldown.
+/// held, or by that it is no longer active when the request for the email found it reset. It
+/// submits itself on the sixth digit; *Resend* comes back after the cooldown.
 struct CodeScreen: View {
   let flow: SignInFlow
   let email: String
@@ -14,6 +15,8 @@ struct CodeScreen: View {
           InvitationHeader(flow: flow, name: name, picture: picture, showsNote: false)
         }
         .listRowBackground(Color.clear)
+      } else if flow.invitation == .gone {
+        InvitationGoneSection()
       }
       Section {
         // True whether or not this phone opens the server's links in the app, which the app
