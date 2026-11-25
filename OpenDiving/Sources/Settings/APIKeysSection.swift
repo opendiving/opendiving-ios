@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The account's API keys: created from a form in the section, the new key's secret shown once
-/// on its row, and each opening a page of its own with its permissions and its revocation.
+/// The account's API keys: created on a page of their own, the new key's secret shown once on
+/// its row, and each opening a page of its own with its permissions and its revocation.
 struct APIKeysSection: View {
   let model: APIKeysModel
   /// The key whose page is open, held by the screen that pushes it.
@@ -13,9 +13,6 @@ struct APIKeysSection: View {
       Section {
         if let lastUpdated = model.list.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
-        }
-        if model.isCreating {
-          APIKeyForm(model: model)
         }
         OptionalListStatus(
           list: model.list, failed: APIKeysModel.loadFailed, loading: "Loading API keys…")
@@ -62,110 +59,6 @@ struct APIKeysSection: View {
           .foregroundStyle(.secondary)
       }
     }
-  }
-}
-
-/// The form a new key is made from, with the web's fields and defaults.
-private struct APIKeyForm: View {
-  @Bindable var model: APIKeysModel
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      TextField("Name", text: $model.name, prompt: Text(APIKeysModel.namePlaceholder))
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .submitLabel(.done)
-        .onSubmit { Task { await model.create() } }
-      if let error = model.nameError {
-        FieldMessage(error)
-      }
-    }
-    .disabled(model.isSubmitting)
-    Picker("Expires after", selection: $model.lifetime) {
-      ForEach(APIKeyLifetime.allCases, id: \.self) { lifetime in
-        Text(APIKeysModel.label(lifetime)).tag(lifetime)
-      }
-    }
-    .disabled(model.isSubmitting)
-    if model.permissions.isAbsent {
-      Text(APIKeysModel.permissionsAbsent)
-        .foregroundStyle(.secondary)
-    } else if model.permissions.value == nil {
-      OptionalListStatus(
-        list: model.permissions, failed: APIKeysModel.permissionsLoadFailed,
-        loading: "Loading permissions…")
-    } else {
-      PermissionPicker(model: model)
-    }
-    if let error = model.scopesError {
-      FieldMessage(error)
-    }
-    if let failure = model.createFailure {
-      FieldMessage(failure)
-    }
-    HStack {
-      Button("Cancel") { model.cancelCreating() }
-        .accentRow()
-        .disabled(model.isSubmitting)
-      Spacer()
-      if model.isSubmitting {
-        BubbleSpinner()
-      }
-      Button("Create key") { Task { await model.create() } }
-        .brandProminentButton()
-        .disabled(!model.canSubmit)
-        .needsServer()
-    }
-    .buttonStyle(.borderless)
-    .task { await model.permissions.load() }
-  }
-}
-
-/// The permissions a new key is given, a row per kind of content with a button per action.
-private struct PermissionPicker: View {
-  let model: APIKeysModel
-
-  var body: some View {
-    let groups = PermissionGroup.groups(model.permissions.value ?? [])
-    HStack {
-      VStack(alignment: .leading, spacing: 2) {
-        Text(APIKeysModel.permissionsTitle)
-          .font(.headline)
-        Text(model.grantedCount)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-      Spacer()
-      Button("Read only") { model.grantReadsOnly() }
-        .accentRow()
-      Button("Select all") { model.grantAll() }
-        .brandBorderedButton()
-    }
-    .buttonStyle(.borderless)
-    .disabled(model.isSubmitting)
-    ForEach(groups) { group in
-      VStack(alignment: .leading, spacing: 6) {
-        Text(group.label)
-        FlowLayout(spacing: 6) {
-          ForEach(group.permissions) { permission in
-            Toggle(
-              permission.label,
-              isOn: Binding(
-                get: { model.isGranted(permission.scope) },
-                set: { model.grant(permission.scope, $0) })
-            )
-            .toggleStyle(.button)
-            .brandBorderedButton()
-            .font(.subheadline)
-            .accessibilityLabel(group.spoken(permission))
-          }
-        }
-      }
-      .disabled(model.isSubmitting)
-    }
-    Text(APIKeysModel.permissionsNote)
-      .font(.footnote)
-      .foregroundStyle(.secondary)
   }
 }
 

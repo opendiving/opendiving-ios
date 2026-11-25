@@ -155,6 +155,20 @@ struct APIKeysModelTests {
     #expect(model.secret(for: used) == CredentialsServer.secret)
   }
 
+  @Test func aKeyLapsesOnTheScreenThatShowedItWhole() async throws {
+    let harness = try await CredentialsHarness()
+    let made = try #require(DiveTimestamp(wireValue: "2026-11-25T09:00:00Z"))
+    let clock = MovingClock(try #require(made.instant))
+    let model = APIKeysModel(session: harness.session, clock: { clock.now })
+    let key = APIKeyRead(
+      uuid: UUID(), name: "CI run", prefix: "od_abc", scope: .scoped, scopes: ["dives:read"],
+      createdAt: made, lastUsedAt: nil, expiresAt: DiveTimestamp(wireValue: "2026-11-25T10:00:00Z"))
+    #expect(!key.isExpired(at: model.now))
+    clock.pass(2 * 60 * 60)
+    #expect(key.isExpired(at: model.now))
+    #expect(APIKeysModel.details(key, now: model.now, in: .gmt).hasSuffix("Expired today"))
+  }
+
   @Test func theSecretReachesNoFileAndNoKeychainItem() async throws {
     let harness = try await CredentialsHarness()
     let model = await model(harness)
