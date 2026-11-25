@@ -40,10 +40,17 @@ private struct AuthenticationList: View {
     .navigationDestination(item: $openedKey) { key in
       APIKeyScreen(model: apiKeys, key: key)
     }
-    // Leaving the screen lets a new key's secret go: it is never shown again. A key's own page
-    // covers the screen without leaving it.
+    .navigationDestination(
+      isPresented: Binding(
+        get: { apiKeys.isCreating },
+        set: { if !$0 { apiKeys.cancelCreating() } })
+    ) {
+      APIKeyCreateScreen(model: apiKeys)
+    }
+    // Leaving the screen lets a new key's secret go: it is never shown again. A key's own page,
+    // and the page a new one is made on, cover the screen without leaving it.
     .onDisappear {
-      if openedKey == nil { apiKeys.done() }
+      if openedKey == nil && !apiKeys.isCreating { apiKeys.done() }
     }
   }
 

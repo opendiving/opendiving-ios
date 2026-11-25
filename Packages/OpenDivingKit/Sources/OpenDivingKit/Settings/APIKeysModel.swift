@@ -50,14 +50,16 @@ public final class APIKeysModel {
   /// The key ``revokeFailure`` is about.
   private var revokeFailed: UUID?
 
-  /// When the screen opened, which a row's *Expired* is judged against.
-  public let now: Date
+  /// What a row's *Expired* is judged against: read as the rows are drawn, so the list's next
+  /// read, the one on coming back to the app among them, judges a key an hour long afresh.
+  public var now: Date { clock() }
 
   @ObservationIgnored private let session: Session
+  @ObservationIgnored private let clock: @Sendable () -> Date
 
-  public init(session: Session, now: Date = Date()) {
+  public init(session: Session, clock: @escaping @Sendable () -> Date = { Date() }) {
     self.session = session
-    self.now = now
+    self.clock = clock
     list = OptionalList(session: session, kept: .apiKeys) { try await $0.apiKeys() }
     permissions = OptionalList(session: session) { try await $0.apiKeyPermissions() }
   }
@@ -223,6 +225,9 @@ public final class APIKeysModel {
 
   nonisolated public static func label(_ lifetime: APIKeyLifetime) -> String {
     switch lifetime {
+    case .oneHour: "1 hour"
+    case .oneDay: "1 day"
+    case .sevenDays: "7 days"
     case .thirtyDays: "30 days"
     case .ninetyDays: "90 days"
     case .oneYear: "1 year"
