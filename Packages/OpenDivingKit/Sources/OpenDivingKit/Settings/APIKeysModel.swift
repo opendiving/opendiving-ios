@@ -223,6 +223,9 @@ public final class APIKeysModel {
 
   nonisolated public static func label(_ lifetime: APIKeyLifetime) -> String {
     switch lifetime {
+    case .oneHour: "1 hour"
+    case .oneDay: "1 day"
+    case .sevenDays: "7 days"
     case .thirtyDays: "30 days"
     case .ninetyDays: "90 days"
     case .oneYear: "1 year"

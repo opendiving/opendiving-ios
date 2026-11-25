@@ -58,6 +58,22 @@ struct CredentialFixtureTests {
         == "Created Sep 1, 2026 · Last used yesterday · Expired Oct 1, 2026")
   }
 
+  @Test func anHourLongKeyExpiresTheDayItWasMade() throws {
+    let created = try #require(DiveTimestamp(wireValue: "2026-11-25T09:00:00Z"))
+    let key = APIKeyRead(
+      uuid: UUID(), name: "CI run", prefix: "od_abc", scope: .scoped, scopes: ["dives:read"],
+      createdAt: created, lastUsedAt: nil,
+      expiresAt: DiveTimestamp(wireValue: "2026-11-25T10:00:00Z"))
+    let before = try #require(DiveTimestamp(wireValue: "2026-11-25T09:30:00Z")?.instant)
+    let after = try #require(DiveTimestamp(wireValue: "2026-11-25T10:00:00Z")?.instant)
+    #expect(
+      APIKeysModel.details(key, now: before, in: .gmt)
+        == "Created today · Never used · Expires today")
+    #expect(
+      APIKeysModel.details(key, now: after, in: .gmt)
+        == "Created today · Never used · Expired today")
+  }
+
   @Test func permissionsGroupByContentWithTheirActionsInOrder() throws {
     let offered = try KitFixture.decode([String].self, "api-key-permissions")
     let groups = PermissionGroup.groups(offered)
@@ -96,9 +112,12 @@ struct CredentialFixtureTests {
   }
 
   @Test func theLifetimesAndTheirLabels() {
-    #expect(APIKeyLifetime.allCases.map(\.rawValue) == ["30d", "90d", "1y", "never"])
     #expect(
-      APIKeyLifetime.allCases.map(APIKeysModel.label) == ["30 days", "90 days", "1 year", "Never"])
+      APIKeyLifetime.allCases.map(\.rawValue) == ["1h", "1d", "7d", "30d", "90d", "1y", "never"])
+    #expect(
+      APIKeyLifetime.allCases.map(APIKeysModel.label) == [
+        "1 hour", "1 day", "7 days", "30 days", "90 days", "1 year", "Never",
+      ])
   }
 
   @Test func passkeyUpdate() throws {
