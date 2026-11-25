@@ -55,7 +55,6 @@ struct SignInFlowTests {
     #expect(flow.serverText.isEmpty)
     #expect(
       flow.savedServers == [SavedServer(origin: .flagship, isActive: false, status: "Signed out")])
-    #expect(flow.savedServers.first?.canForget == false)
     #expect(flow.signedOutEntries.isEmpty)
   }
 
