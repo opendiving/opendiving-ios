@@ -94,11 +94,16 @@ private struct ConnectLinkPane: View {
       if let instance = model.instanceNote {
         note(instance)
       }
-      HStack(spacing: 12) {
-        changeButton(.reset)
-        changeButton(.remove)
+      // Each as wide as its label at least, where an `HStack` would halve the row and break the
+      // longer one; over each other where both do not fit.
+      ViewThatFits(in: .horizontal) {
+        EqualPaddingRow(spacing: 12) { changeButtons }
+        VStack(spacing: 12) { changeButtons }
       }
       .controlSize(.large)
+      // On the pair rather than on each button, which the two layouts would give two dialogs.
+      .confirmsConnectLinkChange(.reset, model: model)
+      .confirmsConnectLinkChange(.remove, model: model)
       failure
     } else {
       Text(ConnectLinkModel.linkNone)
@@ -134,19 +139,10 @@ private struct ConnectLinkPane: View {
       Button(ConnectLinkModel.stopScanning) { isScanning = false }
         .accentRow()
     } else {
-      HStack(spacing: 12) {
-        Button {
-          Task { await startScanning() }
-        } label: {
-          Label(ConnectLinkModel.scanButton, systemImage: "qrcode.viewfinder")
-            .frame(maxWidth: .infinity)
-        }
-        .brandBorderedButton()
-        // The system's control, which reads the pasteboard without asking.
-        PasteButton(payloadType: String.self) { strings in
-          give(strings.first ?? "")
-        }
-        .tint(Color.accentText)
+      // The Paste button keeps its own width, so beside it the scanner's label would break.
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: 12) { scanAndPaste }
+        VStack(spacing: 12) { scanAndPaste }
       }
       .controlSize(.large)
     }
@@ -161,6 +157,21 @@ private struct ConnectLinkPane: View {
           .accentRow()
       }
     }
+  }
+
+  @ViewBuilder private var scanAndPaste: some View {
+    Button {
+      Task { await startScanning() }
+    } label: {
+      Label(ConnectLinkModel.scanButton, systemImage: "qrcode.viewfinder")
+        .frame(maxWidth: .infinity)
+    }
+    .brandBorderedButton()
+    // The system's control, which reads the pasteboard without asking.
+    PasteButton(payloadType: String.self) { strings in
+      give(strings.first ?? "")
+    }
+    .tint(Color.accentText)
   }
 
   private func startScanning() async {
@@ -208,6 +219,11 @@ private struct ConnectLinkPane: View {
     }
   }
 
+  @ViewBuilder private var changeButtons: some View {
+    changeButton(.reset)
+    changeButton(.remove)
+  }
+
   private func changeButton(_ change: ConnectLinkModel.LinkChange) -> some View {
     let isRemoval = change == .remove
     return Button(role: isRemoval ? .destructive : nil) {
@@ -222,7 +238,6 @@ private struct ConnectLinkPane: View {
     .brandBorderedButton(isRemoval ? .danger : .accentText)
     .disabled(model.isChangingLink)
     .needsServer()
-    .confirmsConnectLinkChange(change, model: model)
   }
 }
 

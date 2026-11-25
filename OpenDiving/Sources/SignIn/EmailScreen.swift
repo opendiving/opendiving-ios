@@ -28,10 +28,7 @@ struct EmailScreen: View {
       }
       .listRowBackground(Color.clear)
       if flow.invitation == .gone {
-        Section {
-          Label(SignInFlow.invitationGone, systemImage: "link")
-            .foregroundStyle(.secondary)
-        }
+        InvitationGoneSection()
       }
       if let notice = flow.notice {
         Section {
