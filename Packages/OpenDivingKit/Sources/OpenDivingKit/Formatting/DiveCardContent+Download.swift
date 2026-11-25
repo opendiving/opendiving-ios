@@ -13,7 +13,7 @@ extension DiveCardContent {
       title: computer,
       facts: shown,
       figures: [
-        Figure(label: "Dive time", value: facts?.length.map { DateText.hoursMinutes(seconds: $0) }),
+        Figure(label: "Dive time", value: facts?.length.map { DateText.minutes(seconds: $0) }),
         Figure(
           label: "Max depth",
           value: facts?.maxDepth.map { UnitFormat.depth($0, units, decimals: 0) }),

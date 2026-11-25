@@ -51,7 +51,7 @@ extension DiveDetailContent {
     let card = DiveCardContent.dive(dive, units: units)
 
     var figures = [
-      Figure(label: "Dive time", value: DateText.hoursMinutes(seconds: dive.submergedTime))
+      Figure(label: "Dive time", value: DateText.minutes(seconds: dive.submergedTime))
     ]
     if let maxDepth = dive.maxDepth {
       figures.append(

@@ -161,9 +161,9 @@ public enum DiveProfileMath {
     return NumberText.plain(minutes) + ":" + pad(seconds - minutes * 60)
   }
 
-  /// A span read aloud — `1h 25min` rather than `85:00`.
+  /// A span read aloud — `85min` rather than `85:00`.
   public static func formatElapsedSpoken(milliseconds: Double) -> String {
-    DateText.hoursMinutes(seconds: milliseconds / 1000)
+    DateText.minutes(seconds: milliseconds / 1000)
   }
 
   /// What to call the cylinder a pressure series or a gas switch names by its gas

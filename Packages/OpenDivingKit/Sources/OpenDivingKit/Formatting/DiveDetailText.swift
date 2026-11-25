@@ -73,7 +73,7 @@ public enum DiveDetailText {
   /// A stretch on one cylinder, `<1min` under half a minute, where whole minutes would
   /// print `0min` beside real litres.
   public static func timeOnGas(seconds: Int) -> String {
-    seconds < 30 ? "<1min" : DateText.hoursMinutes(seconds: seconds)
+    seconds < 30 ? "<1min" : DateText.minutes(seconds: seconds)
   }
 
   /// How much of the dive the per-tank figures cover, or nil when the remainder is under a
@@ -83,8 +83,8 @@ public enum DiveDetailText {
     guard let attributed = attributedSeconds, let total = duration, total > 0,
       attributed < total, total - attributed >= unattributedNoteSeconds
     else { return nil }
-    return "These figures cover \(DateText.hoursMinutes(seconds: attributed)) of the "
-      + "\(DateText.hoursMinutes(seconds: total)) the dive computer recorded - the rest "
+    return "These figures cover \(DateText.minutes(seconds: attributed)) of the "
+      + "\(DateText.minutes(seconds: total)) the dive computer recorded - the rest "
       + "couldn't be assigned to a cylinder."
   }
 

@@ -25,7 +25,7 @@ extension DiveDetailContent {
           RecordInfoFact(label: "Start time", value: DateText.diveDateTime(dive.startTime)),
           RecordInfoFact(label: "Dive number", value: String(dive.diveNumber)),
           RecordInfoFact(
-            label: "Dive time", value: DateText.hoursMinutes(seconds: dive.submergedTime)),
+            label: "Dive time", value: DateText.minutes(seconds: dive.submergedTime)),
           fact("Maximum depth", dive.maxDepth, depth),
           fact("Average depth", dive.avgDepth, depth),
         ]),

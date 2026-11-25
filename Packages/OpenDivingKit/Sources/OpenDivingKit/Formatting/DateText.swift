@@ -100,8 +100,19 @@ public enum DateText {
     now.map { CalendarDate.today(in: timeZone, now: $0) }
   }
 
-  /// A duration in seconds as `45min`, `1h 30min` or `2h`, to the nearest minute — a
-  /// dive's *Dive time*.
+  /// A duration in seconds as `45min` or `85min`, to the nearest minute and never in hours —
+  /// a dive's *Dive time*, which divers count in minutes.
+  public static func minutes(seconds: Double) -> String {
+    NumberText.plain(NumberText.round(seconds / 60)) + "min"
+  }
+
+  /// ``minutes(seconds:)`` over whole seconds, `submerged_time`'s own unit.
+  public static func minutes(seconds: Int) -> String {
+    minutes(seconds: Double(seconds))
+  }
+
+  /// A duration in seconds as `45min`, `1h 30min` or `2h`, to the nearest minute — a sum of
+  /// many dives, such as a piece of gear's dive time, where minutes would run to four figures.
   public static func hoursMinutes(seconds: Double) -> String {
     let totalMinutes = NumberText.round(seconds / 60)
     if totalMinutes < 60 { return NumberText.plain(totalMinutes) + "min" }
@@ -111,7 +122,7 @@ public enum DateText {
     return minutes > 0 ? hoursText + " " + NumberText.plain(minutes) + "min" : hoursText
   }
 
-  /// ``hoursMinutes(seconds:)`` over whole seconds, `submerged_time`'s own unit.
+  /// ``hoursMinutes(seconds:)`` over whole seconds.
   public static func hoursMinutes(seconds: Int) -> String {
     hoursMinutes(seconds: Double(seconds))
   }

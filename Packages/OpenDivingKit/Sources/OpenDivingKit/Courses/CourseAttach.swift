@@ -16,7 +16,7 @@ public enum CourseAttach {
       title: DiveTitles.title(number: dive.diveNumber, siteNames: dive.diveSites.map(\.name)),
       detail: [
         DateText.diveDateTime(dive.startTime),
-        DateText.hoursMinutes(seconds: dive.submergedTime),
+        DateText.minutes(seconds: dive.submergedTime),
         dive.maxDepth.map { UnitFormat.depth($0, units, decimals: 0) },
       ].compactMap { $0 }.joined(separator: " · "))
   }
