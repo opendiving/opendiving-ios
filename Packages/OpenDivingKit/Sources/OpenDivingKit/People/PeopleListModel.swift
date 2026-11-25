@@ -37,17 +37,6 @@ public final class PeopleListModel {
   /// The people shown, filed under their letters.
   public var sections: [PeopleLetterSection] { PeopleLetterSection.sections(people.items) }
 
-  /// Queues a person's delete from their page; the reason it could not, where the outbox refused
-  /// it.
-  public static func delete(_ person: UUID, in outbox: OutboxModel) -> String? {
-    do {
-      try outbox.queue(.deletePerson(.server(person)))
-      return nil
-    } catch {
-      return RecordSheetModel<PersonFormValues>.sentence(error)
-    }
-  }
-
   /// Queues a person's disconnect from their page; the reason it could not, where the outbox
   /// refused it.
   public static func disconnect(_ person: UUID, in outbox: OutboxModel) -> String? {

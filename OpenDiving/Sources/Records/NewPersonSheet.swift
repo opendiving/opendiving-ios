@@ -32,12 +32,13 @@ struct PersonSheetForm: View {
   /// The person being edited, as last read.
   var person: PersonRead?
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   var body: some View {
     RecordSheetForm(
       title: model.isEditing ? "Edit Person" : "New Person", isReopened: model.isReopened,
       createLabel: "Create person", isPushed: isPushed, failure: model.failure,
-      saveError: model.saveError, save: save
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
       if let person, let username = person.username, !username.isEmpty {
         Section {
@@ -60,6 +61,13 @@ struct PersonSheetForm: View {
           error: model.message("notes"))
       }
     }
+  }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    return RecordDeletion(
+      title: "Delete person", message: RecordDeletionText.person, delete: model.delete,
+      onDeleted: onDeleted)
   }
 
   private func save() -> Bool {

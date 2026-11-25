@@ -73,8 +73,8 @@ public final class GearItemDetailModel {
     !item.isArchived
   }
 
-  /// Queues `operation`, an archive or a delete from the page; the reason it could not, where
-  /// the outbox refused it.
+  /// Queues `operation`, an archive or a service write from the page; the reason it could not,
+  /// where the outbox refused it.
   public static func queue(_ operation: OutboxOperation, in outbox: OutboxModel) -> String? {
     do {
       try outbox.queue(operation)

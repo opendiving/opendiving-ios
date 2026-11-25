@@ -67,7 +67,12 @@ struct RecordSheetForm<Content: View>: View {
       }
       if let deletion {
         DeleteRecordSection(
-          title: deletion.title, message: deletion.message, confirmation: deletion.confirmation
+          title: deletion.title, message: deletion.message, confirmation: deletion.confirmation,
+          alternative: deletion.alternative.map { alternative in
+            DeleteRecordSection.Alternative(title: alternative.title) {
+              if alternative.perform() { dismiss() }
+            }
+          }
         ) {
           guard deletion.delete() else { return }
           // The form first: the page under it asked to go first leaves the form's pop unheard,
@@ -87,8 +92,17 @@ struct RecordDeletion {
   let title: String
   let message: String
   var confirmation = "Delete"
+  /// Offered beside the delete in its confirmation; queued, it closes the form onto the page it
+  /// was opened from.
+  var alternative: Alternative?
   let delete: () -> Bool
   let onDeleted: () -> Void
+
+  struct Alternative {
+    let title: String
+    /// Returns whether it was queued.
+    let perform: () -> Bool
+  }
 }
 
 #Preview {

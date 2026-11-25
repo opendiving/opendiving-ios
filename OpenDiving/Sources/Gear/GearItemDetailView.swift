@@ -2,8 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// A gear item's page, by its uuid: its hero, then two tabs — Service, its notes over its
-/// schedules and history; and Dives, those it was used on. It is edited, archived, unarchived and
-/// deleted from its top bar.
+/// schedules and history; and Dives, those it was used on. It is edited, archived and unarchived
+/// from its top bar, and deleted from its edit form.
 struct GearItemDetailView: View {
   let gearItemUUID: UUID
   @Environment(Session.self) private var session
@@ -30,7 +30,6 @@ private struct GearItemDetailContent: View {
   @State private var model: GearItemDetailModel
 
   @State private var confirmsArchive = false
-  @State private var confirmsDelete = false
   @State private var queueError: String?
   @State private var section = GearItemSection.service
   @State private var scroll = ScrollPosition(edge: .top)
@@ -115,18 +114,6 @@ private struct GearItemDetailContent: View {
         } message: {
           Text(RecordDeletionText.archiveGearItem(item))
         }
-        .confirmationDialog("Delete gear", isPresented: $confirmsDelete, titleVisibility: .visible)
-        {
-          Button("Delete", role: .destructive) {
-            if queue(.deleteGearItem(.server(item.uuid))) { dismiss() }
-          }
-          if GearItemDetailModel.offersArchiveInstead(item) {
-            // Straight to the archive: the sentence being read already says what it does.
-            Button("Archive instead") { queue(GearItemDetailModel.archiveToggle(item)) }
-          }
-        } message: {
-          Text(RecordDeletionText.gearItem)
-        }
       }
     }
     .background(Color.pageBackground)
@@ -151,7 +138,7 @@ private struct GearItemDetailContent: View {
   @ToolbarContentBuilder private func actions(_ item: GearItemRead) -> some ToolbarContent {
     ToolbarItemGroup(placement: .topBarTrailing) {
       NavigationLink {
-        GearItemFormView(mode: .edit(item))
+        GearItemFormView(mode: .edit(item)) { dismiss() }
       } label: {
         Label("Edit", systemImage: "pencil")
       }
@@ -164,7 +151,6 @@ private struct GearItemDetailContent: View {
         } else {
           Button("Archive", systemImage: "archivebox") { confirmsArchive = true }
         }
-        Button("Delete", systemImage: "trash", role: .destructive) { confirmsDelete = true }
       } label: {
         Label(
           "Actions for " + DiveDetailText.gearItemLabel(name: item.name, brand: item.brand),
@@ -173,10 +159,9 @@ private struct GearItemDetailContent: View {
     }
   }
 
-  /// Whether the write was queued; where it was not, the reason is on screen.
-  @discardableResult private func queue(_ operation: OutboxOperation) -> Bool {
+  /// Queues the write; where it was not, the reason is on screen.
+  private func queue(_ operation: OutboxOperation) {
     queueError = GearItemDetailModel.queue(operation, in: outbox)
-    return queueError == nil
   }
 
   private func tabTitle(_ section: GearItemSection) -> String {

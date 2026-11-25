@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A person's page, by their uuid: their name with the connected account's picture and username,
 /// their email and phone opening Mail and the dialler, their notes and the dives together. They
-/// are edited, disconnected and deleted from the top bar.
+/// are edited and disconnected from the top bar, and deleted from their edit form.
 struct PersonDetailView: View {
   let personUUID: UUID
   @Environment(Session.self) private var session
@@ -28,7 +28,6 @@ private struct PersonDetailContent: View {
   @Environment(\.dismiss) private var dismiss
   @State private var model: PersonDetailModel
 
-  @State private var confirmsDelete = false
   @State private var confirmsDisconnect = false
   @State private var queueError: String?
 
@@ -79,16 +78,6 @@ private struct PersonDetailContent: View {
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(person) }
         .confirmationDialog(
-          "Delete person", isPresented: $confirmsDelete, titleVisibility: .visible
-        ) {
-          Button("Delete", role: .destructive) {
-            queueError = PeopleListModel.delete(person.uuid, in: outbox)
-            if queueError == nil { dismiss() }
-          }
-        } message: {
-          Text(RecordDeletionText.person)
-        }
-        .confirmationDialog(
           PersonPageContent.disconnect, isPresented: $confirmsDisconnect,
           titleVisibility: .visible
         ) {
@@ -122,19 +111,18 @@ private struct PersonDetailContent: View {
   @ToolbarContentBuilder private func actions(_ person: PersonRead) -> some ToolbarContent {
     ToolbarItemGroup(placement: .topBarTrailing) {
       NavigationLink {
-        PersonFormView(mode: .edit(person))
+        PersonFormView(mode: .edit(person)) { dismiss() }
       } label: {
         Label("Edit", systemImage: "pencil")
       }
-      Menu {
-        if PersonPageContent.isConnected(person) {
+      if PersonPageContent.isConnected(person) {
+        Menu {
           Button(PersonPageContent.disconnect, systemImage: "person.crop.circle.badge.xmark") {
             confirmsDisconnect = true
           }
+        } label: {
+          Label("Actions for " + person.name, systemImage: "ellipsis")
         }
-        Button("Delete", systemImage: "trash", role: .destructive) { confirmsDelete = true }
-      } label: {
-        Label("Actions for " + person.name, systemImage: "ellipsis")
       }
     }
   }

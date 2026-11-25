@@ -39,7 +39,10 @@ struct GearItemSheetForm: View {
   @State var lookups: LookupsModel
   @State var units: RecordEntryUnits
   var isPushed = false
+  /// The gear being edited, as last read.
+  var item: GearItemRead?
   let onCreated: (RecordRef) -> Void
+  var onDeleted: () -> Void = {}
 
   @State private var invalid: Set<String> = []
 
@@ -47,7 +50,7 @@ struct GearItemSheetForm: View {
     RecordSheetForm(
       title: model.isEditing ? "Edit Gear" : "New Gear", isReopened: model.isReopened,
       createLabel: "Create gear", isPushed: isPushed, failure: model.failure,
-      saveError: model.saveError, save: save
+      saveError: model.saveError, deletion: deletion, save: save
     ) {
       Section {
         TextBox(
@@ -113,6 +116,19 @@ struct GearItemSheetForm: View {
         model.values.setType(type)
         if !model.values.isCylinder { invalid.subtract(["volume", "working_pressure"]) }
       })
+  }
+
+  private var deletion: RecordDeletion? {
+    guard model.canDelete else { return nil }
+    let alternative = item.flatMap { item in
+      GearItemDetailModel.offersArchiveInstead(item)
+        ? RecordDeletion.Alternative(title: "Archive instead") {
+          model.queue(GearItemDetailModel.archiveToggle(item))
+        } : nil
+    }
+    return RecordDeletion(
+      title: "Delete gear", message: RecordDeletionText.gearItem, alternative: alternative,
+      delete: model.delete, onDeleted: onDeleted)
   }
 
   private func save() -> Bool {

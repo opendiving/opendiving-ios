@@ -121,6 +121,19 @@ public final class RecordSheetModel<Values: RecordSheetValues> {
     }
   }
 
+  /// Queues `operation` in place of the form's own write, as gear's delete offers its archive
+  /// instead. False, with the reason on screen, when the outbox refused it.
+  public func queue(_ operation: OutboxOperation) -> Bool {
+    saveError = nil
+    do {
+      try outbox.queue(operation)
+      return true
+    } catch {
+      saveError = Self.sentence(error)
+      return false
+    }
+  }
+
   static func sentence(_ error: any Error) -> String {
     switch error as? OutboxModel.OutboxError {
     case .noAccount:
