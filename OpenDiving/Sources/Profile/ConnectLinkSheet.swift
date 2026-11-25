@@ -101,9 +101,6 @@ private struct ConnectLinkPane: View {
         VStack(spacing: 12) { changeButtons }
       }
       .controlSize(.large)
-      // On the pair rather than on each button, which the two layouts would give two dialogs.
-      .confirmsConnectLinkChange(.reset, model: model)
-      .confirmsConnectLinkChange(.remove, model: model)
       failure
     } else {
       Text(ConnectLinkModel.linkNone)
@@ -238,6 +235,7 @@ private struct ConnectLinkPane: View {
     .brandBorderedButton(isRemoval ? .danger : .accentText)
     .disabled(model.isChangingLink)
     .needsServer()
+    .confirmsConnectLinkChange(change, model: model)
   }
 }
 
