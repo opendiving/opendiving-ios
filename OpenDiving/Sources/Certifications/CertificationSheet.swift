@@ -174,7 +174,11 @@ private struct CertificationInfoRow: View {
       NavigationLink {
         PersonDetailView(personUUID: uuid)
       } label: {
-        LabeledContent(row.label, value: row.value)
+        if row.picture == nil && row.username == nil {
+          LabeledContent(row.label, value: row.value)
+        } else {
+          LabeledContent(row.label) { CertificationPersonValue(row: row) }
+        }
       }
     case nil:
       if let badge = row.badge {
@@ -186,6 +190,25 @@ private struct CertificationInfoRow: View {
         }
       } else {
         LabeledContent(row.label, value: row.value)
+      }
+    }
+  }
+}
+
+/// A connected instructor as the people rows draw one: the account's picture in the place a
+/// symbol would take at the value's size, the name, and the `@username` after it.
+private struct CertificationPersonValue: View {
+  let row: CertificationPageContent.Row
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      if let picture = row.picture {
+        IconOrConnectedPicture(icon: .user, picture: picture)
+      }
+      Text(row.value)
+      if let username = row.username {
+        Text("@\(username)")
+          .foregroundStyle(.tertiary)
       }
     }
   }

@@ -25,6 +25,9 @@ public struct CertificationPageContent: Hashable, Sendable {
     public let link: Link?
     /// Beside the expiry date, where the card has expired or soon will.
     public let badge: CertificationExpiry?
+    /// The instructor's connected account: its username, without the `@`, and its picture.
+    public let username: String?
+    public let picture: ConnectedPicture?
   }
 
   /// Only the sides with a file stored; a side never uploaded is not drawn.
@@ -34,7 +37,7 @@ public struct CertificationPageContent: Hashable, Sendable {
 
   public init(
     _ certification: CertificationRead, today: CalendarDate, courseName: String?,
-    contactName: String?, instructorName: String?
+    contactName: String?, instructor: PersonRowContent?
   ) {
     sides = CertificationSide.allCases.compactMap { side in
       certification.file(side: side.rawValue).map { file in
@@ -48,7 +51,13 @@ public struct CertificationPageContent: Hashable, Sendable {
       badge: CertificationExpiry? = nil
     ) -> Row? {
       guard let value, !value.isEmpty else { return nil }
-      return Row(label: label, value: value, link: link, badge: badge)
+      return Row(
+        label: label, value: value, link: link, badge: badge, username: nil, picture: nil)
+    }
+    let instructorRow = instructor.map { person in
+      Row(
+        label: "Instructor", value: person.name, link: person.uuid.map(Row.Link.person),
+        badge: nil, username: person.username, picture: person.picture)
     }
     rows = [
       row("Certification", certification.name),
@@ -60,7 +69,7 @@ public struct CertificationPageContent: Hashable, Sendable {
         "Expires on", certification.expiresOn.map { DateText.date($0) },
         badge: CertificationExpiry(expiresOn: certification.expiresOn, today: today)),
       row("Dive center", contactName),
-      row("Instructor", instructorName, certification.instructorUuid.map(Row.Link.person)),
+      instructorRow,
       row("Instructor number", certification.instructorNumber),
     ].compactMap { $0 }
     notes = certification.notes.isEmpty ? nil : certification.notes
@@ -86,8 +95,23 @@ public struct CertificationPageContent: Hashable, Sendable {
       certification, today: today,
       courseName: Self.courseName(certification.courseUuid, session: session, lookups: lookups),
       contactName: RecordNames.contact(certification.contactUuid, lookups: lookups.contacts),
-      instructorName: RecordNames.person(
+      instructor: Self.instructor(
         certification.instructorUuid, people: session.people, lookups: lookups.people))
+  }
+
+  /// The instructor's row: named by the people or the lookups, and carrying the connected
+  /// account where the people table holds the person. Nil while neither names them.
+  public static func instructor(
+    _ uuid: UUID?, people: [UUID: PersonRead], lookups: [PersonLookupItem]
+  ) -> PersonRowContent? {
+    guard let uuid, let name = RecordNames.person(uuid, people: people, lookups: lookups) else {
+      return nil
+    }
+    var row =
+      PersonRowContent.rows([PersonReference(person: .server(uuid))], people: people).first
+      ?? PersonRowContent(uuid: uuid, name: name)
+    row.name = name
+    return row
   }
 
   @MainActor
