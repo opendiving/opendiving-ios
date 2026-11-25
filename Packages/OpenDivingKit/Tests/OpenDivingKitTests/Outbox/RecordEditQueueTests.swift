@@ -236,6 +236,18 @@ struct RecordEditQueueTests {
     #expect(world.server.writes.last?.route.hasPrefix("DELETE trip/") == true)
   }
 
+  @Test func aFormQueuesAWriteInPlaceOfItsOwn() async throws {
+    let world = try OutboxWorld()
+    try await world.load()
+    world.offline()
+    let outbox = world.outbox()
+    let form = try form(outbox)
+    let write = OutboxOperation.updateTrip(trip, TripUpdate(name: "Elsewhere"))
+    #expect(form.queue(write))
+    #expect(form.saveError == nil)
+    #expect(outbox.items.map(\.operation) == [write])
+  }
+
   @Test func aLandedDeleteForgetsTheDive() async throws {
     let world = try OutboxWorld()
     try await world.load()

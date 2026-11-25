@@ -8,6 +8,8 @@ struct DeleteRecordSection: View {
   let message: String
   /// What the confirming button says, where the form's action is not a delete.
   var confirmation = "Delete"
+  /// A gentler action the confirmation offers beside the delete.
+  var alternative: Alternative?
   let action: () -> Void
 
   @State private var confirms = false
@@ -26,11 +28,21 @@ struct DeleteRecordSection: View {
       .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
       .confirmationDialog(title, isPresented: $confirms, titleVisibility: .visible) {
         Button(confirmation, role: .destructive, action: action)
+        if let alternative {
+          Button(alternative.title, action: alternative.action)
+        }
       } message: {
         Text(message)
       }
     }
     .listSectionSpacing(.compact)
+  }
+}
+
+extension DeleteRecordSection {
+  struct Alternative {
+    let title: String
+    let action: () -> Void
   }
 }
 

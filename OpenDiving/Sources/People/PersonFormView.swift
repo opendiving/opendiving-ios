@@ -2,9 +2,12 @@ import OpenDivingKit
 import SwiftUI
 
 /// The person form as a screen of its own: a new person, a person's page's edit, or a queued edit
-/// the server refused. As the web's dialog, it carries no delete: the page's menu does.
+/// the server refused.
 struct PersonFormView: View {
   let mode: RecordFormMode<PersonRead>
+  /// The person was deleted from the form, which leaves the page it was opened from nothing to
+  /// show.
+  var onDeleted: () -> Void = {}
 
   @Environment(Session.self) private var session
 
@@ -32,7 +35,8 @@ struct PersonFormView: View {
   private func form(
     _ model: RecordSheetModel<PersonFormValues>, person: PersonRead? = nil
   ) -> some View {
-    PersonSheetForm(model: model, isPushed: true, person: person, onCreated: { _ in })
+    PersonSheetForm(
+      model: model, isPushed: true, person: person, onCreated: { _ in }, onDeleted: onDeleted)
   }
 }
 

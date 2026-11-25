@@ -1,11 +1,11 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The saved servers, the active one first, to switch to, forget or open; *+* adds another.
+/// The saved servers, the active one first, to switch to or open, which is where one is forgotten;
+/// *+* adds another.
 /// With no server it is the first screen; otherwise Settings or the sign-in pushes it.
 struct ServerScreen: View {
   let flow: SignInFlow
-  @State private var forgetting: ServerOrigin?
   @State private var showing: ServerOrigin?
   @State private var adding = false
 
@@ -42,12 +42,6 @@ struct ServerScreen: View {
             .buttonStyle(.borderless)
             .accessibilityLabel("About \(server.origin.description)")
           }
-          .swipeActions {
-            if server.canForget {
-              Button("Forget", role: .destructive) { forgetting = server.origin }
-                .tint(.dangerFill)
-            }
-          }
         }
       } footer: {
         Text(KeptText.savedServersFooter)
@@ -70,9 +64,6 @@ struct ServerScreen: View {
     }
     .navigationDestination(isPresented: $adding) {
       AddServerScreen(flow: flow)
-    }
-    .forgetServerConfirmation(origin: $forgetting) { origin in
-      Task { await flow.forget(origin) }
     }
   }
 }

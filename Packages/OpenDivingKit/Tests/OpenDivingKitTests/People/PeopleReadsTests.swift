@@ -157,7 +157,7 @@ struct PeopleReadsTests {
     let model = PeopleListModel(session: world.session)
     await model.people.load()
     #expect(model.people.items.contains { $0.uuid == Self.ana })
-    #expect(PeopleListModel.delete(Self.ana, in: world.outbox()) == nil)
+    try world.outbox().queue(.deletePerson(.server(Self.ana)))
     #expect(!model.people.items.contains { $0.uuid == Self.ana })
   }
 
