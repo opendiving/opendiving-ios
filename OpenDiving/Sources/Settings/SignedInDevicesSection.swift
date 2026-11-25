@@ -27,9 +27,7 @@ struct SignedInDevicesSection: View {
             model.confirmingSignOutOthers = true
           } label: {
             HStack {
-              Label(
-                SignedInDevicesModel.signOutOthersButton,
-                systemImage: "rectangle.portrait.and.arrow.right")
+              Label(row: SignedInDevicesModel.signOutOthersButton, icon: .logOut)
               if model.isSigningOutOthers {
                 Spacer()
                 BubbleSpinner()
@@ -96,7 +94,7 @@ struct SignedInDevicesSection: View {
           Button {
             model.confirmingSignOut = device
           } label: {
-            Image(systemName: "rectangle.portrait.and.arrow.right")
+            Image(loaded: .logOut)
           }
           .tint(Color.primary)
           .accessibilityLabel("Sign out \(SignedInDevicesModel.label(device))")

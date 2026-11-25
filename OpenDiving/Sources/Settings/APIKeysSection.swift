@@ -26,7 +26,7 @@ struct APIKeysSection: View {
           Button {
             model.startCreating()
           } label: {
-            Label(APIKeysModel.createButton, systemImage: "plus")
+            Label(row: APIKeysModel.createButton, icon: .plus)
           }
           .accentRow()
           .needsServer()

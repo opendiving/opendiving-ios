@@ -47,6 +47,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case listTree = "list-tree"
   case locateFixed = "locate-fixed"
   case lock
+  case logOut = "log-out"
   case luggage
   case luggagePlus = "luggage-plus"
   case mail
