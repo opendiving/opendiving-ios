@@ -41,7 +41,7 @@ struct CertificationContentTests {
     let certification = try Self.stored()
     let page = CertificationPageContent(
       certification, today: Self.today, courseName: "Solo course", contactName: "Blue Ocean",
-      instructorName: "Kim")
+      instructor: PersonRowContent(uuid: certification.instructorUuid, name: "Kim"))
     #expect(
       page.rows.map(\.label) == [
         "Certification", "Agency", "Certification number", "Course", "Certified on",
@@ -57,26 +57,58 @@ struct CertificationContentTests {
 
   @Test func onlyTheSidesWithAFileAreDrawn() throws {
     let frontOnly = CertificationPageContent(
-      try Self.stored(), today: Self.today, courseName: nil, contactName: nil, instructorName: nil)
+      try Self.stored(), today: Self.today, courseName: nil, contactName: nil, instructor: nil)
     #expect(frontOnly.sides.map(\.title) == ["Front"])
 
     let bare = CertificationPageContent(
       try Self.decode(files: "[]"), today: Self.today, courseName: nil, contactName: nil,
-      instructorName: nil)
+      instructor: nil)
     #expect(bare.sides.isEmpty)
   }
 
   @Test func theExpiryDateCarriesTheBadge() throws {
     let page = CertificationPageContent(
       try Self.decode(files: "[]", expires: "2026-12-01"), today: Self.today, courseName: nil,
-      contactName: nil, instructorName: nil)
+      contactName: nil, instructor: nil)
     let expires = try #require(page.rows.first { $0.label == "Expires on" })
     #expect(expires.badge == .expiringSoon)
   }
 
+  @Test func aConnectedInstructorCarriesTheirUsernameAndPicture() throws {
+    let page = try KitFixture.decode(PaginatedListResponse<PersonRead>.self, "people-page")
+    let people = Dictionary(uniqueKeysWithValues: page.data.map { ($0.uuid, $0) })
+    let ana = try #require(UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d"))
+    let picture = ConnectedPicture(
+      source: .person(ana),
+      version: "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c")
+
+    let instructor = CertificationPageContent.instructor(ana, people: people, lookups: [])
+    #expect(
+      instructor
+        == PersonRowContent(uuid: ana, name: "Ana Diaz", username: "ana", picture: picture))
+    let pane = CertificationPageContent(
+      try Self.stored(), today: Self.today, courseName: nil, contactName: nil,
+      instructor: instructor)
+    let row = try #require(pane.rows.first { $0.label == "Instructor" })
+    #expect(row.value == "Ana Diaz" && row.link == .person(ana))
+    #expect(row.username == "ana" && row.picture == picture)
+
+    // One the people table holds unconnected, or only the lookups name, has no account to show.
+    let ben = try #require(UUID(uuidString: "01a0e2ed-1be2-7069-b3e3-7ffb32797bd0"))
+    #expect(
+      CertificationPageContent.instructor(ben, people: people, lookups: [])
+        == PersonRowContent(uuid: ben, name: "Ben Okafor"))
+    #expect(
+      CertificationPageContent.instructor(
+        ana, people: [:], lookups: [PersonLookupItem(ref: .server(ana), name: "Ana Diaz")])
+        == PersonRowContent(uuid: ana, name: "Ana Diaz"))
+    #expect(CertificationPageContent.instructor(ana, people: [:], lookups: []) == nil)
+    #expect(CertificationPageContent.instructor(nil, people: people, lookups: []) == nil)
+  }
+
   @Test func aNameThePhoneDoesNotHoldIsLeftOut() throws {
     let page = CertificationPageContent(
-      try Self.stored(), today: Self.today, courseName: nil, contactName: nil, instructorName: nil)
+      try Self.stored(), today: Self.today, courseName: nil, contactName: nil, instructor: nil)
     #expect(!page.rows.map(\.label).contains("Course"))
     #expect(!page.rows.map(\.label).contains("Instructor"))
     #expect(!page.rows.map(\.label).contains("Dive center"))
