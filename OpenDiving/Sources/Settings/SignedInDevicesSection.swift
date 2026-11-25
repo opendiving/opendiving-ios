@@ -83,7 +83,8 @@ struct SignedInDevicesSection: View {
             .foregroundStyle(.secondary)
         }
       } icon: {
-        RowLabelIcon(icon: SignedInDevicesModel.icon(device))
+        Image(loaded: SignedInDevicesModel.icon(device)).foregroundStyle(.primary)
+          .frame(maxHeight: .infinity, alignment: .top)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       // Nothing on this phone's row: signing it out is what *Sign out* does.

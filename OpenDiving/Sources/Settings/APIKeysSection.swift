@@ -60,7 +60,8 @@ struct APIKeysSection: View {
             .foregroundStyle(.secondary)
         }
       } icon: {
-        RowLabelIcon(icon: .keyRound)
+        Image(loaded: .keyRound).foregroundStyle(.primary)
+          .frame(maxHeight: .infinity, alignment: .top)
       }
     }
   }
