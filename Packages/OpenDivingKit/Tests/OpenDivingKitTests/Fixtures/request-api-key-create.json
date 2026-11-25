@@ -5,5 +5,5 @@
     "dives:read",
     "sites:read"
   ],
-  "lifetime": "30d"
+  "lifetime": "1h"
 }

@@ -127,7 +127,7 @@ struct CredentialFixtureTests {
 
   @Test func apiKeyCreate() throws {
     let create = try sendsItsFixture(APIKeyCreate.self, "request-api-key-create")
-    #expect(create.lifetime == .thirtyDays)
+    #expect(create.lifetime == .oneHour)
     #expect(create.scope == .scoped && create.scopes == ["dives:read", "sites:read"])
     let legacy = try JSONValue.parse(
       APICoding.requestEncoder().encode(
