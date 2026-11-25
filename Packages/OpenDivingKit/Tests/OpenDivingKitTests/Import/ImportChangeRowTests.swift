@@ -47,7 +47,7 @@ struct ImportChangeRowTests {
         == .value(label: "Recording 2: Decompression model GF high", before: "80%", after: "85%"))
     #expect(
       try row("recordings/0/profile/duration", "3473000", "3600000")
-        == .value(label: "Recording 1: Profile span", before: "58min", after: "1h"))
+        == .value(label: "Recording 1: Profile span", before: "58min", after: "60min"))
   }
 
   @Test func anElementIsOneLine() throws {

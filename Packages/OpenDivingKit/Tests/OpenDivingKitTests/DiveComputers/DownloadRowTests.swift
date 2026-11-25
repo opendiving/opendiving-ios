@@ -118,7 +118,7 @@ struct DownloadRowTests {
     #expect(metric?.facts.map(\.text) == ["Oct 26, 2026, 15:03", "Waiting for sign-in"])
     #expect(
       metric?.figures == [
-        Figure(label: "Dive time", value: "1h 16min"), Figure(label: "Max depth", value: "48 m"),
+        Figure(label: "Dive time", value: "76min"), Figure(label: "Max depth", value: "48 m"),
       ])
     let imperial = DownloadRow.rows(onComputer: [], onPhone: [dive], units: .imperial).first?.card
     #expect(imperial?.figures.last == Figure(label: "Max depth", value: "156 ft"))

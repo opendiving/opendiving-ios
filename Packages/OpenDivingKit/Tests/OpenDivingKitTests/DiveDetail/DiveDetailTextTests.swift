@@ -85,7 +85,7 @@ struct DiveDetailTextTests {
         + "couldn't be assigned to a cylinder.")
     #expect(
       DiveDetailText.gasAttributionNote(attributedSeconds: 2075, duration: 4300)?.contains(
-        "35min of the 1h 12min the dive computer recorded") == true)
+        "35min of the 72min the dive computer recorded") == true)
     #expect(DiveDetailText.gasAttributionNote(attributedSeconds: nil, duration: 2700) == nil)
     #expect(DiveDetailText.gasAttributionNote(attributedSeconds: 3000, duration: 2700) == nil)
     #expect(DiveDetailText.gasAttributionNote(attributedSeconds: 0, duration: 0) == nil)

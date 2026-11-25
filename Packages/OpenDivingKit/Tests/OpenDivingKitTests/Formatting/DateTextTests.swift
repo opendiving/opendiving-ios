@@ -130,6 +130,15 @@ struct DateTextTests {
     #expect(DateText.inSentence("Nov 16, 2026") == "Nov 16, 2026")
   }
 
+  @Test(
+    arguments: [
+      (2700, "45min"), (5400, "90min"), (7200, "120min"), (59.6 * 60, "60min"), (0, "0min"),
+    ]
+      as [(Double, String)])
+  func minutesNeverTurnIntoHours(seconds: Double, expected: String) {
+    #expect(DateText.minutes(seconds: seconds) == expected)
+  }
+
   /// `date-time.test.ts:428-440`.
   @Test(
     arguments: [(2700, "45min"), (5400, "1h 30min"), (7200, "2h"), (59.6 * 60, "1h")]

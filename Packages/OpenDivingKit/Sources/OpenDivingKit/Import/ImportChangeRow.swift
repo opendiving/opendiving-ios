@@ -158,7 +158,7 @@ public enum ImportChangeRow: Hashable, Sendable {
     "start_time": Member("Start time", when),
     "dive_number": Member("Dive number", plain),
     "submerged_time": Member(
-      "Dive time", measured { value, _ in DateText.hoursMinutes(seconds: value) }),
+      "Dive time", measured { value, _ in DateText.minutes(seconds: value) }),
     "max_depth": Member("Maximum depth", depth),
     "avg_depth": Member("Average depth", depth),
     "bottom_temperature": Member("Bottom temperature", temperature),
@@ -241,7 +241,7 @@ public enum ImportChangeRow: Hashable, Sendable {
 
   private static let profileMembers: [String: Member] = [
     "duration": Member(
-      "Span", measured { value, _ in DateText.hoursMinutes(seconds: value / 1000) }),
+      "Span", measured { value, _ in DateText.minutes(seconds: value / 1000) }),
     "depth_sample_count": Member("Samples", plain),
     "event_count": Member("Markers", plain),
     "max_depth": Member("Maximum depth", depth),
@@ -284,7 +284,7 @@ public enum ImportChangeRow: Hashable, Sendable {
     guard let duration = value["duration"].number, let samples = value["depth_sample_count"].integer
     else { return value.asSent }
     return [
-      DateText.hoursMinutes(seconds: duration / 1000),
+      DateText.minutes(seconds: duration / 1000),
       value["max_depth"].number.map { UnitFormat.depth($0, units) },
       DiveDetailText.countNoun(samples, "sample"),
     ].compactMap { $0 }.joined(separator: " · ")
