@@ -93,6 +93,17 @@ public final class APIKeysModel {
     scopesError = nil
   }
 
+  public func grantNone() {
+    scopes = []
+    scopesError = nil
+  }
+
+  /// Every permission the server offers is granted, so *Select all* would change nothing.
+  public var isAllGranted: Bool {
+    guard let offered = permissions.value, !offered.isEmpty else { return false }
+    return offered.allSatisfy(scopes.contains)
+  }
+
   /// `3 of 45 selected`.
   public var grantedCount: String {
     let offered = permissions.value ?? []

@@ -93,8 +93,10 @@ private struct PermissionPicker: View {
       Spacer()
       Button("Read only") { model.grantReadsOnly() }
         .accentRow()
-      Button("Select all") { model.grantAll() }
-        .brandBorderedButton()
+      Button(model.isAllGranted ? "Deselect all" : "Select all") {
+        if model.isAllGranted { model.grantNone() } else { model.grantAll() }
+      }
+      .brandBorderedButton()
     }
     .buttonStyle(.borderless)
     if let error = model.scopesError {
@@ -105,14 +107,16 @@ private struct PermissionPicker: View {
         Text(group.label)
         FlowLayout(spacing: 6) {
           ForEach(group.permissions) { permission in
+            let granted = model.isGranted(permission.scope)
             Toggle(
               permission.label,
               isOn: Binding(
-                get: { model.isGranted(permission.scope) },
+                get: { granted },
                 set: { model.grant(permission.scope, $0) })
             )
             .toggleStyle(.button)
-            .brandBorderedButton()
+            // An off toggle's fill is already grey; its tint is the only accent left on it.
+            .brandBorderedButton(granted ? .accentText : .secondary)
             .font(.subheadline)
             .accessibilityLabel(group.spoken(permission))
           }
