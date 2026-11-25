@@ -29,9 +29,14 @@ private struct InboxHost: ViewModifier {
   func body(content: Content) -> some View {
     content
       .environment(inbox)
-      // SwiftUI hands a document iOS opens in the app to `onOpenURL`, as it does a link; see
-      // DECISIONS.md, "Shared files are imported types, copied in".
+      // SwiftUI hands a document iOS opens in the app to `onOpenURL`, as it does a link tapped
+      // in Messages or Mail; see DECISIONS.md, "Shared files are imported types, copied in".
       .onOpenURL { receive($0) }
+      // A link the Camera reads from a code arrives as a browsing activity instead, which
+      // SwiftUI never passes to `onOpenURL`. iOS delivers one link one way, never both.
+      .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+        if let url = activity.webpageURL { link(url) }
+      }
       .onChange(of: session.state) { inbox.sessionChanged() }
       .onChange(of: session.accountLoaded) { inbox.sessionChanged() }
       .task {
