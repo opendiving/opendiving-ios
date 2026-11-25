@@ -52,11 +52,21 @@ public enum CoursePageContent {
   ) -> Information {
     var others = course.people
     let index = others.firstIndex { $0.role == "instructor" }
-    let instructorRef = index.map { others.remove(at: $0).person }
-    let instructorUUID = instructorRef?.serverUUID
+    let instructorRef = index.map { others.remove(at: $0) }
+    let instructorUUID = instructorRef?.person.serverUUID
+    // The lookups can name an instructor the table does not hold, so they settle whether there
+    // is a row; the table adds the connected account where it holds the person. The row's own
+    // line says *Instructor*, so the role is left to it.
     let instructor = RecordNames.person(
       instructorUUID, people: people, lookups: personLookups
-    ).map { PersonRowContent(uuid: instructorUUID, name: $0) }
+    ).map { name in
+      var row =
+        instructorRef.flatMap { PersonRowContent.rows([$0], people: people).first }
+        ?? PersonRowContent(uuid: instructorUUID, name: name)
+      row.name = name
+      row.role = nil
+      return row
+    }
     return Information(
       diveCenter: RecordNames.contact(course.contactUuid, lookups: contactLookups),
       instructor: instructor,

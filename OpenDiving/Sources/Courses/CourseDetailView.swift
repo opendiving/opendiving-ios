@@ -250,9 +250,10 @@ private struct CourseInformationCard: View {
     case .instructor(let person, let number):
       // A number with no name the phone holds stands in the name's place.
       personRow(
-        person, icon: .instructor, title: person?.name ?? number ?? "",
-        detail: ["Instructor", person == nil ? nil : number].compactMap { $0 }
-          .joined(separator: " · "))
+        person, icon: .instructor, picture: person?.picture, title: person?.name ?? number ?? "",
+        detail: [
+          person?.username.map { "@" + $0 }, "Instructor", person == nil ? nil : number,
+        ].compactMap { $0 }.joined(separator: " · "))
     case .person(let person):
       personRow(
         person, icon: .user, picture: person.picture, title: person.name,

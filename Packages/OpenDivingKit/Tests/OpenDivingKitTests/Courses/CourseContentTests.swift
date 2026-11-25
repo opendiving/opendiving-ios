@@ -96,6 +96,31 @@ struct CourseContentTests {
     #expect(both.people.map(\.role) == ["Student"])
   }
 
+  @Test func aConnectedInstructorCarriesTheirUsernameAndPicture() throws {
+    let page = try KitFixture.decode(PaginatedListResponse<PersonRead>.self, "people-page")
+    let people = Dictionary(uniqueKeysWithValues: page.data.map { ($0.uuid, $0) })
+    let ana = try #require(UUID(uuidString: "01a0e2ed-1be1-7142-996d-0639721e344d"))
+    let read = try course([
+      "people": [["person_uuid": ana.uuidString.lowercased(), "role": "instructor"]]
+    ])
+
+    let info = CoursePageContent.information(
+      read, people: people, personLookups: [], contactLookups: [])
+    #expect(
+      info.instructor
+        == PersonRowContent(
+          uuid: ana, name: "Ana Diaz", username: "ana",
+          picture: ConnectedPicture(
+            source: .person(ana),
+            version: "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c")))
+
+    // Named by the lookups alone, the instructor has no account to show.
+    let looked = CoursePageContent.information(
+      read, people: [:], personLookups: [PersonLookupItem(ref: .server(ana), name: "Ana Diaz")],
+      contactLookups: [])
+    #expect(looked.instructor == PersonRowContent(uuid: ana, name: "Ana Diaz"))
+  }
+
   @Test func blankFieldsHaveNoRow() throws {
     let info = CoursePageContent.information(
       try course(["instructor_number": "", "notes": ""]), people: [:], personLookups: [],
