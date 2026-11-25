@@ -6,9 +6,12 @@ import OpenDivingKit
 /// A Suunto Nautic-family watch, walked by id: the identity, the zone, a wait while the watch says
 /// it is busy, the logbook listed, each entry's sport and its dive's facts learned from its
 /// summary — or from the record, where an earlier walk kept them — and counted, the engine's
-/// answer for what to leave out — what the logbook holds, or the diver did not choose — then each
-/// new entry downloaded by id unless its summary names a sport that is no dive, or its dive is one
-/// the phone need not take again or the engine left out. Which entries are summarised, counted and downloaded is ``NauticSelection``'s.
+/// answer for what to leave out — what the logbook holds, or the diver did not choose — and what
+/// of that to take after the rest, then each new entry downloaded by id unless its summary names a
+/// sport that is no dive, or its dive is one the phone need not take again or the engine left out,
+/// then each new entry the engine takes after the rest — a dive the logbook holds without the
+/// computer's original. Which entries are summarised, counted and downloaded
+/// is ``NauticSelection``'s.
 ///
 /// Another app, such as the Suunto app, can share the link. A summary, the descriptors or a
 /// download that another app's handshake broke, which the watch's busy state does not show, is
@@ -98,7 +101,8 @@ nonisolated extension LibDCWalk {
     let phone = NauticSelection(
       ids: ids, fingerprint: fingerprint, remembered: record?.nauticSports, learned: learned
     ) { waiting(identity, NauticSelection.fingerprint($0)) }
-    let held = leftOut(identity, phone.listing.downloads)
+    let decision = decided(identity, phone.listing.downloads)
+    let held = decision.leftOut
     let selection =
       held.isEmpty
       ? phone
@@ -108,10 +112,18 @@ nonisolated extension LibDCWalk {
         let mark = NauticSelection.fingerprint($0)
         return waiting(identity, mark) || held.contains(mark)
       }
-    listedFacts = Dictionary(
-      selection.listing.downloads.map { ($0.fingerprint, $0.facts) },
+    let counted = Dictionary(
+      phone.listing.downloads.map { ($0.fingerprint, $0) },
       uniquingKeysWith: { first, _ in first })
-    events.yield(.listing(selection.listing))
+    let later = NauticSelection.taking(decision.catchUp, of: ids).filter {
+      counted[NauticSelection.fingerprint($0)] != nil
+    }
+    let listing = selection.listing.takingAfter(
+      later.compactMap { counted[NauticSelection.fingerprint($0)] })
+    listedFacts = Dictionary(
+      listing.downloads.map { ($0.fingerprint, $0.facts) },
+      uniquingKeysWith: { first, _ in first })
+    events.yield(.listing(listing))
 
     for entry in selection.entries {
       if cancel.isSet { break }
@@ -120,29 +132,43 @@ nonisolated extension LibDCWalk {
       case .skip:
         events.yield(.skipped(fingerprint: mark))
         continue
+      case .waiting where decision.catchUp.contains(mark):
+        events.yield(.deferred(fingerprint: mark))
+        continue
       case .waiting:
         waitingSkipped += 1
         events.yield(.skipped(fingerprint: mark))
         continue
       case .download: break
       }
-      let fetched = fetchWhileBusy(
-        .download(counted: entry.counted), "download \(Self.entryLabel(entry.id))"
-      ) { suunto_nautic_device_download($0, String(entry.id), $1) }
-      switch fetched {
-      case .stop(let stopped): return nauticEnd(stopped)
-      case .failed:
-        // The same failure on every attempt: left out, so the dives behind it are still taken.
-        notDownloaded += 1
-        events.yield(.skipped(fingerprint: mark))
-      // Success with no bytes, which an entry listed with size 0 gives: passed over, yielding
-      // nothing, so the fingerprint is moved only by an entry delivered or skipped.
-      case .answered(let bytes) where bytes.isEmpty: break
-      case .answered(let bytes):
-        guard dive(bytes, fingerprint: mark) else { return nauticEnd(DC_STATUS_CANCELLED) }
-      }
+      if let stopped = nauticDive(entry.id, counted: entry.counted) { return nauticEnd(stopped) }
+    }
+    for id in later {
+      if cancel.isSet { break }
+      if let stopped = nauticDive(id, counted: true) { return nauticEnd(stopped) }
     }
     return nauticEnd(DC_STATUS_SUCCESS)
+  }
+
+  /// Downloads entry `id` and hands its dive on: nil to go on, else the status the walk ends on.
+  private func nauticDive(_ id: UInt32, counted: Bool) -> dc_status_t? {
+    let mark = NauticSelection.fingerprint(id)
+    let fetched = fetchWhileBusy(.download(counted: counted), "download \(Self.entryLabel(id))") {
+      suunto_nautic_device_download($0, String(id), $1)
+    }
+    switch fetched {
+    case .stop(let stopped): return stopped
+    case .failed:
+      // The same failure on every attempt: left out, so the dives behind it are still taken.
+      notDownloaded += 1
+      events.yield(.skipped(fingerprint: mark))
+    // Success with no bytes, which an entry listed with size 0 gives: passed over, yielding
+    // nothing, so the fingerprint is moved only by an entry delivered or skipped.
+    case .answered(let bytes) where bytes.isEmpty: break
+    case .answered(let bytes):
+      guard dive(bytes, fingerprint: mark) else { return DC_STATUS_CANCELLED }
+    }
+    return nil
   }
 
   /// `/Info`'s firmware, spelled as the family's exports spell it; nil where it did not read.

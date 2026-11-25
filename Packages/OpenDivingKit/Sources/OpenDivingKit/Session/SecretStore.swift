@@ -1,6 +1,6 @@
 /// Where the phone's credentials are kept: the Keychain on the device, which the app target
 /// conforms over because the Kit builds where `Security` does not exist. A server's refresh token
-/// is named by the origin, an account's invite-link token by the origin and the account
+/// is named by the origin, an account's connect-link token by the origin and the account
 /// (``ServerStateStore``).
 public protocol SecretStore: Sendable {
   func secret(for account: String) throws -> String?

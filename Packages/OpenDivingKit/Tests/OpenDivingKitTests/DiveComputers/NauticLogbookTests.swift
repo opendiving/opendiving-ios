@@ -210,6 +210,14 @@ struct NauticLogbookTests {
     #expect(selection.listing == expected)
   }
 
+  /// The entries taken after the rest come in the logbook's order, newest first.
+  @Test func theEntriesTakenAfterTheRestComeNewestFirst() {
+    #expect(
+      NauticSelection.taking(
+        [NauticSelection.fingerprint(ids[9]), NauticSelection.fingerprint(ids[1])], of: ids)
+        == [ids[1], ids[9]])
+  }
+
   /// The entries a walk downloads, their start the id's and of no known length.
   private func downloads(_ ids: some Sequence<UInt32>) -> [DiveComputerListing.Download] {
     ids.map {

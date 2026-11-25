@@ -28,8 +28,7 @@ struct MoreRecordEditValuesTests {
     let before = PersonFormValues(editing: try KitFixture.decode(PersonRead.self, "person"))
     var after = before
     after.email = " "
-    after.username = "@dana"
-    #expect(try after.diff(from: before) == PersonUpdate(email: .null, username: .value("dana")))
+    #expect(try after.diff(from: before) == PersonUpdate(email: .null))
     #expect(try wire(after.diff(from: before))["email"] is NSNull)
   }
 

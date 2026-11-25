@@ -6,7 +6,7 @@ Choices the code cannot explain by itself. Each says what was chosen, what was r
 ## Credentials live in the Keychain, never `UserDefaults`
 
 Anything credential-shaped the app keeps across launches is a Keychain item, keyed by server origin,
-and by account uuid too where it is one account's: the invite link's token, apart from the rest of
+and by account uuid too where it is one account's: the connect link's token, apart from the rest of
 the link the cache keeps, and removed when the session ends. `UserDefaults` is a plist on disk,
 unencrypted at rest and included in backups. The refresh token does not live in `HTTPCookieStorage`
 either, although the API sends it as a cookie: the app reads it off `Set-Cookie`, stores it itself
@@ -163,12 +163,12 @@ another's token.
 
 ## The cache holds what the phone has shown
 
-Pages, dives, sites, trips, More's records, Settings' storage, tags, invitations and
-*Authentication* lists, species photos and drafts are written when a screen loads them, never
-fetched to fill the cache, and each kind of detail is bounded to the two hundred most recently
-opened, a species photo to the five hundred most recently drawn. It exists so a screen shows at once
-and offline, not as a copy of the logbook. Rejected: a sync that pulls every dive; showing the cache
-only once a fetch has failed, a minute of spinner offline.
+Pages, dives, sites, trips, More's records, Settings' storage, tags and *Authentication* lists,
+the connect link, species photos, the pictures of connected people and drafts are written when a
+screen loads them, never fetched to fill the cache, and each kind of detail is bounded to the two
+hundred most recently opened, a species photo or a picture to the five hundred most recently drawn.
+It exists so a screen shows at once and offline, not as a copy of the logbook. Rejected: a sync
+that pulls every dive; showing the cache only once a fetch has failed, a minute of spinner offline.
 
 ## A computer's pairing is the phone's, its fingerprint the account's, and it moves only once the archive is kept
 
@@ -178,21 +178,22 @@ account's logbook holds, so each account keeps its own; shared, a second server'
 would stop at dives it never saw. It advances only after a completed walk with no empty read, once
 the walk's dives are kept on the phone for the account it began for — or, for a walk that skipped
 entries and delivered none, at its end; anything else leaves it, and the import's gates make dives
-walked again links. Progress written before the load is removed, not moved, when the load names
-another account. Rejected: libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at
-import, which needs the upload to report back across a sign-out.
+walked again links. A dive taken for its original moves it only at its place in front, as when left
+out. Progress written before the load is removed when the load names another account. Rejected:
+libdc-swift's `UserDefaults` stores, keyed by device alone; advancing at import.
 
 ## A computer new to an account asks which dives to download
 
 Whether *Which dives do you want to download?* has been answered is the account's, kept with its
 progress: a Petrel or Nautic computer awaits it on an account holding neither a fingerprint nor an
-answer, so another account or server asks too. A watched walk asks once its list and the server's
-answer are in, and writes the answer before the first transfer: the dives not chosen are not taken
-until the fingerprint moves or the computer is forgotten, and *Choose dives to download* sets the
-fingerprint aside until a walk completes, so a broken walk resumes the choice unasked. A connection
-to a computer that awaits the question starts no walk; a walk listing nothing counts as answered.
-Rejected: a mark set at pairing, which is the phone's; taking every dive unwatched, the hours-long
-download the question offers a way out of; moving the fingerprint at the choice.
+answer. A watched walk asks once its list and the server's answer are in, and writes the answer
+before the first transfer: dives not chosen are not taken until the fingerprint moves or the
+computer is forgotten, and *Choose dives to download* sets the fingerprint aside until a walk
+completes, so a broken walk resumes the choice unasked. A dive the logbook holds without the
+computer's original is offered like one it lacks. A connection to a computer awaiting the
+question starts no walk; a walk listing nothing counts as answered. Rejected: a mark set at
+pairing, which is the phone's; taking every dive unwatched; moving the fingerprint at the choice;
+taking held dives unasked.
 
 ## A computer that logs instants gets its zone per download
 
@@ -329,14 +330,14 @@ which a computer's sample rate and the phone's link both move.
 ## A download's dives carry derived uuids, and a walk leaves out what the phone need not take
 
 A dive's uuid is version 5 over a fixed namespace, the family, the serial and the fingerprint, so a
-re-download is a dive the account already holds and links, or a new one once deleted. A walk of new
-dives leaves out an entry whose uuid the phone keeps under the walk's mark, or the server has
-answered for or the diver did not choose since the fingerprint last moved; *Choose dives to
-download* leaves out only what the phone keeps. Then, before its first transfer, a walk with a route
-and a loaded account sends the rest's uuids and listed starts to `POST /dive-computers/known-dives`
-and leaves out what the logbook holds. A dive left out counts neither new nor downloaded. Rejected:
-a random uuid, which leaves every dedupe to the recording gates; comparing on the phone, which
-writes the server's clock rule twice; downloading a waiting dive again.
+re-download links to the held dive, or is new once deleted. A walk of new dives leaves out an entry
+whose uuid the phone keeps under the walk's mark, or the server has answered for or the diver did
+not choose since the fingerprint last moved; *Choose dives to download* leaves out only what the
+phone keeps. Before its first transfer, a walk sends the uuid and start of each dive it would take
+to `POST /dive-computers/known-dives`, leaves out what the logbook holds, and offers what it holds
+without the computer's original unless the phone keeps it or ever sent it for that.
+Rejected: a random uuid; comparing on the phone, which writes the server's clock rule twice; the
+server's next answer alone, which resends a file that never joins.
 
 ## The device block has no brand, and its model is spelled as the family's export spells it
 
@@ -412,8 +413,9 @@ already settles.
 
 ## The phone asks for the extended session, and retries a refresh whose reply was lost
 
-The code sign-in sends `idle_timeout: extended` with no parameter: the Kit's one caller is a
-phone that may be offline for weeks. The API spends a refresh token before it answers, and
+Both halves of the sign-in email, the code and the link, send `idle_timeout: extended` with no
+parameter, and an account they lead to creating starts with that window: the Kit's one caller is
+a phone that may be offline for weeks. The API spends a refresh token before it answers, and
 answers the same cookie presented again inside its reuse grace with the pair it minted, so a
 refresh lost on the way back is retried with the same cookie after two seconds, on a twenty-second
 timeout, and a 401 to that retry once more. Rejected: retrying at once, which can land before
@@ -579,3 +581,16 @@ its tint, so the web's danger goes on its label with `.dangerRow()`. Rejected: o
 root, which also turns every toolbar button teal where the default leaves them in the label colour,
 and which a navigation bar tint does not hold back; and a high-contrast variant in `AccentColor`,
 which SwiftUI brightens all the same.
+
+## A link is followed only for the server the app is on, and the domain is a build's choice
+
+The session has one active server, so a link for another, or with none chosen, is not acted on:
+followed, it opens in the browser; scanned or pasted, the pane says whose server it is and offers
+the browser. Rejected: switching server from a link, which starts the app over under whatever the
+diver had open. A link's screen opens in a tapped notification's sheet, one presenter for both,
+so neither arrival is dropped.
+
+The associated domain is switched on per build from the gitignored signing file. Associated
+Domains needs a paid team, and a tracked entitlement would fail every Personal Team's device
+build. XcodeGen's `entitlements` key sets `CODE_SIGN_ENTITLEMENTS` for every build, so the
+xcconfig picks the file by `OPENDIVING_LINKS` instead.

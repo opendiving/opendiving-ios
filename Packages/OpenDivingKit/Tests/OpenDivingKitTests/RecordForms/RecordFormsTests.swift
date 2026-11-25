@@ -99,15 +99,11 @@ struct RecordFormsTests {
       PersonFormValues(name: "Alex", email: "not-an-email").issues
         == [FormIssue(field: "email", message: "Please enter a valid email address")])
     #expect(
-      PersonFormValues(name: "Alex", username: "@" + String(repeating: "a", count: 21)).issues
-        == [FormIssue(field: "username", message: "Username cannot exceed 20 characters")])
-    #expect(
       PersonFormValues(name: "Alex", phone: String(repeating: "1", count: 33)).issues
         == [FormIssue(field: "phone", message: "Phone cannot exceed 32 characters")])
-    let create = try PersonFormValues(
-      name: " Alex ", username: " @alexm ", email: " alex@example.com ", phone: "  "
-    ).toCreate()
-    #expect(create == PersonCreate(name: "Alex", email: "alex@example.com", username: "alexm"))
+    let create = try PersonFormValues(name: " Alex ", email: " alex@example.com ", phone: "  ")
+      .toCreate()
+    #expect(create == PersonCreate(name: "Alex", email: "alex@example.com"))
   }
 
   @Test(arguments: [

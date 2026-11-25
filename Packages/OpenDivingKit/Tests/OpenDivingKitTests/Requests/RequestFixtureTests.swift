@@ -33,6 +33,7 @@ struct RequestFixtureTests {
     let known = try APICoding.decoder().decode(
       [KnownDive].self, from: KitFixture.data("dive-computers-known-dives"))
     #expect(known.map(\.uuid) == [query.dives[0].uuid])
+    #expect(known.map(\.hasOriginal) == [false])
   }
 
   @Test func divesRenumber() throws {
@@ -100,6 +101,14 @@ struct RequestFixtureTests {
     _ = try sendsItsFixture(RestoreRequest.self, "request-restore")
   }
 
+  @Test func signInRequests() throws {
+    let request = try sendsItsFixture(EmailAuthRequest.self, "request-email-request-via")
+    #expect(request.via == "9f86d081884c7d659a2feaa0c55ad015")
+    let verify = try sendsItsFixture(EmailVerifyRequest.self, "request-email-verify")
+    #expect(verify.idleTimeout == .extended)
+    _ = try sendsItsFixture(ProfileCompletionRequest.self, "request-profile-completion")
+  }
+
   @Test func tagUpdate() throws {
     _ = try sendsItsFixture(TagUpdate.self, "request-tag-update")
   }
@@ -120,6 +129,22 @@ struct RequestFixtureTests {
 
   @Test func personCreate() throws {
     _ = try sendsItsFixture(PersonCreate.self, "request-person-create")
+    let connect = try sendsItsFixture(PersonCreate.self, "request-person-create-connect")
+    #expect(connect.connectAccount == UUID(uuidString: "01a0a51f-afe3-7363-a0bc-b0d634c35924"))
+    let link = try sendsItsFixture(PersonCreate.self, "request-person-create-connect-link")
+    #expect(link.connectLink == "9f86d081884c7d659a2feaa0c55ad015")
+    #expect(link.connectAccount == nil)
+  }
+
+  @Test func personUpdateConnectingAnAccount() throws {
+    let update = try sendsItsFixture(PersonUpdate.self, "request-person-update-connect")
+    #expect(update == PersonUpdate(connectAccount: update.connectAccount))
+    #expect(update.connectAccount != nil)
+  }
+
+  @Test func personUpdateConnectingByALink() throws {
+    let update = try sendsItsFixture(PersonUpdate.self, "request-person-update-connect-link")
+    #expect(update == PersonUpdate(connectLink: "9f86d081884c7d659a2feaa0c55ad015"))
   }
 
   @Test func courseCreate() throws {

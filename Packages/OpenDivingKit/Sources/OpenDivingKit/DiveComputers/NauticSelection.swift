@@ -89,16 +89,23 @@ public struct NauticSelection: Hashable, Sendable {
       return NauticEntrySport(id: id, sport: sport, duration: duration, facts: facts)
     }
     let remembered = Dictionary(read.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+    // An uncounted entry is left out: its download most often answers empty and yields nothing,
+    // which would leave it to come for the rest of the walk.
+    let downloads = entries.filter { $0.counted && $0.fate == .download }.map(\.id)
     listing = DiveComputerListing(
       dives: counted.count { $0 },
-      newDives: entries.count { $0.counted && $0.fate == .download },
+      newDives: downloads.count,
       sports: read,
-      // An uncounted entry is left out: its download most often answers empty and yields nothing,
-      // which would leave it to come for the rest of the walk.
-      downloads: entries.filter { $0.counted && $0.fate == .download }.map {
+      downloads: downloads.map {
         DiveComputerListing.Download(
-          fingerprint: Self.fingerprint($0.id), facts: Self.facts($0.id, remembered[$0.id]))
+          fingerprint: Self.fingerprint($0), facts: Self.facts($0, remembered[$0]))
       })
+  }
+
+  /// The ids of `ids`, the logbook's, newest first, whose fingerprints are in `catchUp`: the
+  /// entries a walk takes after the rest.
+  public static func taking(_ catchUp: Set<Data>, of ids: [UInt32]) -> [UInt32] {
+    ids.filter { catchUp.contains(fingerprint($0)) }
   }
 
   /// What the list says of an entry's dive: its start, the id, whatever its summary gave; the

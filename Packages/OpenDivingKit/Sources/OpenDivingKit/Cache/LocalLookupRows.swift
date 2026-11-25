@@ -35,7 +35,7 @@ extension TripCreate {
 
 extension PersonCreate {
   func lookupRow(_ ref: RecordRef) -> PersonLookupItem {
-    PersonLookupItem(ref: ref, name: name, username: username)
+    PersonLookupItem(ref: ref, name: name)
   }
 }
 

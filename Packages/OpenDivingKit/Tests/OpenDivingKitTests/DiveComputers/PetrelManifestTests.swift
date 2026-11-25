@@ -86,6 +86,17 @@ struct PetrelManifestTests {
     #expect(PetrelManifest.select(records, fingerprint: start(0x1234_5678)).listing.newDives == 11)
   }
 
+  /// Only a new record is taken after the rest, newest first, whatever order its start is given
+  /// in; one behind the fingerprint is not.
+  @Test func theRecordsTakenAfterTheRestAreNewOnesNewestFirst() throws {
+    let records = PetrelManifest.Page(try probePage()).records
+    let selection = PetrelManifest.select(records, fingerprint: start(0x6AB1_0B71))
+    let new = selection.new
+    let behind = try #require(records.first { !$0.isDeleted && !new.contains($0) })
+    #expect(new.count > 1)
+    #expect(selection.taking([behind.start, new[1].start, new[0].start]) == [new[0], new[1]])
+  }
+
   /// A new dive the phone need not take again is walked, not downloaded, and not counted
   /// new; one behind the fingerprint is no new entry at all.
   @Test func aDiveThePhoneNeedNotTakeAgainIsWalkedButNotCountedNew() throws {

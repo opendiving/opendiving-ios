@@ -37,6 +37,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
   /// Pacific.
   public static let worldMiddle = (latitude: 11.0, longitude: 11.0)
 
+  public let theme: MapTileTheme
   public let tiles: [Tile]
   public let pins: [Pin]
   /// The side of a tile, in points: ``WebMercator``'s, but for a map of the whole world, which
@@ -62,6 +63,7 @@ public struct MapBackdropLayout: Hashable, Sendable {
     let placed =
       points.map { Placed($0, isFix: false) } + fixes.map { Placed($0, isFix: true) }
     guard !placed.isEmpty || worldWhenEmpty, width > 0, height > 0 else { return nil }
+    self.theme = theme
 
     let padding = Self.fitPadding
     let shown = height - overflowTop

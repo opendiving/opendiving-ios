@@ -120,7 +120,7 @@ struct RecordSheetModelTests {
         entryTypes: ["shore"], tags: ["arch"],
         externalIds: [ExternalIdWrite(registry: "openstreetmap", identifier: "node/1")],
         notes: "Busy"),
-      PersonFormValues(name: "Alex", username: "alexm", email: "a@b.co", phone: "1", notes: ""),
+      PersonFormValues(name: "Alex", email: "a@b.co", phone: "1", notes: ""),
       TripFormValues(
         name: "Red Sea", parts: [TripPartFormValues(location: place, accommodation: contact)],
         people: [PersonReference(person: person, role: "buddy")], notes: "n"),

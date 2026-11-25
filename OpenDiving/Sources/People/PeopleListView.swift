@@ -1,14 +1,16 @@
 import OpenDivingKit
 import SwiftUI
 
-/// More's *People*: what is waiting to sync, then the diver's people on one card, filed under
-/// their letters with an index of every letter down the edge as Contacts has, each opening their
-/// page — the pages the phone has shown first, from its copy.
+/// More's *People*: what is waiting to sync, then *Added you* where anybody has added the diver,
+/// then the diver's people on one card, filed under their letters with an index of every letter
+/// down the edge as Contacts has, each opening their page — the pages the phone has shown first,
+/// from its copy.
 struct PeopleListView: View {
   @Environment(Session.self) private var session
 
   var body: some View {
-    PeopleListContent(model: PeopleListModel(session: session))
+    PeopleListContent(
+      model: PeopleListModel(session: session), addedYou: AddedYouModel(session: session))
   }
 }
 
@@ -27,6 +29,7 @@ extension PeopleListView {
 
 private struct PeopleListContent: View {
   @State var model: PeopleListModel
+  @State var addedYou: AddedYouModel
   @State private var creating = false
 
   var body: some View {
@@ -38,6 +41,7 @@ private struct PeopleListContent: View {
           // A queued create is not a row until it lands; what waits shows here however the
           // list stands.
           PendingSection()
+          AddedYouSection(model: addedYou)
           people(sections)
         }
         .padding()
@@ -53,7 +57,11 @@ private struct PeopleListContent: View {
       }
     }
     .background(Color.pageBackground)
-    .bubbleRefreshable { await model.refresh() }
+    .bubbleRefreshable {
+      async let people: Void = model.refresh()
+      await addedYou.refresh()
+      await people
+    }
     .navigationTitle(PeopleListView.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -63,6 +71,7 @@ private struct PeopleListContent: View {
     }
     .navigationDestination(isPresented: $creating) { PersonFormView(mode: .create) }
     .task { await model.show() }
+    .task { await addedYou.show() }
   }
 
   @ViewBuilder private func people(_ sections: [PeopleLetterSection]) -> some View {
@@ -102,7 +111,8 @@ private struct PeopleListContent: View {
             NavigationLink {
               PersonDetailView(personUUID: person.uuid)
             } label: {
-              PersonListRow(content: .person(person))
+              PersonListRow(
+                content: .person(person), picture: PersonPageContent.picture(person))
             }
             .buttonStyle(.plain)
           }
@@ -115,14 +125,16 @@ private struct PeopleListContent: View {
   }
 }
 
-/// A person's row on the card: the user icon in its circle, then their name over the linked
-/// account's username and how many dives name them.
+/// A person's row on the card: the connected account's picture, or the user icon, in its circle,
+/// then their name over the connected account's username and how many dives name them.
 private struct PersonListRow: View {
   let content: PlainCardContent
+  let picture: ConnectedPicture?
 
   var body: some View {
     HStack(spacing: 12) {
-      ListRowIcon(icon: .user)
+      ConnectedPictureView(picture: picture, side: ListRowIcon.side)
+        .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(content.title)
           .font(.headline)

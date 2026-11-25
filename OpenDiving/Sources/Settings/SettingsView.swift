@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// *Settings*, pushed from the profile: a row per section in the web's order, signing out, the
-/// app — its appearance and its version — and last the server card with the servers screen.
+/// *Settings*, pushed from the profile: a row per section in the web's order, the app — its
+/// appearance and its version — the server card with the servers screen, and last signing out.
 struct SettingsView: View {
   @Environment(Session.self) private var session
   @Environment(SignInFlow.self) private var signIn
@@ -32,19 +32,6 @@ private struct SettingsList: View {
         }
       }
       .disabled(model.isWorking)
-      Section {
-        Button("Sign out") { Task { await model.signOut() } }
-          .needsServer()
-          .accentRow()
-          .disabled(model.isWorking)
-        if let origin = model.signIn.signingOut {
-          SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
-        }
-        if let error = model.error {
-          Label(error, systemImage: "exclamationmark.triangle")
-            .foregroundStyle(Color.danger)
-        }
-      }
       Section("App") {
         NavigationLink {
           AppearanceScreen()
@@ -68,6 +55,32 @@ private struct SettingsList: View {
           .disabled(model.isWorking)
         }
       }
+      if let origin = model.signIn.signingOut {
+        Section {
+          SigningOutRow(origin: origin) { model.signIn.stopWaiting() }
+        }
+      }
+      Section {
+        // Drawn as DeleteRecordSection draws a form's delete, without its confirmation: signing
+        // out loses nothing the next sign-in does not bring back.
+        Button(role: .destructive) {
+          Task { await model.signOut() }
+        } label: {
+          Text("Sign out")
+            .bold()
+            .frame(maxWidth: .infinity)
+        }
+        .dangerRow()
+        .disabled(model.isWorking)
+        .needsServer()
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 0, trailing: 16))
+      } footer: {
+        if let error = model.error {
+          FieldMessage(error)
+        }
+      }
+      .listSectionSpacing(.compact)
     }
     .task { await model.load() }
     .followsAccount(model.session)

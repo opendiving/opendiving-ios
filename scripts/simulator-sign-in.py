@@ -136,6 +136,7 @@ def main():
     parser.add_argument(
         "--container", help="the server's Docker container, when its port does not say"
     )
+    parser.add_argument("--link", help="an address the launch hands the app, as a followed link")
     args = parser.parse_args()
     if not args.email:
         parser.error(f"give an account's email, or set {EMAIL_VARIABLE}")
@@ -166,6 +167,7 @@ def main():
     launched = run(
         "xcrun", "simctl", "launch", "--terminate-running-process", udid, bundle,
         "--server", origin, "--refresh-token", cookies["refresh_token"].value,
+        *(["--link", args.link] if args.link else []),
     )  # fmt: skip
     if launched.returncode != 0:
         stop(f"could not launch the app: {launched.stderr.strip()}")

@@ -59,12 +59,17 @@ struct SignInViewTests {
     #expect(try await Self.title(of: SignInView(), session, flow) == "Check Your Email")
   }
 
-  @Test func theUnfinishedAccountScreen() async throws {
+  @Test func theSignUpScreen() async throws {
     let (session, flow) = await Self.atTheCode(Self.onboarding)
     flow.setCode("123456")
     await flow.submitCode()
     #expect(flow.step == .onboardingRequired(email: "sam@example.com", name: "Sam"))
-    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Complete Your Profile")
+    let links = SignUpScreen.terms(Self.origin).runs.compactMap(\.link).map(\.absoluteString)
+    #expect(
+      links == [
+        "https://stub.opendiving.invalid/terms", "https://stub.opendiving.invalid/privacy",
+      ])
   }
 
   @Test func theDeletionPendingScreen() async throws {

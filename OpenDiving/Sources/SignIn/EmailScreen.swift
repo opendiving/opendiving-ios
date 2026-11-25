@@ -1,7 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Signing in to the active server: the email field, what is reachable signed out — logging a
+/// Signing in to the active server, headed by who invited the diver while a connect link is
+/// held: the email field, what is reachable signed out — logging a
 /// dive and what is waiting to sync for the account last signed in here, and the cached check-in
 /// sheet — and the server card with another server.
 struct EmailScreen: View {
@@ -12,7 +13,6 @@ struct EmailScreen: View {
   @Environment(OutboxModel.self) private var outbox
   @Environment(InboxModel.self) private var inbox
   @State private var logsDive = false
-  @ScaledMetric(relativeTo: .body) private var spinnerSide: CGFloat = 24
   @ScaledMetric(relativeTo: .title) private var wordmarkHeight: CGFloat = 28
 
   @FocusState private var focused: Bool
@@ -20,9 +20,19 @@ struct EmailScreen: View {
   var body: some View {
     Form {
       Section {
-        logo
+        if case .from(let name, let picture) = flow.invitation {
+          InvitationHeader(flow: flow, name: name, picture: picture)
+        } else {
+          logo
+        }
       }
       .listRowBackground(Color.clear)
+      if flow.invitation == .gone {
+        Section {
+          Label(SignInFlow.invitationGone, systemImage: "link")
+            .foregroundStyle(.secondary)
+        }
+      }
       if let notice = flow.notice {
         Section {
           Label(notice, systemImage: "exclamationmark.triangle")
@@ -47,26 +57,8 @@ struct EmailScreen: View {
         }
       }
       Section {
-        Button(action: send) {
-          // Held in place under the spinner, so the button keeps its size.
-          Text("Sign in")
-            .bold()
-            .opacity(flow.isRequestingCode ? 0 : 1)
-            .overlay {
-              if flow.isRequestingCode {
-                BubbleSpinner(side: spinnerSide, style: .white)
-              }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
-        .tint(.brandCoral)
-        .controlSize(.large)
-        .accessibilityLabel("Sign in")
-        .accessibilityValue(flow.isRequestingCode ? "Sending" : "")
-        .listRowInsets(EdgeInsets())
-        .listRowBackground(Color.clear)
+        FormCapsuleButton(
+          title: "Sign in", isBusy: flow.isRequestingCode, busyValue: "Sending", action: send)
       }
       Section {
         ForEach(flow.signedOutEntries) { entry in
@@ -118,6 +110,7 @@ struct EmailScreen: View {
     .toolbar(.hidden, for: .navigationBar)
     .navigationDestination(isPresented: $logsDive) { DiveFormView(mode: .create) }
     .task { await flow.session.loadServerInfo() }
+    .task { await flow.readInvitation() }
     // Whenever the row is shown; the outbox refreshes nothing before the account loads.
     .task { await outbox.refreshDrafts() }
   }

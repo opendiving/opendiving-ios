@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A person's page, by their uuid: their name and username, their email and phone opening Mail
-/// and the dialler, their notes and the dives together. They are edited and deleted from the top
-/// bar.
+/// A person's page, by their uuid: their name with the connected account's picture and username,
+/// their email and phone opening Mail and the dialler, their notes and the dives together. They
+/// are edited, disconnected and deleted from the top bar.
 struct PersonDetailView: View {
   let personUUID: UUID
   @Environment(Session.self) private var session
@@ -29,6 +29,7 @@ private struct PersonDetailContent: View {
   @State private var model: PersonDetailModel
 
   @State private var confirmsDelete = false
+  @State private var confirmsDisconnect = false
   @State private var queueError: String?
 
   init(model: PersonDetailModel) {
@@ -49,7 +50,10 @@ private struct PersonDetailContent: View {
       case .loaded(let person):
         ScrollView {
           LazyVStack(spacing: 16) {
-            HeroView(content: PersonPageContent.hero(person), backdrop: .plain)
+            HeroView(content: PersonPageContent.hero(person), backdrop: .plain) {
+              ConnectedPictureView(picture: PersonPageContent.picture(person), side: 52)
+                .accessibilityHidden(true)
+            }
             Group {
               PersonReachLinks(
                 email: PersonPageContent.email(person), phone: PersonPageContent.phone(person))
@@ -84,6 +88,16 @@ private struct PersonDetailContent: View {
         } message: {
           Text(RecordDeletionText.person)
         }
+        .confirmationDialog(
+          PersonPageContent.disconnect, isPresented: $confirmsDisconnect,
+          titleVisibility: .visible
+        ) {
+          Button(PersonPageContent.disconnect) {
+            queueError = PeopleListModel.disconnect(person.uuid, in: outbox)
+          }
+        } message: {
+          Text(PersonPageContent.disconnectMessage(person))
+        }
       }
     }
     .background(Color.pageBackground)
@@ -113,6 +127,11 @@ private struct PersonDetailContent: View {
         Label("Edit", systemImage: "pencil")
       }
       Menu {
+        if PersonPageContent.isConnected(person) {
+          Button(PersonPageContent.disconnect, systemImage: "person.crop.circle.badge.xmark") {
+            confirmsDisconnect = true
+          }
+        }
         Button("Delete", systemImage: "trash", role: .destructive) { confirmsDelete = true }
       } label: {
         Label("Actions for " + person.name, systemImage: "ellipsis")

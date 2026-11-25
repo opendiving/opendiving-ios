@@ -135,9 +135,16 @@ struct SessionTests {
             request.httpBody.map { String(decoding: $0, as: UTF8.self) }?.contains("111111") == true
               ? "auth-outcome-onboarding" : "auth-outcome-deletion-pending"))
       })
-    #expect(
-      try await session.verifyCode(requestID: UUID(), code: "111111")
-        == .onboardingRequired(email: "sam@example.com", name: "Sam"))
+    guard
+      case .onboardingRequired(let email, let name, let offer) = try await session.verifyCode(
+        requestID: UUID(), code: "111111")
+    else {
+      Issue.record("Expected onboarding")
+      return
+    }
+    #expect(email == "sam@example.com")
+    #expect(name == "Sam")
+    #expect(offer.map(String.init(describing:)) == "OnboardingOffer(redacted)")
     guard
       case .deletionPending(let email, let purgeAfter, let restore) = try await session.verifyCode(
         requestID: UUID(), code: "222222")

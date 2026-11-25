@@ -5,9 +5,11 @@ import OpenDivingKit
 /// download yields its script's events, calling the lookup as a conformance does once the
 /// identity is known and recording what it answered, and keeping each dive before it yields it.
 /// At a listing it passes over the downloads `waiting` says the phone need not take, as the
-/// conformances do, asks `leaveOut` about the rest and waits for the answer, then yields the
-/// listing without either, each such dive as skipped and the end counting them as waiting. Asked for only a paired computer, it ends a script whose identity has no
-/// record there, unpaired.
+/// conformances do, asks `decide` about the rest and waits for the answer, then yields the listing
+/// without either and with the dives to take after the rest, each dive left out as skipped — or
+/// deferred, where it is taken after — and the end counting them as waiting. Before the end it
+/// yields each dive taken after the rest, in the script's order. Asked for only a paired computer,
+/// it ends a script whose identity has no record there, unpaired.
 @MainActor
 final class FakeDiveComputerLink: DiveComputerLink {
   var state = DiveComputerAvailability.on
@@ -25,9 +27,10 @@ final class FakeDiveComputerLink: DiveComputerLink {
   private(set) var sportsRemembered: [[NauticEntrySport]?] = []
   /// The test of a dive the phone need not take again each download was handed.
   private(set) var waitingTests: [@Sendable (DiveComputerIdentity, Data) -> Bool] = []
-  /// What each listing asked `leaveOut` about, and what it answered, in order.
+  /// What each listing asked `decide` about, and what it answered, in order.
   private(set) var asked: [[DiveComputerListing.Download]] = []
   private(set) var leftOut: [Set<Data>] = []
+  private(set) var catchUps: [Set<Data>] = []
   /// The computer each download opened, whether it asked for a paired one only, and whether it
   /// waits for a lost link.
   private(set) var opened: [(computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool)] = []
@@ -68,9 +71,7 @@ final class FakeDiveComputerLink: DiveComputerLink {
     _ computer: FoundComputer, pairedOnly: Bool, waitsForLink: Bool,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut:
-      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
-      Set<Data>,
+    decide: @escaping DiveComputerListing.Decide,
     keep: @escaping @Sendable (DownloadedDive) -> Void
   ) -> AsyncStream<DiveComputerDownloadEvent> {
     let script = scripts.isEmpty ? [] : scripts[min(downloads, scripts.count - 1)]
@@ -83,8 +84,18 @@ final class FakeDiveComputerLink: DiveComputerLink {
     Task {
       var identity: DiveComputerIdentity?
       var logbook: Set<Data> = []
+      var later: [DownloadedDive] = []
       for (index, scripted) in script.enumerated() {
         var event = scripted
+        // The dives taken after the rest come before the end, and before a hold of it.
+        if case .finished = event, !cancelledDownloads.contains(download) {
+          for dive in later {
+            keep(dive)
+            continuation.yield(.dive(dive))
+            await Task.yield()
+          }
+          later = []
+        }
         if case .identified(let identity) = event {
           let record = lookup(identity.family, identity.serial.lowercased())
           fingerprintsSet.append(record?.fingerprint)
@@ -113,21 +124,35 @@ final class FakeDiveComputerLink: DiveComputerLink {
           let passedOver = Set(
             listing.downloads.map(\.fingerprint).filter { waiting(identity, $0) })
           let rest = listing.downloads.filter { !passedOver.contains($0.fingerprint) }
+          var catchUp: Set<Data> = []
           if !rest.isEmpty {
             asked.append(rest)
-            logbook = await leaveOut(identity, rest)
+            let decision = await decide(identity, rest)
+            logbook = decision.leftOut
+            catchUp = decision.catchUp
             leftOut.append(logbook)
+            catchUps.append(catchUp)
           }
           logbook.formUnion(passedOver)
           let downloads = rest.filter { !logbook.contains($0.fingerprint) }
+          let taken = rest.filter { catchUp.contains($0.fingerprint) }
+          later = script.compactMap { event in
+            guard case .dive(let dive) = event, catchUp.contains(dive.fingerprint) else {
+              return nil
+            }
+            return dive
+          }
           event = .listing(
             DiveComputerListing(
               dives: listing.dives,
               newDives: listing.newDives - (listing.downloads.count - downloads.count),
-              sports: listing.sports, downloads: downloads))
+              sports: listing.sports, downloads: downloads
+            ).takingAfter(taken))
         }
         if case .dive(let dive) = event, logbook.contains(dive.fingerprint) {
-          event = .skipped(fingerprint: dive.fingerprint)
+          event =
+            later.contains { $0.fingerprint == dive.fingerprint }
+            ? .deferred(fingerprint: dive.fingerprint) : .skipped(fingerprint: dive.fingerprint)
         }
         if case .finished(let end) = event, !logbook.isEmpty {
           event = .finished(

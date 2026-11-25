@@ -12,7 +12,8 @@ import Foundation
 /// and what is left when the walk ends goes at once.
 ///
 /// - An applied import: the archive leaves the phone, its dives join what the server answered
-///   for, and every list over the account reads again, so each dive shows as it lands.
+///   for, those taken for the computer's original join the dives sent for it, and every list over
+///   the account reads again, so each dive shows as it lands.
 /// - A pending import, a server that cannot apply in one request: that import, which the
 ///   upload made, is discarded and the archive kept as refused. A pending answer is never taken
 ///   for a written dive.
@@ -46,6 +47,9 @@ extension DiveComputerEngine {
     var parts = 0
     /// Its computer has nothing more to give: what is left is cut by the walk's end.
     var ended = false
+    /// The dives it takes because the logbook holds them without the computer's original, by
+    /// their uuids, each with the logbook's dive that holds it.
+    var updating: [UUID: UUID] = [:]
 
     var id: UUID { keeper.id }
   }
@@ -55,6 +59,8 @@ extension DiveComputerEngine {
     var computer: String
     var rows: [LogbookImportDive] = []
     var imports: [UUID] = []
+    /// The logbook's dives its archives brought the computer's original to.
+    var updating: Set<UUID> = []
   }
 
   /// How long after an upload began the next may begin while a walk runs: the server answers an
@@ -138,7 +144,7 @@ extension DiveComputerEngine {
     let failure = await archive(
       going, identity: identity, record: record(of: identity, in: flight.store),
       instantZone: flight.watchZone, marked: flight.marked, walk: flight.id, part: flight.parts,
-      into: flight.downloads)
+      updating: flight.updating, into: flight.downloads)
     guard failure == nil else { return }
     let fingerprints = Set(going.map(\.fingerprint))
     flight.keeper.archived(fingerprints)
@@ -242,6 +248,8 @@ extension DiveComputerEngine {
       }
       noteUpload(archive, "imported")
       try? downloads.deliver(archive.dives, of: archive.record)
+      try? downloads.sentForOriginal(
+        Array((archive.updating ?? [:]).keys), of: archive.record)
       downloads.remove(archive)
       if let stores = AccountStores.current(session) {
         OutboxHub.hub(for: stores.directory).listsChanged()
@@ -249,6 +257,7 @@ extension DiveComputerEngine {
       var download = imported[archive.group] ?? ImportedDownload(computer: computer)
       download.rows += answer.dives
       download.imports.append(answer.uuid)
+      download.updating.formUnion((archive.updating ?? [:]).values)
       imported[archive.group] = download
       return true
     } catch let error as APIError {
@@ -292,7 +301,7 @@ extension DiveComputerEngine {
       imported[download] = nil
       if let notice = DiveComputerNotice.imported(
         told.rows, imports: told.imports, download: download, from: told.computer,
-        units: session.units)
+        updating: told.updating, units: session.units)
       {
         notifier?.post(notice)
       }

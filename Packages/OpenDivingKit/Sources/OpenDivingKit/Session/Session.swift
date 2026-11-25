@@ -28,12 +28,13 @@ public final class Session {
     }
   }
 
-  /// What redeeming a code led to. Only ``signedIn`` started a session. An unfinished sign-up
-  /// is finished on the web; an account scheduled for deletion comes with the offer
-  /// ``restore(_:)`` redeems, which is never redeemed without the diver asking.
+  /// What redeeming a code or a link led to. Only ``signedIn`` started a session. An address
+  /// with no account comes with the offer ``completeSignUp(_:name:username:)`` redeems; an
+  /// account scheduled for deletion with the offer ``restore(_:)`` redeems, which is never
+  /// redeemed without the diver asking.
   public enum SignInOutcome: Hashable, Sendable {
     case signedIn
-    case onboardingRequired(email: String?, name: String?)
+    case onboardingRequired(email: String?, name: String?, offer: OnboardingOffer?)
     case deletionPending(email: String?, purgeAfter: DiveTimestamp?, restore: RestoreOffer?)
   }
 
@@ -326,22 +327,53 @@ public final class Session {
 
   // MARK: - Signing in and out
 
-  /// Mails a sign-in code to `email`; the answer names the request the code belongs to.
-  public func requestCode(email: String) async throws -> UUID {
-    try await requireClient().requestEmailCode(email: email).requestId
+  /// Mails a sign-in link and code to `email`; the answer names the request the code belongs
+  /// to. `via` is the token of the connect link the sign-in started from.
+  public func requestCode(email: String, via: String? = nil) async throws -> UUID {
+    try await requireClient().requestEmailCode(email: email, via: via).requestId
   }
 
   /// Redeems a code. On ``SignInOutcome/signedIn`` the session is signed in, and
   /// ``loadAccount()`` is what fetches the account and the people table.
   public func verifyCode(requestID: UUID, code: String) async throws -> SignInOutcome {
     let client = try requireClient()
-    let outcome = try await client.verifyEmailCode(requestID: requestID, code: code)
+    return try signInOutcome(
+      try await client.verifyEmailCode(requestID: requestID, code: code), from: client)
+  }
+
+  /// Redeems a sign-in link's token, as ``verifyCode(requestID:code:)`` redeems a code. Nothing
+  /// asks first whether the link is still good, as the web's page does against a mail scanner
+  /// fetching it: only a tap hands a link to the app.
+  public func verifyLink(token: String) async throws -> SignInOutcome {
+    let client = try requireClient()
+    return try signInOutcome(try await client.verifyEmailLink(token: token), from: client)
+  }
+
+  /// Creates the account `offer` was made for and signs in to it, as an authenticated code
+  /// does. A refusal is the API's sentence, and changes nothing.
+  public func completeSignUp(_ offer: OnboardingOffer, name: String, username: String)
+    async throws
+  {
+    let client = try requireClient()
+    let outcome = try await client.completeProfile(
+      ProfileCompletionRequest(onboardingToken: offer.token, name: name, username: username))
+    guard outcome.status == "authenticated" else {
+      throw APIError.unreadableResponse("Unknown sign-up outcome \"\(outcome.status)\"")
+    }
+    transition(to: .signedIn(client.origin))
+  }
+
+  private func signInOutcome(_ outcome: AuthOutcome, from client: APIClient) throws
+    -> SignInOutcome
+  {
     switch outcome.status {
     case "authenticated":
       transition(to: .signedIn(client.origin))
       return .signedIn
     case "onboarding_required":
-      return .onboardingRequired(email: outcome.email, name: outcome.name)
+      return .onboardingRequired(
+        email: outcome.email, name: outcome.name,
+        offer: outcome.onboardingToken.map(OnboardingOffer.init(token:)))
     case "deletion_pending":
       return .deletionPending(
         email: outcome.email, purgeAfter: outcome.purgeAfter,
@@ -396,6 +428,10 @@ public final class Session {
     guard take(user, readBy: client, at: generation) else { return }
     self.people = Dictionary(people.map { ($0.uuid, $0) }) { first, _ in first }
     accountLoaded = true
+    if let stores = AccountStores.current(self) {
+      stores.cache.removeRetiredInvitations()
+      try? store.removeRetiredInviteLinkToken(for: stores.origin, account: stores.account)
+    }
   }
 
   /// Every page of `GET /people` again, after a write to a person landed. A failure leaves the

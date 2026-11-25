@@ -23,10 +23,14 @@ struct NewPersonSheet: View {
   }
 }
 
-/// The person form, in the web's dialog's sheet or pushed as a screen of its own.
+/// The person form, in the web's dialog's sheet or pushed as a screen of its own. Editing a person
+/// connected to an account, it is headed by the account's picture and `@username`, which the form
+/// does not change.
 struct PersonSheetForm: View {
   @State var model: RecordSheetModel<PersonFormValues>
   var isPushed = false
+  /// The person being edited, as last read.
+  var person: PersonRead?
   let onCreated: (RecordRef) -> Void
 
   var body: some View {
@@ -35,20 +39,15 @@ struct PersonSheetForm: View {
       createLabel: "Create person", isPushed: isPushed, failure: model.failure,
       saveError: model.saveError, save: save
     ) {
+      if let person, let username = person.username, !username.isEmpty {
+        Section {
+          ConnectedAccountHead(picture: PersonPageContent.picture(person), username: username)
+        }
+      }
       Section {
         TextBox(
           label: "Name *", placeholder: "e.g. Alex M.", text: $model.values.name,
           message: model.message("name"), contentType: .name)
-        VStack(alignment: .leading, spacing: 6) {
-          TextBox(
-            label: "Username", placeholder: "e.g. alexm", text: $model.values.username,
-            message: model.message("username"), verbatim: true)
-          Text(
-            "Their username on this copy of OpenDiving, if they have an account. You will see its current username and nothing else of theirs, and they are not told."
-          )
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-        }
         TextBox(
           label: "Email", text: $model.values.email, message: model.message("email"),
           keyboard: .emailAddress, verbatim: true)

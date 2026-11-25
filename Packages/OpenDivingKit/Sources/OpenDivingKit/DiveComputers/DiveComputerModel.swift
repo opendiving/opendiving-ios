@@ -6,8 +6,9 @@ import Observation
 /// through its phases to finished, with an outcome.
 ///
 /// **A computer new to the account asks which dives to download**, once its list is read:
-/// all of those the logbook lacks, some chosen from the list, or only future ones. The list is
-/// also *Choose dives to download*, on a computer's page and after a download that took nothing.
+/// all of those the logbook lacks or holds without the computer's original download, some chosen
+/// from the list, or only future ones. The list is also *Choose dives to download*, on a
+/// computer's page and after a download that took nothing.
 ///
 /// **A walk a connection starts is shown as the diver's is**, from its start or from the
 /// model's, if it is already in flight, to its outcome — unless the diver's own walk is held for
@@ -131,7 +132,8 @@ public final class DiveComputerModel {
   public var identity: DiveComputerIdentity? { walk?.identity }
   public var divesDownloaded: Int { walk?.divesDownloaded ?? 0 }
   /// libdivecomputer's progress up to 1, where the family reports it; else, after a listing, the
-  /// dives downloaded over the new dives the listing named, as ``downloadingText`` counts them.
+  /// dives downloaded over those the listing said the walk takes, as ``downloadingText`` counts
+  /// them.
   /// Never below ``startingProgress``.
   public var progress: Double? { walk?.progress }
   /// The least of the bar, so a long first dive does not read as a download that has not begun.
@@ -172,8 +174,8 @@ public final class DiveComputerModel {
   /// The walk in flight is the diver's, which a tap does not replace.
   private var diverBusy: Bool { walk.map { $0.watched && $0.isBusy } ?? false }
 
-  /// *Downloading 2 of 3 new dives* while downloading after a listing, *Downloading dive 3*
-  /// without one.
+  /// *Downloading 2 of 3 new dives* while downloading after a listing, or *Downloading 2 of 41
+  /// dives* where the walk takes dives the logbook holds, *Downloading dive 3* without one.
   public var downloadingText: String? {
     guard phase == .downloading else { return nil }
     return walk?.downloadingText
@@ -188,9 +190,13 @@ public final class DiveComputerModel {
   }
 
   /// *3 new dives out of 11 on this computer*, or *11 dives on this computer* where the download
-  /// set no fingerprint: while downloading after a listing.
+  /// set no fingerprint, or *41 dives to download out of 55 on this computer* where it takes dives
+  /// the logbook holds: while downloading after a listing.
   public var countsText: String? {
     guard phase == .downloading, let listing else { return nil }
+    if listing.catchUp > 0 {
+      return DiveComputerText.toDownloadOnComputer(listing.newDives, of: listing.dives)
+    }
     return listedFromFingerprint
       ? DiveComputerText.newOnComputer(listing.newDives, of: listing.dives)
       : DiveComputerText.onComputer(listing.dives)
@@ -595,19 +601,8 @@ public final class DiveComputerModel {
   /// What the walk asks before its first transfer: the question, or the list.
   public var choice: DownloadChoice? { phase == .choosingDives ? walk?.choice : nil }
 
-  /// Beneath *Which dives do you want to download?*: how many dives the logbook lacks, and about
-  /// how long they would take where the pace says.
-  public var questionDetail: String? {
-    guard let choice else { return nil }
-    let count = choice.dives.count
-    var text =
-      choice.checked
-      ? DiveComputerText.notInLogbook(count) : DiveComputerText.onComputerUnchecked(count)
-    if let seconds = choice.time(of: choice.dives) {
-      text += " " + DiveComputerText.downloadTakes(seconds, dives: count)
-    }
-    return text
-  }
+  /// Beneath *Which dives do you want to download?* (``DownloadChoice/questionDetail``).
+  public var questionDetail: String? { choice?.questionDetail }
 
   /// *Download all 12 dives*.
   public var downloadAllText: String? {
@@ -666,9 +661,9 @@ public final class DiveComputerModel {
     return text
   }
 
-  /// The list's rows, in the diver's units.
-  public func choiceRows(units: UnitSystem) -> [DownloadChoice.Row] {
-    choice?.rows(chosen: chosen, units: units, phoneZone: phoneZone) ?? []
+  /// The list's sections, each holding a dive, in the diver's units.
+  public func choiceSections(units: UnitSystem) -> [DownloadChoice.Section] {
+    choice?.sections(chosen: chosen, units: units, phoneZone: phoneZone) ?? []
   }
 
   /// The list's confirmation: the chosen dives, newest first.

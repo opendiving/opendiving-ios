@@ -147,8 +147,7 @@ extension PersonFormValues: RecordSheetValues {
   public init?(reopening operation: OutboxOperation) {
     guard case .createPerson(let body) = operation else { return nil }
     self.init(
-      name: body.name, username: body.username ?? "", email: body.email ?? "",
-      phone: body.phone ?? "", notes: body.notes)
+      name: body.name, email: body.email ?? "", phone: body.phone ?? "", notes: body.notes)
   }
 }
 

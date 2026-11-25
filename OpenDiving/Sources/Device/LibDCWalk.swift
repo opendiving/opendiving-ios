@@ -30,9 +30,9 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
   let lookup: @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?
   /// Whether a dive is one the phone need not take again, which a walk that lists leaves out.
   let waiting: @Sendable (DiveComputerIdentity, Data) -> Bool
-  /// Which of the entries a walk that lists would take it leaves out, asked before its first
-  /// transfer (``leftOut(_:_:)``).
-  let leaveOut: @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<Data>
+  /// Which of the entries a walk that lists would take it leaves out, and which of those it takes
+  /// after the rest, asked before its first transfer (``decided(_:_:)``).
+  let decide: DiveComputerListing.Decide
   /// Keeps each dive on the phone before the walk goes on.
   let keep: @Sendable (DownloadedDive) -> Void
   /// A computer no record names is closed unread (``DiveComputerLink``).
@@ -69,9 +69,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     lostLink: LostLinkWait?,
     lookup: @escaping @Sendable (DiveComputerFamily, String) -> DiveComputerRecord?,
     waiting: @escaping @Sendable (DiveComputerIdentity, Data) -> Bool,
-    leaveOut:
-      @escaping @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async ->
-      Set<Data>,
+    decide: @escaping DiveComputerListing.Decide,
     keep: @escaping @Sendable (DownloadedDive) -> Void, pairedOnly: Bool,
     events: AsyncStream<DiveComputerDownloadEvent>.Continuation
   ) {
@@ -83,7 +81,7 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     self.lostLink = lostLink
     self.lookup = lookup
     self.waiting = waiting
-    self.leaveOut = leaveOut
+    self.decide = decide
     self.keep = keep
     self.pairedOnly = pairedOnly
     self.events = events
@@ -246,27 +244,32 @@ nonisolated final class LibDCWalk: @unchecked Sendable {
     }
   }
 
-  /// The entries of `listed`, those the walk would take, that ``leaveOut`` leaves out: the walk
-  /// waits for the answer on its own queue, holding the link, and a cancel ends the wait with
-  /// none left out, the walk then taking nothing. Where nothing is listed nothing is asked.
-  func leftOut(_ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download])
-    -> Set<Data>
+  /// ``decide``'s answer for `listed`, the entries the walk would take: the walk waits for it on
+  /// its own queue, holding the link, and a cancel ends the wait with nothing left out and nothing
+  /// taken after, the walk then taking nothing. Where nothing is listed nothing is asked.
+  func decided(_ identity: DiveComputerIdentity, _ listed: [DiveComputerListing.Download])
+    -> DiveComputerListing.Decision
   {
-    guard !listed.isEmpty else { return [] }
-    let answer = LeftOut()
-    let leaveOut = leaveOut
+    let none = DiveComputerListing.Decision(leftOut: [])
+    guard !listed.isEmpty else { return none }
+    let answer = Decided()
+    let decide = decide
     let asking = Task {
-      answer.set(await leaveOut(identity, listed))
+      answer.set(await decide(identity, listed))
     }
     while answer.done.wait(timeout: .now() + .milliseconds(100)) == .timedOut {
       if cancel.isSet {
         asking.cancel()
-        return []
+        return none
       }
     }
-    let held = answer.value
-    if !held.isEmpty { log("listed \(listed.count), leaving out \(held.count)") }
-    return held
+    let decision = answer.value
+    if !decision.leftOut.isEmpty || !decision.catchUp.isEmpty {
+      log(
+        "listed \(listed.count), leaving out \(decision.leftOut.count),"
+          + " taking \(decision.catchUp.count) after")
+    }
+    return decision
   }
 
   /// Unhooks and closes the open device, if any.
@@ -533,16 +536,16 @@ private nonisolated let fingerprintLookup:
     return walk.deviceInfo(serial: String(cString: serial), size: size)
   }
 
-/// The answer ``LibDCWalk/leftOut(_:_:)`` waits for, set once from the engine's task.
-private nonisolated final class LeftOut: @unchecked Sendable {
+/// The answer ``LibDCWalk/decided(_:_:)`` waits for, set once from the engine's task.
+private nonisolated final class Decided: @unchecked Sendable {
   let done = DispatchSemaphore(value: 0)
   private let lock = NSLock()
-  private var held: Set<Data> = []
+  private var decision = DiveComputerListing.Decision(leftOut: [])
 
-  func set(_ value: Set<Data>) {
-    lock.withLock { held = value }
+  func set(_ value: DiveComputerListing.Decision) {
+    lock.withLock { decision = value }
     done.signal()
   }
 
-  var value: Set<Data> { lock.withLock { held } }
+  var value: DiveComputerListing.Decision { lock.withLock { decision } }
 }

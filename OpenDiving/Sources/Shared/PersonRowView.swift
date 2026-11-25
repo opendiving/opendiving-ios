@@ -1,16 +1,15 @@
 import OpenDivingKit
 import SwiftUI
 
-/// One person on a dive, a trip or a course: the name, opening their page where the server
-/// has them, the linked account's `@username`, and the role under them.
+/// One person on a dive, a trip or a course: the connected account's picture or the user icon,
+/// the name, opening their page where the server has them, the connected account's `@username`,
+/// and the role under them.
 struct PersonRowView: View {
   let content: PersonRowContent
 
   var body: some View {
     HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Image(.user)
-        .foregroundStyle(.secondary)
-        .accessibilityHidden(true)
+      IconOrConnectedPicture(icon: .user, picture: content.picture)
       VStack(alignment: .leading, spacing: 2) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           if let uuid = content.uuid {
@@ -42,6 +41,11 @@ struct PersonRowView: View {
   VStack(alignment: .leading) {
     PersonRowView(content: PersonRowContent(name: "Ana Diaz", username: "ana", role: "Buddy"))
     PersonRowView(content: PersonRowContent(name: "Sam Lee"))
+    PersonRowView(
+      content: PersonRowContent(
+        name: "Kai Moana", username: "kai",
+        picture: ConnectedPicture(source: .person(UUID()), version: "ab12"), role: "Guide"))
   }
   .padding()
+  .environment(Session.stub(transport: StubTransport(routes: [:])))
 }

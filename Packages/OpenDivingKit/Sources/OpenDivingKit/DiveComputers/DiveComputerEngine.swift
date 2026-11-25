@@ -28,8 +28,11 @@ import Observation
 /// entry walked, once the walk's dives are kept on the phone for the account it began for.
 /// Before that the dives a walk kept, and those the server has answered for, are what a walk of
 /// new dives does not take again (``DownloadStore``). Nor does any walk take a dive the logbook
-/// already holds, which the server is asked before the first transfer
-/// (``heldByLogbook(_:_:account:marked:)``), nor one the diver did not choose.
+/// already holds with the computer's original, which the server is asked before the first
+/// transfer (``heldByLogbook(_:_:account:marked:)``), nor one the diver did not choose. One it
+/// holds without that original is offered and taken where a dive it lacks would be, after the
+/// rest, and moves the fingerprint at its place as a dive left out does
+/// (``DiveComputerEngine+Choice``).
 ///
 /// **No guessed time zone.** A dive whose start is an instant with no logged zone takes the
 /// watch's zone while under a day old. Otherwise a walk the diver watches asks after the walk;
@@ -39,7 +42,7 @@ import Observation
 /// it kept.
 ///
 /// **A walk the diver started waits for a lost link**, of a family the link walks itself
-/// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:leaveOut:keep:)``). In the
+/// (``DiveComputerLink/download(_:pairedOnly:waitsForLink:lookup:waiting:decide:keep:)``). In the
 /// foreground the link reopens the computer itself until it is back or the diver cancels. Behind, the walk is handed to the
 /// watch's connection request (``DiveComputerWatch/handOver(_:)``), so iOS connects the computer
 /// when it is back and the walk carries on; back in front first, the walk reopens it again. A walk
@@ -126,8 +129,10 @@ public final class DiveComputerEngine {
   @ObservationIgnored private var keepingAnswer: Task<Void, Never>?
   @ObservationIgnored var uploading: Task<Void, Never>?
   @ObservationIgnored var uploadAgain = false
-  /// The walk whose dives go up while it runs, as far as it has come.
-  @ObservationIgnored var inFlight: WalkInFlight?
+  /// The walk whose dives go up while it runs, as far as it has come. Observed: the rows above
+  /// the logbook draw the walk's queue only once it is set, so a view that read it unset reads
+  /// it again when it is.
+  var inFlight: WalkInFlight?
   /// When this walk's last upload began, which the next waits ``uploadFloor`` after.
   @ObservationIgnored var lastUploadBegan: Date?
   /// The next turn of ``uploadFloor`` while a walk runs, an occasion to upload.
@@ -296,7 +301,7 @@ public final class DiveComputerEngine {
   }
 
   /// The diver's tap: a walk of `computer`'s new dives, or with `choosing` of the dives chosen
-  /// from a list of every one the logbook lacks. A walk nobody started ends with what it kept,
+  /// from a list of every one the logbook lacks or holds without the computer's original. A walk nobody started ends with what it kept,
   /// and this one starts once it has. Nil where the diver's walk is already in flight or nothing
   /// can be kept.
   @discardableResult
@@ -369,7 +374,8 @@ public final class DiveComputerEngine {
       if let identity = dives.first?.identity, let record = kept.record {
         failure = await archive(
           dives, identity: identity, record: record, instantZone: zone,
-          marked: kept.receivedBeforeAccountKnown, into: downloads)
+          marked: kept.receivedBeforeAccountKnown, updating: kept.updating ?? [:],
+          into: downloads)
       }
       if failure == nil { downloads.remove(walk: kept.id) }
       answering.remove(kept.id)
@@ -453,14 +459,11 @@ public final class DiveComputerEngine {
       let uuid = DiveComputerArchive.diveUUID(identity, fingerprint: fingerprint)
       return waitingDives.contains(uuid) || delivered.contains(uuid) || declined.contains(uuid)
     }
-    let leaveOut:
-      @Sendable (DiveComputerIdentity, [DiveComputerListing.Download]) async -> Set<
-        Data
-      > = { [weak self] identity, listed in
-        await self?.leftOut(
-          walk, identity, listed, account: account, marked: marked, store: store,
-          downloads: downloads) ?? []
-      }
+    let decide: DiveComputerListing.Decide = { [weak self] identity, listed in
+      await self?.decided(
+        walk, identity, listed, account: account, marked: marked, kept: waitingDives,
+        store: store, downloads: downloads) ?? .init(leftOut: [])
+    }
     let keeper = WalkKeeper(store: downloads, marked: marked, startedAt: now())
     inFlight = WalkInFlight(keeper: keeper, downloads: downloads, store: store, marked: marked)
     lastUploadBegan = nil
@@ -485,7 +488,7 @@ public final class DiveComputerEngine {
     }
     let events = link.download(
       walk.computer, pairedOnly: !walk.watched, waitsForLink: walk.watched, lookup: lookup,
-      waiting: notAgain, leaveOut: leaveOut, keep: { keeper.keep($0) })
+      waiting: notAgain, decide: decide, keep: { keeper.keep($0) })
     for await event in events {
       switch event {
       case .identified(let found):
@@ -584,6 +587,10 @@ public final class DiveComputerEngine {
           }
         }
         walkedOne()
+      // Taken after the rest, at its place: the fingerprint moves as past a dive left out.
+      case .deferred(let fingerprint):
+        newest = newest ?? fingerprint
+        walkedOne()
       case .finished(let finished):
         end = finished
         linkEnd = finished.kind
@@ -662,7 +669,7 @@ public final class DiveComputerEngine {
       ? nil
       : await archive(
         going, identity: identity, record: recordID, instantZone: instantZone, marked: marked,
-        walk: keeper.id, part: parts, into: downloads)
+        walk: keeper.id, part: parts, updating: inFlight?.updating ?? [:], into: downloads)
     let archived = failure == nil
     // The walk's record now holds only what waits for a zone, or goes.
     let heldWalk: KeptWalk? =
@@ -719,11 +726,11 @@ public final class DiveComputerEngine {
   }
 
   /// Writes `dives` as one archive and keeps it in `downloads`, as `part` of `walk` where it was
-  /// cut from one; why not, where it was not kept.
+  /// cut from one, with those of `updating` it holds; why not, where it was not kept.
   func archive(
     _ dives: [DownloadedDive], identity: DiveComputerIdentity, record: String,
     instantZone: TimeZone?, marked: Bool, walk: UUID? = nil, part: Int? = nil,
-    into downloads: DownloadStore
+    updating: [UUID: UUID] = [:], into downloads: DownloadStore
   ) async -> (any Error)? {
     let folder = workFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: folder) }
@@ -734,7 +741,7 @@ public final class DiveComputerEngine {
       let written = try await Task.detached { try writer.write(download, into: folder) }.value
       _ = try downloads.add(
         written, record: record, marked: marked, walk: walk, part: part,
-        facts: Self.facts(of: dives, instantZone: instantZone))
+        facts: Self.facts(of: dives, instantZone: instantZone), updating: updating)
       return nil
     } catch {
       return error
@@ -948,7 +955,8 @@ public final class DiveComputerEngine {
           guard let written = try? writer.write(download, into: folder),
             (try? downloads.add(
               written, record: record, marked: kept.receivedBeforeAccountKnown, walk: kept.id,
-              part: part, facts: Self.facts(of: going, instantZone: watchZone))) != nil
+              part: part, facts: Self.facts(of: going, instantZone: watchZone),
+              updating: kept.updating ?? [:])) != nil
           else { continue }
         }
         if apart.isEmpty || hold(kept, keeping: apart, in: downloads) == nil {

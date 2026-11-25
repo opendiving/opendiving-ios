@@ -89,6 +89,12 @@ public enum PetrelManifest {
     /// skipped, not downloaded again.
     public let waiting: Set<Data>
     public let listing: DiveComputerListing
+
+    /// The new records whose starts are in `catchUp`, newest first: those a walk takes after the
+    /// rest.
+    public func taking(_ catchUp: Set<Data>) -> [Record] {
+      new.filter { catchUp.contains($0.start) }
+    }
   }
 
   /// The live records before the one whose start is `fingerprint`, or every live one where none

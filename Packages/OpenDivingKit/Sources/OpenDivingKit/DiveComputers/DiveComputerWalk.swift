@@ -61,7 +61,8 @@ public final class DiveComputerWalk: Identifiable {
   public internal(set) var identity: DiveComputerIdentity?
   public internal(set) var divesDownloaded = 0
   /// libdivecomputer's progress up to 1, where the family reports it; else, after a listing, the
-  /// dives downloaded over the new dives the listing named. Never below ``startingProgress``.
+  /// dives downloaded over those the listing said the walk takes. Never below
+  /// ``startingProgress``.
   public var progress: Double? { walkProgress.map { max(Self.startingProgress, $0) } }
   /// The least of the bar, so a long first dive does not read as a download that has not begun.
   public static let startingProgress = 0.05
@@ -86,8 +87,8 @@ public final class DiveComputerWalk: Identifiable {
   public internal(set) var choice: DownloadChoice?
   /// The diver answered *Only future dives*.
   var choseNone = false
-  /// The server said the logbook holds every dive the walk would otherwise have taken, and the
-  /// walk passed over none as answered for or not chosen.
+  /// The server said the logbook holds every dive the walk would otherwise have taken, none of
+  /// them to update, and the walk passed over none as answered for or not chosen.
   var logbookHoldsAll = false
   /// The diver or a change of session cancelled the walk.
   var cancelled = false
@@ -127,11 +128,13 @@ public final class DiveComputerWalk: Identifiable {
     }
   }
 
-  /// *Downloading 2 of 3 new dives* after a listing, *Downloading dive 3* without one.
+  /// *Downloading 2 of 3 new dives* after a listing, *Downloading 2 of 41 dives* where it takes
+  /// dives the logbook holds, *Downloading dive 3* without one.
   public var downloadingText: String {
     guard let listing else { return DiveComputerText.downloading(max(1, divesDownloaded + 1)) }
     return DiveComputerText.downloading(
-      min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives)
+      min(divesDownloaded + 1, max(1, listing.newDives)), of: listing.newDives,
+      new: listing.catchUp == 0)
   }
 
   /// While connecting: *Connecting* until the computer is identified, then *Reading* until the

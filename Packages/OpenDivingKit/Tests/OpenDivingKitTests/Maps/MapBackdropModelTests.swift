@@ -196,10 +196,52 @@ struct MapBackdropModelTests {
     #expect(tileRequests(transport).count <= 4 * layout.tiles.count)
   }
 
+  @Test func aChangeOfAppearanceTakesTheOtherAppearancesMapDownUntilItsOwnIsWhole() async {
+    let gate = Gate()
+    let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
+    let model = MapBackdropModel(
+      session: session(
+        FirstRequest(inner: inner, gate: gate) { $0.hasPrefix("GET map-tiles/light/") }))
+    await model.show(layout)
+    #expect(model.shown?.layout == layout)
+
+    let light = MapBackdropLayout(
+      points: [Self.site], fixes: [], theme: .light, width: 393, height: 280, coveredBottom: 150)!
+    let showing = Task { await model.show(light) }
+    await gate.untilArrived()
+    #expect(model.shown == nil)
+    await gate.open()
+    await showing.value
+    #expect(model.shown?.layout == light)
+  }
+
+  @Test func aMoveWithinOneAppearanceKeepsTheMapUntilTheNextIsWhole() async throws {
+    let moved = try #require(
+      MapBackdropLayout(
+        points: [MapPoint(name: "El Puertito", latitude: 28.0828, longitude: -16.7836)], fixes: [],
+        theme: .dark, width: 393, height: 280, coveredBottom: 150))
+    let first = try #require(moved.tiles.first?.address)
+    let gate = Gate()
+    let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
+    let model = MapBackdropModel(
+      session: session(
+        FirstRequest(inner: inner, gate: gate) {
+          $0 == "GET map-tiles/dark/\(first.z)/\(first.x)/\(first.y)"
+        }))
+    await model.show(layout)
+
+    let showing = Task { await model.show(moved) }
+    await gate.untilArrived()
+    #expect(model.shown?.layout == layout)
+    await gate.open()
+    await showing.value
+    #expect(model.shown?.layout == moved)
+  }
+
   @Test func aHeadThatLeavesWhileTheConfigIsAskedLeavesItToTheNextHead() async {
     let gate = Gate()
     let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
-    let session = session(FirstConfig(inner: inner, gate: gate))
+    let session = session(FirstRequest(inner: inner, gate: gate) { $0 == "GET config" })
     let leaving = Task { await MapBackdropModel(session: session).show(layout) }
     await gate.untilArrived()
     leaving.cancel()
@@ -213,7 +255,7 @@ struct MapBackdropModelTests {
 
   @Test func aConfigThatCouldNotBeHadIsAskedAgainByTheNextHead() async {
     let inner = Self.transport(config: Self.config(tiles: true, credit: Self.credit))
-    let session = session(FirstConfig(inner: inner, gate: nil))
+    let session = session(FirstRequest(inner: inner, gate: nil) { $0 == "GET config" })
     await MapBackdropModel(session: session).show(layout)
     let next = MapBackdropModel(session: session)
     await next.show(layout)
@@ -221,20 +263,23 @@ struct MapBackdropModelTests {
   }
 }
 
-/// Holds the first `GET config` at `gate`, or with no gate fails it as unreachable.
-private final class FirstConfig: HTTPTransport {
+/// Holds the first request whose route `matches` at `gate`, or with no gate fails it as
+/// unreachable.
+private final class FirstRequest: HTTPTransport {
   let inner: StubTransport
   private let gate: Gate?
+  private let matches: @Sendable (String) -> Bool
   private let first = Mutex(true)
 
-  init(inner: StubTransport, gate: Gate?) {
+  init(inner: StubTransport, gate: Gate?, matches: @escaping @Sendable (String) -> Bool) {
     self.inner = inner
     self.gate = gate
+    self.matches = matches
   }
 
   func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
     let isFirst =
-      StubTransport.routeKey(request) == "GET config"
+      matches(StubTransport.routeKey(request))
       && first.withLock { first in
         defer { first = false }
         return first

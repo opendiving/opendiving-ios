@@ -124,8 +124,13 @@ struct RecordSheetsTests {
     let found = try await texts(NewPersonSheet { _ in })
     expectFields(
       [
-        "New Person", "e.g. Alex M.", "e.g. alexm", "Email", "Phone",
+        "New Person", "e.g. Alex M.", "Email", "Phone",
       ], in: found)
+  }
+
+  @Test func thePersonSheetAsksForNoUsername() async throws {
+    let found = try await texts(NewPersonSheet { _ in })
+    #expect(!found.contains("Username"))
   }
 
   @Test func theTripSheetDrawsTheWebsFields() async throws {

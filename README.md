@@ -10,8 +10,9 @@ self-hostable dive log.**
 ## What it is
 
 A client of *your* OpenDiving server — the one you run, or [opendiving.app](https://opendiving.app)
-— with no cloud of its own. The first version asks where the server is, signs in with a code sent
-to your email, and shows your logbook: dives with their profile charts, trips and dive sites, in
+— with no cloud of its own. The first version asks where the server is, signs in with the code or
+the link sent to your email — and signs a new diver up, with a name and a username — and shows
+your logbook: dives with their profile charts, trips and dive sites, in
 the units your account uses. Your dive computer's files can be shared to the app from any other
 app or picked from Files, and it uploads each as it arrives and shows what it becomes before
 anything is written, as the web does. Or the app downloads them from the computer itself over
@@ -29,8 +30,16 @@ change is made with or without signal and reaches your server when the phone can
 the phone has shown open without it.
 Your account's settings are changed on the phone as on the web too — its two pictures, check-in
 details, signed-in devices and API keys, notifications, units, data export and the account
-itself — though only with signal, and a passkey is added and an invitation emailed on the web.
-The profile's QR code is your invite link, with the invitations you have sent below it.
+itself — though only with signal, and a passkey is added on the web.
+The profile's QR code is your connect link: whoever scans it can add you to their people,
+connected to your account, and shows under *Added you* at the top of your People. A person
+connected to an account shows its picture and username, and each side sees the other's.
+Beside your code, the pane scans somebody else's, or pastes their link, and opens the form that
+adds them. A link to a dive, a site, a trip, a person, a gear item, a course, a species or an
+import on the server the app is on opens that page in the app, followed from Messages or Mail or
+read by the Camera where the build carries the server's associated domain, and scanned or pasted
+in the pane on any build. Followed while signed out, it opens once you have signed in, and
+somebody's connect link heads the sign-in with who invited you.
 
 ## Why an app
 
@@ -53,7 +62,7 @@ a view, [libdc-swift](https://github.com/deepsealabs/libdc-swift), which brings
 [libdivejson](https://github.com/divejson/divejson-c), which reads each downloaded dive into
 DiveJSON exactly as the server reads the same original. It
 talks to the [opendiving-api](https://github.com/opendiving/opendiving-api) REST API
-with the same passwordless sign-in as the web app, by email code.
+with the same passwordless sign-in as the web app, by the email's code or link.
 
 It needs a server released after v0.7.0, one that applies an import in one request: the app asks
 at sign-in for a session that lasts while the phone is offline, which an older server refuses,
