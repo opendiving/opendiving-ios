@@ -39,6 +39,10 @@ struct ImportScreensTests {
         .dive(uuid), .sheet,
       ])
     draws(List { ImportResultSections(result: applied, numbering: nil, units: .metric) {} })
+    let offer = RenumberSuggestion(
+      text: "Numbered #1–#3 — 2 dives share a number.",
+      defaults: RenumberDefaults(startAt: 3, fromDate: CalendarDate(year: 2026, month: 9, day: 8)))
+    draws(List { ImportResultSections(result: applied, numbering: offer, units: .metric) {} })
   }
 
   @Test func eachSheetDraws() {

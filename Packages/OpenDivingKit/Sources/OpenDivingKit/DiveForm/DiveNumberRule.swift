@@ -4,7 +4,7 @@
 public enum DiveNumberRule {
   /// Offline, the server's own positional rule applied to a dive dated now: the highest number
   /// the phone has seen, plus the creates queued since, plus one; nil when it has seen none.
-  /// Duplicates are allowed, and the web's numbering card tidies them afterwards.
+  /// Duplicates are allowed, and the numbering card above the dives tidies them afterwards.
   public static func offlineSuggestion(highestKnown: Int?, queuedCreates: Int) -> Int? {
     highestKnown.map { $0 + queuedCreates + 1 }
   }

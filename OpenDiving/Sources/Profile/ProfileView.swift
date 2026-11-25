@@ -27,6 +27,7 @@ private struct ProfileContent: View {
   @Environment(\.dismiss) private var dismiss
   @State private var model: ProfileModel
   @State private var dives: PagedList<DiveListItem>
+  @State private var numbering: DiveNumberingModel
   @State private var trips: PagedList<TripRead>
   @State private var checkin: CheckinSheetModel
   @State private var pictures = PictureCache()
@@ -42,6 +43,7 @@ private struct ProfileContent: View {
     self.avatar = avatar
     _model = State(initialValue: ProfileModel(session: session))
     _dives = State(initialValue: ProfileDives.list(session))
+    _numbering = State(initialValue: DiveNumberingModel(session: session))
     _trips = State(initialValue: ProfileTrips.list(session))
     _checkin = State(initialValue: CheckinSheetModel(session: session))
   }
@@ -71,7 +73,9 @@ private struct ProfileContent: View {
         }
         Group {
           switch section {
-          case .dives: ProfileDives(list: dives, units: session.units)
+          case .dives:
+            ProfileDives(
+              list: dives, numbering: numbering.description, units: session.units)
           case .trips: ProfileTrips(list: trips, units: session.units)
           case .cards: CheckinSheetView(model: checkin, pictures: pictures)
           case .more: MoreMenu()
@@ -100,10 +104,13 @@ private struct ProfileContent: View {
       route = adding?.route
     }
     .background(Color.pageBackground)
-    .heroUnderTopBar { [model, dives, trips, checkin, section] in
+    .heroUnderTopBar { [model, dives, numbering, trips, checkin, section] in
       async let head: Void = model.refresh()
       switch section {
-      case .dives: await dives.refresh()
+      case .dives:
+        async let numbered: Void = numbering.load()
+        await dives.refresh()
+        await numbered
       case .trips: await trips.refresh()
       case .cards: await checkin.refresh()
       case .more: break
@@ -147,7 +154,10 @@ private struct ProfileContent: View {
     // copy: a switch or a push cancels the read. The check-in sheet refreshes on every visit.
     .task(id: section) {
       switch section {
-      case .dives: await dives.rereadIfStale()
+      case .dives:
+        async let numbered: Void = numbering.load()
+        await dives.rereadIfStale()
+        await numbered
       case .trips: await trips.rereadIfStale()
       case .cards:
         checkin.load()

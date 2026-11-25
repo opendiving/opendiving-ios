@@ -36,6 +36,11 @@ struct RequestFixtureTests {
     #expect(known.map(\.hasOriginal) == [false])
   }
 
+  @Test func divesRenumber() throws {
+    let request = try sendsItsFixture(DiveRenumberRequest.self, "request-dives-renumber")
+    #expect(request.fromStartTime?.utcOffsetMinutes == 120)
+  }
+
   @Test func diveSiteCreate() throws {
     _ = try sendsItsFixture(DiveSiteCreate.self, "request-dive-site-create")
   }

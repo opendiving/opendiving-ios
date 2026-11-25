@@ -216,42 +216,6 @@ public enum ImportText {
       + "restore the bytes as well."
   }
 
-  // MARK: - Numbering
-
-  /// What a renumber would tidy in a log, or nil for a tidy one.
-  public static func numbering(_ summary: DiveNumberingSummary) -> String? {
-    guard summary.totalDives > 0, let lowest = summary.lowest, let highest = summary.highest
-    else { return nil }
-    var notes: [String] = []
-    if summary.missingCount > 0 {
-      notes.append(countNoun(summary.missingCount, "number") + " unused")
-    }
-    if summary.duplicateCount > 0 {
-      notes.append(
-        countNoun(summary.duplicateCount, "dive shares", plural: "dives share") + " a number")
-    }
-    if summary.outOfDateOrderCount > 0 {
-      notes.append("\(summary.outOfDateOrderCount) out of date order")
-    }
-    guard !notes.isEmpty else { return nil }
-    let range = lowest == highest ? "#\(lowest)" : "#\(lowest)–#\(highest)"
-    return "Numbered \(range) — \(notes.joined(separator: ", "))."
-  }
-
-  /// The result's numbering sentence: only where the import brought dives in and left more
-  /// dives sharing a number or out of date order than the log had. Renumbering stays on the
-  /// web, so it is a sentence and offers nothing.
-  public static func numberingSuggestion(
-    before: DiveNumberingSummary, after: DiveNumberingSummary?, dives: [LogbookImportDive]
-  ) -> String? {
-    guard let after, dives.contains(where: { $0.outcome == "new" && $0.startTime != nil }),
-      after.duplicateCount > before.duplicateCount
-        || after.outOfDateOrderCount > before.outOfDateOrderCount,
-      let description = numbering(after)
-    else { return nil }
-    return description + " Renumber them on the web, from the Dives page."
-  }
-
   // MARK: - Check-in details
 
   /// A check-in detail's name.

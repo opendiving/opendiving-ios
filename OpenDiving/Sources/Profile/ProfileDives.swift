@@ -2,10 +2,12 @@ import OpenDivingKit
 import SwiftUI
 
 /// The profile's *Dives*: what is waiting to sync, the dives of a download until they land,
-/// newest first, then the logbook, newest first as the server orders it, a page at a time — the
-/// pages the phone has shown first, from its copy.
+/// newest first, then what a renumber would tidy, and the logbook, newest first as the server
+/// orders it, a page at a time — the pages the phone has shown first, from its copy.
 struct ProfileDives: View {
   let list: PagedList<DiveListItem>
+  /// What a renumber would tidy, the numbering card's sentence; nil, with no card, for a tidy log.
+  let numbering: String?
   let units: UnitSystem
   @Environment(DiveComputerEngine.self) private var engine: DiveComputerEngine?
 
@@ -38,6 +40,9 @@ struct ProfileDives: View {
           )
         )
       case .loaded:
+        if let numbering {
+          DiveNumberingCard(description: numbering)
+        }
         if let lastUpdated = list.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
         }
@@ -72,15 +77,18 @@ extension ProfileDives {
 }
 
 #Preview {
-  let list = ProfileDives.list(DivePreviewData.session)
+  let session = DivePreviewData.session
+  let list = ProfileDives.list(session)
+  let numbering = DiveNumberingModel(session: session)
   NavigationStack {
     ScrollView {
-      ProfileDives(list: list, units: .metric)
+      ProfileDives(list: list, numbering: numbering.description, units: .metric)
         .padding()
     }
     .task { await list.load() }
+    .task { await numbering.load() }
   }
-  .environment(DivePreviewData.session)
-  .environment(InboxModel(session: DivePreviewData.session))
-  .environment(OutboxModel(session: DivePreviewData.session))
+  .environment(session)
+  .environment(InboxModel(session: session))
+  .environment(OutboxModel(session: session))
 }

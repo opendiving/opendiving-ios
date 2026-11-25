@@ -42,8 +42,8 @@ public final class InboxModel {
   public private(set) var phase = Phase.idle
   /// The last apply's answer, shown in place of the review until ``dismissResult()``.
   public private(set) var result: LogbookImportRead?
-  /// The result's numbering sentence, where the import tangled the log's numbering.
-  public private(set) var resultNumbering: String?
+  /// The result's offer to renumber, where the import tangled the log's numbering.
+  public private(set) var resultNumbering: RenumberSuggestion?
   /// Why the last apply or discard failed.
   public private(set) var applyError: String?
   /// Why the last upload failed, until the next starts.
@@ -419,13 +419,12 @@ public final class InboxModel {
   ) async -> Bool {
     do {
       let applied = try await client.applyImport(held.uuid, choices.apply(for: held))
-      let after = try? await client.diveNumbering()
+      let suggestion = await RenumberSuggestion.read(after: applied, client: client)
       seenApplied(applied, store)
       if shownAccount == store.account {
         pending = nil
         result = applied
-        resultNumbering = ImportText.numberingSuggestion(
-          before: applied.numbering, after: after, dives: applied.dives)
+        resultNumbering = suggestion
       }
       return true
     } catch {

@@ -5,11 +5,19 @@ import OpenDivingKit
 enum DivePreviewData {
   static let diveUUID = UUID(uuidString: "01a20000-0000-7000-8000-000000000001")!
 
-  /// Signed in, answering the list, the dive and its neighbours.
+  /// Signed in, answering the list, the dive and its neighbours, and the log's numbering and its
+  /// renumber.
   static var session: Session {
     Session.stub(
       transport: StubTransport(routes: [
         "GET dives": .json(page),
+        "GET dives/numbering": .json(
+          #"{"total_dives":3,"lowest":1,"highest":5,"missing_count":2,"duplicate_count":0,"#
+            + #""out_of_date_order_count":1,"is_sequential":false}"#),
+        "POST dives/renumber": .json(
+          #"{"dry_run":true,"dives_in_scope":3,"changes":[{"dive_uuid":"#
+            + #""01a20000-0000-7000-8000-000000000001","start_time":"2021-04-04T10:04:00.5+02:00","#
+            + #""dive_number":212,"new_dive_number":1}]}"#),
         "GET dive/01a20000-0000-7000-8000-000000000001": .json(dive),
         "GET dive/01a20000-0000-7000-8000-000000000001/neighbors": .json(
           #"{"previous":null,"next":null}"#),

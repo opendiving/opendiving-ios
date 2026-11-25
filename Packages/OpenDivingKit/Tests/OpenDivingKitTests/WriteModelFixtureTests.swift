@@ -62,6 +62,10 @@ struct WriteModelFixtureTests {
     let number = try KitFixture.roundTrip(DiveNumberSuggestion.self, "dive-number-suggestion")
     #expect(number.diveNumber == 215)
     #expect(!number.isTaken)
+    let numbering = try KitFixture.roundTrip(DiveNumberingSummary.self, "dives-numbering")
+    #expect(numbering.duplicateCount == 2)
+    let renumber = try KitFixture.roundTrip(DiveRenumberResult.self, "dives-renumber")
+    #expect(renumber.changes.map(\.startTime.utcOffsetMinutes) == [120, nil])
     #expect(
       try KitFixture.roundTrip(RecentVolumes.self, "recent-volumes").volumes == [11.1, 15, 12])
     let species = try KitFixture.roundTrip(SpeciesSuggestResponse.self, "species-suggest")

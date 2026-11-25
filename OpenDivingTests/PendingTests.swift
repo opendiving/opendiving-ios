@@ -296,7 +296,9 @@ struct PendingTests {
       generator: DiveComputerView.generator)
     let window = F.window(
       NavigationStack {
-        ScrollView { ProfileDives(list: ProfileDives.list(session), units: .metric) }
+        ScrollView {
+          ProfileDives(list: ProfileDives.list(session), numbering: nil, units: .metric)
+        }
       }
       .environment(session).environment(OutboxModel(session: session))
       .environment(InboxModel(session: session)).environment(engine))
