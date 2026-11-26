@@ -3,6 +3,7 @@
   "brand": "Example Cylinders",
   "type": "cylinder",
   "notes": "Hydro due next spring.",
+  "links": [{ "url": "https://cylinders.example/manual.pdf", "label": "Manual" }],
   "rented": false,
   "volume": 12.0,
   "working_pressure": 232.0,

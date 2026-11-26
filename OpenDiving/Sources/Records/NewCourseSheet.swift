@@ -66,6 +66,7 @@ struct CourseSheetForm: View {
           text: $model.values.notes,
           error: model.message("notes"))
       }
+      RecordLinksField(links: $model.values.links) { model.message("links", index: $0, member: $1) }
     }
   }
 

@@ -31,14 +31,7 @@ struct DiveDetailLocationCard: View {
                 Label(phone, icon: .phone)
               }
             }
-            if let website = center.website {
-              if let url = center.websiteURL {
-                Link(destination: url) { Label(website, icon: .globe).lineLimit(1) }
-                  .accentRow()
-              } else {
-                Label(website, icon: .globe).lineLimit(1)
-              }
-            }
+            LinkList(links: center.links)
           }
         }
         if !location.sites.isEmpty {

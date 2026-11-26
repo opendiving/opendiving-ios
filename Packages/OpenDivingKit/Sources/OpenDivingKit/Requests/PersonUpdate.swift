@@ -8,6 +8,8 @@ public struct PersonUpdate: Hashable, Sendable {
   public var name: String?
   public var email: Patch<String>
   public var phone: Patch<String>
+  /// Replaces the person's links whole; never sent as null.
+  public var links: [WebLink]?
   public var notes: String?
   public var connectAccount: UUID?
   public var connectLink: String?
@@ -17,11 +19,13 @@ public struct PersonUpdate: Hashable, Sendable {
 
   public init(
     name: String? = nil, email: Patch<String> = .absent, phone: Patch<String> = .absent,
-    notes: String? = nil, connectAccount: UUID? = nil, connectLink: String? = nil
+    links: [WebLink]? = nil, notes: String? = nil, connectAccount: UUID? = nil,
+    connectLink: String? = nil
   ) {
     self.name = name
     self.email = email
     self.phone = phone
+    self.links = links
     self.notes = notes
     self.connectAccount = connectAccount
     self.connectLink = connectLink
@@ -33,7 +37,7 @@ public struct PersonUpdate: Hashable, Sendable {
 
 extension PersonUpdate: Codable {
   private enum CodingKeys: String, CodingKey {
-    case name, email, phone, notes, connectAccount, connectLink, username
+    case name, email, phone, links, notes, connectAccount, connectLink, username
   }
 
   public init(from decoder: any Decoder) throws {
@@ -41,6 +45,7 @@ extension PersonUpdate: Codable {
     name = try c.decodeIfPresent(String.self, forKey: .name)
     email = try c.decode(Patch<String>.self, forKey: .email)
     phone = try c.decode(Patch<String>.self, forKey: .phone)
+    links = try c.decodeIfPresent([WebLink].self, forKey: .links)
     notes = try c.decodeIfPresent(String.self, forKey: .notes)
     connectAccount = try c.decodeIfPresent(UUID.self, forKey: .connectAccount)
     connectLink = try c.decodeIfPresent(String.self, forKey: .connectLink)
@@ -53,6 +58,7 @@ extension PersonUpdate: Codable {
     try c.encodeIfPresent(name, forKey: .name)
     try c.encode(email, forKey: .email)
     try c.encode(phone, forKey: .phone)
+    try c.encodeIfPresent(links, forKey: .links)
     try c.encodeIfPresent(notes, forKey: .notes)
     try c.encodeWire(connectAccount, forKey: .connectAccount)
     try c.encodeIfPresent(connectLink, forKey: .connectLink)

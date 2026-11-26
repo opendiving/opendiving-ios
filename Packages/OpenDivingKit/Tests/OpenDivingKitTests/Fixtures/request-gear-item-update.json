@@ -3,6 +3,7 @@
   "brand": null,
   "type": "cylinder",
   "notes": "Hydro due next spring.",
+  "links": [{ "url": "https://cylinders.example/12l", "label": "Product page" }],
   "rented": false,
   "is_archived": true,
   "volume": 12,

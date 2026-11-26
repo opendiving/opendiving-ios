@@ -6,6 +6,7 @@ public struct GearItemFormValues: Codable, Hashable, Sendable {
   /// A gear-type key; nil is no type.
   public var type: String?
   public var notes: String
+  public var links: [WebLinkRow]
   public var rented: Bool
   /// Litres of water capacity.
   public var volume: Double?
@@ -21,13 +22,15 @@ public struct GearItemFormValues: Codable, Hashable, Sendable {
   /// and `name` what was typed into the picker before *Add*.
   public init(
     name: String = "", brand: String = "", type: String? = nil, notes: String = "",
-    rented: Bool = false, volume: Double? = nil, workingPressure: Double? = nil,
+    links: [WebLinkRow] = [], rented: Bool = false, volume: Double? = nil,
+    workingPressure: Double? = nil,
     material: String? = nil
   ) {
     self.name = name
     self.brand = brand
     self.type = type
     self.notes = notes
+    self.links = links
     self.rented = rented
     self.volume = volume
     self.workingPressure = workingPressure
@@ -41,6 +44,7 @@ public struct GearItemFormValues: Codable, Hashable, Sendable {
     var list = FormIssueList()
     list.add("name", FormText.requiredName(name, "Gear name", max: 255))
     list.add("brand", FormText.length(brand, "Brand", max: 255))
+    WebLinkRow.check(links, into: &list)
     list.add("notes", FormText.length(notes, "Notes", max: DiveFormBounds.notesMax))
     if let volume, volume <= 0 { list.add("volume", "Volume must be positive") }
     if let workingPressure {
@@ -59,7 +63,8 @@ public struct GearItemFormValues: Codable, Hashable, Sendable {
     if !issues.isEmpty { throw FormInvalid(issues: issues) }
     return GearItemCreate(
       name: name.trimmedOfWhitespace, brand: FormText.trimmedOrNil(brand), type: type,
-      notes: notes, rented: rented, volume: isCylinder ? volume : nil,
+      notes: notes, links: WebLinkRow.sent(links), rented: rented,
+      volume: isCylinder ? volume : nil,
       workingPressure: isCylinder ? workingPressure : nil, material: isCylinder ? material : nil)
   }
 }
@@ -69,7 +74,8 @@ extension GearItemFormValues {
   public init(editing item: GearItemRead) {
     self.init(
       name: item.name, brand: item.brand ?? "", type: item.type, notes: item.notes,
-      rented: item.rented, volume: item.volume, workingPressure: item.workingPressure,
+      links: WebLinkRow.rows(item.links), rented: item.rented, volume: item.volume,
+      workingPressure: item.workingPressure,
       material: item.material)
   }
 
@@ -81,6 +87,7 @@ extension GearItemFormValues {
     if now.name != baseline.name.trimmedOfWhitespace { update.name = now.name }
     if now.notes != baseline.notes { update.notes = now.notes }
     if now.rented != baseline.rented { update.rented = now.rented }
+    if now.links != WebLinkRow.sent(baseline.links) { update.links = now.links ?? [] }
     update.brand = .change(from: FormText.trimmedOrNil(baseline.brand), to: now.brand)
     update.type = .change(from: baseline.type, to: now.type)
     update.volume = .change(from: baseline.volume, to: now.volume)
@@ -95,6 +102,7 @@ extension GearItemFormValues {
     if let name = update.name { next.name = name }
     if let notes = update.notes { next.notes = notes }
     if let rented = update.rented { next.rented = rented }
+    if let links = update.links { next.links = WebLinkRow.rows(links) }
     next.brand = update.brand.applied(to: brand) ?? ""
     next.type = update.type.applied(to: type)
     next.volume = update.volume.applied(to: volume)

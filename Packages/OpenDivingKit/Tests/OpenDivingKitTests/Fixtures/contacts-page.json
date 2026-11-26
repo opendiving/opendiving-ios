@@ -8,7 +8,7 @@
     "shop"
   ],
   "email": null,
-  "website": null,
+  "links": [],
   "name": "Big Blue Tech",
   "phone": null,
   "latitude": null,
@@ -28,7 +28,10 @@
       "uuid": "01a0d9e9-bdd0-793a-829f-5dc90613f850",
       "roles": ["liveaboard_operator"],
       "email": "hello@example.com",
-      "website": "https://example.com",
+      "links": [
+        { "url": "https://example.com", "label": null },
+        { "url": "https://example.com/schedule", "label": "Schedule" }
+      ],
       "name": "Example Liveaboards",
       "phone": "+20 555 0199",
       "latitude": 27.25,

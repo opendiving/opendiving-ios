@@ -2,6 +2,7 @@
   "uuid": "01a0a57a-92c3-73d0-8f2c-e200878f9878",
   "name": "Dahab 2026 (September)",
   "notes": "",
+  "links": [{ "url": "https://photos.example/dahab-2026", "label": "Album" }],
   "parts": [
     {
       "start_date": "2026-09-06",
