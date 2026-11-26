@@ -16,9 +16,13 @@ final class ProfilePage {
   let checkin: CheckinSheetModel
   let pictures = PictureCache()
   var section = ProfileSection.dives
+  /// Built before the session's account had loaded, when the phone's copy it read may be the last
+  /// account's.
+  let isBeforeAccount: Bool
 
   init(session: Session, avatar: AvatarModel) {
     self.avatar = avatar
+    isBeforeAccount = !session.accountLoaded
     model = ProfileModel(session: session)
     dives = ProfileDives.list(session)
     numbering = DiveNumberingModel(session: session)

@@ -49,7 +49,8 @@ private struct SitesFinder: View {
   @State private var adding: NewSite?
   @State private var showsProfile = false
   /// Built at the first visit rather than with the map, which opens before the account it signed
-  /// in to has loaded, while the phone's copy is still the last account's.
+  /// in to has loaded, while the phone's copy is still the last account's; and built again at
+  /// the first visit after that, when the first came first.
   @State private var profile: ProfilePage?
   /// How far the weather bar is grown into its card.
   @State private var weatherMorph = MapWeatherMorph()
@@ -153,7 +154,12 @@ private struct SitesFinder: View {
   }
 
   private func openProfile() {
-    let profile = profile ?? ProfilePage(session: session, avatar: avatar)
+    let profile =
+      if let profile, !(profile.isBeforeAccount && session.accountLoaded) {
+        profile
+      } else {
+        ProfilePage(session: session, avatar: avatar)
+      }
     self.profile = profile
     profile.visit()
     showsProfile = true
