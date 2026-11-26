@@ -587,9 +587,8 @@ which SwiftUI brightens all the same.
 The session has one active server, so a link for another, or with none chosen, is not acted on:
 followed, it opens in the browser; scanned or pasted, the pane says whose server it is and offers
 the browser. Rejected: switching server unasked, which starts the app over under whatever the
-diver had open. A connect link on the flagship asks, offering the browser too; no other server is
-offered, which would point the app where the link's sender chose. A link's screen opens in a tapped notification's sheet, one presenter for both,
-so neither arrival is dropped.
+diver had open; a connect link on the flagship asks. A link's screen opens in a tapped
+notification's sheet, one presenter for both, so neither arrival is dropped.
 
 The associated domain is switched on per build from the gitignored signing file, and carries
 links and passkeys for the one host. Associated Domains needs a paid team, and a tracked
