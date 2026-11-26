@@ -339,9 +339,9 @@ private struct CourseInformationRow: View {
   }
 }
 
-/// An empty tab's *Add dives*, in the coral the profile's own *Log a dive* takes, or *Add
-/// certifications*: as wide as its label and a little more at its ends, which on iOS 26 otherwise
-/// have less room than its icon and its words have between them.
+/// An empty tab's *Add dives*, in a dive's coral, or *Add certifications*: as wide as its label and
+/// a little more at its ends, which on iOS 26 otherwise have less room than its icon and its words
+/// have between them.
 private struct CourseAddLink: View {
   enum Kind: Hashable {
     case dives, certifications

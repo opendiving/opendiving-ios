@@ -20,7 +20,7 @@ struct ProfileTrips: View {
         EmptyOrErrorView(
           status: .empty(
             icon: .luggage, title: "No trips yet",
-            message: "Add one with the button below, or when logging a dive."))
+            message: "Add one with the + button at the top right, or when logging a dive."))
       case .loaded:
         if let lastUpdated = list.lastUpdated {
           LastUpdatedLine(date: lastUpdated)
