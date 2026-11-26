@@ -83,6 +83,8 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private var isReloadingPages = false
   /// The reload a change to the account's records started.
   @ObservationIgnored var reloading: Task<Void, Never>?
+  /// The pages shown may have changed elsewhere since they were read, until a read lands.
+  @ObservationIgnored private var isStale = false
   @ObservationIgnored private var watchesAccount = false
 
   public init(
@@ -232,6 +234,7 @@ public final class PagedList<Item: Codable & Sendable> {
       pageError = nil
       fetchedAt = nil
       readSince = began
+      isStale = false
       phase = .loaded
       keep(fetchedUnder: stores, firstPage: true)
     } catch {
@@ -247,18 +250,26 @@ public final class PagedList<Item: Codable & Sendable> {
   }
 
   /// The first page if none was asked for, or every page shown again when what is shown is
-  /// kept pages or a failure: for the page that owns a `routed` list, once a route appears, and
-  /// for a list shown again, whose last read a cancelled task may have cut short behind the kept
-  /// pages. A list that reads every page and is fresh reads the pages a cancelled task left
-  /// unread.
+  /// kept pages, a failure, or marked ``markStale()``: for the page that owns a `routed` list,
+  /// once a route appears, and for a list shown again, whose last read a cancelled task may have
+  /// cut short behind the kept pages. A list that reads every page and is fresh reads the pages a
+  /// cancelled task left unread.
   public func rereadIfStale() async {
     switch phase {
     case .loading: return
     case .idle: return await load()
     case .failed: break
-    case .loaded: guard fetchedAt != nil || pageError != nil else { return await readRest() }
+    case .loaded:
+      guard fetchedAt != nil || pageError != nil || isStale else { return await readRest() }
     }
     await loadPages(through: max(nextPage - 1, 1))
+  }
+
+  /// The pages shown may have changed elsewhere since they were read, as they may have for a
+  /// list kept while its page is away: the next ``rereadIfStale()`` reads every page shown again,
+  /// behind them, as one would for kept pages. A read cut short leaves the mark.
+  public func markStale() {
+    isStale = true
   }
 
   private func client() throws -> APIClient {

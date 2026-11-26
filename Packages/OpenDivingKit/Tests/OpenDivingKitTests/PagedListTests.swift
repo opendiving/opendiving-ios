@@ -98,6 +98,25 @@ struct PagedListTests {
     #expect(list.items.map(\.name) == ["Trip 1", "Trip 2", "Trip 3"])
   }
 
+  @Test func aListMarkedStaleReadsEveryPageShownAgainInPlaceWhenShownAgain() async throws {
+    let transport = try transport()
+    let list = trips(Session.stub(transport: transport))
+    await list.load()
+    await list.loadMore()
+    let before = transport.requests.count
+    await list.rereadIfStale()
+    #expect(transport.requests.count == before)
+
+    list.markStale()
+    await list.rereadIfStale()
+    let pages = transport.requests.dropFirst(before).map { $0.url?.query ?? "" }
+    #expect(pages.count == 2)
+    #expect(list.items.map(\.name) == ["Trip 1", "Trip 2"])
+    #expect(list.lastUpdated == nil)
+    await list.rereadIfStale()
+    #expect(transport.requests.count == before + 2)
+  }
+
   @Test func aListLoadedBeforeTheAccountHearsWhatLandsAfterIt() async throws {
     let transport = try transport()
     let session = Session.stub(transport: transport)

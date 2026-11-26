@@ -116,14 +116,14 @@ private struct SitesFinder: View {
           }
         }
         if !isPushed {
-          ProfileToolbarItem(avatar: avatar) { showsProfile = true }
+          ProfileToolbarItem(avatar: avatar, onOpen: openProfile)
         }
       }
     )
     // The way back from the profile is the system's swipe in from the other edge.
     .background(
       EdgeSwipePush(
-        isEnabled: !isPushed, push: { showsProfile = true }, cancelled: { showsProfile = false })
+        isEnabled: !isPushed, push: openProfile, cancelled: { showsProfile = false })
     )
     // Never shown: it is what a page pushed from the map offers to go back to.
     .navigationTitle("Sites")
@@ -154,6 +154,11 @@ private struct SitesFinder: View {
   }
 
   /// What the bar and its card draw; nil with no weather to show.
+  private func openProfile() {
+    profile?.visit()
+    showsProfile = true
+  }
+
   private var weatherContent: MapWeatherContent? {
     weather.current.flatMap { MapWeatherContent($0, units: session.units) }
   }
