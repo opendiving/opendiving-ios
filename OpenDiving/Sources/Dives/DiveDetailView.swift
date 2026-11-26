@@ -116,7 +116,7 @@ private struct DiveDetailScreen: View {
 private struct DiveDetailPage: View {
   let content: DiveDetailContent
   let diveUUID: UUID
-  /// When the copy shown was fetched, while it is the phone's and no read is on its way.
+  /// When the copy shown was fetched, while it is the phone's, until a read lands in its place.
   let lastUpdated: Date?
   /// What is shown is the phone's copy rather than this visit's.
   let fromCopy: Bool
