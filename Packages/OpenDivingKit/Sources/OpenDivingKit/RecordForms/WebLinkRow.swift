@@ -82,18 +82,130 @@ public struct WebLinkRow: Codable, Hashable, Sendable, Identifiable {
   }
 
   /// The API's `check_link_url`: an `http` or `https` address opening on its scheme, with a
-  /// host, holding no character of the format's whitespace class, at most 512 long.
+  /// host `urlsplit` splits, holding no character of the format's whitespace class, at most 512
+  /// characters as Python counts them.
   static func isAddress(_ url: String) -> Bool {
     let scalars = Array(url.unicodeScalars)
-    guard url.utf16.count <= 512, !scalars.contains(where: isLinkWhitespace) else { return false }
-    let lowered = String(String.UnicodeScalarView(scalars.prefix(8))).lowercased()
-    let schemeLength =
-      lowered.hasPrefix("https://") ? 8 : lowered.hasPrefix("http://") ? 7 : nil
-    guard let schemeLength else { return false }
-    let host = scalars.dropFirst(schemeLength).prefix { !"/?#".unicodeScalars.contains($0) }
-    guard !host.isEmpty else { return false }
-    // `urlsplit` refuses a host with one bracket and not the other.
-    return host.contains("[") == host.contains("]")
+    guard scalars.count <= 512, !scalars.contains(where: isLinkWhitespace) else { return false }
+    let schemeLength: Int
+    if hasPrefix(scalars, "https://") {
+      schemeLength = 8
+    } else if hasPrefix(scalars, "http://") {
+      schemeLength = 7
+    } else {
+      return false
+    }
+    let netloc = Array(
+      scalars.dropFirst(schemeLength).prefix { !"/?#".unicodeScalars.contains($0) })
+    return !netloc.isEmpty && isSplittable(netloc)
+  }
+
+  private static func hasPrefix(_ scalars: [Unicode.Scalar], _ prefix: String) -> Bool {
+    let head = scalars.prefix(prefix.unicodeScalars.count)
+    return head.count == prefix.unicodeScalars.count
+      && zip(head, prefix.unicodeScalars).allSatisfy {
+        $0.isASCII && $0.properties.lowercaseMapping == String($1)
+      }
+  }
+
+  /// `urlsplit`'s own refusals of a host part, each a 422 at the API: unbalanced brackets, a
+  /// bracketed host that is not IPv6 or IPvFuture, and a non-ASCII host NFKC turns into a URL
+  /// delimiter.
+  private static func isSplittable(_ netloc: [Unicode.Scalar]) -> Bool {
+    let open = netloc.contains("[")
+    guard open == netloc.contains("]") else { return false }
+    if open, !isBracketedHostAndPort(netloc) { return false }
+    guard !netloc.allSatisfy(\.isASCII) else { return true }
+    var bare = String.UnicodeScalarView()
+    bare.append(contentsOf: netloc.filter { !"@:#?".unicodeScalars.contains($0) })
+    let text = String(bare)
+    let normalized = text.precomposedStringWithCompatibilityMapping
+    return normalized.unicodeScalars.elementsEqual(text.unicodeScalars)
+      || !normalized.unicodeScalars.contains { "/?#@:".unicodeScalars.contains($0) }
+  }
+
+  /// `_check_bracketed_netloc`: the host after the last `@`, bracketed from its first character
+  /// with nothing but a port after the bracket.
+  private static func isBracketedHostAndPort(_ netloc: [Unicode.Scalar]) -> Bool {
+    let hostAndPort = netloc.lastIndex(of: "@").map { Array(netloc[($0 + 1)...]) } ?? netloc
+    let host: [Unicode.Scalar]
+    if let bracket = hostAndPort.firstIndex(of: "[") {
+      guard bracket == 0 else { return false }
+      let bracketed = hostAndPort.dropFirst()
+      let end = bracketed.firstIndex(of: "]")
+      host = Array(bracketed[..<(end ?? bracketed.endIndex)])
+      let port = end.map { bracketed[($0 + 1)...] } ?? []
+      if let first = port.first, first != ":" { return false }
+    } else {
+      host = Array(hostAndPort.prefix { $0 != ":" })
+    }
+    if host.first == "v" || host.first == "V" { return isIPvFuture(host) }
+    return isIPv6(host)
+  }
+
+  /// `[vV][a-fA-F0-9]+\..+`, whole.
+  private static func isIPvFuture(_ host: [Unicode.Scalar]) -> Bool {
+    let rest = host.dropFirst()
+    guard let dot = rest.firstIndex(of: ".") else { return false }
+    let digits = rest[..<dot]
+    return !digits.isEmpty && digits.allSatisfy(isHexDigit) && dot + 1 < host.endIndex
+  }
+
+  /// Python's `ipaddress.IPv6Address`, scope id included, which is what `urlsplit` asks of a
+  /// bracketed host (an IPv4 address it refuses there).
+  private static func isIPv6(_ host: [Unicode.Scalar]) -> Bool {
+    var address = host
+    if let percent = address.firstIndex(of: "%") {
+      let scope = address[(percent + 1)...]
+      guard !scope.isEmpty, !scope.contains("%") else { return false }
+      address = Array(address[..<percent])
+    }
+    var parts = address.split(separator: ":", omittingEmptySubsequences: false).map(Array.init)
+    guard parts.count >= 3 else { return false }
+    if parts[parts.count - 1].contains(".") {
+      guard isIPv4(parts[parts.count - 1]) else { return false }
+      parts.removeLast()
+      parts += [["0"], ["0"]]
+    }
+    guard parts.count <= 9 else { return false }
+    var skip: Int?
+    for index in 1..<(parts.count - 1) where parts[index].isEmpty {
+      guard skip == nil else { return false }
+      skip = index
+    }
+    let hextets: [[Unicode.Scalar]]
+    if let skip {
+      var high = skip
+      var low = parts.count - skip - 1
+      if parts[0].isEmpty {
+        high -= 1
+        guard high == 0 else { return false }
+      }
+      if parts[parts.count - 1].isEmpty {
+        low -= 1
+        guard low == 0 else { return false }
+      }
+      guard 8 - (high + low) >= 1 else { return false }
+      hextets = Array(parts.prefix(high) + parts.suffix(low))
+    } else {
+      guard parts.count == 8, !parts[0].isEmpty, !parts[7].isEmpty else { return false }
+      hextets = parts
+    }
+    return hextets.allSatisfy { (1...4).contains($0.count) && $0.allSatisfy(isHexDigit) }
+  }
+
+  private static func isIPv4(_ address: [Unicode.Scalar]) -> Bool {
+    let octets = address.split(separator: ".", omittingEmptySubsequences: false)
+    return octets.count == 4
+      && octets.allSatisfy { octet in
+        (1...3).contains(octet.count) && octet.allSatisfy { ("0"..."9").contains($0) }
+          && (octet.count == 1 || octet.first != "0")
+          && Int(String(String.UnicodeScalarView(octet)))! <= 255
+      }
+  }
+
+  private static func isHexDigit(_ scalar: Unicode.Scalar) -> Bool {
+    ("0"..."9").contains(scalar) || ("a"..."f").contains(scalar) || ("A"..."F").contains(scalar)
   }
 
   /// `LINK_WHITESPACE`, by code point: every character ECMA-262's or Python's `\s` matches,

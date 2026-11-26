@@ -32,6 +32,18 @@ struct WebLinkRowTests {
     "https://sam.example/a\u{A0}b", "https://sam.example/a\u{FEFF}b",
     "https://sam.example/a\u{2007}b", "https://sam.example/a\u{3000}b",
     "\u{FEFF}https://sam.example",
+    "https://sam.example/" + String(repeating: "a", count: 493),
+    // `urlsplit`'s refusals of a host part, each checked against the API's own function.
+    "https://[abc]/", "https://[::1]x/", "https://a[::1]/", "https://[1.2.3.4]/", "https://[v.x]/",
+    "https://[vg.x]/", "https://[v1.]/", "https://[::1%]/", "https://[::1%a%b]/",
+    "https://[1:2:3:4:5:6:7]/", "https://[1:2:3:4:5:6:7:8:9]/", "https://[1::2::3]/",
+    "https://[::ffff:1.2.3.04]/", "https://[::ffff:1.2.3]/", "https://[::ffff:256.2.3.4]/",
+    "https://[12345::]/", "https://[:1:2:3:4:5:6:7]/", "https://[1:2:3:4:5:6:7:]/",
+    "https://[::1:2:3:4:5:6:7:8]/", "https://[1:2:3:4:5:6::1.2.3.4]/", "https://[g::1]/",
+    "https://[::1]@host/", "https://[::1]]/", "https://[[::1]/", "https://[]/",
+    "https://[\u{FF11}::1]/", "https://[::\u{FF11}]/", "https://[V1.\u{FF0F}]/",
+    "https://\u{2100}.example/", "https://a\u{FF0F}b/", "https://a\u{FE55}b/",
+    "https://a\u{FF20}b/",
   ])
   func anAddressTheAPIRefusesIsAnIssue(url: String) {
     #expect(
@@ -43,7 +55,15 @@ struct WebLinkRowTests {
 
   @Test(arguments: [
     "https://sam.example", "http://sam.example:8080/a?b#c", "HTTPS://SAM.EXAMPLE",
-    "https://[::1]/", "https://sam.example/\u{200B}",
+    "https://[::1]/", "https://sam.example/\u{200B}", "HtTpS://sam.example",
+    "https://sam.example/" + String(repeating: "a", count: 492),
+    "https://sam.example/" + String(repeating: "\u{1F600}", count: 492),
+    "https://[::1]:8080/a", "https://[v1.fe]/", "https://[V7.x:y]/", "https://[::1%eth0]/",
+    "https://[fe80::1%25en0]/", "https://[1:2:3:4:5:6:7:8]/", "https://[::]/",
+    "https://[::ffff:1.2.3.4]/", "https://[1:2:3:4:5:6:7::]/", "https://[::1:2:3:4:5:6:7]/",
+    "https://[1:2:3:4:5:6:1.2.3.4]/", "https://user@[::1]/", "https://us[er@[::1]/",
+    "https://u@[::1]:x/", "https://caf\u{E9}.example/", "https://\u{FF21}.example/",
+    "https://exa\u{2474}mple/", "https://\u{131}.com", "https://[::1]/\u{E9}",
   ])
   func anAddressTheAPITakesPasses(url: String) {
     #expect(urlIssues(url).isEmpty, "\(url)")
