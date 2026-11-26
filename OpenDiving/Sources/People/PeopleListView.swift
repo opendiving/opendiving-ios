@@ -101,12 +101,12 @@ private struct PeopleListContent: View {
       // reads every page rather than the rows asking for the next.
       VStack(spacing: 0) {
         ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-          if index > 0 { Divider() }
+          if index > 0 { ListRowDivider(leading: 12, trailing: 12) }
           ListSectionHeader(title: section.letter)
             .id(section.letter)
           ForEach(Array(section.people.enumerated()), id: \.element.id) { index, person in
             if index > 0 {
-              Divider().padding(.leading, ListRowIcon.textInset)
+              ListRowDivider(leading: ListRowIcon.textInset, trailing: 12)
             }
             NavigationLink {
               PersonDetailView(personUUID: person.uuid)

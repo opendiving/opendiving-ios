@@ -253,7 +253,7 @@ private struct SiteHistoryCard: View {
       VStack(alignment: .leading, spacing: 0) {
         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
           if index > 0 {
-            Divider().padding(.leading, 16)
+            ListRowDivider(leading: 16, trailing: 16)
           }
           HistoryEntry(row: row)
         }
@@ -330,7 +330,7 @@ private struct SiteInformationCard: View {
         Group(subviews: rows) { rows in
           ForEach(rows.indices, id: \.self) { index in
             if index > 0 {
-              Divider().padding(.leading, 16)
+              ListRowDivider(leading: 16, trailing: 16)
             }
             rows[index]
           }

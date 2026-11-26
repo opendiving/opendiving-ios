@@ -104,11 +104,11 @@ private struct GearListContent: View {
       // The model reads every page, so a heading never gains a row from a page scrolled to.
       VStack(spacing: 0) {
         ForEach(Array(model.sections.enumerated()), id: \.element.id) { index, section in
-          if index > 0 { Divider() }
+          if index > 0 { ListRowDivider(leading: 12, trailing: 12) }
           ListSectionHeader(title: section.title)
           ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
             if index > 0 {
-              Divider().padding(.leading, 12)
+              ListRowDivider(leading: 12, trailing: 12)
             }
             NavigationLink {
               GearItemDetailView(gearItemUUID: item.uuid)
