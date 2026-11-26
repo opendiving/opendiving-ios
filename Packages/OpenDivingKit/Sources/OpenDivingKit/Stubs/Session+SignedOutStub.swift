@@ -3,11 +3,13 @@ import Foundation
 extension Session {
   /// A session with no sign-in over `transport`: pointed at `origin` and signing in there, or at
   /// no server when it is nil — for previews and the app bundle's tests of the signed-out
-  /// screens. `secrets` holds whatever the phone is to have kept.
+  /// screens. `secrets` holds whatever the phone is to have kept, and `passkeyAssociation` is
+  /// the build's, nil for one with the association off.
   public static func signedOutStub(
     origin: ServerOrigin? = ServerOrigin("https://stub.opendiving.invalid")!,
     transport: any HTTPTransport,
-    secrets: InMemorySecretStore = InMemorySecretStore()
+    secrets: InMemorySecretStore = InMemorySecretStore(),
+    passkeyAssociation: PasskeyAssociation? = nil
   ) -> Session {
     Session(
       transport: transport,
@@ -16,6 +18,7 @@ extension Session {
       background: NoBackgroundExecution(),
       applicationSupport: FileManager.default.temporaryDirectory
         .appendingPathComponent("OpenDivingStub-\(UUID().uuidString)", isDirectory: true),
-      userAgent: UserAgent(appVersion: "0", systemVersion: "0", model: "iPhone"))
+      userAgent: UserAgent(appVersion: "0", systemVersion: "0", model: "iPhone"),
+      passkeyAssociation: passkeyAssociation)
   }
 }

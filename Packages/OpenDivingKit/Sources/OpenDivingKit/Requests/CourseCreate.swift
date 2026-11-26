@@ -9,20 +9,24 @@ public struct CourseCreate: Codable, Hashable, Sendable {
   public var endDate: CalendarDate?
   public var instructorNumber: String?
   public var notes: String
+  /// In the diver's order; nil sends none, so a create queued before records carried links
+  /// encodes as it was queued.
+  public var links: [WebLink]?
   /// The dive centre, school or club that ran it.
   public var contact: RecordRef?
   public var people: [PersonReference]
 
   enum CodingKeys: String, CodingKey {
-    case name, agency, agencyOther, status, startDate, endDate, instructorNumber, notes, people
+    case name, agency, agencyOther, status, startDate, endDate, instructorNumber, notes, links,
+      people
     case contact = "contactUuid"
   }
 
   public init(
     name: String, agency: String? = nil, agencyOther: String? = nil, status: String? = nil,
     startDate: CalendarDate? = nil, endDate: CalendarDate? = nil,
-    instructorNumber: String? = nil, notes: String = "", contact: RecordRef? = nil,
-    people: [PersonReference] = []
+    instructorNumber: String? = nil, notes: String = "", links: [WebLink]? = nil,
+    contact: RecordRef? = nil, people: [PersonReference] = []
   ) {
     self.name = name
     self.agency = agency
@@ -32,6 +36,7 @@ public struct CourseCreate: Codable, Hashable, Sendable {
     self.endDate = endDate
     self.instructorNumber = instructorNumber
     self.notes = notes
+    self.links = links
     self.contact = contact
     self.people = people
   }

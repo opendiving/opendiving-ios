@@ -413,9 +413,9 @@ already settles.
 
 ## The phone asks for the extended session, and retries a refresh whose reply was lost
 
-Both halves of the sign-in email, the code and the link, send `idle_timeout: extended` with no
-parameter, and an account they lead to creating starts with that window: the Kit's one caller is
-a phone that may be offline for weeks. The API spends a refresh token before it answers, and
+Both halves of the sign-in email, the code and the link, and a passkey's verification send
+`idle_timeout: extended` with no parameter, and an account they lead to creating or restoring
+starts with that window: the Kit's one caller is a phone that may be offline for weeks. The API spends a refresh token before it answers, and
 answers the same cookie presented again inside its reuse grace with the pair it minted, so a
 refresh lost on the way back is retried with the same cookie after two seconds, on a twenty-second
 timeout, and a 401 to that retry once more. Rejected: retrying at once, which can land before
@@ -590,7 +590,21 @@ the browser. Rejected: switching server from a link, which starts the app over u
 diver had open. A link's screen opens in a tapped notification's sheet, one presenter for both,
 so neither arrival is dropped.
 
-The associated domain is switched on per build from the gitignored signing file. Associated
-Domains needs a paid team, and a tracked entitlement would fail every Personal Team's device
-build. XcodeGen's `entitlements` key sets `CODE_SIGN_ENTITLEMENTS` for every build, so the
-xcconfig picks the file by `OPENDIVING_LINKS` instead.
+The associated domain is switched on per build from the gitignored signing file, and carries
+links and passkeys for the one host. Associated Domains needs a paid team, and a tracked
+entitlement would fail every Personal Team's device build. XcodeGen's `entitlements` key sets
+`CODE_SIGN_ENTITLEMENTS` for every build, so the xcconfig picks the file by `OPENDIVING_LINKS`
+instead, and puts the same line in the Info.plist, empty with it off, for the app to know where it
+offers a passkey. Rejected: a second switch for passkeys, a second line to forget for one file on
+the server.
+
+## A passkey is offered on the build's server alone, and its sheet comes up once a launch
+
+The system refuses a ceremony for a relying party the build is not associated with, so no
+passkey control shows on another server: one that always fails is worse than none. The relying
+party is the one the server's options name. The sheet comes up by itself at most once a launch
+for a server, asking only for a passkey on the phone, and not while the diver's own sign-out or
+deletion stands there, which is kept per server until a sign-in; a session the server ended is
+not one. Rejected: keeping it for the launch only, which shows the last account's sheet to a diver
+who signed out to change accounts. A registration excludes the account's passkeys and says when
+one matched: the system would replace its copy and leave a listed passkey nothing can use.

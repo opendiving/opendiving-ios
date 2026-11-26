@@ -150,6 +150,7 @@ private struct TripSheetForm: View {
       } header: {
         FormSectionHeader(group: .notes)
       }
+      RecordLinksField(links: $model.values.links) { model.message("links", index: $0, member: $1) }
     }
     .showsMapStyle(map)
     .fullScreenCover(item: $placing) { index in

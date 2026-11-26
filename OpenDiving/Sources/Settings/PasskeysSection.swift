@@ -2,9 +2,10 @@ import OpenDivingKit
 import SwiftUI
 
 /// The passkeys, each renamed in its row or removed after a confirmation, from its context menu
-/// or a swipe. Nothing here adds one.
+/// or a swipe, and *Add passkey* where the build is associated with the server.
 struct PasskeysSection: View {
   let model: PasskeysModel
+  @Environment(Session.self) private var session
 
   var body: some View {
     if model.isShown {
@@ -28,15 +29,33 @@ struct PasskeysSection: View {
             row(passkey)
           }
         }
+        if model.canAdd {
+          Button {
+            Task { await model.add() }
+          } label: {
+            HStack {
+              Label(row: PasskeysModel.addButton, icon: .plus)
+              if model.isAdding {
+                Spacer()
+                BubbleSpinner()
+              }
+            }
+          }
+          .accentRow()
+          .disabled(model.isBusy || model.rename.editing != nil)
+          .needsServer()
+        }
       } header: {
         Text("Passkeys")
       } footer: {
         VStack(alignment: .leading, spacing: 8) {
-          if let failure = model.rename.failure ?? model.removeFailure {
+          if let failure = model.rename.failure ?? model.removeFailure ?? model.addFailure {
             FieldMessage(failure)
           }
           Text(PasskeysModel.description)
-          Text(PasskeysModel.addedOnTheWeb)
+          if let note = model.note {
+            Text(note)
+          }
         }
       }
     }
@@ -60,23 +79,33 @@ struct PasskeysSection: View {
         BubbleSpinner()
       }
     }
+    // The list's own insets, which the row takes over.
+    .padding(.horizontal, 16)
+    .padding(.vertical, 15)
+    // A swipe slides the row on the cell's own fill.
+    .background(Color(.secondarySystemGroupedBackground))
     .contextMenu {
       Button("Rename", systemImage: "pencil") { rename(passkey) }
         .actionEnabled(isEnabled)
       Button("Remove", systemImage: "trash", role: .destructive) { remove(passkey) }
         .actionEnabled(isEnabled)
     }
-    .swipeActions(edge: .leading) {
-      Button("Rename", systemImage: "pencil") { rename(passkey) }
-        .tint(.brandTeal)
-        .actionEnabled(isEnabled)
-    }
-    // Not the destructive role, whose swipe takes the row away before the dialog asks.
-    .swipeActions(edge: .trailing) {
-      Button("Remove", systemImage: "trash") { remove(passkey) }
-        .tint(.dangerFill)
-        .actionEnabled(isEnabled)
-    }
+    // The gear service list's swipe rather than the list's own, which draws its buttons apart
+    // from the row.
+    .rowSwipeActions(
+      leading: canAct
+        ? [
+          RowSwipeAction(title: "Rename", image: Image(systemName: "pencil"), fill: .brandTeal) {
+            rename(passkey)
+          }
+        ] : [],
+      trailing: canAct
+        ? [
+          RowSwipeAction(title: "Remove", image: Image(systemName: "trash"), fill: .dangerFill) {
+            remove(passkey)
+          }
+        ] : []
+    )
     .rowConfirmation(
       PasskeysModel.removeTitle, for: passkey, confirming: Bindable(model).confirmingRemove
     ) { passkey in
@@ -86,9 +115,14 @@ struct PasskeysSection: View {
     } message: { passkey in
       Text(PasskeysModel.removeMessage(passkey))
     }
+    // The row draws its own insets, so its fill reaches the cell's edges.
+    .listRowInsets(EdgeInsets())
   }
 
   private var isEnabled: Bool { !model.isBusy && model.rename.editing == nil }
+
+  /// A swipe, which has no disabled look, is offered only while its actions could run.
+  private var canAct: Bool { isEnabled && session.hasRoute }
 
   private func rename(_ passkey: PasskeyRead) {
     model.rename.begin(passkey.uuid, name: passkey.name)
@@ -113,4 +147,13 @@ extension View {
   }
   .task { await model.list.load() }
   .environment(AuthenticationPreviewData.session)
+}
+
+#Preview("Adding") {
+  @Previewable @State var model = PasskeysModel(session: AuthenticationPreviewData.adding)
+  List {
+    PasskeysSection(model: model)
+  }
+  .task { await model.list.load() }
+  .environment(AuthenticationPreviewData.adding)
 }

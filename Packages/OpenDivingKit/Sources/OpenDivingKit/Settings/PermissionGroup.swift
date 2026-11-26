@@ -46,10 +46,10 @@ public struct PermissionGroup: Hashable, Sendable, Identifiable {
     }
   }
 
-  /// Every read but check-in's, which carries the diver's insurance and emergency contact and so
-  /// is never granted without being picked.
+  /// Every read the server offers, check-in's among them: *Read only* is a promise about what a
+  /// key cannot change, not about which records it can see.
   public static func reads(_ scopes: [String]) -> [String] {
-    scopes.filter { $0.hasSuffix(":read") && !$0.hasPrefix("checkin:") }
+    scopes.filter { $0.hasSuffix(":read") }
   }
 
   private static func spaced(_ name: String) -> String {

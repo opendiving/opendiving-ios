@@ -7,6 +7,8 @@ public struct GearItemUpdate: Codable, Hashable, Sendable {
   /// A gear-type key.
   public var type: Patch<String>
   public var notes: String?
+  /// Replaces the item's links whole; never sent as null.
+  public var links: [WebLink]?
   public var rented: Bool?
   public var isArchived: Bool?
   /// Litres of water capacity, above 0.

@@ -51,12 +51,12 @@ public enum DiveDetailText {
     return kept.isEmpty ? nil : kept.joined(separator: ", ")
   }
 
-  /// A website as a link reads it — host and path without the scheme or a lone `/` —
+  /// An address as a link reads it — host and path without the scheme or a lone `/` —
   /// or the text as stored where it does not parse (`formatWebsite`).
-  public static func website(_ website: String) -> String {
-    guard let components = URLComponents(string: website), components.scheme != nil,
+  public static func linkAddress(_ address: String) -> String {
+    guard let components = URLComponents(string: address), components.scheme != nil,
       let host = components.host, !host.isEmpty
-    else { return website }
+    else { return address }
     var text = host.lowercased()
     if let port = components.port { text += ":\(port)" }
     let path = components.percentEncodedPath

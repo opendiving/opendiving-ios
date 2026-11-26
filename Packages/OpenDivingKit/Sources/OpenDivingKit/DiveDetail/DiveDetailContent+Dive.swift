@@ -336,7 +336,6 @@ extension DiveDetailContent {
 
   static func diveCenter(_ contact: ContactRead) -> Location.DiveCenter {
     let phone = contact.phone.flatMap { $0.isEmpty ? nil : $0 }
-    let website = contact.website.flatMap { $0.isEmpty ? nil : $0 }
     return Location.DiveCenter(
       name: contact.name,
       place: DiveDetailText.contactAddress([
@@ -344,8 +343,7 @@ extension DiveDetailContent {
       ]),
       phone: phone,
       phoneURL: phone.flatMap { URL(string: "tel:" + DiveDetailText.dialable($0)) },
-      website: website.map(DiveDetailText.website),
-      websiteURL: website.flatMap(URL.init(string:)))
+      links: ShownLink.list(contact.links))
   }
 
   static func environment(_ dive: DiveRead, units: UnitSystem) -> [Figure] {

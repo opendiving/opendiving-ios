@@ -79,7 +79,7 @@ private struct CourseListContent: View {
       LazyVStack(spacing: 0) {
         ForEach(Array(list.items.enumerated()), id: \.element.id) { index, course in
           if index > 0 {
-            Divider().padding(.leading, 12)
+            ListRowDivider(leading: 12, trailing: 12)
           }
           NavigationLink {
             CourseDetailView(courseUUID: course.uuid)

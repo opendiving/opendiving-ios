@@ -120,19 +120,25 @@ struct RecordSheetModelTests {
         entryTypes: ["shore"], tags: ["arch"],
         externalIds: [ExternalIdWrite(registry: "openstreetmap", identifier: "node/1")],
         notes: "Busy"),
-      PersonFormValues(name: "Alex", email: "a@b.co", phone: "1", notes: ""),
+      PersonFormValues(
+        name: "Alex", email: "a@b.co", phone: "1",
+        links: [WebLinkRow(url: "https://alex.example", label: "Blog")], notes: ""),
       TripFormValues(
         name: "Red Sea", parts: [TripPartFormValues(location: place, accommodation: contact)],
-        people: [PersonReference(person: person, role: "buddy")], notes: "n"),
+        people: [PersonReference(person: person, role: "buddy")],
+        links: [WebLinkRow(url: "https://album.example/red-sea")], notes: "n"),
       CourseFormValues(
         name: "AOW", agency: "other", agencyOther: "FFESSM", status: "planned",
         instructor: person, instructorNumber: "42", contact: contact,
-        people: [PersonReference(person: .server(UUID()), role: "student")]),
+        people: [PersonReference(person: .server(UUID()), role: "student")],
+        links: [WebLinkRow(url: "https://course.example", label: "Materials")]),
       ContactFormValues(
-        name: "Blue Ocean", roles: ["dive_center"], website: "https://blueocean.com",
+        name: "Blue Ocean", roles: ["dive_center"],
+        links: [WebLinkRow(url: "https://blueocean.com"), WebLinkRow(url: "https://b.example")],
         city: "Dahab", country: "Egypt", latitude: "28.5", longitude: "34.5"),
       GearItemFormValues(
-        name: "Tank", type: "cylinder", volume: 11.1, workingPressure: 232, material: "steel"),
+        name: "Tank", type: "cylinder", links: [WebLinkRow(url: "https://manual.example")],
+        volume: 11.1, workingPressure: 232, material: "steel"),
       GearSetSaveValues(form: GearSetFormValues(name: "Set", weight: 6, items: [contact])),
       GearSetSaveValues(form: GearSetFormValues(name: "Set", items: [contact]), target: contact),
     ]

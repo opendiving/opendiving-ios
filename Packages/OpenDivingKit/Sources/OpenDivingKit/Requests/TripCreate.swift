@@ -2,15 +2,20 @@
 public struct TripCreate: Codable, Hashable, Sendable {
   public var name: String
   public var notes: String
+  /// In the diver's order; nil sends none, so a create queued before records carried links
+  /// encodes as it was queued.
+  public var links: [WebLink]?
   /// In the diver's order, at most twenty.
   public var parts: [TripPartWrite]
   public var people: [PersonReference]
 
   public init(
-    name: String, notes: String = "", parts: [TripPartWrite] = [], people: [PersonReference] = []
+    name: String, notes: String = "", links: [WebLink]? = nil, parts: [TripPartWrite] = [],
+    people: [PersonReference] = []
   ) {
     self.name = name
     self.notes = notes
+    self.links = links
     self.parts = parts
     self.people = people
   }

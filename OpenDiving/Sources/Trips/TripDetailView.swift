@@ -373,8 +373,8 @@ private struct TripDives: View {
   }
 }
 
-/// Each part's place, dates and accommodation, the people on the trip, its dive centres and its
-/// notes, a card for each the trip has.
+/// Each part's place, dates and accommodation, the people on the trip, its dive centres, its
+/// notes and its links, a card for each the trip has.
 private struct TripInformation: View {
   let trip: TripRead
   let contacts: [UUID: ContactRead]
@@ -385,6 +385,7 @@ private struct TripInformation: View {
   ) -> Bool {
     trip.parts.isEmpty && PersonRowContent.rows(trip.people, people: people).isEmpty
       && TripSummary.diveCenters(trip, contacts: contacts) == nil && trip.notes.isEmpty
+      && ShownLink.list(trip.links).isEmpty
   }
 
   var body: some View {
@@ -420,6 +421,7 @@ private struct TripInformation: View {
           .frame(maxWidth: .infinity, alignment: .leading)
       }
     }
+    LinksCard(links: ShownLink.list(trip.links))
   }
 }
 

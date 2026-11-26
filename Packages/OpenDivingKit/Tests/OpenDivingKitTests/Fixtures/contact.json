@@ -6,7 +6,7 @@
     "shop"
   ],
   "email": null,
-  "website": null,
+  "links": [{ "url": "https://bigbluetech.example/courses", "label": "Courses" }],
   "name": "Big Blue Tech",
   "phone": null,
   "latitude": null,

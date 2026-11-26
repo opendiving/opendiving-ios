@@ -155,9 +155,8 @@ public struct DiveDetailContent: Hashable, Sendable {
       public var phone: String?
       /// The `tel:` link.
       public var phoneURL: URL?
-      /// As a link reads it, `example.com/dahab`.
-      public var website: String?
-      public var websiteURL: URL?
+      /// In the contact's order.
+      public var links: [ShownLink]
     }
 
     public struct Site: Hashable, Sendable, Identifiable {

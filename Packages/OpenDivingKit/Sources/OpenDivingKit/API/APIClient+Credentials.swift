@@ -12,6 +12,24 @@ extension APIClient {
     try await authorizedDecoded([PasskeyRead].self, Call(path: "user/passkeys"))
   }
 
+  /// `POST /user/passkey/options`: the challenge a new passkey for the account answers, with the
+  /// account's passkeys to exclude. A 409 at the instance's cap carries the API's sentence.
+  public func passkeyRegistrationOptions() async throws -> PasskeyRegistrationOptions {
+    try await authorizedDecoded(
+      PasskeyRegistrationOptions.self, Call(method: "POST", path: "user/passkey/options"))
+  }
+
+  /// `POST /user/passkey/verify`: stores the new passkey under `name` and answers it as the
+  /// list does. A 400 is a registration that expired or did not verify, and a 409 the cap or a
+  /// passkey already registered, each with the API's sentence.
+  public func registerPasskey(_ credential: PasskeyCredential, name: String) async throws
+    -> PasskeyRead
+  {
+    let body = try PasskeyRegistrationVerifyRequest(credential: credential, name: name).body()
+    return try await authorizedDecoded(
+      PasskeyRead.self, Call(method: "POST", path: "user/passkey/verify", body: body))
+  }
+
   /// `PATCH /user/passkey/{uuid}`. Its answer is a message.
   public func renamePasskey(_ uuid: UUID, to name: String) async throws {
     try await authorizedChecked(

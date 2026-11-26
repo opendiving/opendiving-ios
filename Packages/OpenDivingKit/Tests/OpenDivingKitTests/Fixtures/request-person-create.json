@@ -2,5 +2,6 @@
   "name": "Sam Rivera",
   "email": "sam@example.com",
   "phone": "+1 555 0100",
+  "links": [{ "url": "https://sam.example", "label": "Blog" }],
   "notes": "Met on the liveaboard."
 }

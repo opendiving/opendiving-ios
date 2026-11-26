@@ -8,13 +8,15 @@ public struct ContactCreate: Codable, Hashable, Sendable {
   /// Role keys, `dive_center` or `accommodation`, in any order.
   public var roles: [String]
   public var email: String?
-  /// An absolute `http` or `https` URL.
-  public var website: String?
+  /// In the diver's order; nil sends none. A body the previous build queued loses its `website`
+  /// here, and no decoder keeps it: the outbox is sent, online, before a build holding links is
+  /// installed, so none is expected.
+  public var links: [WebLink]?
   public var address: ContactAddressWrite?
 
   public init(
     name: String, phone: String? = nil, latitude: Double? = nil, longitude: Double? = nil,
-    notes: String = "", roles: [String] = [], email: String? = nil, website: String? = nil,
+    notes: String = "", roles: [String] = [], email: String? = nil, links: [WebLink]? = nil,
     address: ContactAddressWrite? = nil
   ) {
     self.name = name
@@ -24,7 +26,7 @@ public struct ContactCreate: Codable, Hashable, Sendable {
     self.notes = notes
     self.roles = roles
     self.email = email
-    self.website = website
+    self.links = links
     self.address = address
   }
 }

@@ -11,7 +11,7 @@ struct MoreMenu: View {
         VStack(spacing: 0) {
           ForEach(Array(rows.enumerated()), id: \.element) { index, row in
             if index > 0 {
-              Divider().padding(.leading, 52)
+              ListRowDivider(leading: 52, trailing: 16)
             }
             NavigationLink {
               row.destination

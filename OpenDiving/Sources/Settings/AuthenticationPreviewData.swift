@@ -12,6 +12,12 @@ enum AuthenticationPreviewData {
       ]))
   }
 
+  /// A build associated with the stub's server, for an account with no passkey.
+  static let adding = Session.stub(
+    transport: StubTransport(routes: ["GET user/passkeys": .json("[]")]),
+    passkeyAssociation: PasskeyAssociation(
+      domain: "stub.opendiving.invalid", ceremony: AuthenticationServicesPasskeyCeremony()))
+
   static let passkeys =
     #"[{"uuid":"019a1f2e-3c4d-7a5b-8c6d-7e8f9a0b1c2d","name":"iPhone","backed_up":true,"#
     + #""created_at":"2026-10-01T09:12:44Z","last_used_at":"2026-11-02T18:40:05Z"},"#

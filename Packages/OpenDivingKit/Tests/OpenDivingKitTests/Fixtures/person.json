@@ -3,6 +3,7 @@
   "name": "Dana Reyes",
   "email": "dana@example.com",
   "phone": "+1 555 0104",
+  "links": [{ "url": "https://dana.example/", "label": null }],
   "notes": "Teaches the cave courses.",
   "username": null,
   "avatar_sha256": null,

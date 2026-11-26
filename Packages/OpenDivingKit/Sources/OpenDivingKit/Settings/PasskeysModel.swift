@@ -2,9 +2,10 @@ import Foundation
 import Observation
 
 /// *Authentication*'s passkeys: each listed with whether it is synced and when it was added and
-/// last used, renamed in its row and removed after a confirmation. The phone cannot create a
-/// passkey, so there is no add, and with none on the account the block is left out. Direct
-/// calls, online only; the list is kept for the next visit.
+/// last used, renamed in its row and removed after a confirmation, and added where the build is
+/// associated with the server. Where it is not, passkeys are added on the web, and with none on
+/// the account the block is left out. Direct calls, online only; the list is kept for the next
+/// visit.
 @MainActor
 @Observable
 public final class PasskeysModel {
@@ -18,6 +19,9 @@ public final class PasskeysModel {
   public private(set) var removing: UUID?
   /// Why the last removal failed.
   public private(set) var removeFailure: String?
+  public private(set) var isAdding = false
+  /// What the last *Add passkey* that added nothing says.
+  public private(set) var addFailure: String?
 
   @ObservationIgnored private let session: Session
 
@@ -26,13 +30,44 @@ public final class PasskeysModel {
     list = OptionalList(session: session, kept: .passkeys) { try await $0.passkeys() }
   }
 
-  /// False while the server has no passkeys, or the account has none.
+  /// Whether *Add passkey* is offered: where the build is associated with the server.
+  public var canAdd: Bool { session.offersPasskeys }
+
+  /// False while the server has no passkeys, or the account has none and the phone cannot add
+  /// one.
   public var isShown: Bool {
-    !list.isAbsent && list.value?.isEmpty != true
+    !list.isAbsent && (canAdd || list.value?.isEmpty != true)
   }
 
-  /// While a rename or a removal is on its way, neither starts.
-  public var isBusy: Bool { rename.isSaving || removing != nil }
+  /// While a rename, a removal or an add is on its way, none other starts.
+  public var isBusy: Bool { rename.isSaving || removing != nil || isAdding }
+
+  /// The sentence under the list: where passkeys are added, unless here, and the web's empty
+  /// sentence where the phone can add one and the account has none.
+  public var note: String? {
+    guard canAdd else { return Self.addedOnTheWeb }
+    return list.value?.isEmpty == true ? Self.noneYet : nil
+  }
+
+  /// *Add passkey*: the new passkey joins the list, which is its confirmation.
+  public func add() async {
+    guard canAdd, !isBusy else { return }
+    isAdding = true
+    addFailure = nil
+    removeFailure = nil
+    defer { isAdding = false }
+    switch await PasskeyAdding.add(session) {
+    case .added(let passkey):
+      if list.value != nil {
+        list.update { $0 + [passkey] }
+      } else {
+        await list.load()
+      }
+    case .dismissed: break
+    case .alreadyOnThisPhone: addFailure = PasskeyAdding.alreadyOnThisPhone
+    case .failed(let sentence): addFailure = sentence
+    }
+  }
 
   public func saveRename() async {
     guard removing == nil, let uuid = rename.editing else { return }
@@ -70,6 +105,9 @@ public final class PasskeysModel {
   public static let description =
     "Sign in with your fingerprint, face or device PIN instead of waiting for an email. Your"
     + " email link keeps working either way."
+  public static let addButton = "Add passkey"
+  public static let noneYet =
+    "No passkeys yet. Adding one here means this device can sign you in with a single tap."
   public static let addedOnTheWeb =
     "Passkeys are added on the web. The ones above still sign you in wherever they live."
   public static let synced = "Synced"

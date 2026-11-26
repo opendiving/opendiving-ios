@@ -1,9 +1,9 @@
 import OpenDivingKit
 import SwiftUI
 
-/// A course's page, by its uuid: its head, then three tabs — Info, its information card over
-/// *Add dives* and *Add certifications*; Certifications, the cards it issued; and Dives, those
-/// logged on it. Its top bar opens its form, which also deletes it.
+/// A course's page, by its uuid: its head, then three tabs — Info, its information card;
+/// Certifications, the cards it issued; and Dives, those logged on it. Its top bar's `+` offers
+/// *Add dives* and *Add certifications*, and its *Edit* opens its form, which also deletes it.
 struct CourseDetailView: View {
   let courseUUID: UUID
   @Environment(Session.self) private var session
@@ -19,7 +19,7 @@ extension CourseDetailView {
   static let notFound = "Course not found."
   static let certificationsEmptyTitle = "No certifications from this course yet"
   static let certificationsEmptyMessage = "Add the cards this training issued to see them here."
-  /// The Info tab's buttons, which the empty Dives and Certifications tabs repeat.
+  /// The top bar's `+` menu, whose items the empty Dives and Certifications tabs repeat.
   static let addDives = "Add dives"
   static let addCertifications = "Add certifications"
 
@@ -40,6 +40,7 @@ private struct CourseDetailContent: View {
   @State private var tabsTop: CGFloat = 0
   @State private var tabsStuck = false
   @State private var reselect = TabsReselect.head
+  @State private var adding: CourseAddLink.Kind?
 
   init(model: CourseDetailModel, lookups: LookupsModel) {
     _model = State(initialValue: model)
@@ -82,7 +83,7 @@ private struct CourseDetailContent: View {
                   information: CoursePageContent.information(
                     course, people: session.people, personLookups: lookups.people,
                     contactLookups: lookups.contacts))
-                CourseActions(course: course)
+                LinksCard(links: ShownLink.list(course.links))
               case .certifications:
                 CourseCertificationsSection(course: course, list: model.certifications)
               case .dives:
@@ -107,6 +108,9 @@ private struct CourseDetailContent: View {
         }
         .heroUnderTopBar { await model.refresh() }
         .toolbar { actions(course) }
+        .navigationDestination(item: $adding) { kind in
+          kind.destination(course)
+        }
       }
     }
     .background(Color.pageBackground)
@@ -121,7 +125,21 @@ private struct CourseDetailContent: View {
   }
 
   @ToolbarContentBuilder private func actions(_ course: CourseRead) -> some ToolbarContent {
-    ToolbarItem(placement: .topBarTrailing) {
+    ToolbarItemGroup(placement: .topBarTrailing) {
+      Menu {
+        Button {
+          adding = .dives
+        } label: {
+          Label(menuItem: CourseDetailView.addDives, icon: .dive)
+        }
+        Button {
+          adding = .certifications
+        } label: {
+          Label(menuItem: CourseDetailView.addCertifications, icon: .badgeCheck)
+        }
+      } label: {
+        Label("Add", systemImage: "plus")
+      }
       NavigationLink {
         CourseFormView(mode: .edit(course)) { dismiss() }
       } label: {
@@ -148,7 +166,7 @@ private struct CourseDetailContent: View {
 }
 
 /// The certifications the course issued, a card each as More's *Certifications* draws them, each
-/// opening its pane; while it has none, the Info tab's *Add certifications*. A course with no
+/// opening its pane; while it has none, the top bar's *Add certifications*. A course with no
 /// agency offers it too, where the web hides its card: the tab is there for every course, and the
 /// diver who opens it is asking for its cards.
 private struct CourseCertificationsSection: View {
@@ -234,7 +252,7 @@ private struct CourseInformationCard: View {
       VStack(spacing: 0) {
         ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
           if index > 0 {
-            Divider().padding(.leading, 52)
+            ListRowDivider(leading: 52, trailing: 16)
           }
           view(row)
         }
@@ -321,48 +339,36 @@ private struct CourseInformationRow: View {
   }
 }
 
-/// *Add dives* beside *Add certifications*, each opening a list of the diver's records to put on
-/// the course: each button as wide as its label plus an equal share of what is left of the row,
-/// so both keep the same padding. Over it where the row leaves no room.
-private struct CourseActions: View {
-  let course: CourseRead
+/// An empty tab's *Add dives*, in the coral the profile's own *Log a dive* takes, or *Add
+/// certifications*: as wide as its label and a little more at its ends, which on iOS 26 otherwise
+/// have less room than its icon and its words have between them.
+private struct CourseAddLink: View {
+  enum Kind: Hashable {
+    case dives, certifications
 
-  var body: some View {
-    ViewThatFits(in: .horizontal) {
-      EqualPaddingRow(spacing: 8) { buttons }
-      VStack(spacing: 8) { buttons }
+    @ViewBuilder func destination(_ course: CourseRead) -> some View {
+      switch self {
+      case .dives: CourseAddDivesView(course: course)
+      case .certifications: CourseAddCertificationsView(course: course)
+      }
     }
   }
 
-  @ViewBuilder private var buttons: some View {
-    CourseAddLink(kind: .dives, course: course, fillsWidth: true)
-    CourseAddLink(kind: .certifications, course: course, fillsWidth: true)
-  }
-}
-
-/// *Add dives*, in the coral the profile's own *Log a dive* takes, or *Add certifications*: the
-/// Info tab's pair, as wide as their row gives them, or an empty tab's own, as wide as its label
-/// and a little more at its ends, which on iOS 26 otherwise have less room than its icon and its
-/// words have between them.
-private struct CourseAddLink: View {
-  enum Kind { case dives, certifications }
-
   let kind: Kind
   let course: CourseRead
-  var fillsWidth = false
 
   var body: some View {
     switch kind {
     case .dives:
       NavigationLink {
-        CourseAddDivesView(course: course)
+        kind.destination(course)
       } label: {
         label(CourseDetailView.addDives, icon: .dive)
       }
       .brandProminentButton(.brandCoral)
     case .certifications:
       NavigationLink {
-        CourseAddCertificationsView(course: course)
+        kind.destination(course)
       } label: {
         label(CourseDetailView.addCertifications, icon: .badgeCheck)
       }
@@ -372,8 +378,7 @@ private struct CourseAddLink: View {
 
   private func label(_ title: String, icon: Icon) -> some View {
     Label(title, icon: icon)
-      .frame(maxWidth: fillsWidth ? .infinity : nil)
-      .padding(.horizontal, fillsWidth ? 0 : 4)
+      .padding(.horizontal, 4)
   }
 }
 

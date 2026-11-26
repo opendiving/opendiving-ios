@@ -7,17 +7,21 @@ public struct PersonCreate: Codable, Hashable, Sendable {
   public var name: String
   public var email: String?
   public var phone: String?
+  /// In the diver's order; nil sends none, so a create queued before records carried links
+  /// encodes as it was queued.
+  public var links: [WebLink]?
   public var notes: String
   public var connectAccount: UUID?
   public var connectLink: String?
 
   public init(
-    name: String, email: String? = nil, phone: String? = nil, notes: String = "",
-    connectAccount: UUID? = nil, connectLink: String? = nil
+    name: String, email: String? = nil, phone: String? = nil, links: [WebLink]? = nil,
+    notes: String = "", connectAccount: UUID? = nil, connectLink: String? = nil
   ) {
     self.name = name
     self.email = email
     self.phone = phone
+    self.links = links
     self.notes = notes
     self.connectAccount = connectAccount
     self.connectLink = connectLink
@@ -26,7 +30,7 @@ public struct PersonCreate: Codable, Hashable, Sendable {
 
 extension PersonCreate {
   private enum CodingKeys: String, CodingKey {
-    case name, email, phone, notes, connectAccount, connectLink
+    case name, email, phone, links, notes, connectAccount, connectLink
   }
 
   public init(from decoder: any Decoder) throws {
@@ -34,6 +38,7 @@ extension PersonCreate {
     name = try c.decode(String.self, forKey: .name)
     email = try c.decodeIfPresent(String.self, forKey: .email)
     phone = try c.decodeIfPresent(String.self, forKey: .phone)
+    links = try c.decodeIfPresent([WebLink].self, forKey: .links)
     notes = try c.decode(String.self, forKey: .notes)
     connectAccount = try c.decodeIfPresent(UUID.self, forKey: .connectAccount)
     connectLink = try c.decodeIfPresent(String.self, forKey: .connectLink)
@@ -44,6 +49,7 @@ extension PersonCreate {
     try c.encode(name, forKey: .name)
     try c.encodeIfPresent(email, forKey: .email)
     try c.encodeIfPresent(phone, forKey: .phone)
+    try c.encodeIfPresent(links, forKey: .links)
     try c.encode(notes, forKey: .notes)
     try c.encodeWire(connectAccount, forKey: .connectAccount)
     try c.encodeIfPresent(connectLink, forKey: .connectLink)

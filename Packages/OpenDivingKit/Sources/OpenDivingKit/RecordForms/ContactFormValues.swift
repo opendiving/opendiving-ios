@@ -9,7 +9,7 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
   public var phone: String
   public var email: String
   /// A bare host gets `https://` in front when sent.
-  public var website: String
+  public var links: [WebLinkRow]
   public var street: String
   public var city: String
   public var postcode: String
@@ -23,7 +23,7 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
   /// ``diveCenterRoles`` — and `name` what was typed into the picker before *Add*.
   public init(
     name: String = "", roles: [String] = [], phone: String = "", email: String = "",
-    website: String = "", street: String = "", city: String = "", postcode: String = "",
+    links: [WebLinkRow] = [], street: String = "", city: String = "", postcode: String = "",
     region: String = "", country: String = "", latitude: String = "", longitude: String = "",
     notes: String = ""
   ) {
@@ -31,7 +31,7 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
     self.roles = roles
     self.phone = phone
     self.email = email
-    self.website = website
+    self.links = links
     self.street = street
     self.city = city
     self.postcode = postcode
@@ -44,30 +44,6 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
 
   /// The roles a contact created from a dive's dive-centre picker starts with.
   public static let diveCenterRoles = ["dive_center"]
-
-  /// The website as sent: an absolute URL, `https://` put before a bare host, nil for an empty
-  /// box (`normalizeWebsite`).
-  var normalizedWebsite: String? {
-    guard let trimmed = FormText.trimmedOrNil(website) else { return nil }
-    return Self.hasScheme(trimmed) ? trimmed : "https://" + trimmed
-  }
-
-  private static func hasScheme(_ text: String) -> Bool {
-    guard let colon = text.range(of: "://") else { return false }
-    let scheme = text[..<colon.lowerBound]
-    guard let first = scheme.first, first.isASCII, first.isLetter else { return false }
-    return scheme.allSatisfy { $0.isASCIILetterOrDigit || "+.-".contains($0) }
-  }
-
-  /// The API's own check: an http or https scheme and a host, on what is sent.
-  private var isWebsite: Bool {
-    guard let website = normalizedWebsite else { return true }
-    guard website.utf16.count <= 512, let parts = URLComponents(string: website),
-      let scheme = parts.scheme?.lowercased(), scheme == "http" || scheme == "https",
-      let host = parts.host, !host.isEmpty
-    else { return false }
-    return true
-  }
 
   private var addressParts: [String] { [street, city, postcode, region, country] }
 
@@ -85,7 +61,7 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
     list.add("address", member: "region", FormText.length(region, "Region", max: 255))
     list.add("address", member: "country", FormText.length(country, "Country", max: 255))
     list.add("notes", FormText.length(notes, "Notes", max: DiveFormBounds.notesMax))
-    if !isWebsite { list.add("website", "Use a web address, e.g. blueocean.com") }
+    WebLinkRow.check(links, into: &list)
     if hasAddress && country.trimmedOfWhitespace.isEmpty {
       list.add("address", member: "country", "An address needs its country")
     }
@@ -111,8 +87,8 @@ public struct ContactFormValues: Codable, Hashable, Sendable {
     return ContactCreate(
       name: name.trimmedOfWhitespace, phone: FormText.trimmedOrNil(phone),
       latitude: CoordinateEntry.value(latitude), longitude: CoordinateEntry.value(longitude),
-      notes: notes, roles: roles, email: FormText.trimmedOrNil(email), website: normalizedWebsite,
-      address: address)
+      notes: notes, roles: roles, email: FormText.trimmedOrNil(email),
+      links: WebLinkRow.sent(links), address: address)
   }
 }
 
@@ -122,7 +98,7 @@ extension ContactFormValues {
     let address = contact.address
     self.init(
       name: contact.name, roles: contact.roles, phone: contact.phone ?? "",
-      email: contact.email ?? "", website: contact.website ?? "",
+      email: contact.email ?? "", links: WebLinkRow.rows(contact.links),
       street: address?.street ?? "", city: address?.city ?? "",
       postcode: address?.postcode ?? "", region: address?.region ?? "",
       country: address?.country ?? "", latitude: CoordinateEntry.text(contact.latitude),
@@ -140,7 +116,7 @@ extension ContactFormValues {
     if now.notes != before.notes { update.notes = now.notes }
     update.phone = .change(from: before.phone, to: now.phone)
     update.email = .change(from: before.email, to: now.email)
-    update.website = .change(from: before.website, to: now.website)
+    if now.links != before.links { update.links = now.links ?? [] }
     update.address = .change(from: before.address, to: now.address)
     if now.latitude != before.latitude || now.longitude != before.longitude {
       update.latitude = now.latitude.map(Patch.value) ?? .null
@@ -157,7 +133,7 @@ extension ContactFormValues {
     if let notes = update.notes { next.notes = notes }
     next.phone = update.phone.applied(to: phone) ?? ""
     next.email = update.email.applied(to: email) ?? ""
-    next.website = update.website.applied(to: website) ?? ""
+    if let links = update.links { next.links = WebLinkRow.rows(links) }
     if update.address != .absent {
       let address = update.address.applied(to: nil)
       next.street = address?.street ?? ""

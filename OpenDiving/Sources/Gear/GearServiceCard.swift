@@ -80,7 +80,7 @@ struct GearServiceCard: View {
       card {
         ForEach(Array(service.schedules.items.enumerated()), id: \.element.id) { index, schedule in
           if index > 0 {
-            Divider().padding(.leading, 16)
+            ListRowDivider(leading: 16, trailing: 16)
           }
           scheduleRow(schedule)
         }
@@ -163,7 +163,7 @@ struct GearServiceCard: View {
       card {
         ForEach(Array(service.records.items.enumerated()), id: \.element.id) { index, record in
           if index > 0 {
-            Divider().padding(.leading, 16)
+            ListRowDivider(leading: 16, trailing: 16)
           }
           recordRow(record)
         }

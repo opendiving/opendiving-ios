@@ -5,13 +5,17 @@
 PRODUCT_BUNDLE_IDENTIFIER = app.opendiving.ios
 DEVELOPMENT_TEAM =
 
-// The associated domain that hands links to the app, which only a paid team's App ID can
-// carry: off unless the signing file says `OPENDIVING_LINKS = YES`, so that a Personal
-// Team's build signs as it always has. OPENDIVING_LINK_DOMAIN names the server, and
-// `<host>?mode=developer` reads its file from the server rather than Apple's CDN.
+// The associated domain that hands links to the app and lets it use passkeys there, which
+// only a paid team's App ID can carry: off unless the signing file says
+// `OPENDIVING_LINKS = YES`, so that a Personal Team's build signs as it always has.
+// OPENDIVING_LINK_DOMAIN names the server, and `<host>?mode=developer` reads its file from the
+// server rather than Apple's CDN. The app reads the same line from its Info.plist, empty with
+// the association off, to know where it offers a passkey.
 OPENDIVING_LINKS = NO
 OPENDIVING_LINK_DOMAIN = opendiving.app
 OPENDIVING_ENTITLEMENTS_YES = Config/OpenDiving.entitlements
 CODE_SIGN_ENTITLEMENTS = $(OPENDIVING_ENTITLEMENTS_$(OPENDIVING_LINKS))
+OPENDIVING_ASSOCIATED_DOMAIN_YES = $(OPENDIVING_LINK_DOMAIN)
+OPENDIVING_ASSOCIATED_DOMAIN = $(OPENDIVING_ASSOCIATED_DOMAIN_$(OPENDIVING_LINKS))
 
 #include? "../Signing.local.xcconfig"

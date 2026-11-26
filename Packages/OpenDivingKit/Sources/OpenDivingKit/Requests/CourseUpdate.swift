@@ -10,12 +10,15 @@ public struct CourseUpdate: Codable, Hashable, Sendable {
   public var endDate: Patch<CalendarDate>
   public var instructorNumber: Patch<String>
   public var notes: String?
+  /// Replaces the course's links whole; never sent as null.
+  public var links: [WebLink]?
   /// The dive centre, school or club that ran it.
   public var contact: Patch<RecordRef>
   public var people: [PersonReference]?
 
   enum CodingKeys: String, CodingKey {
-    case name, agency, agencyOther, status, startDate, endDate, instructorNumber, notes, people
+    case name, agency, agencyOther, status, startDate, endDate, instructorNumber, notes, links,
+      people
     case contact = "contactUuid"
   }
 

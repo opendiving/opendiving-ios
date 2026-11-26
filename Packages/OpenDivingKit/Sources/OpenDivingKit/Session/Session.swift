@@ -38,6 +38,14 @@ public final class Session {
     case deletionPending(email: String?, purgeAfter: DiveTimestamp?, restore: RestoreOffer?)
   }
 
+  /// How a session the diver started in the app began.
+  public enum SignInMeans: Hashable, Sendable {
+    case passkey
+    /// A code, a link, a sign-up, or a restore, whichever way its offer came: an account a
+    /// passkey restored has one.
+    case email
+  }
+
   public private(set) var state: State
   /// Whether ``loadAccount()`` has read the account in this session since ``state`` last
   /// changed, whichever caller ran it. Until it has, a signed-in session does not know which
@@ -68,6 +76,13 @@ public final class Session {
   /// Every server the phone has been pointed at and not forgotten since, the active one among
   /// them, in the order each was first chosen.
   public private(set) var savedServers: [ServerOrigin] = []
+
+  /// How the active server's session began in this launch; nil for one the launch found, and in
+  /// every state but signed in.
+  public private(set) var signedInWith: SignInMeans?
+
+  /// What the build brings to a passkey; nil where it names no host.
+  public let passkeyAssociation: PasskeyAssociation?
 
   /// The account's units; metric until the account is known.
   public var units: UnitSystem { user?.units ?? .metric }
@@ -103,12 +118,14 @@ public final class Session {
     background: any BackgroundExecution,
     connectivity: any Connectivity = AlwaysReachable(),
     applicationSupport: URL,
-    userAgent: UserAgent
+    userAgent: UserAgent,
+    passkeyAssociation: PasskeyAssociation? = nil
   ) {
     self.init(
       transport: URLSessionTransport(configuration: configuration), secrets: secrets,
       activeOrigin: activeOrigin, background: background, connectivity: connectivity,
-      applicationSupport: applicationSupport, userAgent: userAgent)
+      applicationSupport: applicationSupport, userAgent: userAgent,
+      passkeyAssociation: passkeyAssociation)
   }
 
   /// `now` stands in for the clock that marks a server used, in a test.
@@ -120,9 +137,11 @@ public final class Session {
     connectivity: any Connectivity = AlwaysReachable(),
     applicationSupport: URL,
     userAgent: UserAgent,
+    passkeyAssociation: PasskeyAssociation? = nil,
     accessToken: String? = nil,
     now: @escaping () -> Date = { Date() }
   ) {
+    self.passkeyAssociation = passkeyAssociation
     self.transport = CountingTransport(base: transport, activity: requests)
     self.secrets = secrets
     self.activeOrigin = activeOrigin
@@ -338,7 +357,8 @@ public final class Session {
   public func verifyCode(requestID: UUID, code: String) async throws -> SignInOutcome {
     let client = try requireClient()
     return try signInOutcome(
-      try await client.verifyEmailCode(requestID: requestID, code: code), from: client)
+      try await client.verifyEmailCode(requestID: requestID, code: code), from: client,
+      by: .email)
   }
 
   /// Redeems a sign-in link's token, as ``verifyCode(requestID:code:)`` redeems a code. Nothing
@@ -346,7 +366,24 @@ public final class Session {
   /// fetching it: only a tap hands a link to the app.
   public func verifyLink(token: String) async throws -> SignInOutcome {
     let client = try requireClient()
-    return try signInOutcome(try await client.verifyEmailLink(token: token), from: client)
+    return try signInOutcome(
+      try await client.verifyEmailLink(token: token), from: client, by: .email)
+  }
+
+  /// `POST /auth/passkey/options` on the active server.
+  public func passkeySignInOptions() async throws -> PasskeySignInOptions {
+    try await requireClient().passkeySignInOptions()
+  }
+
+  /// Redeems an assertion for the options' flow, as ``verifyCode(requestID:code:)`` redeems a
+  /// code: signed in, or an account scheduled for deletion with its offer.
+  public func verifyPasskey(flowID: String, credential: PasskeyCredential) async throws
+    -> SignInOutcome
+  {
+    let client = try requireClient()
+    return try signInOutcome(
+      try await client.verifyPasskeySignIn(flowID: flowID, credential: credential), from: client,
+      by: .passkey)
   }
 
   /// Creates the account `offer` was made for and signs in to it, as an authenticated code
@@ -360,15 +397,15 @@ public final class Session {
     guard outcome.status == "authenticated" else {
       throw APIError.unreadableResponse("Unknown sign-up outcome \"\(outcome.status)\"")
     }
-    transition(to: .signedIn(client.origin))
+    startSession(on: client.origin, by: .email)
   }
 
-  private func signInOutcome(_ outcome: AuthOutcome, from client: APIClient) throws
-    -> SignInOutcome
-  {
+  private func signInOutcome(
+    _ outcome: AuthOutcome, from client: APIClient, by means: SignInMeans
+  ) throws -> SignInOutcome {
     switch outcome.status {
     case "authenticated":
-      transition(to: .signedIn(client.origin))
+      startSession(on: client.origin, by: means)
       return .signedIn
     case "onboarding_required":
       return .onboardingRequired(
@@ -392,7 +429,7 @@ public final class Session {
     guard outcome.status == "authenticated" else {
       throw APIError.unreadableResponse("Unknown restore outcome \"\(outcome.status)\"")
     }
-    transition(to: .signedIn(client.origin))
+    startSession(on: client.origin, by: .email)
   }
 
   /// `DELETE /user`, then the session on this server ends as a sign-out ends it: the token and
@@ -541,6 +578,23 @@ public final class Session {
     return server.config.commonsPrimary == true
   }
 
+  // MARK: - Passkeys
+
+  /// Whether signing in, adding and the offer show a passkey: on the server the build's
+  /// associated domain names, and nowhere else.
+  public var offersPasskeys: Bool {
+    PasskeyAssociation.isOffered(buildHost: passkeyAssociation?.host, on: state)
+  }
+
+  /// The system's ceremony, where a passkey is offered.
+  public var passkeyCeremony: (any PasskeyCeremony)? {
+    offersPasskeys ? passkeyAssociation?.ceremony : nil
+  }
+
+  /// The kind of device, as iOS names it and the `User-Agent` carries it: what a passkey made
+  /// here is named, as a browser on the same phone names one.
+  public var deviceKind: String { userAgent.model }
+
   // MARK: - Experimental features
 
   /// Whether the active server switches on the experimental feature `name`: only once it has
@@ -574,6 +628,13 @@ public final class Session {
     }
   }
 
+  /// A sign-in completed in the app: the diver's sign-out there no longer stands.
+  private func startSession(on origin: ServerOrigin, by means: SignInMeans) {
+    try? store.setDiverSignedOut(false, for: origin)
+    transition(to: .signedIn(origin))
+    signedInWith = means
+  }
+
   private func endSession(on origin: ServerOrigin) {
     try? store.endSession(for: origin)
     guard state.origin == origin else { return }
@@ -588,6 +649,7 @@ public final class Session {
     state = new
     stateGeneration += 1
     accountLoaded = false
+    signedInWith = nil
   }
 
   /// Every client the session lets go of goes through here, and has its requests cut off.

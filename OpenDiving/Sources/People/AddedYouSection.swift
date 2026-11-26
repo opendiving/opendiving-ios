@@ -21,7 +21,7 @@ struct AddedYouSection: View {
         VStack(spacing: 0) {
           ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
             if index > 0 {
-              Divider().padding(.leading, ListRowIcon.textInset)
+              ListRowDivider(leading: ListRowIcon.textInset, trailing: 12)
             }
             AddedYouRowView(model: model, row: row) { adding = row }
           }
