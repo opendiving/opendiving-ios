@@ -5,12 +5,25 @@ import SwiftUI
 /// runs, and *Not now* answers the offer.
 struct PasskeyOfferSheet: View {
   let model: PasskeyOfferModel
+  @Environment(\.dynamicTypeSize) private var typeSize
 
   var body: some View {
+    // It scrolls where even the tallest detent cannot hold it.
+    ScrollView {
+      content
+    }
+    .scrollBounceBehavior(.basedOnSize)
+    // At the accessibility sizes half the screen holds the title and little more.
+    .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium])
+    .presentationDragIndicator(.visible)
+  }
+
+  private var content: some View {
     VStack(alignment: .leading, spacing: 16) {
       Label {
         Text(PasskeyOfferModel.title)
           .font(.title3.bold())
+          .fixedSize(horizontal: false, vertical: true)
       } icon: {
         Image(.keyRound)
           .foregroundStyle(Color.accentText)
@@ -38,8 +51,6 @@ struct PasskeyOfferSheet: View {
     }
     .padding(24)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .presentationDetents([.medium])
-    .presentationDragIndicator(.visible)
   }
 }
 
