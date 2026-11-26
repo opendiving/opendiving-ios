@@ -48,7 +48,8 @@ private struct SitesFinder: View {
   /// A new site asked for, from the list's foot or where the map was pressed.
   @State private var adding: NewSite?
   @State private var showsProfile = false
-  /// Nil on a map pushed opened on a site, which has no way to the profile.
+  /// Built at the first visit rather than with the map, which opens before the account it signed
+  /// in to has loaded, while the phone's copy is still the last account's.
   @State private var profile: ProfilePage?
   /// How far the weather bar is grown into its card.
   @State private var weatherMorph = MapWeatherMorph()
@@ -62,9 +63,7 @@ private struct SitesFinder: View {
     _model = State(initialValue: SitesView.finder(session, site: site))
     _map = State(initialValue: MapStyleModel(session: session))
     _weather = State(initialValue: MapWeatherModel(session: session))
-    let avatar = AvatarModel(session: session)
-    _avatar = State(initialValue: avatar)
-    _profile = State(initialValue: isPushed ? nil : ProfilePage(session: session, avatar: avatar))
+    _avatar = State(initialValue: AvatarModel(session: session))
   }
 
   var body: some View {
@@ -153,12 +152,14 @@ private struct SitesFinder: View {
     .task { await session.followServerInfo() }
   }
 
-  /// What the bar and its card draw; nil with no weather to show.
   private func openProfile() {
-    profile?.visit()
+    let profile = profile ?? ProfilePage(session: session, avatar: avatar)
+    self.profile = profile
+    profile.visit()
     showsProfile = true
   }
 
+  /// What the bar and its card draw; nil with no weather to show.
   private var weatherContent: MapWeatherContent? {
     weather.current.flatMap { MapWeatherContent($0, units: session.units) }
   }
