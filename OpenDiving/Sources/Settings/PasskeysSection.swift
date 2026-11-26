@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// The passkeys, each renamed in its row or removed after a confirmation. Nothing here adds
-/// one.
+/// The passkeys, each renamed in its row or removed after a confirmation, from its context menu
+/// or a swipe. Nothing here adds one.
 struct PasskeysSection: View {
   let model: PasskeysModel
 
@@ -58,34 +58,51 @@ struct PasskeysSection: View {
       .frame(maxWidth: .infinity, alignment: .leading)
       if model.removing == passkey.uuid {
         BubbleSpinner()
-      } else {
-        Button {
-          model.rename.begin(passkey.uuid, name: passkey.name)
-        } label: {
-          Image(systemName: "pencil")
-        }
-        .accentRow()
-        .accessibilityLabel("Rename \u{201C}\(passkey.name)\u{201D}")
-        Button(role: .destructive) {
-          model.confirmingRemove = passkey
-        } label: {
-          Image(systemName: "trash").dangerRow()
-        }
-        .accessibilityLabel("Remove \u{201C}\(passkey.name)\u{201D}")
-        .rowConfirmation(
-          PasskeysModel.removeTitle, for: passkey, confirming: Bindable(model).confirmingRemove
-        ) { passkey in
-          Button(PasskeysModel.removeButton, role: .destructive) {
-            Task { await model.confirmRemove(passkey) }
-          }
-        } message: { passkey in
-          Text(PasskeysModel.removeMessage(passkey))
-        }
       }
     }
-    .buttonStyle(.borderless)
-    .disabled(model.isBusy || model.rename.editing != nil)
-    .needsServer()
+    .contextMenu {
+      Button("Rename", systemImage: "pencil") { rename(passkey) }
+        .actionEnabled(isEnabled)
+      Button("Remove", systemImage: "trash", role: .destructive) { remove(passkey) }
+        .actionEnabled(isEnabled)
+    }
+    .swipeActions(edge: .leading) {
+      Button("Rename", systemImage: "pencil") { rename(passkey) }
+        .tint(.brandTeal)
+        .actionEnabled(isEnabled)
+    }
+    // Not the destructive role, whose swipe takes the row away before the dialog asks.
+    .swipeActions(edge: .trailing) {
+      Button("Remove", systemImage: "trash") { remove(passkey) }
+        .tint(.dangerFill)
+        .actionEnabled(isEnabled)
+    }
+    .rowConfirmation(
+      PasskeysModel.removeTitle, for: passkey, confirming: Bindable(model).confirmingRemove
+    ) { passkey in
+      Button(PasskeysModel.removeButton, role: .destructive) {
+        Task { await model.confirmRemove(passkey) }
+      }
+    } message: { passkey in
+      Text(PasskeysModel.removeMessage(passkey))
+    }
+  }
+
+  private var isEnabled: Bool { !model.isBusy && model.rename.editing == nil }
+
+  private func rename(_ passkey: PasskeyRead) {
+    model.rename.begin(passkey.uuid, name: passkey.name)
+  }
+
+  private func remove(_ passkey: PasskeyRead) {
+    model.confirmingRemove = passkey
+  }
+}
+
+extension View {
+  /// A row action, off while another is under way or the phone has no route to the server.
+  fileprivate func actionEnabled(_ isEnabled: Bool) -> some View {
+    disabled(!isEnabled).needsServer()
   }
 }
 

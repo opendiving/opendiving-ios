@@ -67,7 +67,7 @@ extension DiveCardContent {
 
     let depth = { (meters: Double?) in meters.map { UnitFormat.depth($0, units, decimals: 0) } }
     var figures = [
-      Figure(label: "Dive time", value: DateText.hoursMinutes(seconds: submergedSeconds)),
+      Figure(label: "Dive time", value: DateText.minutes(seconds: submergedSeconds)),
       Figure(label: "Max depth", value: depth(maxDepth)),
     ]
     if let waterTemperature {

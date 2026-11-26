@@ -322,7 +322,7 @@ struct DiveProfileMathTests {
 
   @Test func elapsedSpoken() {
     #expect(Math.formatElapsedSpoken(milliseconds: 1_500_000) == "25min")
-    #expect(Math.formatElapsedSpoken(milliseconds: 5_100_000) == "1h 25min")
+    #expect(Math.formatElapsedSpoken(milliseconds: 5_100_000) == "85min")
   }
 
   // MARK: Cylinders and events — `:658-831`

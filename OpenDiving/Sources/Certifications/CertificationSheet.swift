@@ -103,9 +103,16 @@ private struct CertificationSheetList: View {
   let lastUpdated: Date?
   let hasPendingEdit: Bool
 
-  /// How far the card stands in from the pane's sides, read from the card itself since the list
-  /// sets it by the phone's width.
-  @State private var sideMargin: CGFloat = 16
+  @State private var listWidth: CGFloat?
+  @State private var cardWidth: CGFloat?
+
+  /// How far the card stands in from the pane's sides, read from the card's width since the list
+  /// sets it by the phone's. Not from its position: a push or a pop slides the pane, and a list's
+  /// cell reads that slide in every coordinate space.
+  private var sideMargin: CGFloat {
+    guard let listWidth, let cardWidth else { return 16 }
+    return max((listWidth - cardWidth) / 2, 0)
+  }
 
   var body: some View {
     List {
@@ -129,9 +136,9 @@ private struct CertificationSheetList: View {
           )
           .certificationDownload(certificationUUID: certificationUUID, file: side.file)
           .onGeometryChange(for: CGFloat.self) {
-            $0.frame(in: .scrollView).minX
+            $0.size.width
           } action: {
-            sideMargin = $0
+            cardWidth = $0
           }
           .listRowBackground(Color.clear)
           .listRowInsets(EdgeInsets())
@@ -154,6 +161,11 @@ private struct CertificationSheetList: View {
     // The bar ends 10 points below its buttons, so the card stands as far below them as it does
     // from the pane's sides and from the details under it.
     .contentMargins(.top, max(sideMargin - 10, 0), for: .scrollContent)
+    .onGeometryChange(for: CGFloat.self) {
+      $0.size.width
+    } action: {
+      listWidth = $0
+    }
   }
 }
 
