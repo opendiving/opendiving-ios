@@ -35,8 +35,8 @@ struct ProfileDives: View {
           status: .empty(
             icon: .dive, title: "No dives logged yet",
             message:
-              "No dives yet. Log one with the button below, or bring them in from your dive "
-              + "computer with the button at the top left."
+              "No dives yet. Log one with the + button at the top right, or bring them in from "
+              + "your dive computer with the button at the top left."
           )
         )
       case .loaded:
