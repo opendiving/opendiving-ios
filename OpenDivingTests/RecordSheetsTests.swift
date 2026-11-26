@@ -152,7 +152,7 @@ struct RecordSheetsTests {
     let found = try await texts(NewContactSheet { _ in })
     expectFields(
       [
-        "New Contact", "e.g. Blue Ocean Dive Center", "Phone", "Email", "e.g. blueocean.com",
+        "New Contact", "e.g. Blue Ocean Dive Center", "Phone", "Email",
         "Street, number, building, unit", "City", "Postcode", "Region", "Country",
         "e.g. 27.8506", "e.g. 34.3136",
       ], in: found)

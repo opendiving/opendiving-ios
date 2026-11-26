@@ -68,6 +68,7 @@ private struct PersonDetailContent: View {
                     .foregroundStyle(.secondary)
                 }
               }
+              LinksCard(links: ShownLink.list(person.links))
               RecordDivesSection(
                 list: model.dives, content: .person, units: session.units, logDive: .create)
             }

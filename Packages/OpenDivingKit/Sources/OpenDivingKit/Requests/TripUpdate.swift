@@ -3,15 +3,19 @@
 public struct TripUpdate: Codable, Hashable, Sendable {
   public var name: String?
   public var notes: String?
+  /// Replaces the trip's links whole; never sent as null.
+  public var links: [WebLink]?
   public var parts: [TripPartWrite]?
   public var people: [PersonReference]?
 
   public init(
-    name: String? = nil, notes: String? = nil, parts: [TripPartWrite]? = nil,
+    name: String? = nil, notes: String? = nil, links: [WebLink]? = nil,
+    parts: [TripPartWrite]? = nil,
     people: [PersonReference]? = nil
   ) {
     self.name = name
     self.notes = notes
+    self.links = links
     self.parts = parts
     self.people = people
   }

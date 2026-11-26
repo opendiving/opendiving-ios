@@ -6,16 +6,18 @@ public struct TripFormValues: Codable, Hashable, Sendable {
   public var name: String
   public var parts: [TripPartFormValues]
   public var people: [PersonReference]
+  public var links: [WebLinkRow]
   public var notes: String
 
   /// A new trip opens with one empty part to fill in.
   public init(
     name: String = "", parts: [TripPartFormValues] = [TripPartFormValues()],
-    people: [PersonReference] = [], notes: String = ""
+    people: [PersonReference] = [], links: [WebLinkRow] = [], notes: String = ""
   ) {
     self.name = name
     self.parts = parts
     self.people = people
+    self.links = links
     self.notes = notes
   }
 
@@ -24,7 +26,7 @@ public struct TripFormValues: Codable, Hashable, Sendable {
   public init(editing trip: TripRead) {
     self.init(
       name: trip.name, parts: trip.parts.map(TripPartFormValues.init(read:)), people: trip.people,
-      notes: trip.notes)
+      links: WebLinkRow.rows(trip.links), notes: trip.notes)
   }
 
   /// The parts' places that carry a position, in the diver's order.
@@ -52,6 +54,7 @@ public struct TripFormValues: Codable, Hashable, Sendable {
           "parts", index: index, member: "end_date", "End date must be on or after start date")
       }
     }
+    WebLinkRow.check(links, into: &list)
     list.add("notes", FormText.length(notes, "Notes", max: DiveFormBounds.notesMax))
     return list.issues
   }
@@ -65,7 +68,7 @@ public struct TripFormValues: Codable, Hashable, Sendable {
 
   private var written: TripCreate {
     TripCreate(
-      name: name.trimmedOfWhitespace, notes: notes,
+      name: name.trimmedOfWhitespace, notes: notes, links: WebLinkRow.sent(links),
       parts: parts.filter(\.holdsSomething).map(\.write), people: people)
   }
 
@@ -80,6 +83,7 @@ public struct TripFormValues: Codable, Hashable, Sendable {
     if now.notes != before.notes { update.notes = now.notes }
     if now.parts != before.parts { update.parts = now.parts }
     if now.people != before.people { update.people = now.people }
+    if now.links != before.links { update.links = now.links ?? [] }
     return update
   }
 
@@ -90,6 +94,7 @@ public struct TripFormValues: Codable, Hashable, Sendable {
     if let notes = update.notes { next.notes = notes }
     if let parts = update.parts { next.parts = parts.map(TripPartFormValues.init(write:)) }
     if let people = update.people { next.people = people }
+    if let links = update.links { next.links = WebLinkRow.rows(links) }
     return next
   }
 }

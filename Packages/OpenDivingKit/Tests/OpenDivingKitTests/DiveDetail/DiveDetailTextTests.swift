@@ -52,7 +52,7 @@ struct DiveDetailTextTests {
     #expect(DiveDetailText.contactAddress([" ", nil, ""]) == nil)
   }
 
-  static let websites: [(String, String)] = [
+  static let addresses: [(String, String)] = [
     ("https://blueocean.example/", "blueocean.example"),
     ("http://blueocean.example/dahab?lang=en", "blueocean.example/dahab?lang=en"),
     ("blueocean", "blueocean"),
@@ -61,9 +61,9 @@ struct DiveDetailTextTests {
     ("not a url", "not a url"),
   ]
 
-  @Test(arguments: websites)
-  func website(stored: String, expected: String) {
-    #expect(DiveDetailText.website(stored) == expected)
+  @Test(arguments: addresses)
+  func linkAddress(stored: String, expected: String) {
+    #expect(DiveDetailText.linkAddress(stored) == expected)
   }
 
   @Test func dialableKeepsDigitsAndPlus() {

@@ -83,6 +83,7 @@ private struct GearItemDetailContent: View {
                       .foregroundStyle(.secondary)
                   }
                 }
+                LinksCard(links: ShownLink.list(item.links))
                 GearServiceCard(gearItem: item, service: model.service, route: $serviceRoute)
               case .dives:
                 RecordDivesSection(

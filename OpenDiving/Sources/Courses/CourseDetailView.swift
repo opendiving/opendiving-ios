@@ -83,6 +83,7 @@ private struct CourseDetailContent: View {
                   information: CoursePageContent.information(
                     course, people: session.people, personLookups: lookups.people,
                     contactLookups: lookups.contacts))
+                LinksCard(links: ShownLink.list(course.links))
               case .certifications:
                 CourseCertificationsSection(course: course, list: model.certifications)
               case .dives:

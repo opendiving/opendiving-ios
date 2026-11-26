@@ -66,10 +66,8 @@ struct ContactSheetForm: View {
         TextBox(
           label: "Email", text: $model.values.email, message: model.message("email"),
           keyboard: .emailAddress, verbatim: true)
-        TextBox(
-          label: "Website", placeholder: "e.g. blueocean.com", text: $model.values.website,
-          message: model.message("website"), keyboard: .URL, verbatim: true)
       }
+      RecordLinksField(links: $model.values.links) { model.message("links", index: $0, member: $1) }
       Section {
         TextBox(
           label: "Address", placeholder: "Street, number, building, unit",

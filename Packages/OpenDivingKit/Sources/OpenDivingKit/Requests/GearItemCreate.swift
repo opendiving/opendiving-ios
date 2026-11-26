@@ -6,6 +6,9 @@ public struct GearItemCreate: Codable, Hashable, Sendable {
   /// A gear-type key, `regulator` or `cylinder`.
   public var type: String?
   public var notes: String
+  /// In the diver's order; nil sends none, so a create queued before records carried links
+  /// encodes as it was queued.
+  public var links: [WebLink]?
   public var rented: Bool
   /// Litres of water capacity, above 0.
   public var volume: Double?
@@ -15,13 +18,15 @@ public struct GearItemCreate: Codable, Hashable, Sendable {
 
   public init(
     name: String, brand: String? = nil, type: String? = nil, notes: String = "",
-    rented: Bool = false, volume: Double? = nil, workingPressure: Double? = nil,
+    links: [WebLink]? = nil, rented: Bool = false, volume: Double? = nil,
+    workingPressure: Double? = nil,
     material: String? = nil
   ) {
     self.name = name
     self.brand = brand
     self.type = type
     self.notes = notes
+    self.links = links
     self.rented = rented
     self.volume = volume
     self.workingPressure = workingPressure

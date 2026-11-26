@@ -301,22 +301,25 @@ struct RecordFormsTests {
   @Test func aContact() throws {
     let valid = ContactFormValues(name: "Blue Ocean")
     #expect(valid.issues.isEmpty)
-    var website = valid
-    website.website = "blueocean.com"
-    #expect(website.issues.isEmpty)
-    #expect(try website.toCreate().website == "https://blueocean.com")
+    var linked = valid
+    linked.links = [WebLinkRow(url: "blueocean.com", label: "Booking")]
+    #expect(linked.issues.isEmpty)
+    #expect(
+      try linked.toCreate().links == [WebLink(url: "https://blueocean.com", label: "Booking")])
     for refused in [
       "ftp://blueocean.com", "not a url", "blueocean.com/" + String(repeating: "a", count: 491),
     ] {
-      website.website = refused
+      linked.links[0].url = refused
       #expect(
-        website.issues == [
-          FormIssue(field: "website", message: "Use a web address, e.g. blueocean.com")
+        linked.issues == [
+          FormIssue(
+            field: "links", index: 0, member: "url",
+            message: "Use a web address, e.g. blueocean.com")
         ],
         "\(refused)")
     }
-    website.website = "blueocean.com/" + String(repeating: "a", count: 490)
-    #expect(website.issues.isEmpty)
+    linked.links[0].url = "blueocean.com/" + String(repeating: "a", count: 490)
+    #expect(linked.issues.isEmpty)
 
     var address = valid
     address.city = "Dahab"

@@ -6,7 +6,10 @@
   "notes": "Nitrox on site.",
   "roles": ["dive_center", "accommodation"],
   "email": "desk@example.org",
-  "website": "https://example.org",
+  "links": [
+    { "url": "https://example.org", "label": "Booking" },
+    { "url": "https://example.org/nitrox" }
+  ],
   "address": {
     "street": "1 Example Street",
     "city": "Dahab",

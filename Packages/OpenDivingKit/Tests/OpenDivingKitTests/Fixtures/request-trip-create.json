@@ -1,6 +1,7 @@
 {
   "name": "Red Sea, September",
   "notes": "Two weeks, two bases.",
+  "links": [{ "url": "https://liveaboard.example/booking/123", "label": "Booking" }],
   "parts": [
     {
       "start_date": "2026-09-06",

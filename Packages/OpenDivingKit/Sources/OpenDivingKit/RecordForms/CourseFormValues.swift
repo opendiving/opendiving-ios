@@ -15,13 +15,15 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
   public var contact: RecordRef?
   /// Everyone on the course but the instructor.
   public var people: [PersonReference]
+  public var links: [WebLinkRow]
   public var notes: String
 
   public init(
     name: String = "", agency: String? = nil, agencyOther: String = "",
     status: String = FormVocabulary.defaultCourseStatus, startDate: CalendarDate? = nil,
     endDate: CalendarDate? = nil, instructor: RecordRef? = nil, instructorNumber: String = "",
-    contact: RecordRef? = nil, people: [PersonReference] = [], notes: String = ""
+    contact: RecordRef? = nil, people: [PersonReference] = [], links: [WebLinkRow] = [],
+    notes: String = ""
   ) {
     self.name = name
     self.agency = agency
@@ -33,6 +35,7 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
     self.instructorNumber = instructorNumber
     self.contact = contact
     self.people = people
+    self.links = links
     self.notes = notes
   }
 
@@ -55,6 +58,7 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
     list.add("agency_other", FormText.length(agencyOther, "Agency name", max: 64))
     list.add(
       "instructor_number", FormText.length(instructorNumber, "Instructor number", max: 64))
+    WebLinkRow.check(links, into: &list)
     list.add("notes", FormText.length(notes, "Notes", max: DiveFormBounds.notesMax))
     if agency == "other" && agencyOther.trimmedOfWhitespace.isEmpty {
       list.add("agency_other", "Tell us which agency ran this course")
@@ -80,7 +84,7 @@ public struct CourseFormValues: Codable, Hashable, Sendable {
       agencyOther: agency == "other" && !agencyOther.isEmpty ? agencyOther : nil, status: status,
       startDate: startDate, endDate: endDate,
       instructorNumber: instructorNumber.isEmpty ? nil : instructorNumber, notes: notes,
-      contact: contact, people: joined + others)
+      links: WebLinkRow.sent(links), contact: contact, people: joined + others)
   }
 }
 
@@ -95,7 +99,8 @@ extension CourseFormValues {
       name: course.name, agency: course.agency, agencyOther: course.agencyOther ?? "",
       status: course.status, startDate: course.startDate, endDate: course.endDate,
       instructor: instructor, instructorNumber: course.instructorNumber ?? "",
-      contact: course.contactUuid.map(RecordRef.server), people: people, notes: course.notes)
+      contact: course.contactUuid.map(RecordRef.server), people: people,
+      links: WebLinkRow.rows(course.links), notes: course.notes)
   }
 
   /// `PATCH /course/{uuid}`'s body: what differs from the values the form opened on. The
@@ -108,6 +113,7 @@ extension CourseFormValues {
     if now.status != before.status { update.status = now.status }
     if now.notes != before.notes { update.notes = now.notes }
     if now.people != before.people { update.people = now.people }
+    if now.links != before.links { update.links = now.links ?? [] }
     update.agency = .change(from: before.agency, to: now.agency)
     update.agencyOther = .change(from: before.agencyOther, to: now.agencyOther)
     update.startDate = .change(from: before.startDate, to: now.startDate)
@@ -123,6 +129,7 @@ extension CourseFormValues {
     if let name = update.name { next.name = name }
     if let status = update.status { next.status = status }
     if let notes = update.notes { next.notes = notes }
+    if let links = update.links { next.links = WebLinkRow.rows(links) }
     if var people = update.people {
       next.instructor = nil
       if let first = people.first, first.role == "instructor" {
