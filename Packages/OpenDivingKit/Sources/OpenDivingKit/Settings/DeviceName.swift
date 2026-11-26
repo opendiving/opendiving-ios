@@ -12,6 +12,16 @@ public enum DeviceName {
     return browser ?? platform ?? "Unknown device"
   }
 
+  /// The row's symbol: a phone or a tablet where the platform says so, a screen for anything
+  /// else, an unreadable header included.
+  public static func icon(forUserAgent userAgent: String) -> Icon {
+    switch firstMatch(platforms, userAgent) {
+    case "iPhone", "Android": .smartphone
+    case "iPad": .tablet
+    default: .monitor
+    }
+  }
+
   // Order matters in both tables: every Chromium browser says "Chrome", and Chrome on iOS
   // says "Safari" as well, so the specific token is looked for before the generic one.
   private static var browsers: [(Regex<Substring>, String)] {

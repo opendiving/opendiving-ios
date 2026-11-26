@@ -64,8 +64,33 @@ struct DeviceNameTests {
     #expect(DeviceName.forUserAgent(userAgent) == "Unknown device")
   }
 
+  @Test(arguments: [
+    (
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like"
+        + " Gecko) Version/18.3 Mobile/15E148 Safari/604.1", Icon.smartphone
+    ),
+    (
+      "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko)"
+        + " Chrome/140.0.0.0 Mobile Safari/537.36", .smartphone
+    ),
+    (
+      "Mozilla/5.0 (iPad; CPU OS 18_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)"
+        + " Version/18.3 Mobile/15E148 Safari/604.1", .tablet
+    ),
+    (
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)"
+        + " Chrome/140.0.0.0 Safari/537.36", .monitor
+    ),
+    ("Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0", .monitor),
+    ("curl/8.7.1", .monitor),
+  ])
+  func drawsTheKindOfDeviceThePlatformIs(_ userAgent: String, _ icon: Icon) {
+    #expect(DeviceName.icon(forUserAgent: userAgent) == icon)
+  }
+
   @Test func thisAppIsNamedAsThePhoneItRunsOn() {
     let header = UserAgent(appVersion: "1.4", systemVersion: "18.6", model: "iPhone").headerValue
     #expect(DeviceName.forUserAgent(header) == "iPhone")
+    #expect(DeviceName.icon(forUserAgent: header) == .smartphone)
   }
 }

@@ -47,6 +47,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case listTree = "list-tree"
   case locateFixed = "locate-fixed"
   case lock
+  case logOut = "log-out"
   case luggage
   case luggagePlus = "luggage-plus"
   case mail
@@ -62,6 +63,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case search
   case ship
   case slidersHorizontal = "sliders-horizontal"
+  case smartphone
   case sun
   case tabBadgeCheck = "tab-badge-check"
   case tabDive = "tab-dive"
@@ -69,6 +71,7 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case tabFileText = "tab-file-text"
   case tabImageOff = "tab-image-off"
   case tabLuggage = "tab-luggage"
+  case tablet
   case twinTank = "twin-tank"
   case upload
   case user
