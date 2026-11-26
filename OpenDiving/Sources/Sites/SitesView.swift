@@ -121,7 +121,7 @@ private struct SitesFinder: View {
       }
     )
     // The way back from the profile is the system's swipe in from the other edge.
-    .gesture(
+    .background(
       EdgeSwipePush(
         isEnabled: !isPushed, push: { showsProfile = true }, cancelled: { showsProfile = false })
     )
