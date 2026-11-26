@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The heading a run of a list card's rows is filed under: a letter on the people and contacts
-/// lists, a gear type's group on the gear list.
+/// The letter a run of a list card's rows is filed under, as the people and contacts lists draw
+/// it.
 struct ListSectionHeader: View {
   let title: String
 
@@ -20,7 +20,7 @@ struct ListSectionHeader: View {
 #Preview {
   VStack(spacing: 0) {
     ListSectionHeader(title: "A")
-    ListSectionHeader(title: "Exposure")
+    ListSectionHeader(title: "#")
   }
   .background(Color.cardFill)
 }
