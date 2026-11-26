@@ -46,6 +46,8 @@ public struct PermissionGroup: Hashable, Sendable, Identifiable {
     }
   }
 
+  /// Every read the server offers, check-in's among them: *Read only* is a promise about what a
+  /// key cannot change, not about which records it can see.
   public static func reads(_ scopes: [String]) -> [String] {
     scopes.filter { $0.hasSuffix(":read") }
   }
