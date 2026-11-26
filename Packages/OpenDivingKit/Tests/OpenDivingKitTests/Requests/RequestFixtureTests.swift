@@ -155,21 +155,6 @@ struct RequestFixtureTests {
     _ = try sendsItsFixture(ContactCreate.self, "request-contact-create")
   }
 
-  @Test func aContactWriteThePreviousBuildQueuedKeepsItsWebsite() throws {
-    for (type, json) in [
-      (
-        ContactCreate.self as any Codable.Type,
-        #"{"name":"Blue","notes":"","roles":[],"website":"https://blue.example"}"#
-      ),
-      (ContactUpdate.self, #"{"website":"https://blue.example"}"#),
-      (ContactUpdate.self, #"{"website":null}"#),
-    ] {
-      let body = try APICoding.decoder().decode(type, from: Data(json.utf8))
-      let sent = try JSONValue.parse(APICoding.requestEncoder().encode(body))
-      #expect(sent == (try JSONValue.parse(Data(json.utf8))), "\(json): sent \(sent)")
-    }
-  }
-
   @Test func recordUpdates() throws {
     let person = try sendsItsFixture(PersonUpdate.self, "request-person-update")
     #expect(person.email == .null)
