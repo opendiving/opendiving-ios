@@ -54,6 +54,22 @@ struct SignInViewTests {
       try await Self.title(of: SignInView(), session, SignInFlow(session: session)) == "Sign In")
   }
 
+  @Test func theEmailScreenOnTheBuildsServerOffersAPasskey() async throws {
+    let session = Session.signedOutStub(
+      origin: Self.origin, transport: StubTransport(routes: [:]),
+      passkeyAssociation: PasskeyAssociation(
+        domain: Self.origin.host, ceremony: AuthenticationServicesPasskeyCeremony()))
+    let flow = SignInFlow(session: session)
+    #expect(flow.offersPasskey)
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
+  }
+
+  @Test func aBuildWithTheAssociationOffNamesNoDomain() {
+    #expect(
+      Bundle.main.object(forInfoDictionaryKey: "OpenDivingAssociatedDomain") as? String == "")
+    #expect(Session.device().passkeyAssociation == nil)
+  }
+
   @Test func theCodeScreen() async throws {
     let (session, flow) = await Self.atTheCode(Self.onboarding)
     #expect(try await Self.title(of: SignInView(), session, flow) == "Check Your Email")

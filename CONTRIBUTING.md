@@ -240,8 +240,10 @@ xcrun devicectl device process launch --device <UDID> app.opendiving.ios -- --en
 A link to a page of the server the app is on — a connect link, a record — opens the app rather
 than Safari once the build carries an associated domain for that server, and that takes a team in
 the paid Apple Developer Program: a Personal Team cannot have the capability. So the build carries
-none unless the signing file switches it on, and a free Apple Account builds as above. With a paid
-team's Team ID as `DEVELOPMENT_TEAM`, add:
+none unless the signing file switches it on, and a free Apple Account builds as above. The same
+domain lets the app sign in with a passkey on that server and add one in Settings, and the same
+line switches both on; on any other server, or a build without it, the app offers no passkey and
+says passkeys are added on the web. With a paid team's Team ID as `DEVELOPMENT_TEAM`, add:
 
 ```
 OPENDIVING_LINKS = YES
@@ -256,16 +258,19 @@ OPENDIVING_LINK_DOMAIN = dive.example.org
 The server must name the app too. Its web container's `IOS_APP_ID` is the Team ID, a dot and the
 bundle identifier — `ABCDE12345.app.opendiving.ios`, or your own identifier — and the web then
 serves `/.well-known/apple-app-site-association` for it, which it answers 404 while the setting is
-unset. iOS reads that file through Apple's CDN when the app is installed, and the CDN fetches it
+unset: `applinks` for the links, and `webcredentials` naming the same id for its passkeys. iOS
+reads that file through Apple's CDN when the app is installed, and the CDN fetches it
 within a day of first being asked, with no way to hurry it. While you work on it,
 `OPENDIVING_LINK_DOMAIN = dive.example.org?mode=developer` reads it from the server directly
 instead, on a phone with Settings → Developer → Associated Domains Development switched on.
 
-Whether a build carries the domain shows in the app. A simulator build embeds its entitlements in
-the executable rather than its signature:
+Whether a build carries the domain shows in the app. The entitlement holds two entries for it,
+`applinks:` and `webcredentials:`. A simulator build embeds its entitlements in the executable
+rather than its signature:
 
 ```bash
-strings -a .build/Build/Products/Debug-iphonesimulator/OpenDiving.app/OpenDiving | grep applinks
+strings -a .build/Build/Products/Debug-iphonesimulator/OpenDiving.app/OpenDiving \
+  | grep -E 'applinks|webcredentials'
 ```
 
 and a device build answers

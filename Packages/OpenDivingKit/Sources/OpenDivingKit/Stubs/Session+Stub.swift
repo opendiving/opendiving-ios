@@ -4,9 +4,11 @@ extension Session {
   /// A session signed in to `origin` over `transport`, with nothing of the device behind it —
   /// for the app bundle's tests and for previews, which cannot reach the Kit's own test
   /// helpers. `transport` answers `GET user` and `GET people` for ``loadAccount()``.
+  /// `passkeyAssociation` is the build's, nil for one with the association off.
   public static func stub(
     origin: ServerOrigin = ServerOrigin("https://stub.opendiving.invalid")!,
-    transport: any HTTPTransport
+    transport: any HTTPTransport,
+    passkeyAssociation: PasskeyAssociation? = nil
   ) -> Session {
     Session(
       transport: transport,
@@ -16,6 +18,6 @@ extension Session {
       applicationSupport: FileManager.default.temporaryDirectory
         .appendingPathComponent("OpenDivingStub-\(UUID().uuidString)", isDirectory: true),
       userAgent: UserAgent(appVersion: "0", systemVersion: "0", model: "iPhone"),
-      accessToken: "stub-access-token")
+      passkeyAssociation: passkeyAssociation, accessToken: "stub-access-token")
   }
 }

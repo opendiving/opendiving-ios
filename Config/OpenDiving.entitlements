@@ -5,6 +5,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:$(OPENDIVING_LINK_DOMAIN)</string>
+		<string>webcredentials:$(OPENDIVING_LINK_DOMAIN)</string>
 	</array>
 </dict>
 </plist>

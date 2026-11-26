@@ -12,7 +12,8 @@ struct CredentialsHarness {
   let directory: URL
   let session: Session
 
-  init() async throws {
+  /// `passkeyAssociation` is the build's, which offers adding a passkey on the server.
+  init(passkeyAssociation: PasskeyAssociation? = nil) async throws {
     server = try CredentialsServer()
     connectivity = SettingsConnectivity()
     keychain = EventLog()
@@ -24,7 +25,8 @@ struct CredentialsHarness {
         log: keychain, secrets: [ClientHarness.origin.description: "refresh-0"]),
       activeOrigin: InMemoryActiveOriginStore(ClientHarness.origin),
       background: NoBackgroundExecution(), connectivity: connectivity,
-      applicationSupport: directory, userAgent: ClientHarness.userAgent)
+      applicationSupport: directory, userAgent: ClientHarness.userAgent,
+      passkeyAssociation: passkeyAssociation)
     try await session.loadAccount()
   }
 }

@@ -127,4 +127,98 @@ struct PasskeysModelTests {
     await model.list.load()
     #expect(PasskeysModel(session: harness.session).list.value == nil)
   }
+
+  // MARK: - Adding
+
+  @Test func withoutTheAssociationPasskeysAreAddedOnTheWeb() async throws {
+    let harness = try await CredentialsHarness()
+    let model = PasskeysModel(session: harness.session)
+    await model.list.load()
+    #expect(!model.canAdd)
+    #expect(model.note == PasskeysModel.addedOnTheWeb)
+    await model.add()
+    #expect(!harness.server.credentialRoutes.contains { $0.hasPrefix("POST") })
+  }
+
+  @Test func whereThePhoneCanAddAnAccountWithNoneSeesTheBlock() async throws {
+    let ceremony = FakePasskeyCeremony()
+    let harness = try await CredentialsHarness(passkeyAssociation: ceremony.association())
+    let model = PasskeysModel(session: harness.session)
+    harness.server.fail("GET user/passkeys", with: .json("[]"))
+    await model.list.load()
+    #expect(model.canAdd)
+    #expect(model.isShown)
+    #expect(model.note == PasskeysModel.noneYet)
+
+    // A server without passkeys still leaves the block out.
+    harness.server.fail("GET user/passkeys", with: .json(#"{"detail":"Not Found"}"#, status: 404))
+    await model.list.load()
+    #expect(!model.isShown)
+  }
+
+  @Test func addingNamesThePasskeyForTheDeviceAndListsIt() async throws {
+    let ceremony = FakePasskeyCeremony()
+    let harness = try await CredentialsHarness(passkeyAssociation: ceremony.association())
+    let model = PasskeysModel(session: harness.session)
+    await model.list.load()
+    #expect(model.note == nil)
+    await model.add()
+
+    let request = try #require(ceremony.registrations.first)
+    #expect(request.relyingParty == "localhost")
+    #expect(request.name == "sam@example.com")
+    #expect(request.excludedCredentials.count == 1)
+    let sent = harness.server.requests.first { $0.route == "POST user/passkey/verify" }
+    #expect(sent?.json?["name"] == .string("iPhone"))
+    #expect(sent?.json?["credential"]?["type"] == .string("public-key"))
+    #expect(model.list.value?.map(\.name) == ["iPhone", "YubiKey", "iPhone"])
+    #expect(model.addFailure == nil)
+    #expect(!model.isAdding)
+  }
+
+  @Test func aPhoneThatAlreadyHoldsOneIsToldSoAndNothingIsAdded() async throws {
+    let ceremony = FakePasskeyCeremony()
+    ceremony.registerAnswer = .matchedExcludedCredential
+    let harness = try await CredentialsHarness(passkeyAssociation: ceremony.association())
+    let model = PasskeysModel(session: harness.session)
+    await model.list.load()
+    await model.add()
+    #expect(model.addFailure == "This phone already has a passkey for your account.")
+    #expect(!harness.server.credentialRoutes.contains("POST user/passkey/verify"))
+    #expect(model.list.value?.count == 2)
+  }
+
+  @Test func aDismissalSaysNothingAndTheSystemsRefusalTheFallback() async throws {
+    let ceremony = FakePasskeyCeremony()
+    let harness = try await CredentialsHarness(passkeyAssociation: ceremony.association())
+    let model = PasskeysModel(session: harness.session)
+    await model.list.load()
+    ceremony.registerAnswer = .dismissed
+    await model.add()
+    #expect(model.addFailure == nil)
+    ceremony.registerAnswer = .failed
+    await model.add()
+    #expect(model.addFailure == "Couldn't add that passkey. Please try again.")
+    #expect(model.list.value?.count == 2)
+  }
+
+  @Test func theAPIsRefusalSaysItsSentence() async throws {
+    let ceremony = FakePasskeyCeremony()
+    let harness = try await CredentialsHarness(passkeyAssociation: ceremony.association())
+    let model = PasskeysModel(session: harness.session)
+    await model.list.load()
+    harness.server.fail(
+      "POST user/passkey/options",
+      with: .json(#"{"detail":"You already have the maximum number of passkeys."}"#, status: 409))
+    await model.add()
+    #expect(model.addFailure == "You already have the maximum number of passkeys.")
+    #expect(ceremony.registrations.isEmpty)
+
+    harness.server.succeed("POST user/passkey/options")
+    harness.server.fail(
+      "POST user/passkey/verify",
+      with: .json(#"{"detail":"That passkey registration expired. Try again."}"#, status: 400))
+    await model.add()
+    #expect(model.addFailure == "That passkey registration expired. Try again.")
+  }
 }

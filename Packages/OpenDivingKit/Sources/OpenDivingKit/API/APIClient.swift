@@ -138,6 +138,26 @@ public actor APIClient {
     return try await signIn(Call(method: "POST", path: "auth/restore", body: body))
   }
 
+  /// `POST /auth/passkey/options`: a challenge any passkey the server knows can answer, naming
+  /// no account. A server without passkeys answers 404, and one whose passkeys are unavailable
+  /// for now a 503 whose sentence says to use the email.
+  public func passkeySignInOptions() async throws -> PasskeySignInOptions {
+    try await anonymousDecoded(
+      PasskeySignInOptions.self, Call(method: "POST", path: "auth/passkey/options"))
+  }
+
+  /// `POST /auth/passkey/verify`: answered and kept as ``verifyEmailCode(requestID:code:)`` is,
+  /// asking for the same window. Every refusal of the assertion is a 401 with one sentence, and
+  /// the challenge is spent by any answer.
+  public func verifyPasskeySignIn(flowID: String, credential: PasskeyCredential) async throws
+    -> AuthOutcome
+  {
+    let body = try PasskeySignInVerifyRequest(
+      flowId: flowID, credential: credential, idleTimeout: .extended
+    ).body()
+    return try await signIn(Call(method: "POST", path: "auth/passkey/verify", body: body))
+  }
+
   /// One of the calls that can start a session, sent with no bearer: on `authenticated` the
   /// access token is kept in memory and the refresh token in the ``SecretStore``.
   private func signIn(_ call: Call) async throws -> AuthOutcome {

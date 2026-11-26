@@ -70,6 +70,8 @@ targets:
         CFBundleDisplayName: OpenDiving
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # The signing file's associated domain, empty with it off: where a passkey is offered.
+        OpenDivingAssociatedDomain: $(OPENDIVING_ASSOCIATED_DOMAIN)
         # The splash's coral, so the system's launch screen hands over to it without a flash. The
         # launch screen paints a colour's sRGB components as Display P3, so the asset holds
         # #FF7F50's P3 components, written as sRGB, and serves nothing else.

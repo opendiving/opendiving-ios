@@ -1,0 +1,14 @@
+{
+  "credential": {
+    "id": "S5ScEwkEUGEZoxrSypS8mpf1a-kUZ2_gil3llOpMlr0",
+    "rawId": "S5ScEwkEUGEZoxrSypS8mpf1a-kUZ2_gil3llOpMlr0",
+    "type": "public-key",
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoieFlEdTZ6WS03MTQ1UEljSk5TUThuUFMwTFNNUElHZ0M0WHVrWGRNQUtZcVVsWmY5R1lEMFRGeDNCZll6d0RSSXZ2NWlFSENDN3RTaVZILTBZdktfTGciLCJvcmlnaW4iOiJodHRwczovL2xvY2FsaG9zdCJ9",
+      "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVhJlg3liA6MaHQ0Fw9kdmBbj-SuuaKGMseZXPO6gx2XYw"
+    },
+    "authenticatorAttachment": "platform",
+    "clientExtensionResults": {}
+  },
+  "name": "iPhone"
+}

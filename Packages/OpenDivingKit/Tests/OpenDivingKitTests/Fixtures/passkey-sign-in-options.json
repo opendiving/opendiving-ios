@@ -1,0 +1,10 @@
+{
+  "flow_id": "ea599f0c-7b39-47d2-a84e-b3f33bc371d7",
+  "options": {
+    "challenge": "tEWB3eVgqgEsjK7p8PRDy_kfFkn1wyN4rX9xgj_8AvUjk3KgpZoHWMJ9HdV0cBi8YrwaO3wBYT1gup7fmmHurw",
+    "timeout": 60000,
+    "rpId": "localhost",
+    "allowCredentials": [],
+    "userVerification": "preferred"
+  }
+}
