@@ -44,6 +44,11 @@ struct APIKeyCreateScreen: View {
             loading: "Loading permissions…")
         } else {
           PermissionPicker(model: model)
+            // A pick shows at once: dozens of toggles fading together read as lag.
+            .transaction { transaction in
+              transaction.animation = nil
+              transaction.disablesAnimations = true
+            }
         }
       } footer: {
         if model.permissions.value != nil {

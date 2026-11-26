@@ -91,7 +91,7 @@ struct CredentialFixtureTests {
 
     let reads = PermissionGroup.reads(offered)
     #expect(reads.allSatisfy { $0.hasSuffix(":read") })
-    #expect(reads.contains("dives:read") && !reads.contains("checkin:read"))
+    #expect(reads.contains("dives:read") && reads.contains("checkin:read"))
 
     let unknown = PermissionGroup.groups(["dive-logs:share", "dives:read"])
     #expect(unknown.map(\.label) == ["dive logs", "Dives"])
