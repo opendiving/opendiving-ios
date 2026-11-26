@@ -2,9 +2,10 @@ import SwiftUI
 import UIKit
 
 /// A swipe in from the screen's right edge that pushes a page under the finger, as the system's
-/// back swipe from the left edge pops one. `push` asks for the page, which then follows the
-/// finger; let go past halfway or moving left and it lands, short of it or moving right and it
-/// slides back out, and `cancelled` says so. Every other pan waits for the swipe to fail, which it
+/// back swipe from the left edge pops one. `push` asks for the page, and the page the swipe
+/// started on follows the finger off to the left, uncovering it; let go past halfway or moving
+/// left and the push lands, short of it or moving right and the page slides back over it, and
+/// `cancelled` says so. Every other pan waits for the swipe to fail, which it
 /// does as soon as a touch lands away from the edge, so the map and the panel move only for a
 /// swipe that is not this one.
 struct EdgeSwipePush: UIGestureRecognizerRepresentable {
@@ -167,8 +168,8 @@ private final class EdgePush: UIPercentDrivenInteractiveTransition, UINavigation
   }
 }
 
-/// The push as the system draws it: the page slides in from the right over the one it covers,
-/// which drifts a third of the way left and dims.
+/// The push drawn as the system draws a pop: the page being left slides away to the left over the
+/// one it uncovers, which drifts in from a third of the way right and brightens.
 @MainActor
 private final class EdgePushAnimator: NSObject, UIViewControllerAnimatedTransitioning {
   /// Whether the page landed, once it has or has slid back out.
@@ -194,19 +195,22 @@ private final class EdgePushAnimator: NSObject, UIViewControllerAnimatedTransiti
     let to = context.view(forKey: .to) ?? toController?.view
     let dim = UIView(frame: container.bounds)
     dim.backgroundColor = .black.withAlphaComponent(0.1)
-    dim.alpha = 0
-    container.addSubview(dim)
+    if let from, from.superview === container {
+      container.insertSubview(dim, belowSubview: from)
+    } else {
+      container.addSubview(dim)
+    }
     if let to {
       if let toController { to.frame = context.finalFrame(for: toController) }
-      container.addSubview(to)
-      to.transform = CGAffineTransform(translationX: width, y: 0)
+      container.insertSubview(to, belowSubview: dim)
+      to.transform = CGAffineTransform(translationX: width / 3, y: 0)
     }
     let animator = UIViewPropertyAnimator(
       duration: transitionDuration(using: context), curve: .linear
     ) {
       to?.transform = .identity
-      from?.transform = CGAffineTransform(translationX: -width / 3, y: 0)
-      dim.alpha = 1
+      from?.transform = CGAffineTransform(translationX: -width, y: 0)
+      dim.alpha = 0
     }
     animator.addCompletion { [weak self] _ in
       let landed = !context.transitionWasCancelled
