@@ -36,7 +36,8 @@ public final class ScreenPresenter {
 
   /// An address handed to the app from outside: its screen opens, and nil comes back, or what
   /// the app does instead comes back for the caller to do — ``AppLinkRouter/Action/browser(_:)``,
-  /// ``AppLinkRouter/Action/signIn(token:)`` or ``AppLinkRouter/Action/hold(_:)``.
+  /// ``AppLinkRouter/Action/signIn(token:)``, ``AppLinkRouter/Action/hold(_:)`` or
+  /// ``AppLinkRouter/Action/offerFlagship(_:)``.
   public func receive(_ url: URL, state: Session.State) -> AppLinkRouter.Action? {
     let action = AppLinkRouter.action(for: url, from: .outside, state: state)
     guard case .open(let screen) = action else { return action }

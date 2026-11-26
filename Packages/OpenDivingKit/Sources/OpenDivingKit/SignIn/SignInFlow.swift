@@ -492,6 +492,23 @@ public final class SignInFlow {
     await readInvitation()
   }
 
+  /// Switches to the flagship for a connect link on it, the diver having chosen to: its screen
+  /// comes back to open where the phone is signed in there, and is held while the diver signs in
+  /// where it is not. Nil too while a sign-out keeps the app where it is.
+  public func switchToFlagship(_ offer: FlagshipOffer) async -> AppLink.Screen? {
+    switchTo(.flagship)
+    switch session.state {
+    case .signedIn(let origin) where origin.isFlagship:
+      return offer.screen
+    case .signingIn(let origin) where origin.isFlagship:
+      // Held before the root reads the state that follows the switch, which would drop it.
+      await hold(offer.screen)
+      return nil
+    default:
+      return nil
+    }
+  }
+
   /// Reads whose the held connect link is, while it has not been read: a link that is no longer
   /// active is dropped and said to be, and a read that fails is tried again by the next call.
   public func readInvitation() async {

@@ -7,8 +7,9 @@ import SwiftUI
 /// screen's model, the presenter a tapped download notification and a link open in, and the
 /// appearance are injected; and the offer to add a passkey after a sign-in, once nothing else is in
 /// front. A link from outside the app is handed to the presenter, which opens
-/// its screen or gives it back: for the browser, for the sign-in screens to redeem, or to hold
-/// while the diver signs in, its screen opening once they have. The session,
+/// its screen or gives it back: for the browser, for the sign-in screens to redeem, to hold
+/// while the diver signs in, its screen opening once they have, or, a connect link on the
+/// flagship while the app is on another server, to ask whether to switch there. The session,
 /// the account's load, the inbox and the engine are the app delegate's, made before any view.
 struct RootView: View {
   @State private var session: Session
@@ -22,6 +23,8 @@ struct RootView: View {
   @State private var splash = LaunchSplash()
   @State private var appearance = AppearanceModel(defaults: .standard)
   @State private var passkeyOffer: PasskeyOfferModel
+  /// A connect link on the flagship from outside, while the diver is asked whether to switch.
+  @State private var flagshipOffer: FlagshipOffer?
   @Environment(\.openURL) private var openURL
 
   init(
@@ -106,17 +109,35 @@ struct RootView: View {
     } message: {
       Text(account.failure ?? "")
     }
+    .alert(
+      FlagshipOffer.title,
+      isPresented: Binding(
+        get: { flagshipOffer != nil },
+        set: { if !$0 { flagshipOffer = nil } }),
+      presenting: flagshipOffer
+    ) { offer in
+      Button("Switch") {
+        Task {
+          if let screen = await signIn.switchToFlagship(offer) { presenter.open(screen) }
+        }
+      }
+      Button(GivenLinkAnswer.openInBrowser) { openURL(offer.url) }
+      Button("Cancel", role: .cancel) {}
+    } message: { offer in
+      Text(offer.sentence)
+    }
   }
 }
 
 extension RootView {
-  /// A link from outside: its screen, a sign-in, a link held for one, or else the browser, at
-  /// once.
+  /// A link from outside: its screen, a sign-in, a link held for one, the question whether to
+  /// switch to the flagship, or else the browser, at once.
   private func receive(_ url: URL) {
     switch presenter.receive(url, state: session.state) {
     case .browser(let url): openURL(url)
     case .signIn(let token): Task { await signIn.redeemLink(token) }
     case .hold(let screen): Task { await signIn.hold(screen) }
+    case .offerFlagship(let offer): flagshipOffer = offer
     // The presenter opened it; and only a given link is answered.
     case .open, .answer, nil: break
     }

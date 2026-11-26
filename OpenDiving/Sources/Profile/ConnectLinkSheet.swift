@@ -4,7 +4,8 @@ import SwiftUI
 /// The profile's QR button's pane: the diver's connect link as a QR code to show, its reset and
 /// removal under it and the share in the top bar, or the way to make one while there is none; and
 /// under it a scanner and a paste for somebody else's link. A given link the app acts on closes
-/// the pane, its screen opening as it closes, and one it does not act on is answered here.
+/// the pane, its screen opening as it closes, and one it does not act on is answered here: a
+/// connect link on the flagship with the switch there, which closes the pane first.
 struct ConnectLinkSheet: View {
   @Environment(Session.self) private var session
 
@@ -24,6 +25,9 @@ private struct ConnectLinkPane: View {
   @State private var answer: GivenLinkAnswer?
   /// The screen a given link opens, once the pane has closed.
   @State private var handedOver: AppLink.Screen?
+  /// The switch to the flagship a given link's answer was taken up on, once the pane has closed:
+  /// the switch starts the signed-in screens over, the pane's among them.
+  @State private var switching: FlagshipOffer?
   @Environment(\.dismiss) private var dismiss
   @Environment(\.openURL) private var openURL
 
@@ -62,6 +66,11 @@ private struct ConnectLinkPane: View {
     }
     .onDisappear {
       if let handedOver { presenter?.open(handedOver) }
+      if let switching, let signIn {
+        Task {
+          if let screen = await signIn.switchToFlagship(switching) { presenter?.open(screen) }
+        }
+      }
     }
     .task { await model.load() }
     .task { await model.followRoute() }
@@ -149,6 +158,13 @@ private struct ConnectLinkPane: View {
     if let answer {
       Text(answer.sentence)
         .multilineTextAlignment(.center)
+      if case .flagship(let offer) = answer, signIn != nil {
+        Button(FlagshipOffer.switchButton) {
+          switching = offer
+          dismiss()
+        }
+        .accentRow()
+      }
       if let url = answer.browser {
         Button(GivenLinkAnswer.openInBrowser) { openURL(url) }
           .accentRow()
@@ -198,6 +214,9 @@ private struct ConnectLinkPane: View {
     case .hold:
       // Only a link from outside is held.
       answer = .signInFirst
+    case .offerFlagship(let offer):
+      // Only a link from outside is asked about in an alert.
+      answer = .flagship(offer)
     }
   }
 
