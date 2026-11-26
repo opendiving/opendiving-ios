@@ -254,6 +254,55 @@ struct SignInLinkTests {
         == .object(["email": .string("new@example.com"), "via": .string("abc")]))
   }
 
+  // MARK: - The switch to the flagship
+
+  /// Signed in on `origin`, whose connect link on the flagship is `abc`.
+  private func onAnotherServer(signedInOnFlagship: Bool) throws -> (
+    SignInFlow, Session, StubTransport
+  ) {
+    var tokens = [origin.description: "refresh-here"]
+    if signedInOnFlagship { tokens[ServerOrigin.flagship.description] = "refresh-flagship" }
+    let transport = StubTransport(routes: [
+      "GET connect-link/abc": .json(try KitFixture.text("connect-link-owner-signed-out"))
+    ])
+    let session = Session(
+      transport: transport, secrets: InMemorySecretStore(tokens),
+      activeOrigin: InMemoryActiveOriginStore(origin), background: NoBackgroundExecution(),
+      applicationSupport: root, userAgent: ClientHarness.userAgent)
+    return (SignInFlow(session: session), session, transport)
+  }
+
+  private var flagshipOffer: FlagshipOffer {
+    FlagshipOffer(
+      token: "abc", current: origin, isSignedIn: true,
+      url: URL(string: "https://opendiving.app/connect/abc")!)
+  }
+
+  @Test func signedInOnTheFlagshipTheSwitchOpensTheLinksScreen() async throws {
+    let (flow, session, transport) = try onAnotherServer(signedInOnFlagship: true)
+    #expect(await flow.switchToFlagship(flagshipOffer) == .connect(token: "abc"))
+    #expect(session.state == .signedIn(.flagship))
+    #expect(session.isSignedIn(to: origin))
+    #expect(flow.invitation == nil)
+    #expect(transport.requests.isEmpty)
+  }
+
+  @Test func signedOutOnTheFlagshipTheSwitchHoldsTheLinkThere() async throws {
+    let (flow, session, transport) = try onAnotherServer(signedInOnFlagship: false)
+    #expect(await flow.switchToFlagship(flagshipOffer) == nil)
+    #expect(session.state == .signingIn(.flagship))
+    #expect(session.isSignedIn(to: origin))
+    #expect(flow.step == .email)
+    #expect(
+      flow.invitation
+        == .from(
+          name: "Robin Diver",
+          picture: ConnectedPicture(source: .connectLink("abc"), version: "cd34")))
+    #expect(transport.requests.first?.url?.host == "opendiving.app")
+    #expect(flow.takeHeldScreen(.signingIn(.flagship)) == nil)
+    #expect(flow.takeHeldScreen(.signedIn(.flagship)) == .connect(token: "abc"))
+  }
+
   /// An invite-only server whose connect link `abc` was reset once it had been read: the first
   /// read finds it live, every later one 404, and the email is refused for a `via` naming it.
   private static func resetAfterTheFirstRead() -> StubTransport {

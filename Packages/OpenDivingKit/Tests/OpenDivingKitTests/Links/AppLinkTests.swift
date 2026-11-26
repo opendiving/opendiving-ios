@@ -163,6 +163,44 @@ struct AppLinkTests {
     }
   }
 
+  @Test func aConnectLinkOnTheFlagshipOnAnotherServerOffersTheSwitch() {
+    let connect = "https://opendiving.app/connect/abc"
+    let url = URL(string: connect)!
+    let signedIn = FlagshipOffer(token: "abc", current: Self.server, isSignedIn: true, url: url)
+    let signedOut = FlagshipOffer(token: "abc", current: Self.server, isSignedIn: false, url: url)
+    #expect(action(connect, .outside, .signedIn(Self.server)) == .offerFlagship(signedIn))
+    #expect(action(connect, .outside, .signingIn(Self.server)) == .offerFlagship(signedOut))
+    #expect(action(connect, .given, .signedIn(Self.server)) == .answer(.flagship(signedIn)))
+    #expect(signedIn.screen == .connect(token: "abc"))
+    #expect(GivenLinkAnswer.flagship(signedIn).browser == url)
+    #expect(
+      GivenLinkAnswer.flagship(signedIn).sentence
+        == "This connect link is for https://opendiving.app, and the app is on"
+        + " https://dive.example.org, where you stay signed in.")
+    #expect(
+      signedOut.sentence
+        == "This connect link is for https://opendiving.app, and the app is on"
+        + " https://dive.example.org.")
+    #expect(FlagshipOffer.title == "Switch to opendiving.app?")
+  }
+
+  @Test func onlyAConnectLinkOnTheFlagshipWithAServerChosenOffersTheSwitch() {
+    let flagshipDive = "https://opendiving.app/dives/\(APIClient.wire(Self.uuid))"
+    let flagshipConnect = "https://opendiving.app/connect/abc"
+    let otherConnect = "https://other.example.org/connect/abc"
+    let rows: [(String, Session.State)] = [
+      (flagshipDive, .signedIn(Self.server)),
+      (flagshipConnect, .noServer),
+      (otherConnect, .signedIn(Self.server)),
+      ("https://opendiving.app/auth/verify?token=t", .signedIn(Self.server)),
+    ]
+    for (address, state) in rows {
+      #expect(action(address, .outside, state) == .browser(URL(string: address)!), "\(address)")
+    }
+    #expect(
+      action(flagshipConnect, .outside, .signedIn(Self.other)) == .open(.connect(token: "abc")))
+  }
+
   // MARK: - The presenter
 
   @Test func aLinkFromOutsideOpensOrComesBackForTheCaller() {
@@ -177,6 +215,11 @@ struct AppLinkTests {
       presenter.receive(dive, state: .signingIn(Self.server)) == .hold(.record(.dive(Self.uuid))))
     let signIn = URL(string: "https://dive.example.org/auth/verify?token=t")!
     #expect(presenter.receive(signIn, state: .signingIn(Self.server)) == .signIn(token: "t"))
+    let connect = URL(string: "https://opendiving.app/connect/abc")!
+    #expect(
+      presenter.receive(connect, state: .signedIn(Self.server))
+        == .offerFlagship(
+          FlagshipOffer(token: "abc", current: Self.server, isSignedIn: true, url: connect)))
     #expect(presenter.opened == first)
   }
 
