@@ -82,7 +82,7 @@ public final class APIKeysModel {
     scopesError = nil
   }
 
-  /// Every read the server offers but check-in's.
+  /// Every read the server offers.
   public func grantReadsOnly() {
     scopes = Set(PermissionGroup.reads(permissions.value ?? []))
     scopesError = nil

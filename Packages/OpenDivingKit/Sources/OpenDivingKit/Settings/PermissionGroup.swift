@@ -46,10 +46,8 @@ public struct PermissionGroup: Hashable, Sendable, Identifiable {
     }
   }
 
-  /// Every read but check-in's, which carries the diver's insurance and emergency contact and so
-  /// is never granted without being picked.
   public static func reads(_ scopes: [String]) -> [String] {
-    scopes.filter { $0.hasSuffix(":read") && !$0.hasPrefix("checkin:") }
+    scopes.filter { $0.hasSuffix(":read") }
   }
 
   private static func spaced(_ name: String) -> String {
