@@ -5,23 +5,22 @@ import SwiftUI
 /// glass, a circle the size of the bar's own round buttons.
 struct ProfileToolbarItem: ToolbarContent {
   let avatar: AvatarModel
+  let onOpen: () -> Void
 
   var body: some ToolbarContent {
     // The bar's glass would pad the picture into a capsule and cut it short, so the button draws
     // its own circle. A glass of its own is carried into the next page's back button, which the
     // profile hides.
     if #available(iOS 26, *) {
-      ToolbarItem(placement: .primaryAction) { link }
+      ToolbarItem(placement: .primaryAction) { button }
         .sharedBackgroundVisibility(.hidden)
     } else {
-      ToolbarItem(placement: .primaryAction) { link }
+      ToolbarItem(placement: .primaryAction) { button }
     }
   }
 
-  private var link: some View {
-    NavigationLink {
-      ProfileView(avatar: avatar)
-    } label: {
+  private var button: some View {
+    Button(action: onOpen) {
       UserAvatarView(
         initials: avatar.initials, picture: avatar.data, side: MapRoundButtonStyle.side
       )

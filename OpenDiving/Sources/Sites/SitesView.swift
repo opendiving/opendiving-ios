@@ -3,10 +3,10 @@ import SwiftUI
 
 /// What the app opens on signed in: the site finder over the diver's sites and the Commons, full
 /// screen under a top bar with no background, each site opening in the panel, the weather at the
-/// open site or else, zoomed in, at the site nearest the middle, the diver's picture that opens
-/// their profile, and a long press on the map that adds a site where it was pressed, as the list's
-/// foot adds one anywhere. Under *Your sites* it is the diver's list, the most recently dived
-/// first.
+/// open site or else, zoomed in, at the site nearest the middle, the diver's picture and a swipe
+/// in from the right edge that open their profile, and a long press on the map that adds a site
+/// where it was pressed, as the list's foot adds one anywhere. Under *Your sites* it is the diver's
+/// list, the most recently dived first.
 struct SitesView: View {
   @Environment(Session.self) private var session
 
@@ -47,6 +47,7 @@ private struct SitesFinder: View {
   private let isPushed: Bool
   /// A new site asked for, from the list's foot or where the map was pressed.
   @State private var adding: NewSite?
+  @State private var showsProfile = false
   /// How far the weather bar is grown into its card.
   @State private var weatherMorph = MapWeatherMorph()
   /// Where the weather bar is drawn, for its card to grow from.
@@ -111,13 +112,16 @@ private struct SitesFinder: View {
           }
         }
         if !isPushed {
-          ProfileToolbarItem(avatar: avatar)
+          ProfileToolbarItem(avatar: avatar) { showsProfile = true }
         }
       }
     )
+    // The way back from the profile is the system's swipe in from the other edge.
+    .gesture(RightEdgeSwipe(isEnabled: !isPushed) { showsProfile = true })
     // Never shown: it is what a page pushed from the map offers to go back to.
     .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
+    .navigationDestination(isPresented: $showsProfile) { ProfileView(avatar: avatar) }
     .fullScreenCover(isPresented: $weatherMorph.isPresented) {
       if let content = weatherContent {
         MapWeatherExplainer(
