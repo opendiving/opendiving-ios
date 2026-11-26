@@ -29,7 +29,6 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case cloudSunSun = "cloud-sun-sun"
   case dive
   case diveComputer = "dive-computer"
-  case divePlus = "dive-plus"
   case diveSite = "dive-site"
   case fileText = "file-text"
   case fish
@@ -49,7 +48,6 @@ public enum Icon: String, CaseIterable, Hashable, Sendable {
   case lock
   case logOut = "log-out"
   case luggage
-  case luggagePlus = "luggage-plus"
   case mail
   case mapPin = "map-pin"
   case menu
