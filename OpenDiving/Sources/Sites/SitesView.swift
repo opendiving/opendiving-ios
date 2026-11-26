@@ -48,6 +48,8 @@ private struct SitesFinder: View {
   /// A new site asked for, from the list's foot or where the map was pressed.
   @State private var adding: NewSite?
   @State private var showsProfile = false
+  /// Nil on a map pushed opened on a site, which has no way to the profile.
+  @State private var profile: ProfilePage?
   /// How far the weather bar is grown into its card.
   @State private var weatherMorph = MapWeatherMorph()
   /// Where the weather bar is drawn, for its card to grow from.
@@ -60,7 +62,9 @@ private struct SitesFinder: View {
     _model = State(initialValue: SitesView.finder(session, site: site))
     _map = State(initialValue: MapStyleModel(session: session))
     _weather = State(initialValue: MapWeatherModel(session: session))
-    _avatar = State(initialValue: AvatarModel(session: session))
+    let avatar = AvatarModel(session: session)
+    _avatar = State(initialValue: avatar)
+    _profile = State(initialValue: isPushed ? nil : ProfilePage(session: session, avatar: avatar))
   }
 
   var body: some View {
@@ -124,7 +128,9 @@ private struct SitesFinder: View {
     // Never shown: it is what a page pushed from the map offers to go back to.
     .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
-    .navigationDestination(isPresented: $showsProfile) { ProfileView(avatar: avatar) }
+    .navigationDestination(isPresented: $showsProfile) {
+      if let profile { ProfileView(page: profile) }
+    }
     .fullScreenCover(isPresented: $weatherMorph.isPresented) {
       if let content = weatherContent {
         MapWeatherExplainer(

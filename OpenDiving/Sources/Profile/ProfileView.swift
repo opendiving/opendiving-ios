@@ -8,11 +8,10 @@ import SwiftUI
 /// their trips, their check-in sheet or *More*, the menu of the rest, one at a time; and over
 /// the dives and the trips, the button that adds one.
 struct ProfileView: View {
-  let avatar: AvatarModel
-  @Environment(Session.self) private var session
+  let page: ProfilePage
 
   var body: some View {
-    ProfileContent(session: session, avatar: avatar)
+    ProfileContent(page: page)
   }
 }
 
@@ -22,16 +21,9 @@ private enum ProfileRoute: Hashable {
 }
 
 private struct ProfileContent: View {
-  let avatar: AvatarModel
+  @Bindable var page: ProfilePage
   @Environment(Session.self) private var session
   @Environment(\.dismiss) private var dismiss
-  @State private var model: ProfileModel
-  @State private var dives: PagedList<DiveListItem>
-  @State private var numbering: DiveNumberingModel
-  @State private var trips: PagedList<TripRead>
-  @State private var checkin: CheckinSheetModel
-  @State private var pictures = PictureCache()
-  @State private var section = ProfileSection.dives
   @State private var route: ProfileRoute?
   @State private var isShowingConnectLink = false
   @State private var tabsStuck = false
@@ -39,14 +31,14 @@ private struct ProfileContent: View {
   @State private var tabsTop: CGFloat = 0
   @State private var reselect = TabsReselect.head
 
-  init(session: Session, avatar: AvatarModel) {
-    self.avatar = avatar
-    _model = State(initialValue: ProfileModel(session: session))
-    _dives = State(initialValue: ProfileDives.list(session))
-    _numbering = State(initialValue: DiveNumberingModel(session: session))
-    _trips = State(initialValue: ProfileTrips.list(session))
-    _checkin = State(initialValue: CheckinSheetModel(session: session))
-  }
+  private var avatar: AvatarModel { page.avatar }
+  private var model: ProfileModel { page.model }
+  private var dives: PagedList<DiveListItem> { page.dives }
+  private var numbering: DiveNumberingModel { page.numbering }
+  private var trips: PagedList<TripRead> { page.trips }
+  private var checkin: CheckinSheetModel { page.checkin }
+  private var pictures: PictureCache { page.pictures }
+  private var section: ProfileSection { page.section }
 
   var body: some View {
     ScrollView {
@@ -69,7 +61,8 @@ private struct ProfileContent: View {
             .accessibilityLabel("Account")
           }
           ScrollingSectionTabs(
-            selection: $section, isStuck: $tabsStuck, top: $tabsTop, onReselect: scrollOnReselect)
+            selection: $page.section, isStuck: $tabsStuck, top: $tabsTop,
+            onReselect: scrollOnReselect)
         }
         Group {
           switch section {
@@ -95,7 +88,7 @@ private struct ProfileContent: View {
     .scrollPosition($scroll)
     .tabsReselect($reselect, tabsTop: tabsTop)
     .overlay(alignment: .top) {
-      StuckSectionTabs(selection: $section, isStuck: tabsStuck, onReselect: scrollOnReselect)
+      StuckSectionTabs(selection: $page.section, isStuck: tabsStuck, onReselect: scrollOnReselect)
     }
     .floatingAddButton(
       adding?.title ?? "", icon: adding?.icon ?? .plus, fill: adding?.fill ?? .clear,
@@ -185,7 +178,7 @@ private struct ProfileContent: View {
 #Preview {
   let session = DivePreviewData.session
   NavigationStack {
-    ProfileView(avatar: AvatarModel(session: session))
+    ProfileView(page: ProfilePage(session: session, avatar: AvatarModel(session: session)))
   }
   .environment(session)
   .environment(SignInFlow(session: session))
