@@ -97,6 +97,10 @@ public final class SignedInDevicesModel {
     DeviceName.forUserAgent(device.userAgent)
   }
 
+  nonisolated public static func icon(_ device: UserSessionRead) -> Icon {
+    DeviceName.icon(forUserAgent: device.userAgent)
+  }
+
   /// `203.0.113.7 · Last used Nov 9, 2026, 22:14`, with the time of day: when a session was
   /// last used is the whole question for a diver deciding whether they recognise it.
   nonisolated public static func details(

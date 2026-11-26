@@ -26,7 +26,7 @@ struct APIKeysSection: View {
           Button {
             model.startCreating()
           } label: {
-            Label(APIKeysModel.createButton, systemImage: "plus")
+            Label(row: APIKeysModel.createButton, icon: .plus)
           }
           .accentRow()
           .needsServer()
@@ -43,20 +43,24 @@ struct APIKeysSection: View {
     NavigationRow {
       opened = key
     } label: {
-      VStack(alignment: .leading, spacing: 4) {
-        FlowLayout(spacing: 6) {
-          Text(key.name)
-          Text(key.prefix + "\u{2026}")
-            .font(.caption.monospaced())
-            .foregroundStyle(.secondary)
-          BadgeView(APIKeysModel.label(key.scope), style: .outline) { EmptyView() }
-          if key.isExpired(at: model.now) {
-            BadgeView(APIKeysModel.expired, style: .destructive) { EmptyView() }
+      Label {
+        VStack(alignment: .leading, spacing: 4) {
+          FlowLayout(spacing: 6) {
+            Text(key.name)
+            Text(key.prefix + "\u{2026}")
+              .font(.caption.monospaced())
+              .foregroundStyle(.secondary)
+            BadgeView(APIKeysModel.label(key.scope), style: .outline) { EmptyView() }
+            if key.isExpired(at: model.now) {
+              BadgeView(APIKeysModel.expired, style: .destructive) { EmptyView() }
+            }
           }
+          Text(APIKeysModel.usage(key, now: model.now))
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
-        Text(APIKeysModel.details(key, now: model.now))
-          .font(.caption)
-          .foregroundStyle(.secondary)
+      } icon: {
+        FirstLineIcon(icon: .keyRound)
       }
     }
   }

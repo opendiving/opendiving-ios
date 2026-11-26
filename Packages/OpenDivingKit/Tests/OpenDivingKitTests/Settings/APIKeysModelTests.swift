@@ -177,6 +177,18 @@ struct APIKeysModelTests {
     #expect(APIKeysModel.details(key, now: model.now, in: .gmt).hasSuffix("Expired today"))
   }
 
+  @Test func theListLeavesTheDayAKeyWasMadeToItsPage() throws {
+    let key = APIKeyRead(
+      uuid: UUID(), name: "CI run", prefix: "od_abc", scope: .scoped, scopes: ["dives:read"],
+      createdAt: try #require(DiveTimestamp(wireValue: "2026-10-01T09:00:00Z")), lastUsedAt: nil,
+      expiresAt: DiveTimestamp(wireValue: "2027-10-01T09:00:00Z"))
+    let now = try #require(DiveTimestamp(wireValue: "2026-11-25T09:00:00Z")?.instant)
+    #expect(APIKeysModel.usage(key, now: now, in: .gmt) == "Never used · Expires Oct 1, 2027")
+    #expect(
+      APIKeysModel.details(key, now: now, in: .gmt)
+        == "Created Oct 1, 2026 · Never used · Expires Oct 1, 2027")
+  }
+
   @Test func theSecretReachesNoFileAndNoKeychainItem() async throws {
     let harness = try await CredentialsHarness()
     let model = await model(harness)
