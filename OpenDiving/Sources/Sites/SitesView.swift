@@ -117,7 +117,10 @@ private struct SitesFinder: View {
       }
     )
     // The way back from the profile is the system's swipe in from the other edge.
-    .gesture(RightEdgeSwipe(isEnabled: !isPushed) { showsProfile = true })
+    .gesture(
+      EdgeSwipePush(
+        isEnabled: !isPushed, push: { showsProfile = true }, cancelled: { showsProfile = false })
+    )
     // Never shown: it is what a page pushed from the map offers to go back to.
     .navigationTitle("Sites")
     .navigationDestination(item: $adding) { DiveSiteFormView(mode: .create, pin: $0.pin) }
