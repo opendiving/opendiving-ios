@@ -34,7 +34,11 @@ struct EdgeSwipePush: UIGestureRecognizerRepresentable {
     let travelled = -recognizer.translation(in: nil).x / width
     switch recognizer.state {
     case .began:
-      guard let navigation = recognizer.view?.enclosingNavigationController else { return }
+      // A swipe that lands while the last one's page is still sliding would stand in for the
+      // stand-in, and leave it the delegate once both were done.
+      guard let navigation = recognizer.view?.enclosingNavigationController,
+        navigation.transitionCoordinator == nil
+      else { return }
       context.coordinator.push = EdgePush(navigation: navigation, cancelled: cancelled)
       push()
     case .changed:
