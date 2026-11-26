@@ -1,0 +1,17 @@
+{
+  "flow_id": "ea599f0c-7b39-47d2-a84e-b3f33bc371d7",
+  "credential": {
+    "id": "S5ScEwkEUGEZoxrSypS8mpf1a-kUZ2_gil3llOpMlr0",
+    "rawId": "S5ScEwkEUGEZoxrSypS8mpf1a-kUZ2_gil3llOpMlr0",
+    "type": "public-key",
+    "response": {
+      "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoidEVXQjNlVmdxZ0Vzaks3cDhQUkR5X2tmRmtuMXd5TjRyWDl4Z2pfOEF2VWprM0tncFpvSFdNSjlIZFYwY0JpOFlyd2FPM3dCWVQxZ3VwN2ZtbUh1cnciLCJvcmlnaW4iOiJodHRwczovL2xvY2FsaG9zdCJ9",
+      "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2MdAAAAAA",
+      "signature": "AHPsJm1PtK2_PRBKpxT58RAy_Yq22IKfxAtSyG9khdeSjMLr1GRvP-PzdL4R2QW_S-J1-obziJ2CqffcXkHdMg",
+      "userHandle": "AaAh6azJeRi5QnFlQSHWPQ"
+    },
+    "authenticatorAttachment": "platform",
+    "clientExtensionResults": {}
+  },
+  "idle_timeout": "extended"
+}

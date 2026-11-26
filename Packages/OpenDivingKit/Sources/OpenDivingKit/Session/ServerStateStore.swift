@@ -3,8 +3,8 @@ import Foundation
 /// Everything the phone keeps about one server, as one thing: the refresh token and each
 /// account's connect-link token in the ``SecretStore``, the remembered account, a directory under Application Support that other
 /// features write into — the check-in sheet among them — its place on the saved list, and
-/// when it was last used, the build it last said it runs and whether it last said it edits the
-/// Commons.
+/// when it was last used, the build it last said it runs, whether it last said it edits the
+/// Commons and whether the diver's own sign-out stands there.
 /// ``forget(_:)`` is the only call that removes them all, so no feature needs a forget path of
 /// its own.
 ///
@@ -180,7 +180,7 @@ public struct ServerStateStore: Sendable {
 
   /// Removes the tokens, the remembered account and the directory — every account's directory
   /// and the last-account pointer with it — takes the server off the saved list, drops when it
-  /// was last used, what it runs and whether it edits the Commons, and clears the active-origin pointer when it names this
+  /// was last used, what it runs, whether it edits the Commons and the diver's sign-out, and clears the active-origin pointer when it names this
   /// server. Needs no server, so a server that is gone can still be forgotten.
   public func forget(_ origin: ServerOrigin) throws {
     try endSession(for: origin)
@@ -192,6 +192,7 @@ public struct ServerStateStore: Sendable {
     try setRow(Date?.none, for: origin, in: lastUsedFile)
     try setRow(HealthRead?.none, for: origin, in: healthFile)
     try setRow(Bool?.none, for: origin, in: commonsPrimaryFile)
+    try setRow(Bool?.none, for: origin, in: diverSignedOutFile)
     if activeOrigin.load() == origin {
       activeOrigin.save(nil)
     }
@@ -244,6 +245,36 @@ public struct ServerStateStore: Sendable {
 
   func rememberCommonsPrimary(_ commonsPrimary: Bool?, for origin: ServerOrigin) throws {
     try setRow(commonsPrimary, for: origin, in: commonsPrimaryFile)
+  }
+
+  /// Whether the diver's own sign-out, or deleting the account, stands for the server: set by
+  /// either, cleared by the next sign-in there, and kept across launches so that the passkey
+  /// sheet does not come up by itself for the account the diver just left.
+  public func diverSignedOut(_ origin: ServerOrigin) -> Bool {
+    (table(diverSignedOutFile) as [String: Bool])[origin.description] == true
+  }
+
+  func setDiverSignedOut(_ signedOut: Bool, for origin: ServerOrigin) throws {
+    try setRow(signedOut ? true : nil, for: origin, in: diverSignedOutFile)
+  }
+
+  /// Whether `account` answered the offer to add a passkey on this phone, either way. Kept in
+  /// the account's directory, so it goes with the account's other state.
+  public func answeredPasskeyOffer(for origin: ServerOrigin, account: UUID) -> Bool {
+    exists(passkeyOfferFile(for: origin, account: account))
+  }
+
+  func rememberPasskeyOfferAnswered(for origin: ServerOrigin, account: UUID) throws {
+    try write(true, to: passkeyOfferFile(for: origin, account: account))
+  }
+
+  private func passkeyOfferFile(for origin: ServerOrigin, account: UUID) -> URL {
+    directory(for: origin, account: account)
+      .appendingPathComponent("passkey-offer-answered.json", isDirectory: false)
+  }
+
+  private var diverSignedOutFile: URL {
+    root.appendingPathComponent("server-signed-out.json", isDirectory: false)
   }
 
   private var lastUsedFile: URL {

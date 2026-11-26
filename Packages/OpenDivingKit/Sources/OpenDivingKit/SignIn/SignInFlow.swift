@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 
-/// The signed-out screens: choosing a server, an email, the code or the link, what redeeming
-/// either led to — the sign-up for an address with no account among it — and the goodbye after
-/// an account is deleted. The root holds one for the app's life, so that the
+/// The signed-out screens: choosing a server, an email, the code or the link — or a passkey,
+/// where the build is associated with the server — what redeeming any of them led to — the
+/// sign-up for an address with no account among it — and the goodbye after an account is
+/// deleted. The root holds one for the app's life, so that the
 /// servers screen Settings and the sign-in push reads the same state, and a *Forget* or a
 /// deletion can report what it did on the screen that follows it.
 @MainActor
@@ -97,6 +98,16 @@ public final class SignInFlow {
   public private(set) var invitation: Invitation?
   @ObservationIgnored private var invitationOrigin: ServerOrigin?
   @ObservationIgnored private var isReadingInvitation = false
+
+  public private(set) var isSigningInWithPasskey = false
+  /// Why the last *Sign in with a passkey* signed nobody in, until the next or the email.
+  public private(set) var passkeyError: String?
+  /// The servers the sheet on arrival was asked for in this launch, once each.
+  @ObservationIgnored private var arrivals: Set<ServerOrigin> = []
+  /// The sheet on arrival's request while it is out, numbered so that a dropped one's answer
+  /// is ignored.
+  @ObservationIgnored private var arrival: Int?
+  @ObservationIgnored private var arrivalCount = 0
 
   /// The deletion-pending outcome's offer, in memory only and only while it shows.
   private var restoreOffer: RestoreOffer?
@@ -289,6 +300,9 @@ public final class SignInFlow {
             // A refused session is one the server already ended.
             result = error == .signedOut ? .signedOut : .failed(error.message)
           }
+          // The diver's own sign-out, the one a session the server had already ended counts
+          // as: the passkey sheet stays down there until a sign-in.
+          if result == .signedOut { try? session.store.setDiverSignedOut(true, for: origin) }
           self.finishSignOut(number, result)
         })
       waits.append(
@@ -335,8 +349,10 @@ public final class SignInFlow {
   // MARK: - The email screen
 
   public func setEmail(_ text: String) {
+    dropPasskeyArrival()
     email = text
     emailError = nil
+    passkeyError = nil
   }
 
   public var isEmailEmpty: Bool {
@@ -345,7 +361,9 @@ public final class SignInFlow {
 
   /// Mails a code to the address and moves on to entering it.
   public func sendCode() async {
-    guard !isEmailEmpty, !isRequestingCode else { return }
+    dropPasskeyArrival()
+    guard !isEmailEmpty, !isRequestingCode, !isSigningInWithPasskey else { return }
+    passkeyError = nil
     let address = email.trimmingCharacters(in: .whitespacesAndNewlines)
     notice = nil
     isRequestingCode = true
@@ -438,6 +456,7 @@ public final class SignInFlow {
   /// does. A refusal is the API's sentence, in ``linkError``, and keeps the screen.
   public func redeemLink(_ token: String) async {
     guard !isRedeemingLink else { return }
+    dropPasskeyArrival()
     isRedeemingLink = true
     linkError = nil
     defer { isRedeemingLink = false }
@@ -679,8 +698,106 @@ public final class SignInFlow {
   /// Deletes the account signed in on the active server and shows the goodbye, which names the
   /// day the answer gives. With no route nothing is sent; a failure, thrown, changes nothing.
   public func deleteAccount() async throws {
+    let origin = session.state.origin
     let deletion = try await session.deleteAccount()
+    if let origin { try? session.store.setDiverSignedOut(true, for: origin) }
     restart(at: .accountDeleted(purgeAfter: Self.day(deletion.purgeAfter)))
+  }
+
+  // MARK: - A passkey
+
+  /// Whether the email screen offers a passkey: where the build is associated with the server.
+  public var offersPasskey: Bool { session.offersPasskeys }
+
+  public static let passkeyButton = "Sign in with a passkey"
+  public static let passkeyFailed = "Couldn't sign in with that passkey. Please try again."
+
+  /// *Sign in with a passkey*: any passkey for the server, on the phone or on a device nearby.
+  /// A dismissed sheet says nothing; a refusal says the API's sentence where it gave one, and
+  /// ``passkeyFailed`` where it did not.
+  public func signInWithPasskey() async {
+    dropPasskeyArrival()
+    guard offersPasskey, !isSigningInWithPasskey, !isRequestingCode,
+      let origin = session.state.origin
+    else { return }
+    isSigningInWithPasskey = true
+    passkeyError = nil
+    emailError = nil
+    defer { isSigningInWithPasskey = false }
+    let answer = await passkeySignIn(onlyOnThisPhone: false) { session.state.origin == origin }
+    switch answer {
+    case .outcome(let outcome): take(outcome)
+    case .refused(let sentence): passkeyError = sentence
+    case .dismissed, nil: break
+    }
+  }
+
+  /// The sheet on arrival: as the email screen comes into view where a passkey is offered, the
+  /// system is asked for a passkey the phone holds, so that its sheet shows by itself when the
+  /// phone holds one and nothing shows when it holds none. Once a launch for a server, never
+  /// while the diver's own sign-out stands there or a sign-in link is being redeemed, and
+  /// nothing it ends in is ever said.
+  public func arriveAtEmail() async {
+    guard step == .email, case .signingIn(let origin) = session.state, offersPasskey,
+      !arrivals.contains(origin), !session.store.diverSignedOut(origin), !isRedeemingLink,
+      !isSigningInWithPasskey, !isRequestingCode
+    else { return }
+    arrivals.insert(origin)
+    arrivalCount += 1
+    let number = arrivalCount
+    arrival = number
+    let answer = await passkeySignIn(onlyOnThisPhone: true) {
+      arrival == number && session.state.origin == origin && !isRedeemingLink
+    }
+    if arrival == number { arrival = nil }
+    if case .outcome(let outcome) = answer { take(outcome) }
+  }
+
+  /// Drops the sheet on arrival, its answer ignored: the diver typed, or tapped a control.
+  public func dropPasskeyArrival() {
+    guard arrival != nil else { return }
+    arrival = nil
+    session.passkeyCeremony?.cancel()
+  }
+
+  private enum PasskeyAnswer {
+    case outcome(Session.SignInOutcome)
+    case dismissed
+    case refused(String)
+  }
+
+  /// The options, the system's sheet and the verification; nil once `stillWanted` says the
+  /// answer is not, at either wait.
+  private func passkeySignIn(onlyOnThisPhone: Bool, stillWanted: () -> Bool) async
+    -> PasskeyAnswer?
+  {
+    guard let ceremony = session.passkeyCeremony else { return .refused(Self.passkeyFailed) }
+    do {
+      let options = try await session.passkeySignInOptions()
+      guard stillWanted() else { return nil }
+      guard let request = options.request(onlyOnThisPhone: onlyOnThisPhone) else {
+        return .refused(Self.passkeyFailed)
+      }
+      let result = await ceremony.signIn(request)
+      guard stillWanted() else { return nil }
+      switch result {
+      case .done(let assertion):
+        return .outcome(
+          try await session.verifyPasskey(
+            flowID: options.flowId, credential: PasskeyCredential(assertion)))
+      case .dismissed, .matchedExcludedCredential:
+        return .dismissed
+      case .failed:
+        return .refused(Self.passkeyFailed)
+      }
+    } catch is CancellationError {
+      return nil
+    } catch {
+      guard case .http(_, let message?) = APIError(error) else {
+        return .refused(Self.passkeyFailed)
+      }
+      return .refused(message)
+    }
   }
 
   // MARK: - Internals
@@ -707,6 +824,7 @@ public final class SignInFlow {
     resendMessage = nil
     codeSentAt = nil
     emailError = nil
+    passkeyError = nil
     restoreOffer = nil
     restoreError = nil
     onboardingOffer = nil

@@ -6,9 +6,9 @@ import Synchronization
   import FoundationNetworking
 #endif
 
-/// A server holding the account's passkeys, signed-in devices and API keys, over a
-/// ``SettingsServer`` that answers everything else. Any route can be made to answer an error
-/// instead.
+/// A server holding the account's passkeys, which it adds to, signed-in devices and API keys,
+/// over a ``SettingsServer`` that answers everything else. Any route can be made to answer an
+/// error instead.
 final class CredentialsServer: HTTPTransport {
   private struct State {
     var passkeys: [[String: Any]]
@@ -106,6 +106,17 @@ final class CredentialsServer: HTTPTransport {
       }
       switch route {
       case "GET user/passkeys": return try Self.json(state.passkeys)
+      case "POST user/passkey/options":
+        return .json(try KitFixture.text("passkey-registration-options"))
+      case "POST user/passkey/verify":
+        var row =
+          try JSONSerialization.jsonObject(with: KitFixture.data("passkey-added"))
+          as! [String: Any]
+        row["name"] = body?["name"] ?? ""
+        state.passkeys.append(row)
+        var response = try Self.json(row)
+        response.status = 201
+        return response
       case "GET user/sessions": return try Self.json(state.sessions)
       case "GET user/api-keys": return try Self.json(state.keys)
       case "GET user/api-key-permissions": return try Self.json(state.permissions)

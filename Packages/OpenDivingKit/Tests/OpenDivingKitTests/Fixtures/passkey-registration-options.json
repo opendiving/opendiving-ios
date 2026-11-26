@@ -1,0 +1,41 @@
+{
+  "options": {
+    "rp": {
+      "name": "OpenDiving",
+      "id": "localhost"
+    },
+    "user": {
+      "id": "AaAh6azJeRi5QnFlQSHWPQ",
+      "name": "sam@example.com",
+      "displayName": "Sam Rivera"
+    },
+    "challenge": "xYDu6zY-7145PIcJNSQ8nPS0LSMPIGgC4XukXdMAKYqUlZf9GYD0TFx3BfYzwDRIvv5iEHCC7tSiVH-0YvK_Lg",
+    "pubKeyCredParams": [
+      {
+        "type": "public-key",
+        "alg": -8
+      },
+      {
+        "type": "public-key",
+        "alg": -7
+      },
+      {
+        "type": "public-key",
+        "alg": -257
+      }
+    ],
+    "timeout": 60000,
+    "excludeCredentials": [
+      {
+        "id": "KVx1mO-9KiREqgSai3fXq2HHQj_8c7qKXfkJnN4XpBg",
+        "type": "public-key"
+      }
+    ],
+    "authenticatorSelection": {
+      "residentKey": "required",
+      "requireResidentKey": true,
+      "userVerification": "preferred"
+    },
+    "attestation": "none"
+  }
+}

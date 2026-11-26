@@ -1,8 +1,8 @@
 import OpenDivingKit
 import SwiftUI
 
-/// Choosing a server, signing in with an email code or link, and signing up: everything the app
-/// shows signed out. Reads the session, the sign-in flow, the outbox and the inbox the root
+/// Choosing a server, signing in with an email code or link — or a passkey, where the build is
+/// associated with the server — and signing up: everything the app shows signed out. Reads the session, the sign-in flow, the outbox and the inbox the root
 /// injects. A sign-in link is redeemed over whichever of these screens shows, and a refusal is
 /// said over it.
 struct SignInView: View {

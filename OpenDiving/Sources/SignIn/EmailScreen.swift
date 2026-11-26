@@ -2,7 +2,8 @@ import OpenDivingKit
 import SwiftUI
 
 /// Signing in to the active server, headed by who invited the diver while a connect link is
-/// held: the email field, what is reachable signed out — logging a
+/// held: the email field, a passkey where the build is associated with the server — the button,
+/// and the system's sheet by itself as the screen comes into view — what is reachable signed out — logging a
 /// dive and what is waiting to sync for the account last signed in here, and the cached check-in
 /// sheet — and the server card with another server.
 struct EmailScreen: View {
@@ -47,7 +48,7 @@ struct EmailScreen: View {
           .focused($focused)
       }
       .listSectionSpacing(12)
-      if let error = flow.emailError {
+      if let error = flow.emailError ?? flow.passkeyError {
         Section {
           Label(error, systemImage: "exclamationmark.triangle")
             .foregroundStyle(Color.danger)
@@ -57,6 +58,14 @@ struct EmailScreen: View {
         FormCapsuleButton(
           title: "Sign in", isBusy: flow.isRequestingCode, busyValue: "Sending", action: send)
       }
+      if flow.offersPasskey {
+        Section {
+          PasskeySignInButton(isBusy: flow.isSigningInWithPasskey) {
+            Task { await flow.signInWithPasskey() }
+          }
+        }
+        .listSectionSpacing(12)
+      }
       Section {
         ForEach(flow.signedOutEntries) { entry in
           switch entry {
@@ -64,7 +73,10 @@ struct EmailScreen: View {
             SignedOutEntryRow(
               infoTitle: "Log a dive offline", info: entry.info(on: origin),
               infoLabel: "About logging a dive offline",
-              action: { logsDive = true }
+              action: {
+                flow.dropPasskeyArrival()
+                logsDive = true
+              }
             ) {
               Label("Log a dive offline", icon: .dive)
             }
@@ -73,7 +85,10 @@ struct EmailScreen: View {
               SignedOutEntryRow(
                 infoTitle: "Waiting to sync", info: entry.info(on: origin),
                 infoLabel: "About what is waiting to sync",
-                action: showPending
+                action: {
+                  flow.dropPasskeyArrival()
+                  showPending()
+                }
               ) {
                 Label(waiting, systemImage: "arrow.triangle.2.circlepath")
               }
@@ -82,7 +97,10 @@ struct EmailScreen: View {
             SignedOutEntryRow(
               infoTitle: "Your check-in sheet", info: entry.info(on: origin),
               infoLabel: "About your check-in sheet",
-              action: showSheet
+              action: {
+                flow.dropPasskeyArrival()
+                showSheet()
+              }
             ) {
               Label("Your check-in sheet", icon: .idCard)
             }
@@ -95,7 +113,10 @@ struct EmailScreen: View {
           // page pushed over the list, is. One the list showed is not the sign-in's, unless the
           // server it is about has changed under it.
           ServerScreen(flow: flow)
-            .onFirstAppear { flow.dismissNotice() }
+            .onFirstAppear {
+              flow.dropPasskeyArrival()
+              flow.dismissNotice()
+            }
             .onDisappear { if flow.origin == origin { flow.dismissNotice() } }
         }
       }
@@ -108,6 +129,7 @@ struct EmailScreen: View {
     .navigationDestination(isPresented: $logsDive) { DiveFormView(mode: .create) }
     .task { await flow.session.loadServerInfo() }
     .task { await flow.readInvitation() }
+    .task { await flow.arriveAtEmail() }
     // Whenever the row is shown; the outbox refreshes nothing before the account loads.
     .task { await outbox.refreshDrafts() }
   }
@@ -137,6 +159,7 @@ struct EmailScreen: View {
   }
 
   private func send() {
+    flow.dropPasskeyArrival()
     if flow.isEmailEmpty {
       focused = true
     } else {

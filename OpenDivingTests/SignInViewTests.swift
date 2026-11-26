@@ -54,6 +54,24 @@ struct SignInViewTests {
       try await Self.title(of: SignInView(), session, SignInFlow(session: session)) == "Sign In")
   }
 
+  @Test func theEmailScreenOnTheBuildsServerOffersAPasskey() async throws {
+    let session = Session.signedOutStub(
+      origin: Self.origin, transport: StubTransport(routes: [:]),
+      passkeyAssociation: PasskeyAssociation(
+        domain: Self.origin.host, ceremony: AuthenticationServicesPasskeyCeremony()))
+    let flow = SignInFlow(session: session)
+    #expect(flow.offersPasskey)
+    #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
+  }
+
+  /// Whatever the signing file says: the device's session offers a passkey on the host of the
+  /// build's domain line, and on none with the line empty.
+  @Test func theDevicesSessionReadsTheBuildsDomainLine() {
+    let line = Bundle.main.object(forInfoDictionaryKey: "OpenDivingAssociatedDomain") as? String
+    #expect(line != nil)
+    #expect(Session.device().passkeyAssociation?.host == PasskeyAssociation.host(line))
+  }
+
   @Test func theCodeScreen() async throws {
     let (session, flow) = await Self.atTheCode(Self.onboarding)
     #expect(try await Self.title(of: SignInView(), session, flow) == "Check Your Email")

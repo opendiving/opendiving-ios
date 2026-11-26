@@ -5,7 +5,8 @@ import SwiftUI
 /// launch splash until the first of them has loaded — and where the one session, the sign-in
 /// flow Settings reaches back into, the inbox, the outbox, the dive-computer engine and its
 /// screen's model, the presenter a tapped download notification and a link open in, and the
-/// appearance are injected. A link from outside the app is handed to the presenter, which opens
+/// appearance are injected; and the offer to add a passkey after a sign-in, once nothing else is in
+/// front. A link from outside the app is handed to the presenter, which opens
 /// its screen or gives it back: for the browser, for the sign-in screens to redeem, or to hold
 /// while the diver signs in, its screen opening once they have. The session,
 /// the account's load, the inbox and the engine are the app delegate's, made before any view.
@@ -20,6 +21,7 @@ struct RootView: View {
   @State private var presenter: ScreenPresenter
   @State private var splash = LaunchSplash()
   @State private var appearance = AppearanceModel(defaults: .standard)
+  @State private var passkeyOffer: PasskeyOfferModel
   @Environment(\.openURL) private var openURL
 
   init(
@@ -33,6 +35,7 @@ struct RootView: View {
     _engine = State(initialValue: engine)
     _presenter = State(initialValue: presenter)
     _downloads = State(initialValue: DiveComputerDownloads(engine: engine))
+    _passkeyOffer = State(initialValue: PasskeyOfferModel(session: session))
     // The quiet load: a reconnect that loads the account raises no alert of its own.
     _outbox = State(
       initialValue: OutboxModel(session: session, loadAccount: { await account.loadQuietly() }))
@@ -50,6 +53,15 @@ struct RootView: View {
         SitesView()
           .id(origin)
       }
+    }
+    // Never over a screen a link or a notification opened: it follows once that is closed.
+    .sheet(
+      isPresented: Binding(
+        get: { passkeyOffer.isOffered && presenter.opened == nil },
+        set: { if !$0 && presenter.opened == nil { passkeyOffer.close() } })
+    ) {
+      PasskeyOfferSheet(model: passkeyOffer)
+        .environment(session)
     }
     .overlay {
       if splash.isShowing {
@@ -74,11 +86,15 @@ struct RootView: View {
     .task { await splash.run(session.requests) }
     .onChange(of: session.state) { old, new in
       if let held = signIn.takeHeldScreen(new) { presenter.open(held) }
+      passkeyOffer.close()
       downloads.sessionChanged()
       engine.sessionChanged()
       Task { await account.sessionChanged(from: old, to: new) }
     }
-    .onChange(of: session.accountLoaded) { engine.accountLoaded() }
+    .onChange(of: session.accountLoaded) {
+      engine.accountLoaded()
+      if session.accountLoaded { Task { await passkeyOffer.check() } }
+    }
     .alert(
       "Your account could not be loaded",
       isPresented: Binding(

@@ -30,7 +30,8 @@ change is made with or without signal and reaches your server when the phone can
 the phone has shown open without it.
 Your account's settings are changed on the phone as on the web too — its two pictures, check-in
 details, signed-in devices and API keys, notifications, units, data export and the account
-itself — though only with signal, and a passkey is added on the web.
+itself — though only with signal, and a passkey is added on the phone where the build carries
+the server's associated domain, and on the web everywhere else.
 The profile's QR code is your connect link: whoever scans it can add you to their people,
 connected to your account, and shows under *Added you* at the top of your People. A person
 connected to an account shows its picture and username, and each side sees the other's.
@@ -62,7 +63,8 @@ a view, [libdc-swift](https://github.com/deepsealabs/libdc-swift), which brings
 [libdivejson](https://github.com/divejson/divejson-c), which reads each downloaded dive into
 DiveJSON exactly as the server reads the same original. It
 talks to the [opendiving-api](https://github.com/opendiving/opendiving-api) REST API
-with the same passwordless sign-in as the web app, by the email's code or link.
+with the same passwordless sign-in as the web app, by the email's code or link, and by a passkey
+where the build carries the server's associated domain.
 
 It needs a server released after v0.7.0, one that applies an import in one request: the app asks
 at sign-in for a session that lasts while the phone is offline, which an older server refuses,

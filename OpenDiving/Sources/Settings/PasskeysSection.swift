@@ -2,7 +2,7 @@ import OpenDivingKit
 import SwiftUI
 
 /// The passkeys, each renamed in its row or removed after a confirmation, from its context menu
-/// or a swipe. Nothing here adds one.
+/// or a swipe, and *Add passkey* where the build is associated with the server.
 struct PasskeysSection: View {
   let model: PasskeysModel
   @Environment(Session.self) private var session
@@ -29,15 +29,33 @@ struct PasskeysSection: View {
             row(passkey)
           }
         }
+        if model.canAdd {
+          Button {
+            Task { await model.add() }
+          } label: {
+            HStack {
+              Label(row: PasskeysModel.addButton, icon: .plus)
+              if model.isAdding {
+                Spacer()
+                BubbleSpinner()
+              }
+            }
+          }
+          .accentRow()
+          .disabled(model.isBusy || model.rename.editing != nil)
+          .needsServer()
+        }
       } header: {
         Text("Passkeys")
       } footer: {
         VStack(alignment: .leading, spacing: 8) {
-          if let failure = model.rename.failure ?? model.removeFailure {
+          if let failure = model.rename.failure ?? model.removeFailure ?? model.addFailure {
             FieldMessage(failure)
           }
           Text(PasskeysModel.description)
-          Text(PasskeysModel.addedOnTheWeb)
+          if let note = model.note {
+            Text(note)
+          }
         }
       }
     }
@@ -129,4 +147,13 @@ extension View {
   }
   .task { await model.list.load() }
   .environment(AuthenticationPreviewData.session)
+}
+
+#Preview("Adding") {
+  @Previewable @State var model = PasskeysModel(session: AuthenticationPreviewData.adding)
+  List {
+    PasskeysSection(model: model)
+  }
+  .task { await model.list.load() }
+  .environment(AuthenticationPreviewData.adding)
 }
