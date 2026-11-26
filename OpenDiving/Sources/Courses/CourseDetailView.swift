@@ -165,7 +165,7 @@ private struct CourseDetailContent: View {
 }
 
 /// The certifications the course issued, a card each as More's *Certifications* draws them, each
-/// opening its pane; while it has none, the Info tab's *Add certifications*. A course with no
+/// opening its pane; while it has none, the top bar's *Add certifications*. A course with no
 /// agency offers it too, where the web hides its card: the tab is there for every course, and the
 /// diver who opens it is asking for its cards.
 private struct CourseCertificationsSection: View {
