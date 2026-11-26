@@ -9,6 +9,10 @@ public struct ContactUpdate: Codable, Hashable, Sendable {
   public var email: Patch<String>
   /// Replaces the contact's links whole; never sent as null.
   public var links: [WebLink]?
+  /// Only an update the previous build queued holds it, and sends it as queued: the API applies
+  /// it to the contact's first link while that build's outbox can still hold one. No form sets
+  /// it.
+  public var website: Patch<String>
   public var notes: String?
   public var latitude: Patch<Double>
   public var longitude: Patch<Double>
@@ -18,6 +22,7 @@ public struct ContactUpdate: Codable, Hashable, Sendable {
   public init() {
     phone = .absent
     email = .absent
+    website = .absent
     latitude = .absent
     longitude = .absent
     address = .absent

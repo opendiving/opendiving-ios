@@ -11,6 +11,9 @@ public struct ContactCreate: Codable, Hashable, Sendable {
   /// In the diver's order; nil sends none, so a create queued before records carried links
   /// encodes as it was queued.
   public var links: [WebLink]?
+  /// Only a create the previous build queued holds it, and sends it as queued: the API takes it
+  /// as the contact's first link while that build's outbox can still hold one. No form sets it.
+  public var website: String?
   public var address: ContactAddressWrite?
 
   public init(
