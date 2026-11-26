@@ -64,10 +64,12 @@ struct SignInViewTests {
     #expect(try await Self.title(of: SignInView(), session, flow) == "Sign In")
   }
 
-  @Test func aBuildWithTheAssociationOffNamesNoDomain() {
-    #expect(
-      Bundle.main.object(forInfoDictionaryKey: "OpenDivingAssociatedDomain") as? String == "")
-    #expect(Session.device().passkeyAssociation == nil)
+  /// Whatever the signing file says: the device's session offers a passkey on the host of the
+  /// build's domain line, and on none with the line empty.
+  @Test func theDevicesSessionReadsTheBuildsDomainLine() {
+    let line = Bundle.main.object(forInfoDictionaryKey: "OpenDivingAssociatedDomain") as? String
+    #expect(line != nil)
+    #expect(Session.device().passkeyAssociation?.host == PasskeyAssociation.host(line))
   }
 
   @Test func theCodeScreen() async throws {
