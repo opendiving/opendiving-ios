@@ -108,7 +108,7 @@ private struct GearListContent: View {
           VStack(spacing: 0) {
             ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
               if index > 0 {
-                Divider().padding(.leading, 12)
+                ListRowDivider(leading: 12, trailing: 12)
               }
               NavigationLink {
                 GearItemDetailView(gearItemUUID: item.uuid)

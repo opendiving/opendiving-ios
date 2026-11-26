@@ -478,7 +478,7 @@ struct SiteFinderView<Site: View, SiteAction: View, Bar: ToolbarContent>: View {
         LazyVStack(spacing: 0) {
           ForEach(model.rows) { row in
             if row.id != model.rows.first?.id {
-              Divider().padding(.leading, SiteFinderRow.textLeading)
+              ListRowDivider(leading: SiteFinderRow.textLeading, trailing: SiteFinderRow.padding)
             }
             rowView(row)
               .onAppear { Task { await model.loadMore(after: row) } }
@@ -816,7 +816,7 @@ private struct HandleValue: ViewModifier {
 private struct SiteFinderRow: View {
   let content: SiteFinderRowContent
 
-  private static let padding: Double = 12
+  static let padding: Double = 12
   private static let iconWidth: Double = 24
   /// Where the name starts, which the separators between rows start under.
   static let textLeading = padding + iconWidth + padding

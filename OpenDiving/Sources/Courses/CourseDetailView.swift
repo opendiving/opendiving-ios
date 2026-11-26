@@ -251,7 +251,7 @@ private struct CourseInformationCard: View {
       VStack(spacing: 0) {
         ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
           if index > 0 {
-            Divider().padding(.leading, 52)
+            ListRowDivider(leading: 52, trailing: 16)
           }
           view(row)
         }
