@@ -12,13 +12,16 @@ struct CommonsLoadingMark: View {
   @State private var spinStart = Date.now
   @State private var changedAt = Date.distantPast
   @State private var blendAtChange = 0.0
-  /// The blend has reached the mark or the spinner since `isLoading` last changed.
+  /// The morph has had its time since `isLoading` last changed, whatever frame was last drawn.
   @State private var isSettled = true
 
   var body: some View {
-    TimelineView(.animation(paused: reduceMotion || (isSettled && !isLoading))) { timeline in
-      let blend = reduceMotion ? (isLoading ? 1 : 0) : blend(at: timeline.date, loading: isLoading)
-      let elapsed = reduceMotion ? 0 : timeline.date.timeIntervalSince(spinStart)
+    let isStill = reduceMotion || (isSettled && !isLoading)
+    TimelineView(.animation(paused: isStill)) { timeline in
+      // A paused timeline keeps the date of the last frame it drew, which a main thread busy with
+      // the sites that just loaded can leave partway back to the mark: still, it draws the end.
+      let blend = isStill ? (isLoading ? 1 : 0) : blend(at: timeline.date, loading: isLoading)
+      let elapsed = isStill ? 0 : timeline.date.timeIntervalSince(spinStart)
       Canvas { context, size in
         let scale = min(size.width, size.height) / 24
         context.translateBy(x: size.width / 2, y: size.height / 2)
