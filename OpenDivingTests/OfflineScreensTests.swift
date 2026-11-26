@@ -104,7 +104,7 @@ struct OfflineScreensTests {
       ProfileDives.list($0)
     }
     #expect(result.shown == 1)
-    #expect(result.lastUpdated == nil)
+    #expect(result.lastUpdated != nil)
     #expect(result.afterRelease == 1)
     #expect(result.lastUpdatedAfter != nil)
   }
@@ -121,7 +121,7 @@ struct OfflineScreensTests {
   @Test func theTripsListShowsWhatItLastLoadedBeforeTheFetchAnswers() async throws {
     let result = try await showsItsCopy(page: "GET trips", F.page(F.trip)) { ProfileTrips.list($0) }
     #expect(result.shown == 1)
-    #expect(result.lastUpdated == nil)
+    #expect(result.lastUpdated != nil)
     #expect(result.afterRelease == 1)
     #expect(result.lastUpdatedAfter != nil)
   }
@@ -144,7 +144,7 @@ struct OfflineScreensTests {
       session: F.signedIn(directory, transport: held), diveUUID: DivePreviewData.diveUUID)
     let load = Task { await model.load() }
     #expect(await F.eventually { model.dive != nil })
-    #expect(model.lastUpdated == nil)
+    #expect(model.lastUpdated != nil)
     held.release()
     await load.value
     #expect(model.dive?.uuid == DivePreviewData.diveUUID)

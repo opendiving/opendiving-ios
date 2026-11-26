@@ -11,12 +11,11 @@ public final class StorageModel {
   public private(set) var usage: StorageUsageRead?
   /// Why the last read failed, shown while there is no usage to show.
   public private(set) var loadFailure: String?
-  /// When the usage shown was fetched, once it is the cache's and no read is on its way. A read
-  /// that lands replaces it with nothing to say.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the cache's copy on screen was fetched; nil once a read has landed.
   private var fetchedAt: Date?
-  private var isReading = false
 
   @ObservationIgnored private let session: Session
 
@@ -25,16 +24,12 @@ public final class StorageModel {
     if let entry = AccountStores.current(session)?.cache.kept(.storage, of: StorageUsageRead.self) {
       usage = entry.value
       fetchedAt = entry.fetchedAt
-      // Its screen reads it at once: until then the copy is not yet behind a failed read.
-      isReading = true
     }
   }
 
   /// `GET /user/storage`. With no route nothing is asked for: a usage already shown stays.
   public func load() async {
     let stores = AccountStores.current(session)
-    isReading = true
-    defer { isReading = false }
     do {
       let usage = try await session.routedClient().storage()
       self.usage = usage

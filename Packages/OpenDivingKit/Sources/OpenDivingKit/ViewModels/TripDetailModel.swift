@@ -15,14 +15,11 @@ import Observation
 public final class TripDetailModel: AccountStoresObserver, AccountListsObserver {
   public let tripUUID: UUID
   public private(set) var phase: DetailPhase<TripRead> = .loading
-  /// When the trip shown was fetched, once it is the cache's and no read of this visit's is on
-  /// its way: offline, or after the read behind it failed. A read that lands replaces it with
-  /// nothing to say, so the line saying how old it is would show only to go again.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
   private(set) var fetchedAt: Date?
-  /// A read is on its way.
-  private var isReading = false
   /// The contacts read so far, by uuid. One that failed to read is left out, and the card
   /// draws the part or the line without it.
   public private(set) var contacts: [UUID: ContactRead] = [:]
@@ -115,8 +112,6 @@ public final class TripDetailModel: AccountStoresObserver, AccountListsObserver 
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
-    isReading = true
-    defer { isReading = false }
     do {
       let trip = try await session.routedClient().trip(tripUUID)
       skippedForRoute = false

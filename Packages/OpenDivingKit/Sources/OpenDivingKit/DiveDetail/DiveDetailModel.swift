@@ -31,14 +31,11 @@ public final class DiveDetailModel: AccountStoresObserver {
   public private(set) var neighbors: DiveNeighbors?
   /// A step of the pager is on its way; the dive being left stays on screen until it lands.
   public private(set) var isStepping = false
-  /// When the dive shown was fetched, once it is the cache's and no read of this visit's is on
-  /// its way: offline, or after the read behind it failed. A read that lands replaces it with
-  /// nothing to say, so the line saying how old it is would show only to go again.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the dive shown was fetched, while it is the cache's rather than this visit's.
   public private(set) var fetchedAt: Date?
-  /// A read of the dive is on its way.
-  private var isReading = false
   /// Why the fetch behind a cached dive failed; the cached dive stays on screen.
   public private(set) var refreshError: APIError?
   /// The queue holds an edit of this dive, which the dive shown already carries.
@@ -108,11 +105,9 @@ public final class DiveDetailModel: AccountStoresObserver {
     if !onScreen {
       if case .loaded = phase { isStepping = true } else { phase = .loading }
     }
-    isReading = true
     defer {
       if generation == self.generation {
         isStepping = false
-        isReading = false
       }
     }
 
@@ -141,7 +136,6 @@ public final class DiveDetailModel: AccountStoresObserver {
     skippedForRoute = false
     if !onScreen { (trip, course, contact) = (nil, nil, nil) }
     fetchedAt = nil
-    isReading = false
     let answeredAt = Date()
     show(dive, at: answeredAt)
     isStepping = false

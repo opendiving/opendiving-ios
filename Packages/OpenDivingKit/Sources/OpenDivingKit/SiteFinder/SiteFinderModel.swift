@@ -147,12 +147,9 @@ public final class SiteFinderModel {
     points = DiveSitePointsModel(session: form.session)
   }
 
-  /// When the rows shown were fetched, once they are kept pages no request will replace: the sites
-  /// map opens on its kept pages, and rows stay on screen while the next list is on its way, which
-  /// says nothing about how old they are until that request has failed.
-  public var lastUpdated: Date? {
-    isOpening || isSearching ? nil : list?.lastUpdated
-  }
+  /// When the rows shown were fetched, while they are kept pages: the sites map opens on its kept
+  /// pages, and rows stay on screen, saying how old they are, while the next list is on its way.
+  public var lastUpdated: Date? { list?.lastUpdated }
 
   /// The rows to show, in the server's order.
   public var rows: [DiveSiteSearchRow] {

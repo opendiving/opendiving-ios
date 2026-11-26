@@ -58,10 +58,9 @@ public final class PagedList<Item: Codable & Sendable> {
   }
   /// A later page, or a refresh, failed while earlier items stay on screen.
   public private(set) var pageError: APIError? = nil
-  /// When the kept pages shown were fetched, once no read a route may answer is on its way:
-  /// offline, or after the read behind them failed. A read that lands replaces them with nothing
-  /// to say, so the line saying how old they are would show only to go again.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the items shown were fetched, while they are the cache's rather than this visit's.
   private(set) var fetchedAt: Date? = nil
   /// When the read behind the items shown began, once one has landed: they are what the server
@@ -69,8 +68,6 @@ public final class PagedList<Item: Codable & Sendable> {
   private(set) var readSince: Date? = nil
   /// The server's count of every row, from the latest page read.
   private var totalCount: Int? = nil
-  /// A read of every page is on its way, begun while the phone believed it had a route.
-  private var isReading = false
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let itemsPerPage: Int
@@ -204,11 +201,9 @@ public final class PagedList<Item: Codable & Sendable> {
     // A later page on its way belongs to the pages this replaces, and is dropped when it lands.
     isLoadingMore = false
     isReloadingPages = true
-    isReading = session.connectivity.isRouteAvailable
     defer {
       if generation == self.generation {
         isReloadingPages = false
-        isReading = false
       }
     }
     if fetched.isEmpty { phase = .loading }

@@ -18,11 +18,11 @@ public final class OptionalList<Value: Sendable> {
   public private(set) var isAbsent = false
   /// Why the last read failed, until one lands.
   public private(set) var failure: String?
-  /// When the value shown was fetched, once it is the cache's and no read is on its way.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the cache's copy on screen was fetched; nil once a read has landed.
   private var fetchedAt: Date?
-  private var isReading = false
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let read: @Sendable (APIClient) async throws -> Value
@@ -46,15 +46,11 @@ public final class OptionalList<Value: Sendable> {
     if let entry = AccountStores.current(session)?.cache.kept(setting, of: Value.self) {
       value = entry.value
       fetchedAt = entry.fetchedAt
-      // Its screen reads it at once: until then the copy is not yet behind a failed read.
-      isReading = true
     }
   }
 
   public func load() async {
     let stores = AccountStores.current(session)
-    isReading = true
-    defer { isReading = false }
     do {
       let client = try session.routedClient()
       let read = read
