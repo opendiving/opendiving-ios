@@ -116,7 +116,7 @@ struct PasskeysModelTests {
     harness.connectivity.isRouteAvailable = false
     let model = PasskeysModel(session: harness.session)
     #expect(model.list.value?.map(\.name) == ["Work phone", "YubiKey"])
-    #expect(model.list.lastUpdated == nil)
+    #expect(model.list.lastUpdated != nil)
     await model.list.load()
     #expect(model.list.value?.map(\.name) == ["Work phone", "YubiKey"])
     #expect(model.list.lastUpdated != nil)

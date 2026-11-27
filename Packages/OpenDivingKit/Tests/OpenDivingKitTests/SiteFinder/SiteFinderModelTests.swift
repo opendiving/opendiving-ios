@@ -555,8 +555,7 @@ struct SiteFinderModelTests {
     while locator.asked == 0 { await Task.yield() }
     #expect(again.isOpening)
     #expect(again.rows.count == 3)
-    #expect(again.list?.lastUpdated != nil)
-    #expect(again.lastUpdated == nil)
+    #expect(again.lastUpdated != nil)
     #expect(searches.queries.count == 1)
     locator.isHeld = false
     await opening.value

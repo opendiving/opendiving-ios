@@ -13,14 +13,11 @@ import Observation
 public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObserver {
   public let siteUUID: UUID
   public private(set) var phase: DetailPhase<DiveSiteRead> = .loading
-  /// When the site shown was fetched, once it is the cache's and no read of this visit's is on
-  /// its way: a read that lands replaces it with nothing to say, so the line saying how old it is
-  /// would show only to go again.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
   private var fetchedAt: Date?
-  /// A read of the site is on its way.
-  private var isReading = false
   public let dives: PagedList<DiveListItem>
   public private(set) var species: SpeciesSeen = .none
   public let photos: SpeciesCardPhotos
@@ -118,8 +115,6 @@ public final class DiveSiteDetailModel: AccountStoresObserver, ReloadingListObse
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
-    isReading = true
-    defer { isReading = false }
     do {
       let site = try await session.routedClient().diveSite(siteUUID)
       skippedForRoute = false

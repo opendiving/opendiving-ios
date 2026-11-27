@@ -123,9 +123,9 @@ struct OfflinePagesTests {
       world.server.count("GET dive-site/\(siteUUID.uuidString.lowercased())", since: mark) == 1)
   }
 
-  /// The kept copy shows at once, and how old it is only once the read for a newer one has failed:
-  /// a read that lands would take the line away again as soon as it showed.
-  @Test func aKeptSitesAgeShowsOnlyOnceItsReadFails() async throws {
+  /// The kept copy shows at once with how old it is, which stands through the read for a newer
+  /// one, and through its failure.
+  @Test func aKeptSitesAgeShowsUntilAReadLands() async throws {
     let first = try world()
     try await first.load()
     await DiveSiteDetailModel(session: first.session, siteUUID: siteUUID).load()
@@ -144,7 +144,7 @@ struct OfflinePagesTests {
     let loading = Task { await model.load() }
     while !asked.withLock({ $0 }) { await Task.yield() }
     #expect(model.phase.isLoaded)
-    #expect(model.lastUpdated == nil)
+    #expect(model.lastUpdated != nil)
     gate.isHeld = false
     await loading.value
     #expect(model.phase.isLoaded)
@@ -238,7 +238,7 @@ struct OfflinePagesTests {
     #expect(model.photos[entry.uuid] == Data([1, 2, 3]))
   }
 
-  @Test func aKeptTripsAgeShowsOnlyOnceItsReadFails() async throws {
+  @Test func aKeptTripsAgeShowsUntilAReadLands() async throws {
     let first = try world()
     try await first.load()
     await TripDetailModel(session: first.session, tripUUID: tripUUID).load()
@@ -257,7 +257,7 @@ struct OfflinePagesTests {
     let loading = Task { await model.load() }
     while !asked.withLock({ $0 }) { await Task.yield() }
     #expect(model.phase.isLoaded)
-    #expect(model.lastUpdated == nil)
+    #expect(model.lastUpdated != nil)
     gate.isHeld = false
     await loading.value
     #expect(model.phase.isLoaded)

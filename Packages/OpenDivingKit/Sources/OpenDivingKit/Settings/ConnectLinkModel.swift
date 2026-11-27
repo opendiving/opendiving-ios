@@ -22,9 +22,8 @@ public final class ConnectLinkModel {
   public private(set) var isLinkRead = false
   /// Why the last read of the link failed.
   public private(set) var linkLoadFailure: String?
-  /// When the link shown was fetched, once it is the cache's and no read of it is on its way.
+  /// When the cache's copy of the link on screen was fetched; nil once a read has landed.
   private var linkFetchedAt: Date?
-  private var isReadingLink = false
   /// The change waiting for the diver to confirm it.
   public var confirmingLink: LinkChange?
   public private(set) var isChangingLink = false
@@ -48,18 +47,15 @@ public final class ConnectLinkModel {
         isLinkRead = true
         linkFetchedAt = entry.fetchedAt
       }
-      // The pane reads the link as it opens: until then its copy is not yet behind a failed read.
-      isReadingLink = linkFetchedAt != nil
     }
   }
 
-  /// When the link shown was fetched; nil once it is not the phone's copy.
-  public var lastUpdated: Date? { isReadingLink ? nil : linkFetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { linkFetchedAt }
 
   public func load() async {
     let stores = AccountStores.current(session)
-    isReadingLink = true
-    defer { isReadingLink = false }
     do {
       let link = try await session.routedClient().connectLink()
       linkLoadFailure = nil

@@ -13,11 +13,11 @@ public final class TagsModel: ReloadingListObserver {
   public private(set) var tags: [TagRead]?
   /// Why the last read failed, shown while there are no tags to show.
   public private(set) var loadFailure: String?
-  /// When the tags shown were fetched, once they are the cache's and no read is on its way.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the cache's copy on screen was fetched; nil once a read has landed.
   private var fetchedAt: Date?
-  private var isReading = false
   public let rename = InlineRename<UUID>(maxLength: DiveFormBounds.tagMax)
   /// The tag waiting for the diver to confirm its delete.
   public var confirmingDelete: TagRead?
@@ -33,8 +33,6 @@ public final class TagsModel: ReloadingListObserver {
     if let entry = AccountStores.current(session)?.cache.kept(.tags, of: [TagRead].self) {
       tags = entry.value
       fetchedAt = entry.fetchedAt
-      // Its screen reads it at once: until then the copy is not yet behind a failed read.
-      isReading = true
     }
   }
 
@@ -62,8 +60,6 @@ public final class TagsModel: ReloadingListObserver {
   /// and without any the screen says it needs a connection; ``followRoute()`` reads again.
   public func load() async {
     let stores = AccountStores.current(session)
-    isReading = true
-    defer { isReading = false }
     do {
       let client = try session.routedClient()
       let tags = try await APIClient.allPages { page, perPage in

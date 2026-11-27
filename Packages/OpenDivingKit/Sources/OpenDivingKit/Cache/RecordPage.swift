@@ -18,14 +18,11 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
 
   public let uuid: UUID
   public private(set) var phase: DetailPhase<Record> = .loading
-  /// When the record shown was fetched, once it is the cache's and no read of this visit's is on
-  /// its way: offline, or after the read behind it failed. A read that lands replaces it with
-  /// nothing to say, so the line saying how old it is would show only to go again.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the cache's copy on screen was fetched; nil once this visit's read has landed.
   private(set) var fetchedAt: Date?
-  /// A read is on its way.
-  private var isReading = false
   /// The queue holds a change to this record, which the page shows once it lands.
   public private(set) var hasPendingEdit = false
 
@@ -89,8 +86,6 @@ public final class RecordPage<Record: Codable & Hashable & Sendable> {
     let wasLoaded = phase.isLoaded
     if !wasLoaded { phase = .loading }
     let stores = AccountStores.current(session)
-    isReading = true
-    defer { isReading = false }
     do {
       let record = try await fetch(session.routedClient(), uuid)
       skippedForRoute = false

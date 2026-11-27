@@ -34,7 +34,7 @@ struct OfflineCacheTests {
     let loading = Task { await offline.load() }
     await gate.untilArrived()
     #expect(offline.items.map(\.id) == online.items.map(\.id))
-    #expect(offline.lastUpdated == nil)
+    #expect(offline.lastUpdated == offline.fetchedAt)
     #expect(offline.fetchedAt != nil)
     #expect(offline.phase == .loaded)
     await gate.open()
@@ -112,7 +112,7 @@ struct OfflineCacheTests {
     let loading = Task { await offline.load() }
     await gate.untilArrived()
     #expect(offline.dive == shown)
-    #expect(offline.lastUpdated == nil)
+    #expect(offline.lastUpdated == offline.fetchedAt)
     #expect(offline.fetchedAt != nil)
     await gate.open()
     await loading.value

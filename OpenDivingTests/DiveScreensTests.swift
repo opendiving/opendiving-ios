@@ -45,7 +45,9 @@ struct DiveScreensTests {
     ])
     let session = Session.stub(transport: transport)
     let window = host(
-      NavigationStack { ProfileView(avatar: AvatarModel(session: session)) }, session: session)
+      NavigationStack {
+        ProfileView(page: ProfilePage(session: session, avatar: AvatarModel(session: session)))
+      }, session: session)
     defer { window?.isHidden = true }
     #expect(window != nil)
     #expect(await waitFor("GET dives", on: transport))

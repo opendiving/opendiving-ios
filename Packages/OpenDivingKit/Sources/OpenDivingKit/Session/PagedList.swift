@@ -58,10 +58,9 @@ public final class PagedList<Item: Codable & Sendable> {
   }
   /// A later page, or a refresh, failed while earlier items stay on screen.
   public private(set) var pageError: APIError? = nil
-  /// When the kept pages shown were fetched, once no read a route may answer is on its way:
-  /// offline, or after the read behind them failed. A read that lands replaces them with nothing
-  /// to say, so the line saying how old they are would show only to go again.
-  public var lastUpdated: Date? { isReading ? nil : fetchedAt }
+  /// When the phone's copy on screen was fetched, until a read lands in its place: the line
+  /// saying how old it is stands while that read is on its way, and through one that fails.
+  public var lastUpdated: Date? { fetchedAt }
   /// When the items shown were fetched, while they are the cache's rather than this visit's.
   private(set) var fetchedAt: Date? = nil
   /// When the read behind the items shown began, once one has landed: they are what the server
@@ -69,8 +68,6 @@ public final class PagedList<Item: Codable & Sendable> {
   private(set) var readSince: Date? = nil
   /// The server's count of every row, from the latest page read.
   private var totalCount: Int? = nil
-  /// A read of every page is on its way, begun while the phone believed it had a route.
-  private var isReading = false
 
   @ObservationIgnored private let session: Session
   @ObservationIgnored private let itemsPerPage: Int
@@ -86,6 +83,8 @@ public final class PagedList<Item: Codable & Sendable> {
   @ObservationIgnored private var isReloadingPages = false
   /// The reload a change to the account's records started.
   @ObservationIgnored var reloading: Task<Void, Never>?
+  /// The pages shown may have changed elsewhere since they were read, until a read lands.
+  @ObservationIgnored private var isStale = false
   @ObservationIgnored private var watchesAccount = false
 
   public init(
@@ -204,11 +203,9 @@ public final class PagedList<Item: Codable & Sendable> {
     // A later page on its way belongs to the pages this replaces, and is dropped when it lands.
     isLoadingMore = false
     isReloadingPages = true
-    isReading = session.connectivity.isRouteAvailable
     defer {
       if generation == self.generation {
         isReloadingPages = false
-        isReading = false
       }
     }
     if fetched.isEmpty { phase = .loading }
@@ -237,6 +234,7 @@ public final class PagedList<Item: Codable & Sendable> {
       pageError = nil
       fetchedAt = nil
       readSince = began
+      isStale = false
       phase = .loaded
       keep(fetchedUnder: stores, firstPage: true)
     } catch {
@@ -252,18 +250,26 @@ public final class PagedList<Item: Codable & Sendable> {
   }
 
   /// The first page if none was asked for, or every page shown again when what is shown is
-  /// kept pages or a failure: for the page that owns a `routed` list, once a route appears, and
-  /// for a list shown again, whose last read a cancelled task may have cut short behind the kept
-  /// pages. A list that reads every page and is fresh reads the pages a cancelled task left
-  /// unread.
+  /// kept pages, a failure, or marked ``markStale()``: for the page that owns a `routed` list,
+  /// once a route appears, and for a list shown again, whose last read a cancelled task may have
+  /// cut short behind the kept pages. A list that reads every page and is fresh reads the pages a
+  /// cancelled task left unread.
   public func rereadIfStale() async {
     switch phase {
     case .loading: return
     case .idle: return await load()
     case .failed: break
-    case .loaded: guard fetchedAt != nil || pageError != nil else { return await readRest() }
+    case .loaded:
+      guard fetchedAt != nil || pageError != nil || isStale else { return await readRest() }
     }
     await loadPages(through: max(nextPage - 1, 1))
+  }
+
+  /// The pages shown may have changed elsewhere since they were read, as they may have for a
+  /// list kept while its page is away: the next ``rereadIfStale()`` reads every page shown again,
+  /// behind them, as one would for kept pages. A read cut short leaves the mark.
+  public func markStale() {
+    isStale = true
   }
 
   private func client() throws -> APIClient {

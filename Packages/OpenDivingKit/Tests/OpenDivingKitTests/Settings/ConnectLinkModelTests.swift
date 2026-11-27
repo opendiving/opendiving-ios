@@ -133,8 +133,7 @@ struct ConnectLinkModelTests {
     let model = ConnectLinkModel(session: harness.session)
     #expect(model.link?.token == ConnectLinkServer.token(0))
     #expect(model.isLinkRead)
-    // The copy does not say how old it is before the read the pane starts at once.
-    #expect(model.lastUpdated == nil)
+    #expect(model.lastUpdated != nil)
     await model.load()
     #expect(model.link?.token == ConnectLinkServer.token(0))
     #expect(model.lastUpdated != nil)
